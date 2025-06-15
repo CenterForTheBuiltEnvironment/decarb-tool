@@ -5,10 +5,9 @@
     <img src="assets/img/logo-preliminary.png" alt="Decarb Tool Logo" width="auto" height="80">
   </a>
 
-  <h2 align="center">Berkeley Decarb Web Tool</h3>
+  <h2 align="center">Berkeley Decarb Web Tool</h2>
 
   <p align="center">
-    - This is a web tool for estimating the emissions reduction from using different equipment to serve space heating and cooling loads. -
     <br />
     <a href="https://github.com/CenterForTheBuiltEnvironment/cbe-tool-template"><strong>Explore the docs »</strong></a>
     <br />

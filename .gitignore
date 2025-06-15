@@ -1,1 +1,15 @@
+# VS Code settings
+.vscode/
+
+# venv directories
 venv/
+env/
+.venv/
+
+# macOS specific files
+.DS_Store
+
+# Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
