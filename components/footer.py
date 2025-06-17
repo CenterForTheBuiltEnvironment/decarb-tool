@@ -45,7 +45,7 @@ def cbe_footer():
                             ),
                             html.A(
                                 html.Img(
-                                    src="../assets/img/linkedin-white.png",
+                                    src="../assets/img/linkedin-white-transparent.png",
                                     alt="LinkedIn",
                                 ),
                                 href="#",
