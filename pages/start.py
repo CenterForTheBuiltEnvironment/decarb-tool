@@ -32,6 +32,15 @@ def layout():
                             select_location(),
                             html.Hr(),
                             select_load_data(),
+                            html.Hr(),
+                            dbc.Button(
+                                "Specify Equipment",
+                                color="secondary",
+                            ),
+                            dbc.Button(
+                                "Calculate Emissions",
+                                color="primary",
+                            ),
                         ],
                         width=5,
                     ),

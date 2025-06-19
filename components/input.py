@@ -25,7 +25,37 @@ def select_load_data():
                 "2. Load Data",
             ),
             html.Br(),
-            html.Div(),
+            html.P("Select the type of load data you want to use for analysis."),
+            html.Br(),
+            dbc.Accordion(
+                [
+                    dbc.AccordionItem(
+                        [
+                            html.P(
+                                "Use pre-simulated data for different building types."
+                            ),
+                            dbc.Button("Select Pre-Simulated Data", color="secondary"),
+                        ],
+                        title="Pre-Simulated Data",
+                    ),
+                    dbc.AccordionItem(
+                        [
+                            html.P("Use measured data from real buildings."),
+                            dbc.Button("Select building", color="secondary"),
+                        ],
+                        title="Measured Data",
+                    ),
+                    dbc.AccordionItem(
+                        [
+                            html.P("Upload your own hourly load data."),
+                            dbc.Button("Upload Custom Data", color="secondary"),
+                        ],
+                        title="Upload Custom Data",
+                    ),
+                ],
+                start_collapsed=True,
+                flush=True,
+            ),
         ]
     )
 
