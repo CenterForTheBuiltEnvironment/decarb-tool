@@ -2,6 +2,34 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 
+def select_location():
+    return html.Div(
+        [
+            dbc.Label(
+                "1. Building Location",
+            ),
+            html.Br(),
+            dbc.Input(
+                type="text",
+                placeholder="Enter location...",
+                id="location-input",
+            ),
+        ]
+    )
+
+
+def select_load_data():
+    return html.Div(
+        [
+            dbc.Label(
+                "2. Load Data",
+            ),
+            html.Br(),
+            html.Div(),
+        ]
+    )
+
+
 def emission_rate_dropdown():
     return html.Div(
         [
