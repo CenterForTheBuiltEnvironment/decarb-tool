@@ -34,7 +34,11 @@ def select_load_data():
                             html.P(
                                 "Use pre-simulated data for different building types."
                             ),
-                            dbc.Button("Select Pre-Simulated Data", color="secondary"),
+                            dbc.Button(
+                                "Select Pre-Simulated Data",
+                                color="secondary",
+                                id="open-load-simulation-data-modal",
+                            ),
                         ],
                         title="Pre-Simulated Data",
                     ),
@@ -57,6 +61,39 @@ def select_load_data():
                 flush=True,
             ),
         ]
+    )
+
+
+def modal_load_simulation_data():
+    return dbc.Modal(
+        [
+            dbc.ModalHeader("Select Pre-Simulated Data"),
+            dbc.ModalBody(
+                [
+                    html.P("Choose a building type:"),
+                    dbc.RadioItems(
+                        options=[
+                            {"label": "Residential", "value": "residential"},
+                            {"label": "Commercial", "value": "commercial"},
+                            {"label": "Industrial", "value": "industrial"},
+                        ],
+                        value="residential",
+                        id="building-type-radio",
+                    ),
+                    html.Br(),
+                    dbc.Button("Load Data", color="primary", id="load-data-button"),
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "Close",
+                    id="button-close-simulation-data-modal",
+                    className="ml-auto",
+                )
+            ),
+        ],
+        id="modal-load-simulation-data",
+        size="lg",
     )
 
 

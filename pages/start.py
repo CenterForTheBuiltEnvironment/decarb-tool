@@ -1,10 +1,14 @@
 import dash
-from dash import html
+from dash import html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
 from utils.config import URLS
 
-from components.input import select_location, select_load_data
+from components.input import (
+    select_location,
+    select_load_data,
+    modal_load_simulation_data,
+)
 
 dash.register_page(__name__, path=URLS.HOME.value, order=0)
 
@@ -32,6 +36,7 @@ def layout():
                             select_location(),
                             html.Hr(),
                             select_load_data(),
+                            modal_load_simulation_data(),
                             html.Hr(),
                             dbc.Button(
                                 "Specify Equipment",
@@ -52,3 +57,17 @@ def layout():
             ),
         ]
     )
+
+
+@callback(
+    Output("modal-load-simulation-data", "is_open"),
+    [
+        Input("open-load-simulation-data-modal", "n_clicks"),
+        Input("button-close-simulation-data-modal", "n_clicks"),
+    ],
+    [State("modal-load-simulation-data", "is_open")],
+)
+def toggle_modal(open_clicks, close_clicks, is_open):
+    if open_clicks or close_clicks:
+        return not is_open
+    return is_open
