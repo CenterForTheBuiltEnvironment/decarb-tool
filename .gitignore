@@ -13,3 +13,7 @@ env/
 *.pyc
 *.pyo
 __pycache__/
+
+*.ipynb
+
+docs/

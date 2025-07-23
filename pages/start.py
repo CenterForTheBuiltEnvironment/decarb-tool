@@ -1,5 +1,5 @@
 import dash
-from dash import html, Input, Output, State, callback
+from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
 from utils.config import URLS
@@ -50,7 +50,7 @@ def layout():
                         width=5,
                     ),
                     dbc.Col(
-                        [],
+                        [dcc.Graph(id="map-graph")],
                         width=7,
                     ),
                 ],
