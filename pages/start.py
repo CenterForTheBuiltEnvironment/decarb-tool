@@ -2,7 +2,7 @@ import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
-from utils.config import URLS
+from src.config import URLS
 
 from components.input import (
     select_location,

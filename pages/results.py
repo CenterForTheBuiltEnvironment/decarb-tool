@@ -2,7 +2,7 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-from utils.config import URLS
+from src.config import URLS
 
 from components.input import (
     emission_rate_dropdown,

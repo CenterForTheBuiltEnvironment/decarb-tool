@@ -28,7 +28,7 @@ boilers = pd.DataFrame({"model": ["GenericBoiler"], "eff": [0.85]})
 
 
 def loads_to_site_energy(
-    equip_scenario: pd.Series, df: pd.DataFrame, detail: bool = True
+    equip_scenario: pd.Series, loads: pd.DataFrame, detail: bool = True
 ) -> pd.DataFrame:
     """
     Convert building heating and cooling loads into site energy consumption
@@ -46,11 +46,11 @@ def loads_to_site_energy(
             - 'chiller_cop': float (optional)
         This series defines which technologies are active and how they should operate.
 
-    df : pd.DataFrame
+    loads : pd.DataFrame
         Hourly time-series DataFrame with at least the following columns:
             - 'datetime': datetime64[ns]
-            - 'hhw': float, heating hot water load [kWh]
-            - 'chw': float, chilled water load [kWh]
+            - 'hhw': float, heating hot water load [W]
+            - 'chw': float, chilled water load [W]
             - 'oa_t': float, outdoor air temperature [°C]
 
     detail : bool, default=True
@@ -94,7 +94,7 @@ def loads_to_site_energy(
 
     s = equip_scenario.copy()
 
-    df = df.copy()
+    df = loads.copy()
 
     # Initialize dataframe with required columns
     df = df.assign(
@@ -336,6 +336,18 @@ def loads_to_site_energy(
         # All CHW now served
         df["chw_remainder"] = 0.0
 
+        # Convert to kWh
+        for col in [
+            "elec",
+            "elec_hr",
+            "elec_awhp_h",
+            "elec_awhp_c",
+            "elec_res",
+            "elec_chiller",
+        ]:
+            if col in df:
+                df[col] = df[col] / 1000
+
     return df
 
 
@@ -442,17 +454,17 @@ def site_to_source(
     else:
         raise ValueError(f"Invalid emissions_type: {s['emissions_type']}")
 
-    # Add hour and month to join on
-    df["month"] = df["datetime"].dt.month
-    df["hour"] = df["datetime"].dt.hour
-
     # Join emissions rate
     df = df.merge(
-        grid_data[["month", "hour", "elec_emissions_rate"]],
-        on=["month", "hour"],
+        grid_data[["elec_emissions_rate"]],
+        left_index=True,
+        right_index=True,
         how="left",
     )
-    df.drop(columns=["month", "hour"], inplace=True)
+
+    # # Convert elec from Wh to kWh
+    # if "elec" in df.columns:
+    #     df["elec"] = df["elec"] / 1000
 
     # Calculate electricity emissions (kg CO₂e)
     df["elec_emissions"] = df["elec"] * df["elec_emissions_rate"] / 1_000_000

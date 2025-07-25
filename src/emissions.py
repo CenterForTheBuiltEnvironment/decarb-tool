@@ -1,12 +1,12 @@
 import pandas as pd
 
 
-def load_cambium_data(filepath, emissions_scenario: dict) -> pd.DataFrame:
+def load_cambium_data(file_path, emissions_scenario: dict) -> pd.DataFrame:
     """
     Load and filter Cambium data based on emissions_scenario dictionary.
 
     Parameters:
-    - filepath (str): Path to the Cambium CSV file (multi-scenario).
+    - file_path (str): Path to the Cambium CSV file (multi-scenario).
     - emissions_scenario (dict): Metadata used to filter the relevant scenario. Keys:
         - 'grid_region': e.g., 'CAISO'
         - 'grid_scenario': e.g., 'MidCase'
@@ -19,7 +19,7 @@ def load_cambium_data(filepath, emissions_scenario: dict) -> pd.DataFrame:
         'lrmer_co2e_c', 'lrmer_co2e_p', 'srmer_co2e_c', 'srmer_co2e_p']
     """
     # --- Step 1: Load file (skip metadata rows if needed) ---
-    df = pd.read_csv(filepath)
+    df = pd.read_csv(file_path)
 
     # --- Step 2: Filter by emissions_scenario ---
     scenario = emissions_scenario["grid_scenario"]
@@ -50,9 +50,6 @@ def load_cambium_data(filepath, emissions_scenario: dict) -> pd.DataFrame:
     df_filtered["datetime"] = pd.to_datetime(
         df_filtered["timestamp_local"], format="%m/%d/%y %H:%M", errors="coerce"
     )
-    df_filtered["month"] = df_filtered["datetime"].dt.month
-    df_filtered["day"] = df_filtered["datetime"].dt.day
-    df_filtered["hour"] = df_filtered["datetime"].dt.hour
 
     # --- Step 5: Assemble result ---
     result = pd.DataFrame(
@@ -60,15 +57,14 @@ def load_cambium_data(filepath, emissions_scenario: dict) -> pd.DataFrame:
             "grid_region": region,
             "grid_scenario": scenario,
             "grid_year": year,
-            "datetime": df_filtered["datetime"],
-            "month": df_filtered["month"],
-            "day": df_filtered["day"],
-            "hour": df_filtered["hour"],
+            "datetime": df_filtered["datetime"].astype("datetime64[ns]"),
             "lrmer_co2e_c": df_filtered[lrmer_c],
             "lrmer_co2e_p": df_filtered[lrmer_p],
             "srmer_co2e_c": df_filtered[srmer_c],
             "srmer_co2e_p": df_filtered[srmer_p],
         }
     )
+
+    result.set_index("datetime", inplace=True)
 
     return result
