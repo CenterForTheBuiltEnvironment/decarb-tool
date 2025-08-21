@@ -1,3 +1,4 @@
+annotated-types==0.7.0
 appnope==0.1.4
 asttokens==3.0.0
 atomicwrites==1.4.1
@@ -51,6 +52,8 @@ prompt_toolkit==3.0.51
 psutil==7.0.0
 ptyprocess==0.7.0
 pure_eval==0.2.3
+pydantic==2.11.7
+pydantic_core==2.33.2
 Pygments==2.19.2
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
@@ -68,6 +71,7 @@ sqlalchemy_mate==2.0.0.3
 stack-data==0.6.3
 tornado==6.5.1
 traitlets==5.14.3
+typing-inspection==0.4.1
 typing_extensions==4.14.0
 tzdata==2025.2
 urllib3==2.4.0
