@@ -1,0 +1,81 @@
+{
+  "equipment": [
+    {
+      "eq_id": "hp01",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "GenericAWHP",
+      "fuel": "electricity",
+      "capacity_kw": 100,
+      "performance": {
+        "cop_curve": {
+          "temperature_C": [-10, 0, 10, 20, 30],
+          "cop": [2.0, 2.5, 3.2, 3.8, 4.2],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "bo01",
+      "eq_type": "boiler",
+      "eq_subtype": "hot_water",
+      "model": "GenericBoiler",
+      "fuel": "natural_gas",
+      "capacity_kw": 200,
+      "performance": {
+        "efficiency": 0.88
+      },
+      "emissions": {
+        "co2_kg_per_mwh": 200
+      }
+    },
+    {
+      "eq_id": "ch01",
+      "eq_type": "chiller",
+      "model": "GenericChiller",
+      "fuel": "electricity",
+      "capacity_kw": 150,
+      "performance": {
+        "efficiency": 4.0
+      }
+    },
+    {
+      "eq_id": "res01",
+      "eq_type": "resistance_heater",
+      "model": "GenericResHeater",
+      "fuel": "electricity",
+      "capacity_kw": 50,
+      "performance": {
+        "efficiency": 1.0
+      }
+    }
+  ],
+
+  "equipment_scenarios": [
+    {
+      "eq_scen_id": "baseline_01",
+      "eq_scen_name": "Baseline System",
+      "hr_wwhp": null,
+      "awhp_h": "hp01",
+      "awhp_c": "hp01",
+      "awhp_sizing": 2,
+      "boiler": "bo01",
+      "chiller": "ch01",
+      "resistance_heater": "res01"
+    },
+    {
+      "eq_scen_id": "decarb_01",
+      "eq_scen_name": "Decarbonized HP Only",
+      "hr_wwhp": "hp01",
+      "awhp_h": "hp01",
+      "awhp_c": "hp01",
+      "awhp_sizing": 4,
+      "boiler": null,
+      "chiller": "ch01",
+      "resistance_heater": null
+    }
+  ]
+}
