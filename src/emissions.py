@@ -8,7 +8,7 @@ class StandardEmissions:
     """
     Unified interface for emissions data.
     Canonical schema:
-        emission_scenario | gea_grid_region | tz | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p
+        emission_scenario | gea_grid_region | time_zone | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -20,7 +20,7 @@ class StandardEmissions:
             "emission_scenario",
             "gea_grid_region",
             "year",
-            "tz",
+            "time_zone",
             "timestamp",
             "lrmer_co2e_c",
             "lrmer_co2e_p",
@@ -102,7 +102,7 @@ def get_emissions_data(
         {
             "emission_scenario": settings.emissions.emission_scenario,
             "gea_grid_region": settings.emissions.gea_grid_region,
-            "tz": settings.emissions.tz,
+            "time_zone": settings.emissions.time_zone,
             "emission_type": settings.emissions.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],

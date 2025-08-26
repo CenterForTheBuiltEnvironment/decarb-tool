@@ -43,7 +43,9 @@ class Equipment(BaseModel):
     fuel: str
     capacity_kw: Optional[float] = None
     performance: Performance
-    emissions: Optional[Emissions] = None
+    emissions: Optional[Emissions] = (
+        None  #! potentially rename to something more specific
+    )
 
 
 class EquipmentScenario(BaseModel):

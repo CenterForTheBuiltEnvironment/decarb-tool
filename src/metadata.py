@@ -1,5 +1,5 @@
 from typing import List, Literal, Optional, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pathlib import Path
 import json
 from datetime import datetime
@@ -8,7 +8,7 @@ from datetime import datetime
 class EmissionsSettings(BaseModel):
     emission_scenario: str
     gea_grid_region: str
-    tz: str
+    time_zone: str
     emission_type: str
     years: List[int]
 
@@ -24,7 +24,7 @@ class Metadata(BaseModel):
     last_updated: str
 
     @classmethod
-    def default(cls, **overrides: Any) -> "Metadata":
+    def create(cls, **overrides: Any) -> "Metadata":
         """
         Factory for default session metadata.
 
@@ -48,7 +48,7 @@ class Metadata(BaseModel):
             emissions=EmissionsSettings(
                 emission_scenario="MidCase",
                 gea_grid_region="CAISO",
-                tz="PT",
+                time_zone="America/Los_Angeles",
                 emission_type="Combustion only",
                 years=[2025, 2030, 2040],
             ),
