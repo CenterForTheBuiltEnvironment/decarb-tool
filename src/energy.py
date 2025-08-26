@@ -1,354 +1,349 @@
 import numpy as np
 import pandas as pd
-from utils.interp import interp1_zero
+from typing import Optional
+
+from src.loads import StandardLoad
+from src.equipment import EquipmentLibrary, Equipment
+
+from utils.interp import interp_vector
 
 
-#! remove later
-# Mock data for HR WWHP performance curves
+# def _interp_vector(xp, fp, x):
+#     """Robust 1D interpolation (left/right clamp)."""
+#     xp = np.asarray(xp, dtype=float)
+#     fp = np.asarray(fp, dtype=float)
+#     x = np.asarray(x, dtype=float)
+#     return np.interp(x, xp, fp, left=fp[0], right=fp[-1])
 
-hr_wwhp_curves = pd.DataFrame(
-    {
-        "model": ["GenericHRWWHP"] * 5,
-        "oa_t": [0, 5, 10, 15, 20],
-        "capacity": [1000, 1200, 1400, 1500, 1600],
-        "cop": [2.5, 2.7, 3.0, 3.2, 3.3],
-    }
-)
 
-awhp_curves = pd.DataFrame(
-    {
-        "model": ["GenericAWHP"] * 6,
-        "oa_t": [0, 5, 10, 15, 20, 35],
-        "capacity": [500, 600, 700, 750, 800, 850],  # Watts
-        "cop": [2.0, 2.5, 3.0, 3.2, 3.3, 3.4],
-    }
-)
+def _per_unit_capacity_kw(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+    """Per-unit thermal capacity [kW] vs outdoor temperature."""
+    if e.performance and e.performance.cap_curve:
+        return interp_vector(
+            e.performance.cap_curve.t_out_C, e.performance.cap_curve.capacity_kw, t_out
+        )
+    # fallback to fixed capacity if provided
+    if e.capacity_kw is not None:
+        return np.full_like(t_out, fill_value=float(e.capacity_kw), dtype=float)
+    raise ValueError(
+        f"Equipment '{e.eq_id}' has no capacity info (cap_curve or capacity_kw)."
+    )
 
-boilers = pd.DataFrame({"model": ["GenericBoiler"], "eff": [0.85]})
+
+def _per_unit_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+    """Per-unit COP vs outdoor temperature."""
+    # If the device has a COP curve, use it
+    if e.performance and e.performance.cop_curve:
+        return interp_vector(
+            e.performance.cop_curve.t_out_C, e.performance.cop_curve.cop, t_out
+        )
+    # Some devices (boiler/resistance) use efficiency instead (not COP).
+    # We'll not use COP for them here.
+    return np.full_like(t_out, fill_value=np.nan, dtype=float)
+
+
+def _constant_efficiency(e: Equipment) -> Optional[float]:
+    if e.performance and e.performance.efficiency is not None:
+        return float(e.performance.efficiency)
+    return None
 
 
 def loads_to_site_energy(
-    equip_scenario: pd.Series, loads: pd.DataFrame, detail: bool = True
+    load: StandardLoad,
+    library: EquipmentLibrary,
+    scenario_id: str,
+    detail: bool = True,
 ) -> pd.DataFrame:
     """
-    Convert building heating and cooling loads into site energy consumption
-    (electricity and gas) based on a specific equipment scenario.
+    Convert hourly heating/cooling loads to site energy (kWh_electricity and kWh_gas)
+    using the selected equipment scenario from the EquipmentLibrary.
 
     Parameters
     ----------
-    equip_scenario : pd.Series
-        A single-row equipment scenario containing keys such as:
-            - 'hr_wwhp': str or None
-            - 'awhp_h': str or None
-            - 'awhp_c': str or None
-            - 'awhp_sizing': float or int
-            - 'boiler': str or None
-            - 'chiller_cop': float (optional)
-        This series defines which technologies are active and how they should operate.
-
-    loads : pd.DataFrame
-        Hourly time-series DataFrame with at least the following columns:
-            - 'datetime': datetime64[ns]
-            - 'hhw': float, heating hot water load [W]
-            - 'chw': float, chilled water load [W]
-            - 'oa_t': float, outdoor air temperature [°C]
-
-    detail : bool, default=True
-        If True, adds intermediate outputs to the returned DataFrame (e.g.,
-        load served by each technology, COPs, capacity). Set to False to
-        return only energy use columns.
+    load : StandardLoad
+        Canonical loads wrapper (index = timestamp; cols: t_out_C, heating_W, cooling_W).
+    library : EquipmentLibrary
+        Validated equipment + scenarios.
+    scenario_id : str
+        Which scenario in the library to use.
+    detail : bool
+        If True, include per-technology breakdown columns.
 
     Returns
     -------
-    df : pd.DataFrame
-        A copy of the input DataFrame with added columns:
-            - 'elec': total site electricity use [kWh]
-            - 'gas': total site gas use [kWh]
-            - Various optional columns depending on technologies present:
-                - 'elec_hr', 'elec_awhp_h', 'elec_awhp_c', 'elec_res', 'elec_chiller'
-                - 'gas_boiler'
-                - COP and capacity info for HR WWHP and AWHPs
-                - Load breakdowns (e.g., 'hr_hhw', 'awhp_hhw', etc.)
-
-    Notes
-    -----
-    The function follows a sequential dispatch strategy:
-        1. Heat Recovery WWHP
-        2. Air-to-Water Heat Pump for heating
-        3. Boiler
-        4. Electric resistance heating
-        5. AWHP for cooling
-        6. Electric chiller fallback
-
-    All loads are fully served by the end of the function; no unserved load remains.
-
-    Raises
-    ------
-    ValueError
-        If required performance curve data or sizing parameters are missing or invalid.
-
-    See Also
-    --------
-    site_to_source : Converts site energy to source emissions using grid/marginal data.
+    pd.DataFrame
+        DataFrame indexed by timestamp with totals and (optionally) detail columns.
+        Key outputs:
+          - elec_kWh: total site electricity per hour
+          - gas_kWh: total site gas (fuel) per hour
     """
 
-    s = equip_scenario.copy()
+    # ---- pull inputs ----
+    df = load.df.copy()  # index = timestamp
+    temps = df["t_out_C"].to_numpy()
+    # Convert thermal loads from W → kW (per hour this equals kWh_th)
+    df["hhw_kW"] = df["heating_W"] / 1000.0
+    df["chw_kW"] = df["cooling_W"] / 1000.0
 
-    df = loads.copy()
+    # Remainders in kW_th
+    df["hhw_rem_kW"] = df["hhw_kW"].copy()
+    df["chw_rem_kW"] = df["chw_kW"].copy()
 
-    # Initialize dataframe with required columns
-    df = df.assign(
-        hhw_remainder=df["hhw"],
-        chw_remainder=df["chw"],
-        hr_hhw=np.nan,
-        hr_chw=np.nan,
-        simult_h=np.nan,
-        hr_cop_h=np.nan,
-        awhp_num=np.nan,
-        awhp_hhw=np.nan,
-        awhp_cop_h=np.nan,
-        awhp_cap_h=np.nan,
-        elec=0.0,
-        elec_hr=np.nan,
-        elec_awhp_h=np.nan,
-        elec_awhp_c=np.nan,
-        elec_res=np.nan,
-        gas=0.0,
-    )
+    # Outputs
+    df["elec_kWh"] = 0.0
+    df["gas_kWh"] = 0.0
 
-    # ---- Phase 1: Heat Recovery WWHP ----
-    # Checks if the scenario includes a hr_wwhp.
-    # If yes:
-    #       - Pulls its performance curve (capacity and COP).
-    #       - Calculates how much simultaneous heating/cooling is happening.
-    #       - Allocates the minimum of the simultaneous load and the unit capacity.
-    #       - Computes electricity use from load / COP.
-
-    if pd.notnull(s.get("hr_wwhp")):
-        model_name = s["hr_wwhp"]
-
-        # Filter the performance curve for the selected model
-        hr_curve = hr_wwhp_curves[hr_wwhp_curves["model"] == model_name]
-
-        if hr_curve.empty:
-            raise ValueError(f"No curve data found for HR WWHP model: {model_name}")
-
-        # Interpolate capacity and COP as a function of outdoor air temperature
-        df["hr_cap"] = interp1_zero(hr_curve["oa_t"], hr_curve["capacity"], df["oa_t"])
-        df["hr_cop"] = interp1_zero(hr_curve["oa_t"], hr_curve["cop"], df["oa_t"])
-
-        # Simultaneous load is min of available hhw and chw loads
-        df["simult"] = np.minimum(df["hhw"], df["chw"])
-
-        # Limit simultaneous load by available unit capacity
-        df["simult_served"] = np.minimum(df["simult"], df["hr_cap"])
-
-        # Assign heating and cooling served
-        df["hr_hhw"] = df["simult_served"]
-        df["hr_chw"] = df["simult_served"]
-        df["hr_cop_h"] = df["hr_cop"]  # save for output
-        df["elec_hr"] = df["simult_served"] / df["hr_cop"]
-        df["elec"] += df["elec_hr"]
-
-        # Subtract load served by this unit from remainder
-        df["hhw_remainder"] -= df["hr_hhw"]
-        df["chw_remainder"] -= df["hr_chw"]
-
-    # ---- Phase 2: AWHP Heating ----
-    # Checks if the scenario includes a awhp_h.
-    # If yes:
-    #   - Interpolates per-unit capacity and COP vs outdoor air temperature for selected AWHP model.
-    #   - Sizes the number of AWHP units based on:
-    #       - Either a fixed number (awhp_sizing is integer).
-    #       - Or based on load (e.g., enough units to cover a % of peak heating load).
-    #   - Serves as much remaining HHW load as possible, up to combined capacity.
-    #   - Calculates electric use: load served ÷ COP
-
-    if pd.notnull(s.get("awhp_h")):
-        model_name = s["awhp_h"]
-        awhp_curve = awhp_curves[awhp_curves["model"] == model_name]
-
-        if awhp_curve.empty:
-            raise ValueError(f"No curve data found for AWHP model: {model_name}")
-
-        # Interpolate per-unit capacity and COP vs OA temperature
-        df["awhp_cap_unit"] = interp1_zero(
-            awhp_curve["oa_t"], awhp_curve["capacity"], df["oa_t"]
-        )
-        df["awhp_cop_h"] = interp1_zero(
-            awhp_curve["oa_t"], awhp_curve["cop"], df["oa_t"]
-        )
-
-        # Determine number of AWHP units
-        sizing = s["awhp_sizing"]
-
-        if pd.isna(sizing):
-            raise ValueError("awhp_sizing must be provided when awhp_h is set.")
-
-        if sizing < 1:
-            # Size based on % of peak load (e.g., 0.75 means 75% of peak HHW)
-            hhw_peak = df["hhw"].max()
-            single_cap_ref = interp1_zero(
-                awhp_curve["oa_t"], awhp_curve["capacity"], [0]
-            )[
-                0
-            ]  # conservative (cold)
-            num_units = int(np.ceil((hhw_peak * sizing) / single_cap_ref))
-        else:
-            # Assume user specified number of units directly
-            num_units = int(sizing)
-
-        df["awhp_num"] = num_units
-        df["awhp_cap_h"] = df["awhp_cap_unit"] * num_units
-
-        # Determine how much of the remaining HHW can be served
-        df["awhp_hhw"] = np.minimum(df["hhw_remainder"], df["awhp_cap_h"])
-
-        # Electric use = load / COP
-        df["elec_awhp_h"] = df["awhp_hhw"] / df["awhp_cop_h"]
-        df["elec"] += df["elec_awhp_h"]
-
-        # Subtract AWHP-served load from remainder
-        df["hhw_remainder"] -= df["awhp_hhw"]
-
-    # ---- Phase 3: Boiler ----
-    # Check if scnenario includes a boiler.
-    # If yes:
-    #   - It serves all remaining HHW load.
-    #   - Its efficiency is pulled from a lookup table (boilers DataFrame).
-    #   - The energy input is added to the gas column (not electricity).
-    #   - Remaining HHW is set to 0.
-
-    if pd.notnull(s.get("boiler")):
-        model_name = s["boiler"]
-        boiler_row = boilers[boilers["model"] == model_name]
-
-        if boiler_row.empty:
-            raise ValueError(f"No efficiency data found for boiler model: {model_name}")
-
-        boiler_eff = boiler_row.iloc[0]["eff"]
-
-        # All remaining HHW served by boiler
-        df["boiler_hhw"] = df["hhw_remainder"]
-        df["gas_boiler"] = df["boiler_hhw"] / boiler_eff
-
-        df["gas"] += df["gas_boiler"]
-
-        # All remaining HHW is now served
-        df["hhw_remainder"] = 0.0
-
-    # ---- Phase 4: Resistance Heating ----
-    # If any HHW load remains after HR WWHP, AWHP, and boiler:
-    #   - It is served by electric resistance heating.
-    #   - Assumes COP = 1 (1 W of electricity per 1 W of thermal output).
-    #   - Adds to elec_res and elec.
-
-    if df["hhw_remainder"].sum() > 0:
-        df["elec_res"] = df["hhw_remainder"]  # COP = 1
-        df["elec"] += df["elec_res"]
-
-    # Set remaining HHW to 0 after resistance heating
-    df["hhw_remainder"] = 0.0
-
-    # ---- Phase 5: AWHP Cooling ----
-    # Checks if the scenario includes a awhp_c.
-    # If yes:
-    #   - Interpolates per-unit capacity and COP vs outdoor air temperature for selected AWHP cooling model.
-    #   - Sizes the number of AWHP units based on:
-    #       - Either a fixed number (awhp_sizing is integer).
-    #       - Or based on load (e.g., enough units to cover a % of peak chilled water load).
-    #   - Serves as much remaining CHW load as possible,
-    #       up to combined capacity.
-    #   - Calculates electric use: load served ÷ COP
-    #
-    # If no awhp_c is specified, we assume an electric chiller fallback.
-
-    if pd.notnull(s.get("awhp_c")):
-        model_name = s["awhp_c"]
-        awhp_curve = awhp_curves[awhp_curves["model"] == model_name]
-
-        if awhp_curve.empty:
-            raise ValueError(
-                f"No curve data found for AWHP cooling model: {model_name}"
-            )
-
-        # Interpolate per-unit capacity and COP
-        df["awhp_cap_unit_c"] = interp1_zero(
-            awhp_curve["oa_t"], awhp_curve["capacity"], df["oa_t"]
-        )
-        df["awhp_cop_c"] = interp1_zero(
-            awhp_curve["oa_t"], awhp_curve["cop"], df["oa_t"]
-        )
-
-        # Reuse sizing from awhp_sizing
-        sizing = s["awhp_sizing"]
-        if pd.isna(sizing):
-            raise ValueError("awhp_sizing must be provided when awhp_c is set.")
-
-        if sizing < 1:
-            # Percent of peak chilled water load
-            chw_peak = df["chw"].max()
-            single_cap_ref = interp1_zero(
-                awhp_curve["oa_t"], awhp_curve["capacity"], [35]
-            )[
-                0
-            ]  # conservative at hot temp
-
-            if single_cap_ref == 0:
-                raise ValueError(
-                    f"AWHP cooling model '{model_name}' has zero capacity at 35°C — check awhp_curves coverage."
-                )
-
-            num_units = int(np.ceil((chw_peak * sizing) / single_cap_ref))
-
-        df["awhp_num_c"] = num_units
-        df["awhp_cap_c"] = df["awhp_cap_unit_c"] * num_units
-
-        # Determine how much CHW can be served
-        df["awhp_chw"] = np.minimum(df["chw_remainder"], df["awhp_cap_c"])
-
-        # Electric use = load / COP
-        df["elec_awhp_c"] = df["awhp_chw"] / df["awhp_cop_c"]
-        df["elec"] += df["elec_awhp_c"]
-
-        # Subtract from remainder
-        df["chw_remainder"] -= df["awhp_chw"]
-
-    # ---- Phase 6: Electric Chiller Fallback ----
-    # If any CHW load remains after AWHP cooling:
-    #   - It is served by an electric chiller.
-    #   - Assumes a default COP of 5.0 (can be adjusted).
-    #   - Adds to elec_chiller and elec.
-    #   - Remaining CHW is set to 0.
-
-    if df["chw_remainder"].sum() > 0:
-        # Check if scenario specifies a chiller COP
-        if "chiller_cop" in s and not pd.isna(s["chiller_cop"]):
-            chiller_cop = s["chiller_cop"]
-        else:
-            chiller_cop = 5.0  # default COP: #? could be part of config
-
-        # Only operate if any chw load remains
-        df["chiller_chw"] = df["chw_remainder"]
-        df["elec_chiller"] = df["chiller_chw"] / chiller_cop
-        df["elec"] += df["elec_chiller"]
-
-        # All CHW now served
-        df["chw_remainder"] = 0.0
-
-        # Convert to kWh
-        for col in [
-            "elec",
-            "elec_hr",
-            "elec_awhp_h",
-            "elec_awhp_c",
-            "elec_res",
-            "elec_chiller",
+    # detail columns (create lazily; safer to pre-create as NaN for clarity)
+    if detail:
+        for c in [
+            "hr_hhw_kW",
+            "hr_chw_kW",
+            "elec_hr_kWh",
+            "hr_cop",
+            "awhp_hhw_kW",
+            "awhp_cap_h_kW",
+            "elec_awhp_h_kWh",
+            "awhp_cop_h",
+            "boiler_hhw_kW",
+            "gas_boiler_kWh",
+            "boiler_eff",
+            "res_hhw_kW",
+            "elec_res_kWh",
+            "awhp_chw_kW",
+            "awhp_cap_c_kW",
+            "elec_awhp_c_kWh",
+            "awhp_cop_c",
+            "chiller_chw_kW",
+            "elec_chiller_kWh",
+            "chiller_cop",
+            "awhp_num_h",
+            "awhp_num_c",
         ]:
-            if col in df:
-                df[col] = df[col] / 1000
+            df[c] = np.nan
 
-    return df
+    # ---- scenario ----
+    scen = library.get_scenario(scenario_id)
+
+    # =========================
+    # Phase 1 – HR WWHP (optional)
+    # =========================
+    if scen.hr_wwhp:
+        hr = library.get_equipment(scen.hr_wwhp)
+        # 1 unit assumption (extend later if you add hr sizing)
+        hr_cap_unit_kW = _per_unit_capacity_kw(hr, temps)  # kW_th per unit
+        hr_cop = _per_unit_cop(hr, temps)  # may be NaN if missing
+
+        # If no COP curve, we cannot compute electric consumption
+        if np.isnan(hr_cop).all():
+            raise ValueError(f"HR WWHP '{hr.eq_id}' lacks a COP curve.")
+
+        # simultaneous service (limited by capacity and both remainders)
+        simult_kW = np.minimum(df["hhw_rem_kW"].to_numpy(), df["chw_rem_kW"].to_numpy())
+        served_kW = np.minimum(simult_kW, hr_cap_unit_kW)  # 1 unit
+
+        elec_kWh = served_kW / hr_cop
+
+        # apply
+        df["hr_hhw_kW"] = served_kW
+        df["hr_chw_kW"] = served_kW
+        df["hr_cop"] = hr_cop
+        df["elec_hr_kWh"] = elec_kWh
+        df["elec_kWh"] += elec_kWh
+        df["hhw_rem_kW"] -= served_kW
+        df["chw_rem_kW"] -= served_kW
+
+    # =========================
+    # Phase 2 – AWHP Heating
+    # =========================
+    if scen.awhp_h:
+        awhp_h = library.get_equipment(scen.awhp_h)
+        cap_unit_h_kW = _per_unit_capacity_kw(awhp_h, temps)
+        cop_h = _per_unit_cop(awhp_h, temps)
+        if np.isnan(cop_h).all():
+            raise ValueError(f"AWHP heating '{awhp_h.eq_id}' lacks a COP curve.")
+
+        # Determine number of units
+        sizing = float(scen.awhp_sizing)
+        if sizing < 1.0:
+            # fraction of peak HHW at a conservative temperature (e.g., 0°C)
+            peak_hhw_kW = float(df["hhw_kW"].max())
+            if awhp_h.performance and awhp_h.performance.cap_curve:
+                cap_ref = interp_vector(
+                    awhp_h.performance.cap_curve.t_out_C,
+                    awhp_h.performance.cap_curve.capacity_kw,
+                    np.array([0.0]),
+                )[0]
+            elif awhp_h.capacity_kw:
+                cap_ref = float(awhp_h.capacity_kw)
+            else:
+                raise ValueError(f"AWHP '{awhp_h.eq_id}' lacks a capacity reference.")
+            num_h = int(np.ceil((peak_hhw_kW * sizing) / cap_ref)) if cap_ref > 0 else 0
+        else:
+            num_h = int(np.ceil(sizing))
+
+        num_h = max(num_h, 0)
+
+        cap_total_h_kW = cap_unit_h_kW * num_h
+        served_h_kW = np.minimum(df["hhw_rem_kW"].to_numpy(), cap_total_h_kW)
+        elec_h_kWh = served_h_kW / cop_h
+
+        df["awhp_hhw_kW"] = served_h_kW
+        df["awhp_cap_h_kW"] = cap_total_h_kW
+        df["awhp_cop_h"] = cop_h
+        df["elec_awhp_h_kWh"] = elec_h_kWh
+        df["elec_kWh"] += elec_h_kWh
+        df["hhw_rem_kW"] -= served_h_kW
+        df["awhp_num_h"] = float(num_h)
+
+    # =========================
+    # Phase 3 – Boiler (optional)
+    # =========================
+    if scen.boiler:
+        blr = library.get_equipment(scen.boiler)
+        eff = _constant_efficiency(blr)
+        if eff is None or eff <= 0:
+            raise ValueError(f"Boiler '{blr.eq_id}' requires a positive 'efficiency'.")
+
+        boiler_served_kW = df["hhw_rem_kW"].to_numpy()
+        gas_kWh = boiler_served_kW / eff
+
+        df["boiler_hhw_kW"] = boiler_served_kW
+        df["gas_boiler_kWh"] = gas_kWh
+        df["boiler_eff"] = eff
+        df["gas_kWh"] += gas_kWh
+        df["hhw_rem_kW"] = 0.0
+
+    # =========================
+    # Phase 4 – Electric resistance (if heating remains)
+    # =========================
+    remaining_h_kW = df["hhw_rem_kW"].to_numpy()
+    if np.any(remaining_h_kW > 1e-9):
+        elec_res_kWh = remaining_h_kW  # COP = 1
+        df["res_hhw_kW"] = remaining_h_kW
+        df["elec_res_kWh"] = elec_res_kWh
+        df["elec_kWh"] += elec_res_kWh
+        df["hhw_rem_kW"] = 0.0
+
+    # =========================
+    # Phase 5 – AWHP Cooling
+    # =========================
+    if scen.awhp_c:
+        awhp_c = library.get_equipment(scen.awhp_c)
+        cap_unit_c_kW = _per_unit_capacity_kw(awhp_c, temps)
+        cop_c = _per_unit_cop(awhp_c, temps)
+        if np.isnan(cop_c).all():
+            raise ValueError(f"AWHP cooling '{awhp_c.eq_id}' lacks a COP curve.")
+
+        # Use same sizing logic as heating (from awhp_sizing)
+        sizing = float(scen.awhp_sizing)
+        if sizing < 1.0:
+            peak_chw_kW = float(df["chw_kW"].max())
+            if awhp_c.performance and awhp_c.performance.cap_curve:
+                cap_ref = interp_vector(
+                    awhp_c.performance.cap_curve.t_out_C,
+                    awhp_c.performance.cap_curve.capacity_kw,
+                    np.array([35.0]),  # conservative hot condition
+                )[0]
+            elif awhp_c.capacity_kw:
+                cap_ref = float(awhp_c.capacity_kw)
+            else:
+                raise ValueError(f"AWHP '{awhp_c.eq_id}' lacks a capacity reference.")
+            num_c = int(np.ceil((peak_chw_kW * sizing) / cap_ref)) if cap_ref > 0 else 0
+        else:
+            num_c = int(np.ceil(sizing))
+
+        num_c = max(num_c, 0)
+
+        cap_total_c_kW = cap_unit_c_kW * num_c
+        served_c_kW = np.minimum(df["chw_rem_kW"].to_numpy(), cap_total_c_kW)
+        elec_c_kWh = served_c_kW / cop_c
+
+        df["awhp_chw_kW"] = served_c_kW
+        df["awhp_cap_c_kW"] = cap_total_c_kW
+        df["awhp_cop_c"] = cop_c
+        df["elec_awhp_c_kWh"] = elec_c_kWh
+        df["elec_kWh"] += elec_c_kWh
+        df["chw_rem_kW"] -= served_c_kW
+        df["awhp_num_c"] = float(num_c)
+
+    # =========================
+    # Phase 6 – Electric chiller fallback
+    # =========================
+    if df["chw_rem_kW"].sum() > 1e-9:
+        chiller_cop = 5.0  # default
+        if scen.chiller:
+            chl = library.get_equipment(scen.chiller)
+            # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
+            eff = _constant_efficiency(chl)
+            if eff and eff > 0:
+                chiller_cop = eff
+            else:
+                cop_curve = _per_unit_cop(chl, temps)  # could be array
+                if not np.isnan(cop_curve).all():
+                    # if a curve exists, use the hourly values
+                    served_kW = df["chw_rem_kW"].to_numpy()
+                    elec_kWh = served_kW / cop_curve
+                    df["chiller_chw_kW"] = served_kW
+                    df["elec_chiller_kWh"] = elec_kWh
+                    df["elec_kWh"] += elec_kWh
+                    df["chiller_cop"] = cop_curve
+                    df["chw_rem_kW"] = 0.0
+                    # finalize and return
+                    cols = _finalize_columns(df, detail)
+                    return df[cols]
+
+        # scalar COP path
+        served_kW = df["chw_rem_kW"].to_numpy()
+        elec_kWh = served_kW / chiller_cop
+
+        if detail:
+            df["chiller_chw_kW"] = served_kW
+            df["elec_chiller_kWh"] = elec_kWh
+            df["chiller_cop"] = chiller_cop
+
+        df["elec_kWh"] += elec_kWh
+        df["chw_rem_kW"] = 0.0
+
+    # ---- finalize ----
+    cols = _finalize_columns(df, detail)
+    return df[cols]
+
+
+def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
+    """Return a clean column order for output."""
+    base = ["t_out_C", "heating_W", "cooling_W", "elec_kWh", "gas_kWh"]
+    if not detail:
+        return base
+
+    detail_cols = [
+        "hhw_kW",
+        "chw_kW",
+        "hr_hhw_kW",
+        "hr_chw_kW",
+        "hr_cop",
+        "elec_hr_kWh",
+        "awhp_num_h",
+        "awhp_cap_h_kW",
+        "awhp_cop_h",
+        "awhp_hhw_kW",
+        "elec_awhp_h_kWh",
+        "boiler_eff",
+        "boiler_hhw_kW",
+        "gas_boiler_kWh",
+        "res_hhw_kW",
+        "elec_res_kWh",
+        "awhp_num_c",
+        "awhp_cap_c_kW",
+        "awhp_cop_c",
+        "awhp_chw_kW",
+        "elec_awhp_c_kWh",
+        "chiller_cop",
+        "chiller_chw_kW",
+        "elec_chiller_kWh",
+    ]
+    # only include those that actually exist
+    detail_cols = [c for c in detail_cols if c in df.columns]
+    return base + detail_cols
 
 
 def site_to_source(

@@ -4,18 +4,29 @@ import json
 from pathlib import Path
 import numpy as np
 
+from utils.interp import interp_vector
+
 
 # --- Models ---
 class COPCurve(BaseModel):
-    temperature_C: List[float]
+    t_out_C: List[float]
     cop: List[float]
 
     def get_cop(self, temp: float) -> float:
-        return float(np.interp(temp, self.temperature_C, self.cop))
+        return float(interp_vector(self.t_out_C, self.cop, temp))
+
+
+class CapCurve(BaseModel):
+    t_out_C: List[float]
+    capacity_kw: List[float]
+
+    def get_capacity(self, temp: float) -> float:
+        return float(interp_vector(self.t_out_C, self.capacity_kw, temp))
 
 
 class Performance(BaseModel):
     cop_curve: Optional[COPCurve] = None
+    cap_curve: Optional[CapCurve] = None
     efficiency: Optional[float] = None
     constraints: Optional[Dict[str, float]] = None
 
@@ -30,7 +41,7 @@ class Equipment(BaseModel):
     eq_subtype: Optional[str] = None
     model: str
     fuel: str
-    capacity_kw: float
+    capacity_kw: Optional[float] = None
     performance: Performance
     emissions: Optional[Emissions] = None
 

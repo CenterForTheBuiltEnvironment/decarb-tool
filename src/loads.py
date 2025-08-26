@@ -3,9 +3,11 @@ from typing import Union
 import pandas as pd
 import numpy as np
 
+from src.metadata import Metadata
+
 STANDARD_COLUMNS = ["t_out_C", "heating_W", "cooling_W"]
 
-default_year = 2025
+default_year = 2025  # for data without datetime info
 
 
 def ensure_datetime(df: pd.DataFrame, default_year: int = 2025) -> pd.DataFrame:
@@ -26,7 +28,7 @@ def ensure_datetime(df: pd.DataFrame, default_year: int = 2025) -> pd.DataFrame:
                 "day": df["day"],
                 "hour": df["hour"],
             },
-            utc=True,
+            utc=False,
         )
     else:
         raise ValueError(
@@ -40,7 +42,7 @@ class StandardLoad:
     """
     Unified interface for load data used for calculation.
     Schema: timestamp | t_out_C | heating_W | cooling_W
-    - timestamp: timestamp in ISO 8601 format (UTC)
+    - timestamp: datetime timestamp in ISO 8601 format (UTC)
     - t_out_C: outdoor air temperature [°C]
     - heating_W, cooling_W: load in Watts
     """
@@ -105,3 +107,46 @@ class StandardLoad:
 
     def stats(self) -> pd.DataFrame:
         return self.df.describe()
+
+
+def get_load_data(settings: Metadata) -> StandardLoad:
+    """
+    Load and filter load data based on Metadata settings.
+    Currently only supports `load_simulated`.
+
+    Parameters
+    ----------
+    settings : Metadata
+        User/project metadata including load_type, climate zone, building type.
+
+    Returns
+    -------
+    StandardLoad
+        A validated, canonical load object ready for calculations.
+    """
+    if settings.load_type == "load_simulated":
+        # Load the raw DataFrame
+        df = pd.read_parquet("data/input/load_data_simulated.parquet", engine="pyarrow")
+
+        # Filter by user metadata
+        mask = (df["ashrae_climate_zone"] == settings.ashrae_climate_zone) & (
+            df["building_type"] == settings.building_type
+        )
+        df = df.loc[mask]
+
+        if df.empty:
+            raise ValueError(
+                f"No simulated load found for climate zone={settings.ashrae_climate_zone}, "
+                f"building type={settings.building_type}"
+            )
+
+        # Keep only canonical columns
+        df = df[["timestamp", "t_out_C", "heating_W", "cooling_W"]]
+
+        # Wrap into StandardLoad (validation runs here)
+        return StandardLoad(df)
+
+    else:
+        raise NotImplementedError(
+            f"Load type {settings.load_type!r} not yet supported in get_load_data"
+        )

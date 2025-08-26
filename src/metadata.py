@@ -6,13 +6,18 @@ from datetime import datetime
 
 
 class EmissionsSettings(BaseModel):
-    scenario: str = Field(..., description="E.g., LRMER, HighRE, etc.")
+    emission_scenario: str
+    gea_grid_region: str
+    tz: str
+    emission_type: str
     years: List[int]
 
 
 class Metadata(BaseModel):
     location: str
     building_type: str
+    load_type: str
+    ashrae_climate_zone: str
     equipment_scenario: str
     emissions: EmissionsSettings
     units: str
@@ -37,8 +42,16 @@ class Metadata(BaseModel):
         defaults = dict(
             location="US_CA_SanFrancisco",
             building_type="office",
+            load_type="load_simulated",
+            ashrae_climate_zone="3C",
             equipment_scenario="baseline_01",
-            emissions=EmissionsSettings(scenario="LRMER", years=[2025, 2030, 2040]),
+            emissions=EmissionsSettings(
+                emission_scenario="MidCase",
+                gea_grid_region="CAISO",
+                tz="PT",
+                emission_type="Combustion only",
+                years=[2025, 2030, 2040],
+            ),
             units="SI",
             last_updated=datetime.utcnow().isoformat(),
         )
