@@ -10,6 +10,7 @@ class EmissionsSettings(BaseModel):
     gea_grid_region: str
     time_zone: str
     emission_type: str
+    shortrun_weighting: float
     years: List[int]
 
 
@@ -50,6 +51,7 @@ class Metadata(BaseModel):
                 gea_grid_region="CAISO",
                 time_zone="America/Los_Angeles",
                 emission_type="Combustion only",
+                shortrun_weighting=1.0,
                 years=[2025, 2030, 2040],
             ),
             units="SI",

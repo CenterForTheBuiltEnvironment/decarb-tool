@@ -4,6 +4,7 @@ from typing import Optional
 
 from src.loads import StandardLoad
 from src.equipment import EquipmentLibrary, Equipment
+from src.emissions import StandardEmissions, EmissionsSettings
 
 from utils.conversions import cop_h_to_cop_c
 from utils.interp import interp_vector
@@ -381,138 +382,109 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
 
 
 def site_to_source(
-    df: pd.DataFrame, emissions_scenario: dict, grid_scenarios: pd.DataFrame
+    df: pd.DataFrame,
+    settings: EmissionsSettings,
+    emissions: StandardEmissions,
 ) -> pd.DataFrame:
     """
-    Convert site energy data to source energy emissions, and estimate refrigerant-related emissions.
+    Convert site energy data (from loads_to_site) into source energy emissions,
+    including optional refrigerant-related emissions.
 
     Parameters
     ----------
     df : pandas.DataFrame
         Timeseries dataframe with at least the following columns:
-            - datetime: datetime64[ns]
-            - elec: float, electricity consumption in kWh
-            - gas (optional): float, gas consumption in kWh
+            - datetime: datetime64[ns] (index or column)
+            - elec_kWh: float, electricity consumption in kWh
+            - gas_kWh (optional): float, gas consumption in kWh
             - total_refrig_emissions_inventory (optional): float, refrigerant inventory in kg CO₂e
 
-    emissions_scenario : dict
-        A dictionary containing emissions scenario metadata. Expected keys:
-            - em_scen_id: int, unique identifier for the emissions scenario
-            - emissions_type: str, one of ["Combustion only", "Includes pre-combustion"]
-            - grid_region: str, regional emissions zone (e.g., "CAISO", "PJM")
-            - grid_scenario: str, grid scenario name (e.g., "Reference")
-            - grid_year: int, target emissions year (e.g., 2024)
-            - shortrun_weighting: float, between 0 and 1
-            - gas_emissions_rate: float, gCO2e per kWh of gas energy
-            - annual_refrig_leakage: float (optional), refrigerant leakage fraction per year (e.g., 0.02)
+    settings : EmissionsSettings
+        User-specified emissions scenario settings:
+            - emissions.emission_scenario : str
+            - emissions.gea_grid_region : str
+            - emissions.time_zone : str
+            - emissions.emission_type : str ("Combustion only" | "Includes pre-combustion")
+            - emissions.shortrun_weighting : float
+            - emissions.years : list[int]
 
-    grid_scenarios : pandas.DataFrame
-        Emissions dataset with marginal emissions rates per hour and region.
-        Required columns:
-            - grid_region, grid_scenario, grid_year, month, hour
-            - lrmer_co2e_c, srmer_co2e_c
-            - lrmer_co2e_p, srmer_co2e_p (if using pre-combustion)
+    emissions : StandardEmissions
+        Canonical emissions dataset filtered by scenario and region.
 
     Returns
     -------
     df : pandas.DataFrame
         Original dataframe with additional emissions columns:
-            - em_scen_id
-            - grid_region (if not already present)
-            - elec_emissions_rate (gCO2e per kWh)
-            - elec_emissions (kgCO2e)
-            - gas_emissions (kgCO2e)
-            - total_refrig_emissions (kgCO2e, optional)
+            - emission_scenario
+            - gea_grid_region
+            - year
+            - elec_emissions_rate (gCO₂e/kWh)
+            - elec_emissions (kgCO₂e)
+            - gas_emissions (kgCO₂e)
+            - total_refrig_emissions (kgCO₂e, optional)
 
     Raises
     ------
     ValueError
-        If `emissions_type` is unknown or required data is missing.
+        If required emissions data is missing or invalid.
     """
 
-    # Validate types
-    if not isinstance(emissions_scenario, dict):
-        raise TypeError("emissions_scenario must be a dict")
-    if not isinstance(df, pd.DataFrame):
-        raise TypeError("df must be a pandas DataFrame")
-    if not isinstance(grid_scenarios, pd.DataFrame):
-        raise TypeError("grid_scenarios must be a pandas DataFrame")
-
-    s = emissions_scenario.copy()
     df = df.copy()
 
-    # Tag emissions scenario
-    df["em_scen_id"] = s.get("em_scen_id", -1)
+    # Ensure datetime index
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError("DataFrame must have a datetime index or a 'datetime' column")
 
-    # Determine grid region
-    if pd.isna(s.get("grid_region")):
-        if "grid_region" in df.columns:
-            s["grid_region"] = df["grid_region"].iloc[0]
-        else:
-            s["grid_region"] = "CAISO"
-    else:
-        df["grid_region"] = s["grid_region"]
-
-    # Filter grid emissions data
-    grid_data = grid_scenarios[
-        (grid_scenarios["grid_region"] == s["grid_region"])
-        & (grid_scenarios["grid_scenario"] == s["grid_scenario"])
-        & (grid_scenarios["grid_year"] == s["grid_year"])
-    ].copy()
-
-    if grid_data.empty:
+    # Slice emissions data for requested years
+    emissions_df = emissions.df[emissions.df["year"].isin(settings.years)].copy()
+    if emissions_df.empty:
         raise ValueError(
-            f"No matching grid emissions data for region={s['grid_region']}, "
-            f"scenario={s['grid_scenario']}, year={s['grid_year']}"
+            f"No emissions data for scenario={settings.emission_scenario}, "
+            f"region={settings.gea_grid_region}, years={settings.years}"
         )
 
-    # Calculate hourly grid emissions rate [g/kWh]
-    if s["emissions_type"] == "Combustion only":
-        grid_data["elec_emissions_rate"] = (
-            grid_data["lrmer_co2e_c"] * (1 - s["shortrun_weighting"])
-            + grid_data["srmer_co2e_c"] * s["shortrun_weighting"]
-        )
-    elif s["emissions_type"] == "Includes pre-combustion":
-        grid_data["elec_emissions_rate"] = (
-            grid_data["lrmer_co2e_c"] + grid_data["lrmer_co2e_p"]
-        ) * (1 - s["shortrun_weighting"]) + (
-            grid_data["srmer_co2e_c"] + grid_data["srmer_co2e_p"]
-        ) * s[
-            "shortrun_weighting"
-        ]
-    else:
-        raise ValueError(f"Invalid emissions_type: {s['emissions_type']}")
+    # ---- Calculate hourly grid emissions rate ----
+    sr_weight = getattr(settings, "shortrun_weighting", 0.0)
 
-    # Join emissions rate
+    emissions_df["elec_emissions_rate"] = (
+        emissions_df["lrmer_co2e_c"] * (1 - sr_weight)
+        + emissions_df["srmer_co2e_c"] * sr_weight
+        + emissions_df["lrmer_co2e_p"] * (1 - sr_weight)
+        + emissions_df["srmer_co2e_p"] * sr_weight
+    )
+
+    # ---- Join on timestamp ----
     df = df.merge(
-        grid_data[["elec_emissions_rate"]],
+        emissions_df[["elec_emissions_rate"]],
         left_index=True,
         right_index=True,
         how="left",
     )
 
-    # # Convert elec from Wh to kWh
-    # if "elec" in df.columns:
-    #     df["elec"] = df["elec"] / 1000
+    # ---- Electricity emissions (kg CO₂e) ----
+    df["elec_emissions"] = df["elec_kWh"] * df["elec_emissions_rate"] / 1_000_000
 
-    # Calculate electricity emissions (kg CO₂e)
-    df["elec_emissions"] = df["elec"] * df["elec_emissions_rate"] / 1_000_000
-
-    # Calculate gas emissions (kg CO₂e)
-    if "gas" in df.columns:
-        df["gas_emissions"] = s["gas_emissions_rate"] * df["gas"] / 1_000_000
+    # ---- Gas emissions (kg CO₂e) ----
+    if "gas_kWh" in df.columns:
+        gas_rate = getattr(settings.emissions, "gas_emissions_rate", 0.0)
+        df["gas_emissions"] = gas_rate * df["gas_kWh"] / 1_000_000
     else:
         df["gas_emissions"] = 0.0
 
-    # Refrigerant emissions
-    if (
-        "total_refrig_emissions_inventory" in df.columns
-        and "annual_refrig_leakage" in s
-    ):
+    # ---- Refrigerant emissions (kg CO₂e) ----
+    if "total_refrig_emissions_inventory" in df.columns:
+        annual_leak = getattr(settings.emissions, "annual_refrig_leakage", 0.0)
         df["total_refrig_emissions"] = (
-            df["total_refrig_emissions_inventory"] * s["annual_refrig_leakage"] / 8760
+            df["total_refrig_emissions_inventory"] * annual_leak / 8760
         )
     else:
         df["total_refrig_emissions"] = 0.0
+
+    # ---- Tag metadata ----
+    df["emission_scenario"] = settings.emissions.emission_scenario
+    df["gea_grid_region"] = settings.emissions.gea_grid_region
+    df["year"] = df.index.year
 
     return df
