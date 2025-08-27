@@ -1,6 +1,31 @@
 {
   "equipment": [
     {
+      "eq_id": "hr01",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water",
+      "model": "GenericHR_WWHP",
+      "fuel": "electricity",
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-10, 0, 10, 20, 30],
+          "cop": [2.1, 2.6, 3.3, 3.9, 4.3],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        },
+        "cap_curve": {
+          "t_out_C": [-10, 0, 10, 20, 30],
+          "capacity_kw": [110, 121, 150, 170, 190],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
       "eq_id": "hp01",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
@@ -76,7 +101,7 @@
     {
       "eq_scen_id": "decarb_01",
       "eq_scen_name": "Decarbonized HP Only",
-      "hr_wwhp": "hp01",
+      "hr_wwhp": "hr01",
       "awhp_h": "hp01",
       "awhp_c": "hp01",
       "awhp_sizing": 4,
