@@ -135,6 +135,7 @@ def loads_to_site_energy(
         cap_h_to_cap_c = 1 - (1 / hr_wwhp_cop_h)  # same as in R
         cap_c = hr_wwhp_cap_h * cap_h_to_cap_c  # cooling capacity from heating capacity
         cop_c = cop_h_to_cop_c(hr_wwhp_cop_h)  # convert heating COP → cooling COP
+        # so there's an assumption that the library data is for heating only?
 
         # Capacity limits
         max_cap_h = np.nanmax(
@@ -211,7 +212,8 @@ def loads_to_site_energy(
             )
         else:
             num_awhp_h = int(np.ceil(sizing))
-
+            # is the 'sizing' parameter the number of heat pumps, or the % of peak load the HP is sized for? (seems like both?)
+            # why are we calculating the number of units anyway? for future physical space calculations?
         num_awhp_h = max(num_awhp_h, 0)
 
         cap_total_h_kW = awhp_cap_h * num_awhp_h
@@ -244,6 +246,7 @@ def loads_to_site_energy(
         df["gas_kWh"] += gas_kWh
         df["hhw_rem_kW"] = 0.0
 
+    # just to be clear, phase 3 and 4 are mutually exclusive? you'd either have gas or electric boilers?
     # =========================
     # Phase 4 – Electric resistance (if heating remains)
     # =========================
@@ -304,6 +307,8 @@ def loads_to_site_energy(
     # =========================
     if df["chw_rem_kW"].sum() > 1e-9:
         chiller_cop = 5.0  # default
+        # assuming this is an air cooled chiller since we generate a temp-based COP curve below
+        # are we not including water cooled chillers? which would be better modelled with a part-load-based curve
         if scen.chiller:
             chl = library.get_equipment(scen.chiller)
             # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
@@ -343,6 +348,8 @@ def loads_to_site_energy(
     cols = _finalize_columns(df, detail)
     return df[cols]
 
+# no energy calculations for pumps or cooling towers?
+# this might be a fairly large change but we aren't considering humidification loads?
 
 def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
     """Return a clean column order for output."""
@@ -429,7 +436,7 @@ def site_to_source(
         If required emissions data is missing or invalid.
     """
 
-    df = df.copy()
+    df = df.copy() # should this be emissions_df? as used below
 
     # Ensure datetime index
     if "datetime" in df.columns:
@@ -453,7 +460,9 @@ def site_to_source(
         + emissions_df["srmer_co2e_c"] * sr_weight
         + emissions_df["lrmer_co2e_p"] * (1 - sr_weight)
         + emissions_df["srmer_co2e_p"] * sr_weight
-    )
+    ) 
+    # should there be a different calculation if the emission_type is includes precombustion?
+    # what's the purpose of separating them out if we're adding them all together anyway?
 
     # ---- Join on timestamp ----
     df = df.merge(
