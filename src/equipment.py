@@ -18,10 +18,10 @@ class COPCurve(BaseModel):
 
 class CapCurve(BaseModel):
     t_out_C: List[float]
-    capacity_kw: List[float]
+    capacity_W: List[float]
 
     def get_capacity(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.capacity_kw, temp))
+        return float(interp_vector(self.t_out_C, self.capacity_W, temp))
 
 
 class Performance(BaseModel):
@@ -41,7 +41,7 @@ class Equipment(BaseModel):
     eq_subtype: Optional[str] = None
     model: str
     fuel: str
-    capacity_kw: Optional[float] = None
+    capacity_W: Optional[float] = None
     performance: Performance
     emissions: Optional[Emissions] = (
         None  #! potentially rename to something more specific

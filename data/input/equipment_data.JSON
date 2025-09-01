@@ -17,7 +17,7 @@
         },
         "cap_curve": {
           "t_out_C": [-10, 0, 10, 20, 30],
-          "capacity_kw": [110, 121, 150, 170, 190],
+          "capacity_W": [110000, 121000, 150000, 170000, 190000],
           "constraints": {
             "min_temp_C": -15,
             "max_temp_C": 35
@@ -42,7 +42,7 @@
         },
         "cap_curve": {
           "t_out_C": [-10, 0, 10, 20, 30],
-          "capacity_kw": [100, 120, 140, 160, 180],
+          "capacity_W": [100000, 120000, 140000, 160000, 180000],
           "constraints": {
             "min_temp_C": -15,
             "max_temp_C": 35
@@ -56,7 +56,7 @@
       "eq_subtype": "hot_water",
       "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_kw": 200,
+      "capacity_W": 200000,
       "performance": {
         "efficiency": 0.88
       },
@@ -69,7 +69,7 @@
       "eq_type": "chiller",
       "model": "GenericChiller",
       "fuel": "electricity",
-      "capacity_kw": 150,
+      "capacity_W": 150000,
       "performance": {
         "efficiency": 4.0
       }
@@ -79,7 +79,7 @@
       "eq_type": "resistance_heater",
       "model": "GenericResHeater",
       "fuel": "electricity",
-      "capacity_kw": 50,
+      "capacity_W": 50000,
       "performance": {
         "efficiency": 1.0
       }
