@@ -1,18 +1,26 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
+import pandas as pd
 
 
-def select_location():
+def select_location(locations_df: pd.DataFrame):
+
+    options = [
+        {
+            "label": f"{row['zip']} {row['city']}, {row['state_id']}",
+            "value": row["zip"],
+        }
+        for _, row in locations_df.iterrows()
+    ]
     return html.Div(
         [
-            dbc.Label(
-                "1. Building Location",
-            ),
-            html.Br(),
-            dbc.Input(
-                type="text",
-                placeholder="Enter location...",
+            dbc.Label("1. Building Location"),
+            dcc.Dropdown(
                 id="location-input",
+                options=options,
+                placeholder="Search by city or zip...",
+                searchable=True,
+                clearable=True,
             ),
         ]
     )
