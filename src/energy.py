@@ -219,7 +219,7 @@ def loads_to_site_energy(
         df["awhp_hhw_W"] = served_h_W
         df["awhp_cap_h_W"] = cap_total_h_W
         df["awhp_cop_h"] = awhp_cop_h
-        df["elec_awhp_h_kWh"] = elec_h_Wh
+        df["elec_awhp_h_Wh"] = elec_h_Wh
         df["elec_Wh"] += elec_h_Wh
         df["hhw_rem_W"] -= served_h_W
         df["awhp_num_h"] = float(num_awhp_h)
@@ -292,7 +292,7 @@ def loads_to_site_energy(
         df["awhp_chw_W"] = served_c_W
         df["awhp_cap_c_W"] = cap_total_c_W
         df["awhp_cop_c"] = awhp_cop_c
-        df["elec_awhp_c_kWh"] = elec_c_Wh
+        df["elec_awhp_c_Wh"] = elec_c_Wh
         df["elec_Wh"] += elec_c_Wh
         df["chw_rem_W"] -= served_c_W
         df["awhp_num_c"] = float(awhp_num_c)
@@ -431,6 +431,7 @@ def site_to_source(
     base = df_loads.copy()
     base["month"] = base.index.month
     base["hour"] = base.index.hour
+    base["doy"] = base.index.dayofyear
 
     for year in settings.years:
         df_year = emissions.slice_year(year).copy()

@@ -17,6 +17,7 @@ class EmissionsSettings(BaseModel):
 class Metadata(BaseModel):
     location: str
     building_type: str
+    vintage: int
     load_type: str
     ashrae_climate_zone: str
     equipment_scenario: str
@@ -43,6 +44,7 @@ class Metadata(BaseModel):
         defaults = dict(
             location="US_CA_SanFrancisco",
             building_type="office",
+            vintage=2022,
             load_type="load_simulated",
             ashrae_climate_zone="3C",
             equipment_scenario="baseline_01",

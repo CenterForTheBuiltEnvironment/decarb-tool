@@ -129,15 +129,17 @@ def get_load_data(settings: Metadata) -> StandardLoad:
         df = pd.read_parquet("data/input/load_data_simulated.parquet", engine="pyarrow")
 
         # Filter by user metadata
-        mask = (df["ashrae_climate_zone"] == settings.ashrae_climate_zone) & (
-            df["building_type"] == settings.building_type
+        mask = (
+            (df["ashrae_climate_zone"] == settings.ashrae_climate_zone)
+            & (df["building_type"] == settings.building_type)
+            & (df["vintage"] == settings.vintage)
         )
         df = df.loc[mask]
 
         if df.empty:
             raise ValueError(
                 f"No simulated load found for climate zone={settings.ashrae_climate_zone}, "
-                f"building type={settings.building_type}"
+                f"building type={settings.building_type}, vintage={settings.vintage}"
             )
 
         # Keep only canonical columns

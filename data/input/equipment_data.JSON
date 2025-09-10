@@ -93,7 +93,7 @@
       "hr_wwhp": null,
       "awhp_h": "hp01",
       "awhp_c": "hp01",
-      "awhp_sizing": 2,
+      "awhp_sizing": 1,
       "boiler": "bo01",
       "chiller": "ch01",
       "resistance_heater": "res01"
