@@ -13,10 +13,10 @@ default_year = 2025  # for data without datetime info
 def ensure_datetime(df: pd.DataFrame, default_year: int = 2025) -> pd.DataFrame:
     if "timestamp" in df.columns:
         # User already gave datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=False)
     elif "hour_of_year" in df.columns:
         # Convert HOY → datetime
-        base = pd.Timestamp(f"{default_year}-01-01 00:00:00", tz="UTC")
+        base = pd.Timestamp(f"{default_year}-01-01 00:00:00", tz=None)
         df["timestamp"] = df["hour_of_year"].apply(
             lambda h: base + pd.Timedelta(hours=h - 1)  #! adjust for 1-based index
         )

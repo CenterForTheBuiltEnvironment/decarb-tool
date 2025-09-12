@@ -445,6 +445,7 @@ def site_to_source(
     # extract month/hour from loads
     base = df_loads.copy()
     base["month"] = base.index.month
+    base["day"] = base.index.day
     base["hour"] = base.index.hour
     base["doy"] = base.index.dayofyear
 
@@ -499,4 +500,14 @@ def site_to_source(
 
         results.append(merged)
 
-    return pd.concat(results, ignore_index=True)
+        result_df = pd.concat(results, ignore_index=True)
+        result_df["year"] = result_df["emission_year"]
+        result_df["timestamp"] = pd.to_datetime(
+            result_df[["year", "month", "day", "hour"]]
+        )
+
+        result_df = result_df.drop(columns=["month", "day", "doy", "hour"]).set_index(
+            "timestamp"
+        )
+
+    return result_df
