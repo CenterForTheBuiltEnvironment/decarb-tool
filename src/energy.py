@@ -10,6 +10,15 @@ from utils.conversions import cop_h_to_cop_c
 from utils.interp import interp_vector
 
 
+def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
+    """Heat recovery COP vs part-load ratio (PLR)."""
+    if e.performance and e.performance.plr_curve:
+        cap = e.performance.plr_curve.capacity_W
+        cop = e.performance.plr_curve.cop
+        return pd.DataFrame({"cap": cap, "cop": cop})
+    raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
+
+
 def _per_unit_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
     if e.performance and e.performance.cap_curve:
@@ -93,7 +102,7 @@ def loads_to_site_energy(
             "hr_hhw_W",  # ? HR heating hot water load
             "hr_chw_W",  # ? HR chilled water load
             "elec_hr_Wh",
-            "hr_cop",
+            "hr_cop_h",
             "awhp_hhw_W",  # ? HR heating hot water load
             "awhp_cap_h_W",  # ? HR heating capacity
             "elec_awhp_h_Wh",  # ? HR electricity use
@@ -124,34 +133,34 @@ def loads_to_site_energy(
     if scen.hr_wwhp:
         hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
-        hr_wwhp_cap_h = _per_unit_capacity_W(hr_wwhp, temps)  # heating capacity [W_th]
-        hr_wwhp_cop_h = _per_unit_cop(hr_wwhp, temps)  # heating COP
-        if np.isnan(hr_wwhp_cop_h).all():
-            raise ValueError(f"HR WWHP '{hr_wwhp.eq_id}' lacks a COP curve.")
+        plr_curve = _heat_recovery_plr_curve(hr_wwhp)
+        if plr_curve.empty:
+            raise ValueError(f"HR WWHP '{hr_wwhp.eq_id}' lacks a PLR curve.")
 
-        # Conversion factor: how much cooling per heating capacity
-        cap_h_to_cap_c = 1 - (1 / hr_wwhp_cop_h)  # same as in R
-        cap_c = hr_wwhp_cap_h * cap_h_to_cap_c  # cooling capacity from heating capacity
-        cop_c = cop_h_to_cop_c(hr_wwhp_cop_h)  # convert heating COP → cooling COP
+        plr_curve = plr_curve.sort_values(by="cap", ascending=False).reset_index(
+            drop=True
+        )
+        plr_curve["cap_h_to_cap_c"] = 1 - (
+            1 / plr_curve["cop"]
+        )  # conversion factor cooling capacity from heating_capacity
+        plr_curve["cap_c"] = (
+            plr_curve["cap"] * plr_curve["cap_h_to_cap_c"]
+        )  # cooling capacity from heating capacity
+        plr_curve["cop_c"] = cop_h_to_cop_c(
+            plr_curve["cop"]
+        )  # convert heating COP → cooling COP
 
-        # Capacity limits
-        max_cap_h = np.nanmax(
-            hr_wwhp_cap_h
-        )  # max heating capacity required in timeframe
-        min_cap_h = np.nanmin(
-            hr_wwhp_cap_h
-        )  # min heating capacity required in timeframe
-
-        # Least-waste-heat point (max COP) for HR
-        idx_best = np.nanargmax(
-            hr_wwhp_cop_h
-        )  # index of maximum heating COP (smallest fraction of recovered heat wasted)
-        least_waste_heat_factor = cap_h_to_cap_c[idx_best]
+        least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
+        max_cap_h = plr_curve["cap"].max()  # max heating capacity required in timeframe
+        min_cap_h = plr_curve["cap"].min()  # min heating capacity required in timeframe
 
         # Simultaneous load potential (using least-waste-heat factor)
         simult_h = np.minimum(
             df["hhw_rem_W"].to_numpy(),
-            df["chw_rem_W"].to_numpy() / least_waste_heat_factor,
+            df["chw_rem_W"].to_numpy()
+            / least_waste_heat[
+                "cap_h_to_cap_c"
+            ],  # amount of simultaneous load that the WWHP can actually satisfy
         )
 
         # Actual heating served (within capacity limits)
@@ -162,7 +171,7 @@ def loads_to_site_energy(
         )
 
         # Interpolate COP at part load
-        hr_cop_h = interp_vector(hr_wwhp_cap_h, hr_wwhp_cop_h, hr_hhw)
+        hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_hhw)
 
         # Cooling served derived from heating & COP
         hr_chw = np.where(hr_cop_h > 0, hr_hhw * (1 - (1 / hr_cop_h)), 0.0)  # same as R
@@ -171,6 +180,9 @@ def loads_to_site_energy(
         elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
 
         # Apply results
+        df["max_cap_h_hr_W"] = max_cap_h  #! remove
+        df["min_cap_h_hr_W"] = min_cap_h  #! remove
+        df["simult_h_hr_W"] = simult_h  #! remove
         df["hr_hhw_W"] = hr_hhw
         df["hr_chw_W"] = hr_chw
         df["hr_cop_h"] = hr_cop_h
@@ -353,7 +365,10 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         "chw_W",
         "hr_hhw_W",
         "hr_chw_W",
-        "hr_cop",
+        "hr_cop_h",
+        "max_cap_h_hr_W",  #! remove
+        "min_cap_h_hr_W",  #! remove
+        "simult_h_hr_W",  #! remove
         "elec_hr_Wh",
         "awhp_num_h",
         "awhp_cap_h_W",

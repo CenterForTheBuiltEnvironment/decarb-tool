@@ -7,20 +7,12 @@
       "model": "GenericHR_WWHP",
       "fuel": "electricity",
       "performance": {
-        "cop_curve": {
-          "t_out_C": [-10, 0, 10, 20, 30],
-          "cop": [2.1, 2.6, 3.3, 3.9, 4.3],
+        "plr_curve": {
+          "capacity_W": [146500, 109875, 73250, 36625],
+          "cop": [3.815, 3.955, 4.133, 3.74],
           "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [-10, 0, 10, 20, 30],
-          "capacity_W": [110000, 121000, 150000, 170000, 190000],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
+            "min_temp_C": -5,
+            "max_temp_C": 55
           }
         }
       }
@@ -46,6 +38,32 @@
           "constraints": {
             "min_temp_C": -15,
             "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "aermec",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "eq_manufacturer": "Aermec",
+      "model": "NRB-HA-800",
+      "fuel": "electricity",
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+          "cop": [1.8, 1.8, 2.2, 2.4, 2.7, 2.9, 3.0, 3.1, 3.2],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 40
+          }
+        },
+        "cap_curve": {
+          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+          "capacity_W": [136831, 142105, 170526, 188985, 210667, 232349, 248464, 260184, 268974],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 40
           }
         }
       }
@@ -107,7 +125,7 @@
       "awhp_sizing": 4,
       "boiler": null,
       "chiller": "ch01",
-      "resistance_heater": null
+      "resistance_heater": "res01"
     }
   ]
 }

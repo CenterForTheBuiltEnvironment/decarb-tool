@@ -24,9 +24,18 @@ class CapCurve(BaseModel):
         return float(interp_vector(self.t_out_C, self.capacity_W, temp))
 
 
+class plrCurve(BaseModel):
+    capacity_W: List[float]
+    cop: List[float]
+
+    def get_cop(self, cap: float) -> float:
+        return float(interp_vector(self.capacity_W, self.cop, cap))
+
+
 class Performance(BaseModel):
     cop_curve: Optional[COPCurve] = None
     cap_curve: Optional[CapCurve] = None
+    plr_curve: Optional[plrCurve] = None
     efficiency: Optional[float] = None
     constraints: Optional[Dict[str, float]] = None
 
@@ -39,6 +48,7 @@ class Equipment(BaseModel):
     eq_id: str
     eq_type: str
     eq_subtype: Optional[str] = None
+    eq_manufacturer: Optional[str] = None
     model: str
     fuel: str
     capacity_W: Optional[float] = None
