@@ -19,3 +19,5 @@ __pycache__/
 docs/
 
 data/testing/
+
+utils/create_meta_index.py

@@ -1,10 +1,15 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 import pandas as pd
+import json
+
+with open("data/input/metadata_index.json", "r") as f:
+    metadata_index = json.load(f)
 
 
 def select_location(locations_df: pd.DataFrame):
 
+    #! Use metadata_index here
     options = [
         {
             "label": f"{row['zip']} {row['city']}, {row['state_id']}",
@@ -73,6 +78,15 @@ def select_load_data():
 
 
 def modal_load_simulation_data():
+
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["building_type"]
+    ]
+
     return dbc.Modal(
         [
             dbc.ModalHeader("Select Pre-Simulated Data"),
@@ -80,16 +94,11 @@ def modal_load_simulation_data():
                 [
                     html.P("Choose a building type:"),
                     dbc.RadioItems(
-                        options=[
-                            {"label": "Residential", "value": "residential"},
-                            {"label": "Commercial", "value": "commercial"},
-                            {"label": "Industrial", "value": "industrial"},
-                        ],
-                        value="residential",
-                        id="building-type-radio",
+                        options=options,
+                        id="building-type-input",
                     ),
-                    html.Br(),
-                    dbc.Button("Load Data", color="primary", id="load-data-button"),
+                    # html.Br(),
+                    # dbc.Button("Load Data", color="primary", id="load-data-button"), #! can be removed, load should happen in one step
                 ]
             ),
             dbc.ModalFooter(

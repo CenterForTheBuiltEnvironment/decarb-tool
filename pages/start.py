@@ -1,5 +1,6 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback
+import json
+from dash import dcc, html, Input, Output, State, callback, ctx
 import dash_bootstrap_components as dbc
 
 import pandas as pd
@@ -30,21 +31,12 @@ locations_df["zip"] = locations_df["zip"].astype(str)
 
 
 def layout():
+    # Initialize Metadata at startup
+    initial_metadata = Metadata.create().model_dump()
+
     return dbc.Container(
         children=[
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H2("Welcome to the Berkeley Decarb Tool"),
-                            html.P(
-                                "Please enter the information below to get started."
-                            ),
-                        ],
-                        width=12,
-                    ),
-                ],
-            ),
+            dcc.Store(id="metadata-store", data=initial_metadata),
             dbc.Row(
                 [
                     dbc.Col(
@@ -63,11 +55,20 @@ def layout():
                                 color="primary",
                             ),
                         ],
-                        width=5,
+                        width=4,
                     ),
                     dbc.Col(
                         [dcc.Graph(id="map-graph")],
-                        width=7,
+                        width=6,
+                    ),
+                    dbc.Col(
+                        [
+                            html.H4("Summary"),
+                            html.Pre(
+                                id="metadata-display", style={"whiteSpace": "pre-wrap"}
+                            ),
+                        ],
+                        width=2,
                     ),
                 ],
             ),
@@ -92,19 +93,35 @@ def toggle_modal(open_clicks, close_clicks, is_open):
 @callback(
     Output("metadata-store", "data"),
     Input("location-input", "value"),
+    Input("building-type-input", "value"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
 )
-def update_metadata_location(selected_zip, metadata_data):
-    if not selected_zip:
-        return metadata_data
+def update_metadata(selected_zip, selected_building_type, metadata_data):
+    # Figure out which input triggered
+    trigger = ctx.triggered_id
 
-    # look up the location row
-    row = locations_df.loc[locations_df["zip"] == int(selected_zip)].iloc[0]
+    if not trigger:  # no trigger
+        return metadata_data
 
     # rebuild metadata object
     metadata = Metadata(**metadata_data)
-    metadata.location = row["city"]  # or f"{row['name']} ({row['zip']})"
-    metadata.ashrae_climate_zone = row["ashrae_climate_zone"]
 
-    return metadata.dict()
+    if trigger == "location-input" and selected_zip:
+        # look up the location row
+        row = locations_df.loc[locations_df["zip"] == selected_zip].iloc[0]
+        metadata.location = row["city"]
+        metadata.ashrae_climate_zone = row["ASHRAE"]
+
+    elif trigger == "building-type-input" and selected_building_type:
+        metadata.building_type = selected_building_type
+
+    return metadata.model_dump()
+
+
+@callback(Output("metadata-display", "children"), Input("metadata-store", "data"))
+def show_metadata(data):
+    if not data:
+        return "No metadata yet"
+
+    return json.dumps(data, indent=2)
