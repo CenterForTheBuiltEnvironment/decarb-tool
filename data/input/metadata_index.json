@@ -23,5 +23,14 @@
       "3C",
       "3B"
     ]
+  },
+  "equipment": {
+    "equipment_type": [
+      "boiler",
+      "heat_pump",
+      "resistance_heater",
+      "chiller",
+      "hr_heat_pump"
+    ]
   }
 }

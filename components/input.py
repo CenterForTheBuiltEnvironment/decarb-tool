@@ -114,6 +114,28 @@ def modal_load_simulation_data():
     )
 
 
+def filter_equipment_type():
+
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["equipment"]["equipment_type"]
+    ]
+    return html.Div(
+        [
+            dbc.Label("Filter by Equipment Type"),
+            dcc.Dropdown(
+                id="equipment-type-input",
+                options=options,
+                placeholder="Select equipment type...",
+                clearable=True,
+            ),
+        ]
+    )
+
+
 def emission_rate_dropdown():
     return html.Div(
         [
