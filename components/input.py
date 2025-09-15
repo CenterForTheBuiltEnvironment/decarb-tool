@@ -20,6 +20,10 @@ def select_location(locations_df: pd.DataFrame):
     return html.Div(
         [
             dbc.Label("1. Building Location"),
+            html.P(
+                "Select the building location. This will also set the corresponding ASHRAE climate zone for the analysis."
+            ),
+            html.Br(),
             dcc.Dropdown(
                 id="location-input",
                 options=options,
@@ -79,12 +83,20 @@ def select_load_data():
 
 def modal_load_simulation_data():
 
-    options = [
+    building_type_options = [
         {
             "label": type,
             "value": type,
         }
         for type in metadata_index["load_data_simulated"]["building_type"]
+    ]
+
+    vintage_options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["vintage"]
     ]
 
     return dbc.Modal(
@@ -94,8 +106,14 @@ def modal_load_simulation_data():
                 [
                     html.P("Choose a building type:"),
                     dbc.RadioItems(
-                        options=options,
+                        options=building_type_options,
                         id="building-type-input",
+                    ),
+                    html.Br(),
+                    html.P("Choose a building vintage:"),
+                    dbc.RadioItems(
+                        options=vintage_options,
+                        id="vintage-input",
                     ),
                     # html.Br(),
                     # dbc.Button("Load Data", color="primary", id="load-data-button"), #! can be removed, load should happen in one step

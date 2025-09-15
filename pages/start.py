@@ -94,10 +94,13 @@ def toggle_modal(open_clicks, close_clicks, is_open):
     Output("metadata-store", "data"),
     Input("location-input", "value"),
     Input("building-type-input", "value"),
+    Input("vintage-input", "value"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
 )
-def update_metadata(selected_zip, selected_building_type, metadata_data):
+def update_metadata(
+    selected_zip, selected_building_type, selected_vintage, metadata_data
+):
     # Figure out which input triggered
     trigger = ctx.triggered_id
 
@@ -115,6 +118,9 @@ def update_metadata(selected_zip, selected_building_type, metadata_data):
 
     elif trigger == "building-type-input" and selected_building_type:
         metadata.building_type = selected_building_type
+
+    elif trigger == "vintage-input" and selected_vintage:
+        metadata.vintage = selected_vintage
 
     return metadata.model_dump()
 

@@ -22,15 +22,19 @@
       "4B",
       "3C",
       "3B"
+    ],
+    "vintage": [
+      2022,
+      2004
     ]
   },
   "equipment": {
     "equipment_type": [
-      "boiler",
+      "hr_heat_pump",
       "heat_pump",
-      "resistance_heater",
+      "boiler",
       "chiller",
-      "hr_heat_pump"
+      "resistance_heater"
     ]
   }
 }
