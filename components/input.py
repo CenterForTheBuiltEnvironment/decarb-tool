@@ -21,7 +21,7 @@ def select_location(locations_df: pd.DataFrame):
         [
             dbc.Label("1. Building Location"),
             html.P(
-                "Select the building location. This will also set the corresponding ASHRAE climate zone for the analysis."
+                "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
             ),
             html.Br(),
             dcc.Dropdown(
@@ -114,6 +114,7 @@ def modal_load_simulation_data():
                     dbc.RadioItems(
                         options=vintage_options,
                         id="vintage-input",
+                        value=vintage_options[0]["value"],
                     ),
                     # html.Br(),
                     # dbc.Button("Load Data", color="primary", id="load-data-button"), #! can be removed, load should happen in one step

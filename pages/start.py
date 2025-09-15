@@ -5,6 +5,7 @@ import dash_bootstrap_components as dbc
 
 import pandas as pd
 
+from components.output import summary_selection_info
 from src.config import URLS
 
 from src.metadata import Metadata
@@ -31,12 +32,9 @@ locations_df["zip"] = locations_df["zip"].astype(str)
 
 
 def layout():
-    # Initialize Metadata at startup
-    initial_metadata = Metadata.create().model_dump()
 
     return dbc.Container(
         children=[
-            dcc.Store(id="metadata-store", data=initial_metadata),
             dbc.Row(
                 [
                     dbc.Col(
@@ -59,16 +57,18 @@ def layout():
                     ),
                     dbc.Col(
                         [dcc.Graph(id="map-graph")],
-                        width=6,
+                        width=5,
                     ),
                     dbc.Col(
                         [
-                            html.H4("Summary"),
+                            html.Div(
+                                id="summary-selection-info",
+                            ),
                             html.Pre(
                                 id="metadata-display", style={"whiteSpace": "pre-wrap"}
                             ),
                         ],
-                        width=2,
+                        width=3,
                     ),
                 ],
             ),
@@ -125,9 +125,9 @@ def update_metadata(
     return metadata.model_dump()
 
 
-@callback(Output("metadata-display", "children"), Input("metadata-store", "data"))
+@callback(Output("summary-selection-info", "children"), Input("metadata-store", "data"))
 def show_metadata(data):
     if not data:
         return "No metadata yet"
 
-    return json.dumps(data, indent=2)
+    return summary_selection_info(data)

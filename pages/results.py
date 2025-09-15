@@ -1,5 +1,5 @@
 import dash
-from dash import html, dcc
+from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
 from src.config import URLS
@@ -69,7 +69,7 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            summary_project_info(),
+                            html.Div(id="building-info-results"),
                             summary_scenario_results(),
                             html.Hr(),
                             dbc.Button(
@@ -84,3 +84,15 @@ def layout():
         ],
         fluid=True,
     )
+
+
+@callback(
+    Output("building-info-results", "children"),
+    Input("metadata-store", "data"),
+    suppress_callback_exceptions=True,
+)
+def show_metadata(data):
+    if not data:
+        return "No metadata yet"
+
+    return summary_project_info(data)
