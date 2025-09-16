@@ -1,20 +1,28 @@
 import dash
-import json
 from dash import dcc, html, Input, Output, State, callback, ctx
 import dash_bootstrap_components as dbc
 
 import pandas as pd
 
-from components.output import summary_selection_info
+from io import StringIO
+
 from src.config import URLS
 
 from src.metadata import Metadata
+from src.equipment import EquipmentLibrary
 
-from components.input import (
+from src.loads import get_load_data
+from src.emissions import get_emissions_data
+
+from src.energy import loads_to_site_energy, site_to_source
+
+from layout.input import (
     select_location,
     select_load_data,
     modal_load_simulation_data,
 )
+
+from layout.output import summary_selection_info
 
 
 dash.register_page(__name__, path=URLS.HOME.value, order=0)
@@ -50,13 +58,18 @@ def layout():
                             ),
                             dbc.Button(
                                 "Calculate Emissions",
+                                id="calculate-button-start-page",
+                                n_clicks=0,
                                 color="primary",
                             ),
+                            html.Div(id="calc-status"), #! for debugging: remove later
                         ],
                         width=4,
                     ),
                     dbc.Col(
-                        [dcc.Graph(id="map-graph")],
+                        [
+                            dcc.Graph(id="map-graph") 
+                        ],
                         width=5,
                     ),
                     dbc.Col(
@@ -131,3 +144,51 @@ def show_metadata(data):
         return "No metadata yet"
 
     return summary_selection_info(data)
+
+
+@callback(
+    Output("site-energy-store", "data"),
+    Input("calculate-button-start-page", "n_clicks"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True
+)
+def run_loads_to_site(n_clicks, metadata_json, equipment_json):
+
+    metadata = Metadata(**metadata_json) if metadata_json else None
+    equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
+
+    load_data = get_load_data(metadata)
+
+    site_energy = loads_to_site_energy(
+        load_data,
+        equipment,
+        metadata.equipment_scenario,
+        detail=True
+    )
+
+    print(site_energy.head()) #! for debugging: remove later
+
+    return site_energy.to_json(date_format="iso", orient="split")
+
+
+@callback(
+    Output("source-energy-store", "data"),
+    Output("calc-status", "children"),
+    Input("site-energy-store", "data"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True
+)
+def run_site_to_source(site_energy_json, metadata_json):
+    site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
+    metadata = Metadata(**metadata_json) if metadata_json else None
+
+    emissions_data = get_emissions_data(metadata)
+
+    source_energy = site_to_source(
+        site_energy,
+        settings=metadata.emissions,
+        emissions=emissions_data
+    )
+
+    return source_energy.to_json(date_format="iso", orient="split"), "Calculation finished!"

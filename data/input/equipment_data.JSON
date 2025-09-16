@@ -126,6 +126,17 @@
       "boiler": null,
       "chiller": "ch01",
       "resistance_heater": "res01"
+    },
+    {
+      "eq_scen_id": "custom",
+      "eq_scen_name": "Custom Scenario",
+      "hr_wwhp": null,
+      "awhp_h": null,
+      "awhp_c": null,
+      "awhp_sizing": 1,
+      "boiler": null,
+      "chiller": null,
+      "resistance_heater": null
     }
   ]
 }

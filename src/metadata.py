@@ -43,7 +43,7 @@ class Metadata(BaseModel):
         """
         defaults = dict(
             location="US_CA_SanFrancisco",
-            building_type="office",
+            building_type="OfficeLarge",
             vintage=2022,
             load_type="load_simulated",
             ashrae_climate_zone="3C",
@@ -54,7 +54,7 @@ class Metadata(BaseModel):
                 time_zone="America/Los_Angeles",
                 emission_type="Combustion only",
                 shortrun_weighting=1.0,
-                years=[2025, 2030, 2040],
+                years=[2025],
             ),
             units="SI",
             last_updated=datetime.utcnow().isoformat(),

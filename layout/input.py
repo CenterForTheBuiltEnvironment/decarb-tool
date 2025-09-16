@@ -175,13 +175,6 @@ def emission_rate_dropdown():
     )
 
 
-def emission_data_upload_button():
-    return dbc.Button(
-        "Upload Emissions Data",
-        color="primary",
-    )
-
-
 def emission_period_slider():
     return html.Div(
         [

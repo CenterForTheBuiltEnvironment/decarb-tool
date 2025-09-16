@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 
 from src.config import URLS
 
-from components.input import filter_equipment_type
+from layout.input import filter_equipment_type
 
 dash.register_page(__name__, path=URLS.EQUIPMENT.value, order=1)
 

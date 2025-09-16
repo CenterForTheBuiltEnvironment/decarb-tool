@@ -108,7 +108,7 @@ def plot_meter_timeseries(
             template="simple_white",
         )
 
-    return fig.show()
+    return fig
 
 
 def plot_emissions_heatmap(df):
