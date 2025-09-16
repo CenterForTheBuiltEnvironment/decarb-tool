@@ -18,6 +18,142 @@
       }
     },
     {
+      "eq_id": "hr02",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_scroll",
+      "model": "IMC-WWHP-30Ton-120HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [105500, 50000],
+          "cop": [3.68, 4.2],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr03",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_scroll",
+      "model": "IMC-WWHP-30Ton-140HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [105500, 50000],
+          "cop": [2.68, 3.3],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr04",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_scroll",
+      "model": "IMC-WWHP-60Ton-120HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [211000, 100000],
+          "cop": [3.68, 4.2],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr05",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_scroll",
+      "model": "IMC-WWHP-60Ton-140HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [211000, 100000],
+          "cop": [2.68, 3.3],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr06",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_centrifugal",
+      "model": "IMC-WWHP-250Ton-120HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [879250, 700000, 500000, 300000],
+          "cop": [3.68, 3.9, 4.3, 4.5],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr07",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_centrifugal",
+      "model": "IMC-WWHP-250Ton-140HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [879250, 700000, 500000, 300000],
+          "cop": [2.68, 2.9, 3.3, 3.5],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr08",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_centrifugal",
+      "model": "IMC-WWHP-500Ton-120HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [1758500, 1200000, 800000, 600000],
+          "cop": [3.96, 4.2, 4.6, 4.8],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hr09",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water_centrifugal",
+      "model": "IMC-WWHP-500Ton-140HHWST",
+      "fuel": "electricity",
+      "performance": {
+        "plr_curve": {
+          "capacity_W": [1758500, 1200000, 800000, 600000],
+          "cop": [2.97, 3.2, 3.6, 3.8],
+          "constraints": {
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }
+        }
+      }
+    },
+    {
       "eq_id": "hp01",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
@@ -69,14 +205,150 @@
       }
     },
     {
+      "eq_id": "hp_h_02",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-30Ton-120HHWST",
+      "fuel": "electricity",
+      "capacity_W": 105500,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-8, 8],
+          "cop": [1.78, 2.77],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hp_h_03",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-30Ton-140HHWST",
+      "fuel": "electricity",
+      "capacity_W": 105500,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-8, 8],
+          "cop": [1.48, 2.31],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hp_h_04",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-60Ton-120HHWST",
+      "fuel": "electricity",
+      "capacity_W": 211000,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-8, 8],
+          "cop": [1.78, 2.77],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hp_h_05",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-60Ton-140HHWST",
+      "fuel": "electricity",
+      "capacity_W": 211000,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [-8, 8],
+          "cop": [1.48, 2.31],
+          "constraints": {
+            "min_temp_C": -15,
+            "max_temp_C": 35
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hp_c_01",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-30Ton-Cooling",
+      "fuel": "electricity",
+      "capacity_W": 105500,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [10, 35],
+          "cop": [3.2, 2.81],
+          "constraints": {
+            "min_temp_C": 5,
+            "max_temp_C": 45
+          }
+        }
+      }
+    },
+    {
+      "eq_id": "hp_c_01",
+      "eq_type": "heat_pump",
+      "eq_subtype": "air_to_water",
+      "model": "IMC-AWHP-60Ton-Cooling",
+      "fuel": "electricity",
+      "capacity_W": 211000,
+      "performance": {
+        "cop_curve": {
+          "t_out_C": [10, 35],
+          "cop": [3.2, 2.81],
+          "constraints": {
+            "min_temp_C": 5,
+            "max_temp_C": 45
+          }
+        }
+      }
+    },
+    {
       "eq_id": "bo01",
       "eq_type": "boiler",
       "eq_subtype": "hot_water",
-      "model": "GenericBoiler",
+      "model": "GenericBoiler-180HHWST",
       "fuel": "natural_gas",
-      "capacity_W": 200000,
+      "capacity_W": 500000,
       "performance": {
-        "efficiency": 0.88
+        "efficiency": 0.86
+      },
+      "emissions": {
+        "co2_kg_per_mwh": 200
+      }
+    },
+    {
+      "eq_id": "bo02",
+      "eq_type": "boiler",
+      "eq_subtype": "hot_water",
+      "model": "GenericBoiler-160HHWST",
+      "fuel": "natural_gas",
+      "capacity_W": 500000,
+      "performance": {
+        "efficiency": 0.90
+      },
+      "emissions": {
+        "co2_kg_per_mwh": 200
+      }
+    },
+    {
+      "eq_id": "bo03",
+      "eq_type": "boiler",
+      "eq_subtype": "hot_water",
+      "model": "GenericBoiler-140HHWST",
+      "fuel": "natural_gas",
+      "capacity_W": 500000,
+      "performance": {
+        "efficiency": 0.95
       },
       "emissions": {
         "co2_kg_per_mwh": 200
@@ -90,6 +362,61 @@
       "capacity_W": 150000,
       "performance": {
         "efficiency": 4.0
+      }
+    },
+    {
+      "eq_id": "ch02",
+      "eq_type": "chiller",
+      "eq_subtype": "air_cooled",
+      "model": "IMC-AirCooledChiller-100Ton",
+      "fuel": "electricity",
+      "capacity_W": 351700,
+      "performance": {
+        "efficiency": 2.84
+      }
+    },
+    {
+      "eq_id": "ch03",
+      "eq_type": "chiller",
+      "eq_subtype": "air_cooled",
+      "model": "IMC-AirCooledChiller-200Ton",
+      "fuel": "electricity",
+      "capacity_W": 703400,
+      "performance": {
+        "efficiency": 2.84
+      }
+    },
+    {
+      "eq_id": "ch04",
+      "eq_type": "chiller",
+      "eq_subtype": "water_cooled_centrifugal",
+      "model": "IMC-WaterCooledChiller-Centrifugal-250Ton",
+      "fuel": "electricity",
+      "capacity_W": 879250,
+      "performance": {
+        "efficiency": 5.54
+      }
+    },
+    {
+      "eq_id": "ch05",
+      "eq_type": "chiller",
+      "eq_subtype": "water_cooled_centrifugal",
+      "model": "IMC-WaterCooledChiller-Centrifugal-350Ton",
+      "fuel": "electricity",
+      "capacity_W": 1231000,
+      "performance": {
+        "efficiency": 5.91
+      }
+    },
+    {
+      "eq_id": "ch06",
+      "eq_type": "chiller",
+      "eq_subtype": "water_cooled_centrifugal",
+      "model": "IMC-WaterCooledChiller-Centrifugal-500Ton",
+      "fuel": "electricity",
+      "capacity_W": 1758500,
+      "performance": {
+        "efficiency": 6.01
       }
     },
     {
@@ -128,15 +455,70 @@
       "resistance_heater": "res01"
     },
     {
-      "eq_scen_id": "custom",
-      "eq_scen_name": "Custom Scenario",
+      "eq_scen_id": "typ_01",
+      "eq_scen_name": "Chiller + Gas Boiler",
+      "hr_wwhp": null,
+      "awhp_h": null,
+      "awhp_c": null,
+      "awhp_sizing": 1,
+      "boiler": "bo02",
+      "chiller": "ch03",
+      "resistance_heater": null
+    },
+    {
+      "eq_scen_id": "typ_02",
+      "eq_scen_name": "Chiller + Electric Boiler",
       "hr_wwhp": null,
       "awhp_h": null,
       "awhp_c": null,
       "awhp_sizing": 1,
       "boiler": null,
-      "chiller": null,
+      "chiller": "ch03",
+      "resistance_heater": "res01"
+    },
+    {
+      "eq_scen_id": "heatingHP_01",
+      "eq_scen_name": "Chiller + 80% AWHP/Gas Backup",
+      "hr_wwhp": null,
+      "awhp_h": "hp_h_03",
+      "awhp_c": null,
+      "awhp_sizing": 0.6,
+      "boiler": "bo02",
+      "chiller": "ch03",
       "resistance_heater": null
+    },
+    {
+      "eq_scen_id": "heatingHP_02",
+      "eq_scen_name": "Chiller + 80% AWHP/Electric Backup",
+      "hr_wwhp": null,
+      "awhp_h": "hp_h_03",
+      "awhp_c": null,
+      "awhp_sizing": 0.8,
+      "boiler": null,
+      "chiller": "ch03",
+      "resistance_heater": "res01"
+    },
+    {
+      "eq_scen_id": "bothHP_01",
+      "eq_scen_name": "80% AWHP/Electric Backup",
+      "hr_wwhp": null,
+      "awhp_h": "hp_h_03",
+      "awhp_c": "hp_c_01",
+      "awhp_sizing": 0.8,
+      "boiler": null,
+      "chiller": "ch03",
+      "resistance_heater": "res01"
+    },
+    {
+      "eq_scen_id": "hr_01",
+      "eq_scen_name": "HR + AWHP + Electric Backup",
+      "hr_wwhp": "hr01",
+      "awhp_h": "hp_h_03",
+      "awhp_c": "hp_c_01",
+      "awhp_sizing": 0.8,
+      "boiler": null,
+      "chiller": "ch03",
+      "resistance_heater": "res01"
     }
   ]
 }
