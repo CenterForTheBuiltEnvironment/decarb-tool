@@ -198,17 +198,55 @@ def emission_period_slider():
 
 def results_utility_bar():
     return html.Div(
-    [
-        dbc.Button(
-            DashIconify(icon="mdi:filter-variant", width=24),
-            id="open-filter",
-            color="secondary",
-        ),
-        dbc.Button(
-            DashIconify(icon="mdi:cog-outline", width=24),
-            id="open-settings",
-            color="secondary",
-        ),
-    ],
-    className="d-flex justify-content-end p-2",
-)
+        [
+            dbc.Button(
+                DashIconify(icon="mdi:filter-variant", width=24),
+                id="open-filter",
+                color="secondary",
+            ),
+            dbc.Button(
+                DashIconify(icon="mdi:cog-outline", width=24),
+                id="open-settings",
+                color="secondary",
+            ),
+        ],
+        className="d-flex justify-content-end p-2",
+    )
+
+
+# Sidebar panels
+def filter_sidebar():
+    return dbc.Offcanvas(
+        [
+            html.H5("Scenarios", className="mb-3"),
+            dbc.Checklist(
+                options=[
+                    {"label": "Scenario A", "value": "A"},
+                    {"label": "Scenario B", "value": "B"},
+                ],
+                value=["A"],
+                id="filter-checklist",
+            ),
+            html.Hr(),
+            html.H5("Emissions", className="mb-3"),
+            emission_period_slider(),
+            html.Hr(),
+            emission_rate_dropdown(),
+        ],
+        id="filter-sidebar",
+        placement="start",
+        is_open=False,
+    )
+
+
+def settings_sidebar():
+    return dbc.Offcanvas(
+        [
+            html.H5("Settings", className="mb-3"),
+            dbc.Switch(id="dark-mode", label="Enable Dark Mode", value=False),
+        ],
+        id="settings-sidebar",
+        title="Settings",
+        placement="end",
+        is_open=False,
+    )

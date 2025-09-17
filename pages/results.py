@@ -13,6 +13,8 @@ from layout.input import (
     emission_rate_dropdown,
     emission_period_slider,
     results_utility_bar,
+    filter_sidebar,
+    settings_sidebar,
 )
 
 from layout.output import summary_project_info, summary_scenario_results
@@ -32,11 +34,11 @@ def layout():
                     dbc.Col(
                         [
                             html.Div(id="building-info-results"),
-                            dbc.Label("Emissions"),
-                            html.Hr(),
-                            emission_period_slider(),
-                            html.Hr(),
-                            emission_rate_dropdown(),
+                            # dbc.Label("Emissions"),
+                            # html.Hr(),
+                            # emission_period_slider(),
+                            # html.Hr(),
+                            # emission_rate_dropdown(),
                             html.Hr(),
                             summary_scenario_results(),
                             html.Hr(),
@@ -66,7 +68,9 @@ def layout():
                         width=9,
                     ),
                 ]
-            )
+            ),
+            filter_sidebar(),
+            settings_sidebar(),
         ],
         fluid=True,
     )
@@ -81,6 +85,26 @@ def show_metadata(data):
         return "No metadata yet"
 
     return summary_project_info(data)
+
+
+@callback(
+    Output("filter-sidebar", "is_open"),
+    Input("open-filter", "n_clicks"),
+    State("filter-sidebar", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_filter(n, is_open):
+    return not is_open
+
+
+@callback(
+    Output("settings-sidebar", "is_open"),
+    Input("open-settings", "n_clicks"),
+    State("settings-sidebar", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_settings(n, is_open):
+    return not is_open
 
 
 @callback(
