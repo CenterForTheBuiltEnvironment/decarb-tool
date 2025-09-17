@@ -12,11 +12,12 @@ from src.config import URLS
 from layout.input import (
     emission_rate_dropdown,
     emission_period_slider,
+    results_utility_bar,
 )
 
 from layout.output import summary_project_info, summary_scenario_results
 
-from layout.charts import meter_timeseries_chart
+from layout.charts import chart_tabs
 
 from src.visuals import plot_meter_timeseries
 
@@ -58,8 +59,8 @@ def layout():
                                     ),
                                 ]
                             ),
-                            html.Hr(),
-                            meter_timeseries_chart(),
+                            results_utility_bar(),
+                            chart_tabs(),
                             html.Hr(),
                         ],
                         width=9,
@@ -92,12 +93,18 @@ def show_metadata(data):
 )
 def update_meter_plot(stacked_value, gas_value, frequency_value, source_json):
     if not source_json:
-        return px.line(x=[0,1], y=[0,0], title="Waiting for data...")
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     df = pd.read_json(StringIO(source_json), orient="split")
 
-    elec_cols = ['elec_hr_Wh','elec_awhp_h_Wh','elec_chiller_Wh','elec_awhp_c_Wh','elec_res_Wh']
-    gas_cols = ['gas_boiler_Wh']
+    elec_cols = [
+        "elec_hr_Wh",
+        "elec_awhp_h_Wh",
+        "elec_chiller_Wh",
+        "elec_awhp_c_Wh",
+        "elec_res_Wh",
+    ]
+    gas_cols = ["gas_boiler_Wh"]
 
     all_cols = elec_cols + gas_cols
     df = df[[c for c in all_cols if c in df.columns]]
@@ -107,5 +114,7 @@ def update_meter_plot(stacked_value, gas_value, frequency_value, source_json):
     include_gas = "gas" in gas_value
     frequency_value = frequency_value if frequency_value else "D"
 
-    fig = plot_meter_timeseries(df, stacked=stacked, include_gas=include_gas, freq=frequency_value)
+    fig = plot_meter_timeseries(
+        df, stacked=stacked, include_gas=include_gas, freq=frequency_value
+    )
     return fig

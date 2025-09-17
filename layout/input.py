@@ -1,5 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
+from dash_iconify import DashIconify
 import pandas as pd
 import json
 
@@ -193,3 +194,21 @@ def emission_period_slider():
             ),
         ]
     )
+
+
+def results_utility_bar():
+    return html.Div(
+    [
+        dbc.Button(
+            DashIconify(icon="mdi:filter-variant", width=24),
+            id="open-filter",
+            color="secondary",
+        ),
+        dbc.Button(
+            DashIconify(icon="mdi:cog-outline", width=24),
+            id="open-settings",
+            color="secondary",
+        ),
+    ],
+    className="d-flex justify-content-end p-2",
+)
