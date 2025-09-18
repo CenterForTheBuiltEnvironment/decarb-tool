@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -6,6 +7,8 @@ from plotly.subplots import make_subplots
 
 def plot_meter_timeseries(
     df,
+    year,
+    scenario_id=None,
     freq="D",
     stacked=False,
     include_gas=True,
@@ -32,6 +35,10 @@ def plot_meter_timeseries(
     aggfunc : str, default "sum"
         Aggregation function to apply when resampling. Options: "sum", "mean".
     """
+
+    df = df[df.index.year == year]
+    df = df.loc[df.scenario_id == scenario_id] if scenario_id else df.copy()
+    df = df.drop(columns=["scenario_id"], errors="ignore")
 
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("DataFrame index must be a DateTimeIndex")
@@ -71,7 +78,6 @@ def plot_meter_timeseries(
                 else "Average Usage [Wh]"
             ),
             legend_title="Meter",
-            template="simple_white",
         )
 
     else:
@@ -105,13 +111,13 @@ def plot_meter_timeseries(
             xaxis_title="Time",
             yaxis_title="Usage [Wh]" if aggfunc == "sum" else "Average Usage [Wh]",
             legend_title="Meter",
-            template="simple_white",
+            template="decarb-tool-theme",
         )
 
     return fig
 
 
-def plot_emissions_heatmap(df):
+def plot_emissions_heatmap(df, year):
     """
     Plot a heatmap of electricity emissions (elec_emissions) by hour and day of the year.
 
@@ -124,7 +130,7 @@ def plot_emissions_heatmap(df):
     -----------------
     ['elec_emissions'] (and a datetime index)
     """
-
+    df = df[df.index.year == year].copy()
     df["hour"] = df.index.hour
     df["doy"] = df.index.dayofyear
 
@@ -153,6 +159,8 @@ def plot_emissions_heatmap(df):
             y=heatmap_data.index,
             colorscale="YlGnBu",
             colorbar=dict(title="Electricity Emissions (kg CO₂)"),
+            hovertemplate="Day of Year: %{x}<br>Hour: %{y}<br>Emissions: %{z:.2f} kg CO₂<extra></extra>",
+            zsmooth="best",
         )
     )
 
@@ -160,7 +168,6 @@ def plot_emissions_heatmap(df):
         title="Electricity Emissions Heatmap (Hour of Day vs. Day of Year)",
         xaxis_title="Day of Year",
         yaxis_title="Hour of Day",
-        yaxis=dict(autorange="reversed"),  # Reverse the hour axis so 0 is at the top
     )
 
     fig.show()
@@ -225,22 +232,20 @@ def plot_energy_breakdown(df):
 
     fig.update_traces(texttemplate="%{text:.2s}", textposition="outside")
     fig.update_layout(
-        yaxis={"categoryorder": "total ascending"}, template="simple_white"
+        yaxis={"categoryorder": "total ascending"},
     )
     fig.show()
 
 
-def plot_energy_and_emissions(df):
+def plot_energy_and_emissions(df, year):
     """
-    Plot annual totals for energy (left) and emissions (right).
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Time series DataFrame with columns for energy components.
+    Plot annual totals for energy (left) and emissions (right) by scenario.
+    No legend or annotations; scenario/category info is in hover tooltips.
     """
 
-    # --- REQUIRED COLUMNS ---
+    if "scenario_id" not in df.columns:
+        raise ValueError("DataFrame must include a 'scenario_id' column.")
+
     elec_components = [
         "elec_hr_Wh",
         "elec_awhp_h_Wh",
@@ -250,90 +255,105 @@ def plot_energy_and_emissions(df):
     ]
     gas_components = ["gas_boiler_Wh"]
 
-    required_columns = elec_components + gas_components
-    missing = [col for col in required_columns if col not in df.columns]
-    if missing:
-        raise ValueError(f"Missing required columns in DataFrame: {missing}")
-
-    # --- ENERGY TOTALS ---
-
-    # Split electricity into heating/cooling
-    elec_heat = df[["elec_hr_Wh", "elec_awhp_h_Wh", "elec_res_Wh"]].sum().sum() / 1000
-    elec_cool = df[["elec_awhp_c_Wh", "elec_chiller_Wh"]].sum().sum() / 1000
-
-    gas_heat = df["gas_boiler_Wh"].sum() / 1000
-
-    totals_energy = [
-        {"Type": "Gas", "Category": "Heating", "kWh": gas_heat},
-        {"Type": "Electricity", "Category": "Heating", "kWh": elec_heat},
-        {"Type": "Electricity", "Category": "Cooling", "kWh": elec_cool},
-    ]
-
-    # --- EMISSIONS TOTALS ---
-    elec_emissions = df["elec_emissions"].sum().sum()
-    gas_emissions = df["gas_emissions"].sum().sum()
-    refrigerant_emissions = df["total_refrig_emissions"].sum().sum()
-
-    totals_emissions = [
-        {"Type": "Gas", "Category": "Emissions", "Value": gas_emissions},
-        {"Type": "Electricity", "Category": "Emissions", "Value": elec_emissions},
-        {
-            "Type": "Refrigerant",
-            "Category": "Emissions",
-            "Value": refrigerant_emissions,
-        },
-    ]
-
-    # --- COLORS ---
-    color_map_energy = {"Heating": "red", "Cooling": "blue"}
+    color_map_energy = {"Heating": "red", "Cooling": "blue", "Gas": "orange"}
     color_map_emissions = {
         "Electricity": "black",
         "Gas": "yellow",
         "Refrigerant": "green",
     }
 
-    # --- CREATE SUBPLOTS ---
+    df = df[df.index.year == year]
+
+    scenarios = df["scenario_id"].unique()
+    n_scen = len(scenarios)
+    opacities = np.linspace(0.7, 0.3, n_scen)
+
     fig = make_subplots(rows=1, cols=2, column_widths=[0.5, 0.5])
 
-    # LEFT: Energy stacked bars
-    for s in totals_energy:
-        fig.add_trace(
-            go.Bar(
-                x=[s["Type"]],
-                y=[s["kWh"]],
-                name=f"{s['Type']} - {s['Category']}",
-                text=[f"{s['kWh']:.0f}"],
-                textposition="inside",
-                marker_color=color_map_energy[s["Category"]],
-            ),
-            row=1,
-            col=1,
-        )
+    # --- LOOP OVER SCENARIOS ---
+    for i, scen in enumerate(scenarios):
+        df_s = df[df["scenario_id"] == scen]
 
-    # RIGHT: Emissions stacked bars
-    for s in totals_emissions:
-        fig.add_trace(
-            go.Bar(
-                x=[s["Type"]],
-                y=[s["Value"]],
-                name=f"{s['Type']} - {s['Category']}",
-                text=[f"{s['Value']:.1f}"],
-                textposition="inside",
-                marker_color=color_map_emissions[s["Type"]],
-            ),
-            row=1,
-            col=2,
+        # --- ENERGY TOTALS ---
+        elec_heat = (
+            df_s[["elec_hr_Wh", "elec_awhp_h_Wh", "elec_res_Wh"]].sum().sum() / 1000
         )
+        elec_cool = df_s[["elec_awhp_c_Wh", "elec_chiller_Wh"]].sum().sum() / 1000
+        gas_heat = df_s["gas_boiler_Wh"].sum() / 1000
 
-    # --- LAYOUT ---
+        totals_energy = [
+            {"Type": "Gas", "Category": "Heating", "kWh": gas_heat},
+            {"Type": "Electricity", "Category": "Heating", "kWh": elec_heat},
+            {"Type": "Electricity", "Category": "Cooling", "kWh": elec_cool},
+        ]
+
+        for s in totals_energy:
+            fig.add_trace(
+                go.Bar(
+                    x=[s["Type"]],
+                    y=[s["kWh"]],
+                    width=0.2,
+                    marker=dict(
+                        color=color_map_energy[s["Category"]],
+                        opacity=opacities[i],
+                    ),
+                    hovertemplate=(
+                        f"Scenario: {scen}<br>"
+                        f"Type: {s['Type']}<br>"
+                        f"Category: {s['Category']}<br>"
+                        f"kWh: {s['kWh']:.0f}<extra></extra>"
+                    ),
+                    showlegend=False,
+                ),
+                row=1,
+                col=1,
+            )
+
+        # --- EMISSIONS TOTALS ---
+        elec_emissions = df_s["elec_emissions"].sum().sum()
+        gas_emissions = df_s["gas_emissions"].sum().sum()
+        refrigerant_emissions = df_s["total_refrig_emissions"].sum().sum()
+
+        totals_emissions = [
+            {"Type": "Gas", "Category": "Emissions", "Value": gas_emissions},
+            {"Type": "Electricity", "Category": "Emissions", "Value": elec_emissions},
+            {
+                "Type": "Refrigerant",
+                "Category": "Emissions",
+                "Value": refrigerant_emissions,
+            },
+        ]
+
+        for s in totals_emissions:
+            fig.add_trace(
+                go.Bar(
+                    x=[s["Type"]],
+                    y=[s["Value"]],
+                    width=0.2,
+                    marker=dict(
+                        color=color_map_emissions[s["Type"]],
+                        opacity=opacities[i],
+                    ),
+                    hovertemplate=(
+                        f"Scenario: {scen}<br>"
+                        f"Type: {s['Type']}<br>"
+                        f"Value: {s['Value']:.1f} kgCO₂<extra></extra>"
+                    ),
+                    showlegend=False,
+                ),
+                row=1,
+                col=2,
+            )
+
     fig.update_layout(
-        title="Annual Energy & Emissions",
-        barmode="stack",
-        showlegend=True,
-        template="simple_white",
+        title=f"Annual Energy & Emissions by Scenario, {year}",
+        barmode="group",
+        # Add space between subplots
+        xaxis=dict(domain=[0, 0.3]),
+        xaxis2=dict(domain=[0.5, 1.0]),
     )
 
     fig.update_yaxes(title_text="kWh", row=1, col=1)
     fig.update_yaxes(title_text="Emissions [kgCO₂]", row=1, col=2)
 
-    return fig.show()
+    return fig

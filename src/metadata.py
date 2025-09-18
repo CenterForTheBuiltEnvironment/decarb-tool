@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Any
+from typing import List, Literal, Optional, Any, Union
 from pydantic import BaseModel
 from pathlib import Path
 import json
@@ -20,7 +20,7 @@ class Metadata(BaseModel):
     vintage: int
     load_type: str
     ashrae_climate_zone: str
-    equipment_scenario: str
+    equipment_scenarios: Union[str, list[str]]
     emissions: EmissionsSettings
     units: str
     last_updated: str
@@ -47,7 +47,7 @@ class Metadata(BaseModel):
             vintage=2022,
             load_type="load_simulated",
             ashrae_climate_zone="3C",
-            equipment_scenario="baseline_01",
+            equipment_scenarios="baseline_01",
             emissions=EmissionsSettings(
                 emission_scenario="MidCase",
                 gea_grid_region="CAISO",

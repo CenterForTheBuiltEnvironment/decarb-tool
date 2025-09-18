@@ -34,11 +34,6 @@ def layout():
                     dbc.Col(
                         [
                             html.Div(id="building-info-results"),
-                            # dbc.Label("Emissions"),
-                            # html.Hr(),
-                            # emission_period_slider(),
-                            # html.Hr(),
-                            # emission_rate_dropdown(),
                             html.Hr(),
                             summary_scenario_results(),
                             html.Hr(),
