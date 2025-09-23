@@ -40,8 +40,8 @@ def meter_timeseries_chart():
     )
 
 
-def chart_one():
-    return dcc.Graph(id="chart-one")
+def total_emissions_chart():
+    return dcc.Loading(type="default", children=dcc.Graph(id="total-emissions-plot"))
 
 
 def chart_two():
@@ -55,12 +55,14 @@ def chart_tabs():
     return dbc.Tabs(
         [
             dbc.Tab(
-                meter_timeseries_chart(),
-                label="Chart X",
+                total_emissions_chart(),
+                label="Total Emissions",
                 active_label_style=active_label_style,
             ),
             dbc.Tab(
-                chart_one(), label="Chart Y", active_label_style=active_label_style
+                meter_timeseries_chart(),
+                label="Meter Timeseries",
+                active_label_style=active_label_style,
             ),
             dbc.Tab(
                 chart_two(), label="Chart Z", active_label_style=active_label_style

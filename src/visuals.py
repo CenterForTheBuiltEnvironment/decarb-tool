@@ -7,6 +7,71 @@ from plotly.subplots import make_subplots
 from utils.units import unit_map
 
 
+def apply_standard_layout(fig, subtitle_text=None):
+    """Apply standard layout settings to a Plotly figure."""
+    annotations = []
+    if subtitle_text:
+        annotations.append(
+            go.layout.Annotation(
+                x=0,
+                y=-0.4,
+                xref="paper",
+                yref="paper",
+                text=subtitle_text,
+                showarrow=False,
+                xanchor="left",
+                yanchor="bottom",
+                font=dict(size=16, color="gray"),
+            )
+        )
+
+    fig.update_layout(annotations=annotations, margin=dict(b=120, pad=10))
+    return fig
+
+
+def plot_total_emissions_bar(df, unit_mode="SI"):
+
+    variable_type = "emissions"
+
+    metadata_cols = ["scenario_id", "year"]
+
+    emission_cols = ["elec_emissions", "gas_emissions", "total_refrig_emissions"]
+
+    all_cols = metadata_cols + emission_cols
+
+    df = df[[c for c in all_cols if c in df.columns]]
+
+    conversion = unit_map[variable_type][unit_mode]
+
+    df.loc[:, emission_cols] = df.loc[:, emission_cols].apply(conversion["func"])
+    yaxis_title = conversion["label"]
+
+    df_totals = df.groupby(["scenario_id", "year"], as_index=False)[emission_cols].sum()
+
+    # Melt to long format for stacking
+    df_long = df_totals.melt(
+        id_vars=["scenario_id", "year"],
+        value_vars=emission_cols,
+        var_name="emission_type",
+        value_name="emissions",
+    )
+
+    fig = px.bar(
+        df_long,
+        x="scenario_id",
+        y="emissions",
+        color="emission_type",
+        facet_col="year",
+        barmode="stack",
+    )
+
+    fig.update_layout(yaxis_title=yaxis_title)
+
+    fig = apply_standard_layout(fig, "Total Emissions by Equipment and Scenarios.")
+
+    return fig
+
+
 def plot_meter_timeseries(
     df,
     year,
@@ -25,7 +90,9 @@ def plot_meter_timeseries(
     # Setting up unit conversion
     variable_type = "energy"
 
-    selected_cols = [
+    metadata_cols = ["scenario_id"]
+
+    convert_cols = [
         "elec_hr_Wh",
         "elec_awhp_h_Wh",
         "elec_chiller_Wh",
@@ -34,16 +101,18 @@ def plot_meter_timeseries(
         "gas_boiler_Wh",
     ]
 
-    df = df[[c for c in selected_cols if c in df.columns]]
+    all_cols = metadata_cols + convert_cols
+
+    df = df[[c for c in all_cols if c in df.columns]]
 
     conversion = unit_map[variable_type][unit_mode]
 
-    df = df.apply(conversion["func"])
+    df.loc[:, convert_cols] = df.loc[:, convert_cols].apply(conversion["func"])
     yaxis_title = conversion["label"]
 
     # Filter for the selected year and scenario
     df = df[df.index.year == year]
-    df = df.loc[df.scenario_id == scenario_id] if scenario_id else df.copy()
+    df = df.loc[df["scenario_id"] == scenario_id] if scenario_id else df.copy()
     df = df.drop(columns=["scenario_id"], errors="ignore")
 
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -107,7 +176,6 @@ def plot_meter_timeseries(
             color="Meter",
             line_group="Meter",
             category_orders={"Meter": category_orders} if category_orders else None,
-            title=f"Stacked Meter Usage ({freq} Aggregation, {aggfunc})",
         )
 
         fig.update_traces(stackgroup="one")
@@ -117,6 +185,8 @@ def plot_meter_timeseries(
             legend_title="Meter",
             template="decarb-tool-theme",
         )
+
+        fig = apply_standard_layout(fig, "Stacked Meter Usage, aggregated over time.")
 
     return fig
 

@@ -22,7 +22,7 @@ from layout.output import summary_project_info, summary_scenario_results
 from layout.charts import chart_tabs
 
 from src.metadata import Metadata
-from src.visuals import plot_meter_timeseries
+from src.visuals import plot_meter_timeseries, plot_total_emissions_bar
 
 dash.register_page(__name__, path=URLS.RESULTS.value, order=2)
 
@@ -162,4 +162,20 @@ def update_meter_plot(
         freq=frequency_value,
         unit_mode=unit_mode,
     )
+    return fig
+
+
+@callback(
+    Output("total-emissions-plot", "figure"),
+    Input("source-energy-store", "data"),
+    Input("unit-toggle", "value"),
+    # prevent_initial_call=True
+)
+def update_total_emissions_plot(source_json, unit_mode):
+    if not source_json:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+
+    df = pd.read_json(StringIO(source_json), orient="split")
+
+    fig = plot_total_emissions_bar(df, unit_mode=unit_mode)
     return fig
