@@ -21,6 +21,7 @@ from layout.output import summary_project_info, summary_scenario_results
 
 from layout.charts import chart_tabs
 
+from src.metadata import Metadata
 from src.visuals import plot_meter_timeseries
 
 dash.register_page(__name__, path=URLS.RESULTS.value, order=2)
@@ -83,6 +84,32 @@ def show_metadata(data):
 
 
 @callback(
+    Output("year-slider", "min"),
+    Output("year-slider", "max"),
+    Output("year-slider", "marks"),
+    Output("year-slider", "step"),
+    Output("year-slider", "value"),
+    Input("metadata-store", "data"),
+)
+def update_year_slider(data):
+    if not data:
+        # keep placeholder state
+        return 0, 0, {}, None, 0
+
+    # assume metadata is JSON -> rehydrate
+    metadata = Metadata(**data)
+    year_options = metadata.emissions.years
+
+    return (
+        min(year_options),
+        max(year_options),
+        {year: str(year) for year in year_options},
+        10 if len(year_options) > 1 else None,
+        min(year_options),
+    )
+
+
+@callback(
     Output("filter-sidebar", "is_open"),
     Input("open-filter", "n_clicks"),
     State("filter-sidebar", "is_open"),
@@ -104,29 +131,23 @@ def toggle_settings(n, is_open):
 
 @callback(
     Output("meter-timeseries-plot", "figure"),
+    Input("year-slider", "value"),
     Input("stacked-toggle", "value"),
     Input("gas-toggle", "value"),
     Input("frequency-dropdown", "value"),
     Input("source-energy-store", "data"),
+    Input("unit-toggle", "value"),
     # prevent_initial_call=True
 )
-def update_meter_plot(stacked_value, gas_value, frequency_value, source_json):
+def update_meter_plot(
+    emission_year, stacked_value, gas_value, frequency_value, source_json, unit_mode
+):
     if not source_json:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     df = pd.read_json(StringIO(source_json), orient="split")
 
-    elec_cols = [
-        "elec_hr_Wh",
-        "elec_awhp_h_Wh",
-        "elec_chiller_Wh",
-        "elec_awhp_c_Wh",
-        "elec_res_Wh",
-    ]
-    gas_cols = ["gas_boiler_Wh"]
-
-    all_cols = elec_cols + gas_cols
-    df = df[[c for c in all_cols if c in df.columns]]
+    year = emission_year
 
     # flags from toggles
     stacked = "stacked" in stacked_value
@@ -134,6 +155,11 @@ def update_meter_plot(stacked_value, gas_value, frequency_value, source_json):
     frequency_value = frequency_value if frequency_value else "D"
 
     fig = plot_meter_timeseries(
-        df, stacked=stacked, include_gas=include_gas, freq=frequency_value
+        df,
+        year,
+        stacked=stacked,
+        include_gas=include_gas,
+        freq=frequency_value,
+        unit_mode=unit_mode,
     )
     return fig

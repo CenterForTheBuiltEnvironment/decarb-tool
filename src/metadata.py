@@ -42,7 +42,7 @@ class Metadata(BaseModel):
             A Metadata object with default values, with optional overrides applied.
         """
         defaults = dict(
-            location="US_CA_SanFrancisco",
+            location="Berkeley",
             building_type="OfficeLarge",
             vintage=2022,
             load_type="load_simulated",
@@ -54,7 +54,11 @@ class Metadata(BaseModel):
                 time_zone="America/Los_Angeles",
                 emission_type="Combustion only",
                 shortrun_weighting=1.0,
-                years=[2025],
+                years=[
+                    2025,
+                    2035,
+                    2045,
+                ],  # default settings for now; not exposed to user yet
             ),
             units="SI",
             last_updated=datetime.utcnow().isoformat(),

@@ -6,7 +6,7 @@ from src.loads import StandardLoad
 from src.equipment import EquipmentLibrary, Equipment
 from src.emissions import StandardEmissions, EmissionsSettings
 
-from utils.conversions import cop_h_to_cop_c
+from utils.units import cop_h_to_cop_c
 from utils.interp import interp_vector
 
 

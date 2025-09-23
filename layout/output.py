@@ -64,8 +64,6 @@ def make_metadata_card(metadata, fields, title="Summary"):
 
 def summary_selection_info(metadata):
 
-    # building information
-
     building_fields = [
         ("location", "Location"),
         ("building_type", "Building Type"),

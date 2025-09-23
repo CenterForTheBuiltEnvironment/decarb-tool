@@ -31,10 +31,30 @@
   "equipment": {
     "equipment_type": [
       "hr_heat_pump",
-      "heat_pump",
       "boiler",
-      "chiller",
-      "resistance_heater"
+      "heat_pump",
+      "resistance_heater",
+      "chiller"
+    ]
+  },
+  "emissions": {
+    "year": [
+      2025,
+      2030,
+      2035,
+      2040,
+      2045,
+      2050
+    ],
+    "emission_scenario": [
+      "MidCase",
+      "LowRECost",
+      "HighRECost",
+      "HighDemandGrowth",
+      "LowNGPrice",
+      "HighNGPrice",
+      "LowRECost_HighNGPrice",
+      "HighRECost_LowNGPrice"
     ]
   }
 }

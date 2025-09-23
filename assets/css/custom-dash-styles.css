@@ -1,0 +1,30 @@
+/* Slider */
+
+:root {
+    --slider-color: #690fe7;
+}
+
+/* Track */
+.rc-slider-track {
+    background-color: var(--slider-color);
+}
+
+/* Handle (default) */
+.rc-slider-handle {
+    border: solid 2px var(--slider-color);
+    background-color: white;
+}
+
+/* Handle (hover, focus, active) */
+.rc-slider-handle:hover,
+.rc-slider-handle:focus,
+.rc-slider-handle:active {
+    border: solid 2px var(--slider-color);
+    background-color: var(--slider-color);
+}
+
+/* Active dots (if using marks) */
+.rc-slider-dot-active {
+    border: solid 2px var(--slider-color);
+    background-color: var(--slider-color);
+}

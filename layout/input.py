@@ -4,8 +4,22 @@ from dash_iconify import DashIconify
 import pandas as pd
 import json
 
+from utils.units import unit_map
+
 with open("data/input/metadata_index.json", "r") as f:
     metadata_index = json.load(f)
+
+
+def unit_toggle():
+    return dbc.RadioItems(
+        id="unit-toggle",
+        options=[
+            {"label": "SI", "value": "SI"},
+            {"label": "IP", "value": "IP"},
+        ],
+        value="SI",
+        inline=True,
+    )
 
 
 def select_location(locations_df: pd.DataFrame):
@@ -79,6 +93,125 @@ def select_load_data():
                 flush=True,
             ),
         ]
+    )
+
+
+def set_emission_year():
+
+    year_options = metadata_index["emissions"]["year"]
+
+    return html.Div(
+        [
+            dbc.Label("3. Grid Year"),
+            dcc.Slider(
+                id="emission-year-input",
+                min=min(year_options),
+                max=max(year_options),
+                step=5,
+                included=False,
+                value=min(year_options),
+                marks={year: str(year) for year in year_options},
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+        ]
+    )
+
+
+def select_grid_scenario():
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["emissions"]["emission_scenario"]
+    ]
+    return html.Div(
+        [
+            dbc.Label("4. Grid Scenario"),
+            # html.P(
+            #     "Select the grid emission scenario to use for the analysis. This will set the grid emission factors over time."
+            # ),
+            dcc.Dropdown(
+                id="emission-scenario-input",
+                options=options,
+                value="MidCase",
+            ),
+        ]
+    )
+
+
+def set_shortrun_weighting():
+    return html.Div(
+        [
+            dbc.Label("5. Short-Run Weighting"),
+            # html.P(
+            #     "Set the short-run weighting factor to adjust the importance of short-run marginal emission rates in the analysis."
+            # ),
+            dcc.Slider(
+                id="shortrun-weighting-input",
+                min=0.0,
+                max=1.0,
+                step=0.1,
+                value=0.0,
+                marks={0: "0", 0.5: "0.5", 1: "1"},
+                # marks={i / 10: str(i / 10) for i in range(0, 11)},
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+        ]
+    )
+
+
+def set_static_emissions(unit_mode="SI"):
+
+    conversion = unit_map["static_emission_intensity"][unit_mode]
+    placeholder = conversion["label"]
+
+    return html.Div(
+        [
+            dbc.Label("6. Static Emission Factors"),
+            html.P("Annual Refrigerant Leakage."),
+            dcc.Input(
+                id="refrigerant-leakage-input",
+                type="number",
+                placeholder=placeholder,
+                value=None,
+                style={"width": "50%"},
+            ),
+            html.Hr(),
+            html.P("Annual Natural Gas Leakage."),
+            dcc.Input(
+                id="natural-gas-leakage-input",
+                type="number",
+                placeholder=placeholder,
+                value=None,
+                style={"width": "50%"},
+            ),
+        ]
+    )
+
+
+def scenario_saving_buttons():
+    return html.Div(
+        [
+            html.P("Save as:"),
+            html.Div(
+                [
+                    dbc.Button(
+                        "Scenario A",
+                        color="secondary",
+                    ),
+                    html.Span(" "),  # spacer
+                    dbc.Button("Scenario B", color="secondary"),
+                    html.Span(" "),  # spacer
+                    dbc.Button("Scenario C", color="secondary"),
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "5px",
+                    "borderRadius": "5px",
+                },
+            ),
+        ],
     )
 
 
@@ -179,18 +312,16 @@ def emission_rate_dropdown():
 def emission_period_slider():
     return html.Div(
         [
-            html.Small(
-                "Emission Period",
-                className="text-muted",
-            ),
+            html.Small("Emission Year", className="text-muted"),
             html.Br(),
             dcc.Slider(
                 id="year-slider",
-                min=2020,
-                max=2050,
-                step=5,
-                value=2025,
-                marks={i: str(i) for i in range(2020, 2060, 10)},
+                min=0,  # placeholder
+                max=0,  # placeholder
+                step=None,
+                marks={},
+                value=0,
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
         ]
     )
@@ -229,7 +360,7 @@ def filter_sidebar():
             ),
             html.Hr(),
             html.H5("Emissions", className="mb-3"),
-            emission_period_slider(),
+            emission_period_slider(),  # no metadata passed in
             html.Hr(),
             emission_rate_dropdown(),
         ],

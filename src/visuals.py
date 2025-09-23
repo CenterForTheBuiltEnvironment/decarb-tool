@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from utils.units import unit_map
+
 
 def plot_meter_timeseries(
     df,
@@ -14,28 +16,32 @@ def plot_meter_timeseries(
     include_gas=True,
     category_orders=None,
     aggfunc="sum",
+    unit_mode="SI",
 ):
     """
     Plot time series data for meters (electricity, gas) with flexible aggregation.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Time series DataFrame with a DateTimeIndex and columns for meter readings.
-    freq : str, default "D"
-        Resampling frequency: "H"=hourly, "D"=daily, "W"=weekly, "M"=monthly.
-    stacked : bool, default False
-        If True, plot stacked area chart. If False, plot line chart.
-    include_totals : bool, default True
-        Whether to include total electricity and gas series (only applies if stacked=False).
-    include_gas : bool, default True
-        Whether to include gas meters in the stacked chart (only applies if stacked=True).
-    category_orders : list or None, default None
-        Category order for stacked chart (only applies if stacked=True).
-    aggfunc : str, default "sum"
-        Aggregation function to apply when resampling. Options: "sum", "mean".
     """
 
+    # Setting up unit conversion
+    variable_type = "energy"
+
+    selected_cols = [
+        "elec_hr_Wh",
+        "elec_awhp_h_Wh",
+        "elec_chiller_Wh",
+        "elec_awhp_c_Wh",
+        "elec_res_Wh",
+        "gas_boiler_Wh",
+    ]
+
+    df = df[[c for c in selected_cols if c in df.columns]]
+
+    conversion = unit_map[variable_type][unit_mode]
+
+    df = df.apply(conversion["func"])
+    yaxis_title = conversion["label"]
+
+    # Filter for the selected year and scenario
     df = df[df.index.year == year]
     df = df.loc[df.scenario_id == scenario_id] if scenario_id else df.copy()
     df = df.drop(columns=["scenario_id"], errors="ignore")
@@ -52,6 +58,12 @@ def plot_meter_timeseries(
         df_resampled = df.resample(freq).sum()
     else:
         df_resampled = df.resample(freq).mean()
+
+    # Filter out gas meters if requested
+    if not include_gas:
+        df_resampled = df_resampled[
+            [col for col in df_resampled.columns if "gas" not in col.lower()]
+        ]
 
     if not stacked:
 
@@ -72,11 +84,7 @@ def plot_meter_timeseries(
 
         fig.update_layout(
             xaxis_title="Time",
-            yaxis_title=(
-                "Electricity/Gas Usage [Wh]"
-                if aggfunc == "sum"
-                else "Average Usage [Wh]"
-            ),
+            yaxis_title=(yaxis_title if aggfunc == "sum" else f"Average {yaxis_title}"),
             legend_title="Meter",
         )
 
@@ -92,10 +100,6 @@ def plot_meter_timeseries(
             value_name="Usage",
         )
 
-        # Filter out gas meters if requested
-        if not include_gas:
-            df_melt = df_melt[~df_melt["Meter"].str.contains("gas", case=False)]
-
         fig = px.area(
             df_melt,
             x=df_resampled.index.name or "index",
@@ -109,7 +113,7 @@ def plot_meter_timeseries(
         fig.update_traces(stackgroup="one")
         fig.update_layout(
             xaxis_title="Time",
-            yaxis_title="Usage [Wh]" if aggfunc == "sum" else "Average Usage [Wh]",
+            yaxis_title=(yaxis_title if aggfunc == "sum" else f"Average {yaxis_title}"),
             legend_title="Meter",
             template="decarb-tool-theme",
         )
