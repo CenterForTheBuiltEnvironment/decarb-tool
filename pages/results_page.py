@@ -24,7 +24,7 @@ from layout.charts import chart_tabs
 from src.metadata import Metadata
 from src.visuals import plot_meter_timeseries, plot_total_emissions_bar
 
-dash.register_page(__name__, path=URLS.RESULTS.value, order=2)
+dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
 
 
 def layout():

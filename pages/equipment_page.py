@@ -6,7 +6,7 @@ from src.config import URLS
 
 from layout.input import filter_equipment_type
 
-dash.register_page(__name__, path=URLS.EQUIPMENT.value, order=1)
+dash.register_page(__name__, name="Equipment", path=URLS.EQUIPMENT.value, order=1)
 
 
 def layout():

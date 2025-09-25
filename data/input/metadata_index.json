@@ -30,11 +30,11 @@
   },
   "equipment": {
     "equipment_type": [
-      "hr_heat_pump",
-      "boiler",
-      "heat_pump",
       "resistance_heater",
-      "chiller"
+      "boiler",
+      "chiller",
+      "heat_pump",
+      "hr_heat_pump"
     ]
   },
   "emissions": {
@@ -55,6 +55,10 @@
       "HighNGPrice",
       "LowRECost_HighNGPrice",
       "HighRECost_LowNGPrice"
+    ],
+    "emission_type": [
+      "Combustion only",
+      "Includes pre-combustion"
     ]
   }
 }

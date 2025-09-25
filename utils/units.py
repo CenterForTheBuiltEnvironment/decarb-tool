@@ -97,10 +97,14 @@ unit_map = {
         "SI": {
             "label": "kgCO₂/kWh",
             "func": lambda x: x / 1000,  # kgCO₂/kWh → kgCO₂/W·h
+            "refrig_default": 0.01,
+            "ng_default": 0.005,
         },
         "IP": {
             "label": "lbCO₂/kBTU",
             "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂/kBTU → kgCO₂/Wh
+            "refrig_default": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
+            "ng_default": 0.005 * (2.20462) / (1000 * 3.412),  #! use function
         },
     },
 }

@@ -96,15 +96,15 @@ def select_load_data():
     )
 
 
-def set_emission_year():
+def set_grid_year():
 
     year_options = metadata_index["emissions"]["year"]
 
     return html.Div(
         [
-            dbc.Label("3. Grid Year"),
+            dbc.Label("Grid Year"),
             dcc.Slider(
-                id="emission-year-input",
+                id="grid-year-input",
                 min=min(year_options),
                 max=max(year_options),
                 step=5,
@@ -127,14 +127,35 @@ def select_grid_scenario():
     ]
     return html.Div(
         [
-            dbc.Label("4. Grid Scenario"),
+            dbc.Label("Grid Scenario"),
             # html.P(
             #     "Select the grid emission scenario to use for the analysis. This will set the grid emission factors over time."
             # ),
             dcc.Dropdown(
-                id="emission-scenario-input",
+                id="grid-scenario-input",
                 options=options,
                 value="MidCase",
+            ),
+        ]
+    )
+
+
+def set_emission_type():
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["emissions"]["emission_type"]
+    ]
+    return html.Div(
+        [
+            dbc.Label("Emission Type", style={"fontWeight": "bold"}),
+            dbc.RadioItems(
+                id="emission-type-input",
+                options=options,
+                value="Combustion only",
+                inline=True,
             ),
         ]
     )
@@ -143,7 +164,7 @@ def select_grid_scenario():
 def set_shortrun_weighting():
     return html.Div(
         [
-            dbc.Label("5. Short-Run Weighting"),
+            dbc.Label("Short-Run Weighting"),
             # html.P(
             #     "Set the short-run weighting factor to adjust the importance of short-run marginal emission rates in the analysis."
             # ),
@@ -164,27 +185,46 @@ def set_shortrun_weighting():
 def set_static_emissions(unit_mode="SI"):
 
     conversion = unit_map["static_emission_intensity"][unit_mode]
-    placeholder = conversion["label"]
+    refrig_placeholder = conversion["refrig_default"]
+    ng_placeholder = conversion["ng_default"]
 
     return html.Div(
         [
-            dbc.Label("6. Static Emission Factors"),
+            dbc.Label("Static Emission Factors", style={"fontWeight": "bold"}),
             html.P("Annual Refrigerant Leakage."),
-            dcc.Input(
-                id="refrigerant-leakage-input",
-                type="number",
-                placeholder=placeholder,
-                value=None,
-                style={"width": "50%"},
+            html.Div(
+                children=[
+                    dcc.Input(
+                        id="refrigerant-leakage-input",
+                        type="number",
+                        placeholder=refrig_placeholder,
+                        value=None,
+                        style={"width": "40%"},
+                        step=0.01,
+                    ),
+                    html.Div(
+                        id="refrigerant-leakage-unit", style={"marginLeft": "8px"}
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center"},
             ),
             html.Hr(),
             html.P("Annual Natural Gas Leakage."),
-            dcc.Input(
-                id="natural-gas-leakage-input",
-                type="number",
-                placeholder=placeholder,
-                value=None,
-                style={"width": "50%"},
+            html.Div(
+                children=[
+                    dcc.Input(
+                        id="natural-gas-leakage-input",
+                        type="number",
+                        placeholder=ng_placeholder,
+                        value=None,
+                        style={"width": "40%"},
+                        step=0.001,
+                    ),
+                    html.Div(
+                        id="natural-gas-leakage-unit", style={"marginLeft": "8px"}
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center"},
             ),
         ]
     )
@@ -193,24 +233,34 @@ def set_static_emissions(unit_mode="SI"):
 def scenario_saving_buttons():
     return html.Div(
         [
-            html.P("Save as:"),
-            html.Div(
+            html.P("Save my current settings as:"),
+            dbc.ButtonGroup(
                 [
                     dbc.Button(
                         "Scenario A",
+                        id="update-scen-A",
+                        outline=True,
                         color="secondary",
                     ),
-                    html.Span(" "),  # spacer
-                    dbc.Button("Scenario B", color="secondary"),
-                    html.Span(" "),  # spacer
-                    dbc.Button("Scenario C", color="secondary"),
+                    # html.Span(" "),  # spacer
+                    dbc.Button(
+                        "Scenario B",
+                        id="update-scen-B",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    # html.Span(" "),  # spacer
+                    dbc.Button(
+                        "Scenario C",
+                        id="update-scen-C",
+                        outline=True,
+                        color="secondary",
+                    ),
                 ],
-                style={
-                    "backgroundColor": "#f8f9fa",
-                    "padding": "5px",
-                    "borderRadius": "5px",
-                },
+                size="md",
+                vertical=True,
             ),
+            html.Hr(),
         ],
     )
 

@@ -12,6 +12,8 @@ class EmissionScenario(BaseModel):
     time_zone: str
     emission_type: str
     shortrun_weighting: float
+    annual_refrig_leakage: float
+    annual_ng_leakage: float
     year: int
 
 
@@ -38,14 +40,38 @@ class Metadata(BaseModel):
             equipment_scenarios="baseline_01",
             emission_settings=[
                 EmissionScenario(
-                    em_scen_id="default_scenario_01",
+                    em_scen_id="em_scenario_a",
                     grid_scenario="MidCase",
                     gea_grid_region="CAISO",
                     time_zone="America/Los_Angeles",
                     emission_type="Combustion only",
                     shortrun_weighting=1.0,
+                    annual_refrig_leakage=0.01,
+                    annual_ng_leakage=0.005,
                     year=2025,
-                )
+                ),
+                EmissionScenario(
+                    em_scen_id="em_scenario_b",
+                    grid_scenario="MidCase",
+                    gea_grid_region="CAISO",
+                    time_zone="America/Los_Angeles",
+                    emission_type="Combustion only",
+                    shortrun_weighting=0.5,
+                    annual_refrig_leakage=0.01,
+                    annual_ng_leakage=0.005,
+                    year=2035,
+                ),
+                EmissionScenario(
+                    em_scen_id="em_scenario_c",
+                    grid_scenario="MidCase",
+                    gea_grid_region="CAISO",
+                    time_zone="America/Los_Angeles",
+                    emission_type="Combustion only",
+                    shortrun_weighting=0.5,
+                    annual_refrig_leakage=0.01,
+                    annual_ng_leakage=0.005,
+                    year=2045,
+                ),
             ],
             units="SI",
             last_updated=datetime.utcnow().isoformat(),
@@ -94,11 +120,11 @@ class Metadata(BaseModel):
             self.emission_settings.append(scenario)
 
     # ---------- Dict-like interface ----------
-    def __getitem__(self, scen_id: str) -> EmissionScenario:
-        return self.get_emission_scenario(scen_id)
+    def __getitem__(self, em_scen_id: str) -> EmissionScenario:
+        return self.get_emission_scenario(em_scen_id)
 
-    def __contains__(self, scen_id: str) -> bool:
-        return any(s.em_scen_id == scen_id for s in self.emission_settings)
+    def __contains__(self, em_scen_id: str) -> bool:
+        return any(s.em_scen_id == em_scen_id for s in self.emission_settings)
 
     def __iter__(self):
         return iter(self.emission_settings)

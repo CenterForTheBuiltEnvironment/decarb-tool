@@ -28,3 +28,13 @@
     border: solid 2px var(--slider-color);
     background-color: var(--slider-color);
 }
+
+
+
+/* Stronger highlight for active tab */
+.nav-tabs .nav-link.active {
+    background-color: black; /* Bootstrap primary */
+    color: white !important;
+    font-weight: bold;
+    border-radius: 0.5rem 0.5rem 0 0; /* rounded top */
+}

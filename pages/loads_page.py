@@ -11,28 +11,21 @@ from src.config import URLS
 from src.metadata import Metadata
 from src.equipment import EquipmentLibrary
 
-from utils.units import unit_map
-
 from src.loads import get_load_data
 from src.emissions import get_emissions_data
 
 from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import (
-    scenario_saving_buttons,
-    select_grid_scenario,
     select_location,
     select_load_data,
     modal_load_simulation_data,
-    set_emission_year,
-    set_shortrun_weighting,
-    set_static_emissions,
 )
 
-from layout.output import summary_selection_info
+from layout.output import summary_loads_selection
 
 
-dash.register_page(__name__, path=URLS.HOME.value, order=0)
+dash.register_page(__name__, name="Loads", path=URLS.HOME.value, order=0)
 
 # Preprocess once at the top of the file
 locations_df = pd.read_csv("data/input/locations.csv")
@@ -67,18 +60,7 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            html.H5("Emission Scenario"),
-                            html.Hr(),
-                            set_emission_year(),
-                            html.Hr(),
-                            select_grid_scenario(),
-                            html.Hr(),
-                            set_shortrun_weighting(),
-                            html.Hr(),
-                            set_static_emissions(),
-                            html.Hr(),
-                            scenario_saving_buttons(),
-                            # dcc.Graph(id="map-graph")
+                            html.Div(),
                         ],
                         width=4,
                     ),
@@ -166,7 +148,7 @@ def show_metadata(data):
     if not data:
         return "No metadata yet"
 
-    return summary_selection_info(data)
+    return summary_loads_selection(data)
 
 
 @callback(
@@ -218,28 +200,3 @@ def run_site_to_source(site_energy_json, metadata_json):
         source_energy.to_json(date_format="iso", orient="split"),
         "Calculation finished!",
     )
-
-
-@callback(
-    [
-        Output("refrigerant-leakage-input", "placeholder"),
-        Output("natural-gas-leakage-input", "placeholder"),
-        Output("refrigerant-leakage-input", "value"),
-        Output("natural-gas-leakage-input", "value"),
-    ],
-    [
-        Input("unit-toggle", "value"),  # "SI" or "IP"
-        State("refrigerant-leakage-input", "value"),
-        State("natural-gas-leakage-input", "value"),
-    ],
-)
-def update_static_emission_fields(unit_mode, ref_value, gas_value):
-    conversion = unit_map["static_emission_intensity"][unit_mode]
-
-    placeholder = conversion["label"]
-
-    # Convert existing user inputs to SI if they exist
-    ref_value_si = conversion["func"](ref_value) if ref_value is not None else None
-    gas_value_si = conversion["func"](gas_value) if gas_value is not None else None
-
-    return placeholder, placeholder, ref_value_si, gas_value_si
