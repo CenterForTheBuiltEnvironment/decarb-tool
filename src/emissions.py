@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from typing import Union
-from src.metadata import EmissionsSettings
+from src.metadata import Metadata, EmissionScenario
 
 
 class StandardEmissions:
@@ -61,11 +61,11 @@ class StandardEmissions:
 
 
 def get_emissions_data(
-    settings: EmissionsSettings,
+    metadata: EmissionScenario,
     path: Union[str, Path] = "data/input/emission_data.parquet",
 ) -> StandardEmissions:
     """
-    Load emissions data filtered by user-provided EmissionsSettings.
+    Load emissions data filtered by user-provided EmissionsScenario.
     Handles selection of 'Combustion only' vs. 'Includes pre-combustion'.
     """
 
@@ -73,23 +73,23 @@ def get_emissions_data(
 
     # --- Filter by scenario, region, and years ---
     df = df[
-        (df["emission_scenario"] == settings.emissions.emission_scenario)
-        & (df["gea_grid_region"] == settings.emissions.gea_grid_region)
-        & (df["year"].isin(settings.emissions.years))
+        (df["emission_scenario"] == metadata.grid_scenario)
+        & (df["gea_grid_region"] == metadata.gea_grid_region)
+        & (df["year"] == metadata.year)
     ].copy()
 
     if df.empty:
         raise ValueError(
-            f"No emissions data found for scenario={settings.emissions.emission_scenario}, region={settings.emissions.gea_grid_region}, years={settings.emissions.years}"
+            f"No emissions data found for scenario={metadata.grid_scenario}, region={metadata.gea_grid_region}, year={metadata.year}"
         )
 
     # --- Handle emissions type mapping ---
-    if settings.emissions.emission_type == "Combustion only":
+    if metadata.emission_type == "Combustion only":
         lrmer_c = "lrmer_co2e_c"
         lrmer_p = "lrmer_co2e_p"
         srmer_c = "srmer_co2e_c"
         srmer_p = "srmer_co2e_p"
-    elif settings.emissions.emission_type == "Includes pre-combustion":
+    elif metadata.emission_type == "Includes pre-combustion":
         lrmer_c = lrmer_p = "lrmer_co2e"
         srmer_c = srmer_p = "srmer_co2e"
     else:
@@ -100,10 +100,11 @@ def get_emissions_data(
     # --- Build canonical schema ---
     result = pd.DataFrame(
         {
-            "emission_scenario": settings.emissions.emission_scenario,
-            "gea_grid_region": settings.emissions.gea_grid_region,
-            "time_zone": settings.emissions.time_zone,
-            "emission_type": settings.emissions.emission_type,
+            "em_scen_id": metadata.em_scen_id,
+            "emission_scenario": metadata.grid_scenario,
+            "gea_grid_region": metadata.gea_grid_region,
+            "time_zone": metadata.time_zone,
+            "emission_type": metadata.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],
             "lrmer_co2e_c": df[lrmer_c],
