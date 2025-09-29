@@ -232,7 +232,7 @@ def plot_energy_breakdown(df):
 
     fig.update_traces(texttemplate="%{text:.2s}", textposition="outside")
     fig.update_layout(
-        yaxis={"categoryorder": "total ascending"},
+        yaxis={"categoryorder": "category ascending"},
     )
     fig.show()
 

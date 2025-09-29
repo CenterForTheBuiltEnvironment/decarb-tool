@@ -157,13 +157,14 @@ def loads_to_site_energy(
                 plr_curve["cop"]
             )  # convert heating COP → cooling COP
 
+            num_units = 1
             least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
-            max_cap_h = plr_curve[
+            max_cap_h = num_units*plr_curve[
                 "cap"
-            ].max()  # max heating capacity required in timeframe
+            ].max()  # max heating capacity required in timeframe <- allowed by unit, timeframe not relevant
             min_cap_h = plr_curve[
                 "cap"
-            ].min()  # min heating capacity required in timeframe
+            ].min()  # min heating capacity required in timeframe <- allowed by unit, timeframe not relevant
 
             # Simultaneous load potential (using least-waste-heat factor)
             simult_h = np.minimum(
@@ -225,8 +226,8 @@ def loads_to_site_energy(
                         awhp_h.performance.cap_curve.capacity_W,
                         np.array([0.0]),  # fall back / reference capacity
                     )[0]
-                elif awhp_h.capacity_w:
-                    cap_ref = float(awhp_h.capacity_w)
+                elif awhp_h.capacity_W:
+                    cap_ref = float(awhp_h.capacity_W)
                 else:
                     raise ValueError(
                         f"AWHP '{awhp_h.eq_id}' lacks a capacity reference."
@@ -332,7 +333,7 @@ def loads_to_site_energy(
         # Phase 6 – Electric chiller fallback
         # =========================
         if df["chw_rem_W"].sum() > 1e-9:
-            chiller_cop = 5.0  # default
+            chiller_cop = 5.0  # default <- why fix here?
             if scen.chiller:
                 chl = library.get_equipment(scen.chiller)
                 # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
