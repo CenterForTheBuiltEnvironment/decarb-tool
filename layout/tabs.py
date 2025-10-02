@@ -20,7 +20,9 @@ def tabs():
                                 dbc.NavLink(
                                     page["name"],
                                     href=page["path"],
-                                )
+                                    id=f"navlink-{page['name']}",
+                                    active="exact",
+                                ),
                             )
                             for page in dash.page_registry.values()
                         ],

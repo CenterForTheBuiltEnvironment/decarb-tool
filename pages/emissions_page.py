@@ -2,6 +2,12 @@ import dash
 from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
 
+import pandas as pd
+
+from io import StringIO
+
+from dash_iconify import DashIconify
+
 from src.config import URLS
 
 from utils.units import unit_map
@@ -9,13 +15,20 @@ from utils.units import unit_map
 from src.metadata import Metadata, EmissionScenario
 
 from layout.input import (
-    scenario_saving_buttons,
+    emission_scenario_saving_buttons,
     select_grid_scenario,
     set_emission_type,
     set_grid_year,
     set_shortrun_weighting,
     set_static_emissions,
 )
+
+from src.equipment import EquipmentLibrary
+
+from src.loads import get_load_data
+from src.emissions import get_emissions_data
+
+from src.energy import loads_to_site_energy, site_to_source
 
 from layout.output import summary_emissions_selection
 
@@ -25,6 +38,7 @@ dash.register_page(__name__, name="Emissions", path=URLS.EMISSIONS.value, order=
 def layout():
     return dbc.Container(
         children=[
+            dcc.Store(id="active-emissions-tab"),
             dbc.Row(
                 [
                     dbc.Col(
@@ -48,32 +62,50 @@ def layout():
                             set_static_emissions(),
                             html.Hr(),
                             html.Hr(),
-                            scenario_saving_buttons(),
+                            emission_scenario_saving_buttons(),
                         ],
                         width=3,
                     ),
                     dbc.Col(
                         [
-                            html.H5("Summary"),
+                            html.H5("Overview"),
                             html.Hr(),
                             html.Div(
                                 id="summary-emissions-info",
                             ),
+                            dbc.Button(
+                                [
+                                    "Calculate Source Emissions ",
+                                    DashIconify(
+                                        icon="ic:baseline-autorenew",
+                                        width=20,
+                                    ),
+                                ],
+                                id="button-calculate",
+                                n_clicks=0,
+                                color="primary",
+                                style={"float": "right"},
+                            ),
+                            html.Div(id="calc-status"),  #! for debugging: remove later
                         ],
                         width=5,
                     ),
                 ]
-            )
+            ),
         ]
     )
 
 
-@callback(Output("summary-emissions-info", "children"), Input("metadata-store", "data"))
-def show_metadata(data):
+@callback(
+    Output("summary-emissions-info", "children"),
+    Input("metadata-store", "data"),
+    State("active-emissions-tab", "data"),
+)
+def show_emissions_scenarios(data, active_tab):
     if not data:
-        return "No metadata yet"
+        return "No emission scenarios yet"
 
-    return summary_emissions_selection(data)
+    return summary_emissions_selection(data, active_tab)
 
 
 # Overwrite EmissionScenario in metadata based on user inputs
@@ -139,9 +171,9 @@ def update_metadata(
     # Update with new values if provided
     if selected_grid_year is not None:
         scenario.year = selected_grid_year
-    if selected_grid_scenario:
+    if selected_grid_scenario is not None:
         scenario.grid_scenario = selected_grid_scenario
-    if selected_emission_type:
+    if selected_emission_type is not None:
         scenario.emission_type = selected_emission_type
     if selected_shortrun_weighting is not None:
         scenario.shortrun_weighting = selected_shortrun_weighting
@@ -183,3 +215,59 @@ def update_static_emission_fields(unit_mode, ref_value, gas_value):
     gas_value_si = conversion["func"](gas_value) if gas_value is not None else None
 
     return unit, unit, refrig_placeholder, ng_placeholder, ref_value_si, gas_value_si
+
+
+@callback(
+    Output("active-emissions-tab", "data"),
+    Input("emission-scenario-tabs", "active_tab"),
+    prevent_initial_call=True,
+)
+def store_active_emissions_tab(active_tab):
+    return active_tab
+
+
+@callback(
+    Output("site-energy-store", "data"),
+    Input("button-calculate", "n_clicks"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def run_loads_to_site(n_clicks, metadata_json, equipment_json):
+    if not n_clicks or n_clicks < 1:
+        return no_update  # do nothing until button clicked at least once
+
+    if not metadata_json or not equipment_json:
+        return no_update
+
+    metadata = Metadata(**metadata_json) if metadata_json else None
+    equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
+
+    load_data = get_load_data(metadata)
+
+    site_energy = loads_to_site_energy(
+        load_data, equipment, metadata.equipment_scenarios, detail=True
+    )
+
+    print(site_energy.head())  #! for debugging: remove later
+
+    return site_energy.to_json(date_format="iso", orient="split")
+
+
+@callback(
+    Output("source-energy-store", "data"),
+    Output("calc-status", "children"),
+    Input("site-energy-store", "data"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True,
+)
+def run_site_to_source(site_energy_json, metadata_json):
+    site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
+    metadata = Metadata(**metadata_json) if metadata_json else None
+
+    source_energy = site_to_source(site_energy, metadata=metadata)
+
+    return (
+        source_energy.to_json(date_format="iso", orient="split"),
+        "Calculation finished!",
+    )

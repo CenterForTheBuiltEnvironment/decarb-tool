@@ -1,20 +1,22 @@
+from pprint import pprint
 import dash
 from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
 
-import pandas as pd
+from dash_iconify import DashIconify
 
-from io import StringIO
+import pandas as pd
 
 from src.config import URLS
 
 from src.metadata import Metadata
-from src.equipment import EquipmentLibrary
 
-from src.loads import get_load_data
-from src.emissions import get_emissions_data
+# from src.equipment import EquipmentLibrary
 
-from src.energy import loads_to_site_energy, site_to_source
+# from src.loads import get_load_data
+# from src.emissions import get_emissions_data
+
+# from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import (
     select_location,
@@ -75,16 +77,18 @@ def layout():
                                 id="metadata-display", style={"whiteSpace": "pre-wrap"}
                             ),
                             dbc.Button(
-                                "Specify Equipment",
-                                color="secondary",
-                            ),
-                            dbc.Button(
-                                "Calculate Emissions",
-                                id="calculate-button-start-page",
-                                n_clicks=0,
+                                [
+                                    "Specify Equipment ",
+                                    DashIconify(
+                                        icon="tabler:arrow-narrow-right-dashed",
+                                        width=20,
+                                    ),
+                                ],
                                 color="primary",
+                                id="button-specify-equipment",
+                                n_clicks=0,
+                                style={"float": "right"},
                             ),
-                            html.Div(id="calc-status"),  #! for debugging: remove later
                         ],
                         width=4,
                     ),
@@ -92,6 +96,17 @@ def layout():
             ),
         ]
     )
+
+
+@callback(
+    Output("url", "href"),
+    Input("button-specify-equipment", "n_clicks"),
+    prevent_initial_call=True,
+)
+def navigate_to_equipment(n_clicks):
+    if not n_clicks:  # ignore None or 0
+        raise dash.exceptions.PreventUpdate
+    return "/equipment"
 
 
 @callback(
@@ -151,52 +166,48 @@ def show_metadata(data):
     return summary_loads_selection(data)
 
 
-@callback(
-    Output("site-energy-store", "data"),
-    Input("calculate-button-start-page", "n_clicks"),
-    State("metadata-store", "data"),
-    State("equipment-store", "data"),
-    prevent_initial_call=True,
-)
-def run_loads_to_site(n_clicks, metadata_json, equipment_json):
-    if not n_clicks or n_clicks < 1:
-        return no_update  # do nothing until button clicked at least once
+# @callback(
+#     Output("site-energy-store", "data"),
+#     Input("calculate-button-start-page", "n_clicks"),
+#     State("metadata-store", "data"),
+#     State("equipment-store", "data"),
+#     prevent_initial_call=True,
+# )
+# def run_loads_to_site(n_clicks, metadata_json, equipment_json):
+#     if not n_clicks or n_clicks < 1:
+#         return no_update  # do nothing until button clicked at least once
 
-    if not metadata_json or not equipment_json:
-        return no_update
+#     if not metadata_json or not equipment_json:
+#         return no_update
 
-    metadata = Metadata(**metadata_json) if metadata_json else None
-    equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
+#     metadata = Metadata(**metadata_json) if metadata_json else None
+#     equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
 
-    load_data = get_load_data(metadata)
+#     load_data = get_load_data(metadata)
 
-    site_energy = loads_to_site_energy(
-        load_data, equipment, metadata.equipment_scenarios, detail=True
-    )
+#     site_energy = loads_to_site_energy(
+#         load_data, equipment, metadata.equipment_scenarios, detail=True
+#     )
 
-    print(site_energy.head())  #! for debugging: remove later
+#     print(site_energy.head())  #! for debugging: remove later
 
-    return site_energy.to_json(date_format="iso", orient="split")
+#     return site_energy.to_json(date_format="iso", orient="split")
 
 
-@callback(
-    Output("source-energy-store", "data"),
-    Output("calc-status", "children"),
-    Input("site-energy-store", "data"),
-    State("metadata-store", "data"),
-    prevent_initial_call=True,
-)
-def run_site_to_source(site_energy_json, metadata_json):
-    site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
-    metadata = Metadata(**metadata_json) if metadata_json else None
+# @callback(
+#     Output("source-energy-store", "data"),
+#     Output("calc-status", "children"),
+#     Input("site-energy-store", "data"),
+#     State("metadata-store", "data"),
+#     prevent_initial_call=True,
+# )
+# def run_site_to_source(site_energy_json, metadata_json):
+#     site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
+#     metadata = Metadata(**metadata_json) if metadata_json else None
 
-    emissions_data = get_emissions_data(metadata)
+#     source_energy = site_to_source(site_energy, metadata=metadata)
 
-    source_energy = site_to_source(
-        site_energy, settings=metadata.emissions, emissions=emissions_data
-    )
-
-    return (
-        source_energy.to_json(date_format="iso", orient="split"),
-        "Calculation finished!",
-    )
+#     return (
+#         source_energy.to_json(date_format="iso", orient="split"),
+#         "Calculation finished!",
+#     )

@@ -1,3 +1,4 @@
+from pprint import pprint
 import pandas as pd
 from pathlib import Path
 from typing import Union
@@ -61,7 +62,7 @@ class StandardEmissions:
 
 
 def get_emissions_data(
-    metadata: EmissionScenario,
+    scenario: EmissionScenario,
     path: Union[str, Path] = "data/input/emission_data.parquet",
 ) -> StandardEmissions:
     """
@@ -73,23 +74,23 @@ def get_emissions_data(
 
     # --- Filter by scenario, region, and years ---
     df = df[
-        (df["emission_scenario"] == metadata.grid_scenario)
-        & (df["gea_grid_region"] == metadata.gea_grid_region)
-        & (df["year"] == metadata.year)
+        (df["emission_scenario"] == scenario.grid_scenario)
+        & (df["gea_grid_region"] == scenario.gea_grid_region)
+        & (df["year"] == scenario.year)
     ].copy()
 
     if df.empty:
         raise ValueError(
-            f"No emissions data found for scenario={metadata.grid_scenario}, region={metadata.gea_grid_region}, year={metadata.year}"
+            f"No emissions data found for scenario={scenario.grid_scenario}, region={scenario.gea_grid_region}, year={scenario.year}"
         )
 
     # --- Handle emissions type mapping ---
-    if metadata.emission_type == "Combustion only":
+    if scenario.emission_type == "Combustion only":
         lrmer_c = "lrmer_co2e_c"
         lrmer_p = "lrmer_co2e_p"
         srmer_c = "srmer_co2e_c"
         srmer_p = "srmer_co2e_p"
-    elif metadata.emission_type == "Includes pre-combustion":
+    elif scenario.emission_type == "Includes pre-combustion":
         lrmer_c = lrmer_p = "lrmer_co2e"
         srmer_c = srmer_p = "srmer_co2e"
     else:
@@ -100,11 +101,11 @@ def get_emissions_data(
     # --- Build canonical schema ---
     result = pd.DataFrame(
         {
-            "em_scen_id": metadata.em_scen_id,
-            "emission_scenario": metadata.grid_scenario,
-            "gea_grid_region": metadata.gea_grid_region,
-            "time_zone": metadata.time_zone,
-            "emission_type": metadata.emission_type,
+            "em_scen_id": scenario.em_scen_id,
+            "emission_scenario": scenario.grid_scenario,
+            "gea_grid_region": scenario.gea_grid_region,
+            "time_zone": scenario.time_zone,
+            "emission_type": scenario.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],
             "lrmer_co2e_c": df[lrmer_c],

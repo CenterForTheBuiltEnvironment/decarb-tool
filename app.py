@@ -36,7 +36,11 @@ app.layout = dbc.Container(
                 dcc.Store(id="equipment-store", data=equipment_library),
                 dcc.Store(id="site-energy-store"),
                 dcc.Store(id="source-energy-store"),
-                tabs(),
+                dcc.Loading(
+                    id="loading-icon",
+                    type="default",
+                    children=tabs(),
+                ),
             ],
             style={"padding": "10px"},
         ),

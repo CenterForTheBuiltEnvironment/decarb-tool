@@ -77,7 +77,58 @@ def summary_loads_selection(metadata):
     return building_loads_card
 
 
-def summary_emissions_selection(metadata):
+def summary_equipment_selection(equipment_library, active_tab=None):
+    eq_lookup = {
+        eq["eq_id"]: f"{eq['model']}".strip() for eq in equipment_library["equipment"]
+    }
+
+    tabs = []
+    for scen in equipment_library["equipment_scenarios"]:
+        scen_display = scen.copy()
+        for field, _ in [
+            ("eq_scen_name", "Scenario"),
+            ("hr_wwhp", "HR WWHP"),
+            ("awhp_h", "AWHP"),
+            ("awhp_sizing", "AWHP Sizing"),
+            ("boiler", "Boiler"),
+            ("chiller", "Chiller"),
+        ]:
+            eq_id = scen.get(field)
+            if eq_id in eq_lookup:
+                scen_display[field] = eq_lookup[eq_id]
+
+        card = make_metadata_card(
+            scen_display,
+            [
+                ("eq_scen_name", "Scenario"),
+                ("hr_wwhp", "HR WWHP"),
+                ("awhp_h", "AWHP"),
+                ("awhp_sizing", "AWHP Sizing"),
+                ("boiler", "Boiler"),
+                ("chiller", "Chiller"),
+            ],
+            title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
+        )
+
+        tabs.append(
+            dbc.Tab(
+                label="S-" + scen["eq_scen_id"][-1].upper(),
+                tab_id=scen["eq_scen_id"],
+                children=[card],
+            )
+        )
+
+    # If no tab stored, default to first one
+    default_tab = equipment_library["equipment_scenarios"][0]["eq_scen_id"]
+
+    return dbc.Tabs(
+        tabs,
+        id="equipment-scenario-tabs",
+        active_tab=active_tab if active_tab else default_tab,
+    )
+
+
+def summary_emissions_selection(metadata, active_tab=None):
     tabs = []
     for scen in metadata["emission_settings"]:
         emission_fields = [
@@ -89,7 +140,11 @@ def summary_emissions_selection(metadata):
             ("annual_ng_leakage", "Nat. Gas Leakage, p.a."),
             ("year", "Year"),
         ]
-        card = make_metadata_card(scen, emission_fields, title="Summary")
+        card = make_metadata_card(
+            scen,
+            emission_fields,
+            title="Summary | Scenario " + scen["em_scen_id"][-1].upper(),
+        )
 
         tabs.append(
             dbc.Tab(
@@ -100,13 +155,13 @@ def summary_emissions_selection(metadata):
             )
         )
 
+    default_tab = metadata["emission_settings"][0]["em_scen_id"]  # default first one
+
     return (
         dbc.Tabs(
             tabs,
-            id="emission-tabs",
-            active_tab=metadata["emission_settings"][0][
-                "em_scen_id"
-            ],  # default first one
+            id="emission-scenario-tabs",
+            active_tab=active_tab if active_tab else default_tab,
         ),  #! more style in custom css
     )
 

@@ -136,9 +136,29 @@ class EquipmentLibrary(BaseModel):
         self.equipment = [e for e in self.equipment if e.eq_id != eq_id]
         self._equipment_dict.remove(eq_id)
 
-    def add_scenario(self, scenario: EquipmentScenario):
-        self.equipment_scenarios.append(scenario)
-        self._scenarios.add(scenario)
+    def add_equipment_scenario(
+        self, scenario: EquipmentScenario, overwrite: bool = True
+    ):
+        """Add a new scenario. Overwrites existing if `overwrite=True`."""
+        existing = [
+            s for s in self.equipment_scenarios if s.eq_scen_id == scenario.eq_scen_id
+        ]
+
+        if existing:
+            if overwrite:
+                # Replace in list
+                self.equipment_scenarios = [
+                    scenario if s.eq_scen_id == scenario.eq_scen_id else s
+                    for s in self.equipment_scenarios
+                ]
+                # Replace in DotDict
+                self._scenarios.remove(scenario.eq_scen_id)
+                self._scenarios.add(scenario)
+            else:
+                raise ValueError(f"Scenario {scenario.eq_scen_id!r} already exists")
+        else:
+            self.equipment_scenarios.append(scenario)
+            self._scenarios.add(scenario)
 
     def remove_scenario(self, eq_scen_id: str):
         self.equipment_scenarios = [

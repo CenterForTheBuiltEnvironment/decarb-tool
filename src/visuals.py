@@ -29,28 +29,37 @@ def apply_standard_layout(fig, subtitle_text=None):
     return fig
 
 
-def plot_total_emissions_bar(df, unit_mode="SI"):
+def plot_total_emissions_bar(
+    df, equipment_scenarios, emission_scenarios, unit_mode="SI"
+):
 
     variable_type = "emissions"
 
-    metadata_cols = ["scenario_id", "year"]
+    metadata_cols = ["scenario_id", "em_scen_id"]
 
     emission_cols = ["elec_emissions", "gas_emissions", "total_refrig_emissions"]
 
     all_cols = metadata_cols + emission_cols
 
-    df = df[[c for c in all_cols if c in df.columns]]
+    filtered = df[
+        (df["scenario_id"].isin(equipment_scenarios))
+        & (df["em_scen_id"].isin(emission_scenarios))
+    ]
+
+    df = filtered[[c for c in all_cols if c in filtered.columns]]
 
     conversion = unit_map[variable_type][unit_mode]
 
     df.loc[:, emission_cols] = df.loc[:, emission_cols].apply(conversion["func"])
     yaxis_title = conversion["label"]
 
-    df_totals = df.groupby(["scenario_id", "year"], as_index=False)[emission_cols].sum()
+    df_totals = df.groupby(["scenario_id", "em_scen_id"], as_index=False)[
+        emission_cols
+    ].sum()
 
     # Melt to long format for stacking
     df_long = df_totals.melt(
-        id_vars=["scenario_id", "year"],
+        id_vars=["scenario_id", "em_scen_id"],
         value_vars=emission_cols,
         var_name="emission_type",
         value_name="emissions",
@@ -61,11 +70,13 @@ def plot_total_emissions_bar(df, unit_mode="SI"):
         x="scenario_id",
         y="emissions",
         color="emission_type",
-        facet_col="year",
+        facet_col="em_scen_id",
         barmode="stack",
     )
 
     fig.update_layout(yaxis_title=yaxis_title)
+
+    fig.update_xaxes(title_text="")
 
     fig = apply_standard_layout(fig, "Total Emissions by Equipment and Scenarios.")
 
@@ -74,8 +85,8 @@ def plot_total_emissions_bar(df, unit_mode="SI"):
 
 def plot_meter_timeseries(
     df,
-    year,
-    scenario_id=None,
+    equipment_scenario,
+    emission_scenario,
     freq="D",
     stacked=False,
     include_gas=True,
@@ -90,7 +101,7 @@ def plot_meter_timeseries(
     # Setting up unit conversion
     variable_type = "energy"
 
-    metadata_cols = ["scenario_id"]
+    metadata_cols = ["scenario_id", "em_scen_id"]
 
     convert_cols = [
         "elec_hr_Wh",
@@ -103,17 +114,20 @@ def plot_meter_timeseries(
 
     all_cols = metadata_cols + convert_cols
 
-    df = df[[c for c in all_cols if c in df.columns]]
+    filtered = df[
+        (df["scenario_id"] == equipment_scenario)
+        & (df["em_scen_id"] == emission_scenario)
+    ]
+
+    df = filtered[[c for c in all_cols if c in df.columns]]
 
     conversion = unit_map[variable_type][unit_mode]
 
     df.loc[:, convert_cols] = df.loc[:, convert_cols].apply(conversion["func"])
     yaxis_title = conversion["label"]
 
-    # Filter for the selected year and scenario
-    df = df[df.index.year == year]
-    df = df.loc[df["scenario_id"] == scenario_id] if scenario_id else df.copy()
     df = df.drop(columns=["scenario_id"], errors="ignore")
+    df = df.drop(columns=["em_scen_id"], errors="ignore")
 
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("DataFrame index must be a DateTimeIndex")
@@ -194,15 +208,6 @@ def plot_meter_timeseries(
 def plot_emissions_heatmap(df, year):
     """
     Plot a heatmap of electricity emissions (elec_emissions) by hour and day of the year.
-
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing hourly electricity emissions data. Must have a datetime index.
-
-    Required Columns:
-    -----------------
-    ['elec_emissions'] (and a datetime index)
     """
     df = df[df.index.year == year].copy()
     df["hour"] = df.index.hour
@@ -247,18 +252,9 @@ def plot_emissions_heatmap(df, year):
     fig.show()
 
 
-def plot_energy_breakdown(df):
+def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
     """
     Plot a summary of energy usage by component.
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing energy usage data. Must have columns for each component and total electricity and gas usage.
-
-    Required Columns:
-    -----------------
-    ['elec_hr_Wh', 'elec_awhp_h_Wh', 'elec_awhp_c_Wh', 'elec_res_Wh', 'elec_chiller_Wh', 'elec_Wh', 'gas_boiler_Wh']
-
     """
 
     elec_components = [
@@ -280,8 +276,13 @@ def plot_energy_breakdown(df):
     if missing:
         raise ValueError(f"Missing required columns in DataFrame: {missing}")
 
+    filtered = df[
+        (df["scenario_id"].isin(equipment_scenarios))
+        & (df["em_scen_id"].isin(emission_scenarios))
+    ]
+
     summary = (
-        df[required_columns].sum().sort_values(ascending=False) / 1000
+        filtered[required_columns].sum().sort_values(ascending=False) / 1000
     )  # Convert to kWh
 
     # prepare df for Plotly
@@ -311,7 +312,7 @@ def plot_energy_breakdown(df):
     fig.show()
 
 
-def plot_energy_and_emissions(df, year):
+def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios):
     """
     Plot annual totals for energy (left) and emissions (right) by scenario.
     No legend or annotations; scenario/category info is in hover tooltips.
@@ -336,7 +337,10 @@ def plot_energy_and_emissions(df, year):
         "Refrigerant": "green",
     }
 
-    df = df[df.index.year == year]
+    df = df[
+        (df["scenario_id"].isin(equipment_scenarios))
+        & (df["em_scen_id"].isin(emission_scenarios))
+    ]
 
     scenarios = df["scenario_id"].unique()
     n_scen = len(scenarios)
@@ -420,14 +424,13 @@ def plot_energy_and_emissions(df, year):
             )
 
     fig.update_layout(
-        title=f"Annual Energy & Emissions by Scenario, {year}",
-        barmode="group",
-        # Add space between subplots
         xaxis=dict(domain=[0, 0.3]),
         xaxis2=dict(domain=[0.5, 1.0]),
     )
 
     fig.update_yaxes(title_text="kWh", row=1, col=1)
     fig.update_yaxes(title_text="Emissions [kgCO₂]", row=1, col=2)
+
+    fig = apply_standard_layout(fig, "Annual Energy & Emissions by Scenario")
 
     return fig

@@ -33,8 +33,15 @@
 
 /* Stronger highlight for active tab */
 .nav-tabs .nav-link.active {
-    background-color: black; /* Bootstrap primary */
+    background-color: rgb(0, 0, 0); /* Bootstrap primary */
     color: white !important;
     font-weight: bold;
     border-radius: 0.5rem 0.5rem 0 0; /* rounded top */
+}
+
+
+.nav-pills .nav-link.active {
+    background-color: rgb(240, 241, 242); /* Bootstrap primary */
+    color: rgb(0, 0, 0) !important;
+    border-radius: 0.5rem 0.5rem 0.5rem 0.5rem;
 }

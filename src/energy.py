@@ -207,8 +207,8 @@ def loads_to_site_energy(
                         awhp_h.performance.cap_curve.capacity_W,
                         np.array([0.0]),  # fall back / reference capacity
                     )[0]
-                elif awhp_h.capacity_w:
-                    cap_ref = float(awhp_h.capacity_w)
+                elif awhp_h.capacity_W:
+                    cap_ref = float(awhp_h.capacity_W)
                 else:
                     raise ValueError(
                         f"AWHP '{awhp_h.eq_id}' lacks a capacity reference."

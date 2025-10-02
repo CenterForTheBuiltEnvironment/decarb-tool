@@ -16,7 +16,7 @@ __pycache__/
 
 # *.ipynb
 
-docs/
+docs/variables.md
 
 data/testing/
 
