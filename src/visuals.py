@@ -7,78 +7,313 @@ from plotly.subplots import make_subplots
 from utils.units import unit_map
 
 
-def apply_standard_layout(fig, subtitle_text=None):
-    """Apply standard layout settings to a Plotly figure."""
-    annotations = []
-    if subtitle_text:
-        annotations.append(
-            go.layout.Annotation(
-                x=0,
-                y=-0.4,
-                xref="paper",
-                yref="paper",
-                text=subtitle_text,
-                showarrow=False,
-                xanchor="left",
-                yanchor="bottom",
-                font=dict(size=16, color="gray"),
-            )
-        )
+def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
+    # Keep existing annotations (like subplot titles)
+    existing_annotations = (
+        list(fig.layout.annotations) if fig.layout.annotations else []
+    )
 
-    fig.update_layout(annotations=annotations, margin=dict(b=120, pad=10))
+    if subtitle_text:
+        subtitle_annotation = dict(
+            text=subtitle_text,
+            x=0,
+            xref="paper",
+            y=y_offset,
+            yref="paper",
+            showarrow=False,
+            font=dict(size=16, color="gray"),
+            align="center",
+        )
+        existing_annotations.append(subtitle_annotation)
+
+    fig.update_layout(
+        annotations=existing_annotations,  # keep old + add subtitle
+        title_font=dict(size=14),
+        font=dict(size=16),
+    )
+
     return fig
 
 
-def plot_total_emissions_bar(
+def plot_energy_and_emissions(
     df, equipment_scenarios, emission_scenarios, unit_mode="SI"
 ):
 
-    variable_type = "emissions"
+    col_to_type = {
+        # Energy
+        "elec_hr_Wh": "energy",
+        "elec_awhp_h_Wh": "energy",
+        "elec_awhp_c_Wh": "energy",
+        "elec_res_Wh": "energy",
+        "elec_chiller_Wh": "energy",
+        "gas_boiler_Wh": "energy",
+        # Emissions
+        "elec_emissions": "emissions",
+        "gas_emissions": "emissions",
+        "total_refrig_emissions": "emissions",
+    }
 
-    metadata_cols = ["scenario_id", "em_scen_id"]
-
-    emission_cols = ["elec_emissions", "gas_emissions", "total_refrig_emissions"]
-
-    all_cols = metadata_cols + emission_cols
-
-    filtered = df[
+    # --- Filter scenarios ---
+    df = df[
         (df["scenario_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ]
 
-    df = filtered[[c for c in all_cols if c in filtered.columns]]
+    scenarios = df["scenario_id"].unique()
+    n_scen = len(scenarios)
+    opacities = np.linspace(1, 0.7, n_scen)  # fade scenarios slightly
 
-    conversion = unit_map[variable_type][unit_mode]
+    # --- Convert all columns according to unit mode ---
+    for col in df.columns:
+        if col in col_to_type:
+            var_type = col_to_type[col]
+            df.loc[:, col] = df[col].apply(unit_map[var_type][unit_mode]["func"])
 
-    df.loc[:, emission_cols] = df.loc[:, emission_cols].apply(conversion["func"])
-    yaxis_title = conversion["label"]
+    # --- Axis labels ---
+    yaxis_title_energy = unit_map["energy"][unit_mode]["label"]
+    yaxis_title_emissions = unit_map["emissions"][unit_mode]["label"]
 
-    df_totals = df.groupby(["scenario_id", "em_scen_id"], as_index=False)[
-        emission_cols
-    ].sum()
+    # --- Colors ---
+    color_map_energy = {"Electricity": "#225577", "Gas": "#ffcc55"}
+    color_map_emissions = {
+        "Electricity": "#225577",
+        "Gas": "#ffcc55",
+        "Refrigerant": "#e763ca",
+    }
 
-    # Melt to long format for stacking
-    df_long = df_totals.melt(
-        id_vars=["scenario_id", "em_scen_id"],
-        value_vars=emission_cols,
-        var_name="emission_type",
-        value_name="emissions",
+    # --- Build subplot container ---
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=["Energy", "Emissions"],
+        horizontal_spacing=0.15,
     )
 
-    fig = px.bar(
-        df_long,
-        x="scenario_id",
-        y="emissions",
-        color="emission_type",
-        facet_col="em_scen_id",
-        barmode="stack",
+    # --- ENERGY STACKED BAR ---
+    for i, scen in enumerate(scenarios):
+        df_s = df[df["scenario_id"] == scen]
+
+        elec_total = (
+            df_s[
+                [
+                    "elec_hr_Wh",
+                    "elec_awhp_h_Wh",
+                    "elec_awhp_c_Wh",
+                    "elec_res_Wh",
+                    "elec_chiller_Wh",
+                ]
+            ]
+            .sum()
+            .sum()
+            / 1000
+        )
+        gas_total = df_s["gas_boiler_Wh"].sum() / 1000
+
+        # Electricity
+        fig.add_trace(
+            go.Bar(
+                x=[scen],
+                y=[elec_total],
+                name="Electricity",
+                marker=dict(
+                    color=color_map_energy["Electricity"], opacity=opacities[i]
+                ),
+                hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_total:.0f} kWh<extra></extra>",
+                showlegend=(i == 0),  # only show once in legend
+            ),
+            row=1,
+            col=1,
+        )
+
+        # Gas
+        fig.add_trace(
+            go.Bar(
+                x=[scen],
+                y=[gas_total],
+                name="Gas",
+                marker=dict(color=color_map_energy["Gas"], opacity=opacities[i]),
+                hovertemplate=f"Scenario: {scen}<br>Gas: {gas_total:.0f} kWh<extra></extra>",
+                showlegend=(i == 0),
+            ),
+            row=1,
+            col=1,
+        )
+
+    # --- EMISSIONS STACKED BAR ---
+    for i, scen in enumerate(scenarios):
+        df_s = df[df["scenario_id"] == scen]
+
+        elec_em = df_s["elec_emissions"].sum().sum()
+        gas_em = df_s["gas_emissions"].sum().sum()
+        refrig_em = df_s["total_refrig_emissions"].sum().sum()
+
+        fig.add_trace(
+            go.Bar(
+                x=[scen],
+                y=[elec_em],
+                name="Electricity",
+                marker=dict(
+                    color=color_map_emissions["Electricity"], opacity=opacities[i]
+                ),
+                hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
+                showlegend=(i == 0),
+            ),
+            row=1,
+            col=2,
+        )
+        fig.add_trace(
+            go.Bar(
+                x=[scen],
+                y=[gas_em],
+                name="Gas",
+                marker=dict(color=color_map_emissions["Gas"], opacity=opacities[i]),
+                hovertemplate=f"Scenario: {scen}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
+                showlegend=(i == 0),
+            ),
+            row=1,
+            col=2,
+        )
+        fig.add_trace(
+            go.Bar(
+                x=[scen],
+                y=[refrig_em],
+                name="Refrigerant",
+                marker=dict(
+                    color=color_map_emissions["Refrigerant"], opacity=opacities[i]
+                ),
+                hovertemplate=f"Scenario: {scen}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
+                showlegend=(i == 0),
+            ),
+            row=1,
+            col=2,
+        )
+
+    # --- Layout ---
+    fig.update_layout(barmode="stack", height=600, margin=dict(b=150))
+
+    fig.update_yaxes(title_text=yaxis_title_energy, row=1, col=1)
+    fig.update_yaxes(title_text=yaxis_title_emissions, row=1, col=2)
+
+    fig = apply_standard_layout(
+        fig, y_offset=-0.35, subtitle_text="Annual Energy & Emissions by Scenario."
     )
 
-    fig.update_layout(yaxis_title=yaxis_title)
+    return fig
 
-    fig.update_xaxes(title_text="")
 
-    fig = apply_standard_layout(fig, "Total Emissions by Equipment and Scenarios.")
+def plot_emission_scenarios_grouped(
+    df, equipment_scenarios, emission_scenarios, unit_mode="SI"
+):
+    col_to_type = {
+        "elec_emissions": "emissions",
+        "gas_emissions": "emissions",
+        "total_refrig_emissions": "emissions",
+    }
+
+    # --- Filter scenarios ---
+    df = df[
+        (df["scenario_id"].isin(equipment_scenarios))
+        & (df["em_scen_id"].isin(emission_scenarios))
+    ]
+
+    # --- Unit conversion ---
+    for col in df.columns:
+        if col in col_to_type:
+            var_type = col_to_type[col]
+            df.loc[:, col] = df[col].apply(unit_map[var_type][unit_mode]["func"])
+
+    # --- Axis label ---
+    yaxis_title_emissions = unit_map["emissions"][unit_mode]["label"]
+
+    # --- Colors ---
+    color_map_emissions = {
+        "Electricity": "#225577",
+        "Gas": "#ffcc55",
+        "Refrigerant": "#e763ca",
+    }
+
+    # --- Create subplots (shared y-axis) ---
+    n_em_scen = len(emission_scenarios)
+    fig = make_subplots(
+        rows=1,
+        cols=n_em_scen,
+        subplot_titles=[f"{em_scen}" for em_scen in emission_scenarios],
+        horizontal_spacing=0.12,
+        shared_yaxes=True,
+    )
+
+    # --- Track which legend items have been added ---
+    added_legends = set()
+
+    # --- Plot emissions for each emission scenario ---
+    for i, em_scen in enumerate(emission_scenarios):
+        df_e = df[df["em_scen_id"] == em_scen]
+
+        for scen in equipment_scenarios:
+            df_s = df_e[df_e["scenario_id"] == scen]
+            elec_em = df_s["elec_emissions"].sum()
+            gas_em = df_s["gas_emissions"].sum()
+            refrig_em = df_s["total_refrig_emissions"].sum()
+
+            # Electricity
+            show_legend = "Electricity" not in added_legends
+            fig.add_trace(
+                go.Bar(
+                    x=[scen],
+                    y=[elec_em],
+                    name="Electricity",
+                    marker=dict(color=color_map_emissions["Electricity"]),
+                    hovertemplate=f"Equipment: {scen}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
+                    showlegend=show_legend,
+                ),
+                row=1,
+                col=i + 1,
+            )
+            added_legends.add("Electricity")
+
+            # Gas
+            show_legend = "Gas" not in added_legends
+            fig.add_trace(
+                go.Bar(
+                    x=[scen],
+                    y=[gas_em],
+                    name="Gas",
+                    marker=dict(color=color_map_emissions["Gas"]),
+                    hovertemplate=f"Equipment: {scen}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
+                    showlegend=show_legend,
+                ),
+                row=1,
+                col=i + 1,
+            )
+            added_legends.add("Gas")
+
+            # Refrigerant
+            show_legend = "Refrigerant" not in added_legends
+            fig.add_trace(
+                go.Bar(
+                    x=[scen],
+                    y=[refrig_em],
+                    name="Refrigerant",
+                    marker=dict(color=color_map_emissions["Refrigerant"]),
+                    hovertemplate=f"Equipment: {scen}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
+                    showlegend=show_legend,
+                ),
+                row=1,
+                col=i + 1,
+            )
+            added_legends.add("Refrigerant")
+
+    # --- Layout ---
+    fig.update_layout(barmode="stack", height=600, margin=dict(b=150))
+
+    fig = apply_standard_layout(
+        fig,
+        y_offset=-0.35,
+        subtitle_text="Annual Emissions per Equipment and grouped by Emission Scenario.",
+    )
+
+    # Shared y-axis label
+    fig.update_yaxes(title_text=yaxis_title_emissions, row=1, col=1)
 
     return fig
 
@@ -194,28 +429,60 @@ def plot_meter_timeseries(
 
         fig.update_traces(stackgroup="one")
         fig.update_layout(
-            xaxis_title="Time",
+            xaxis_title="",
             yaxis_title=(yaxis_title if aggfunc == "sum" else f"Average {yaxis_title}"),
-            legend_title="Meter",
             template="decarb-tool-theme",
+            margin=dict(b=150),
         )
 
-        fig = apply_standard_layout(fig, "Stacked Meter Usage, aggregated over time.")
+        fig = apply_standard_layout(
+            fig,
+            y_offset=-0.35,
+            subtitle_text="Stacked Meter Usage, aggregated over time.",
+        )
 
     return fig
 
 
-def plot_emissions_heatmap(df, year):
+def plot_emissions_heatmap(
+    df,
+    equipment_scenario,
+    emission_scenario,
+    unit_mode="SI",
+    emission_type="elec_emissions",
+):
     """
     Plot a heatmap of electricity emissions (elec_emissions) by hour and day of the year.
     """
-    df = df[df.index.year == year].copy()
-    df["hour"] = df.index.hour
-    df["doy"] = df.index.dayofyear
+
+    # Setting up unit conversion
+    variable_type = "emissions"
+
+    metadata_cols = ["scenario_id", "em_scen_id"]
+
+    convert_cols = [
+        "elec_emissions",
+        "gas_emissions",
+        "total_refrig_emissions",
+    ]
+
+    all_cols = metadata_cols + convert_cols
+
+    filtered = df[
+        (df["scenario_id"] == equipment_scenario)
+        & (df["em_scen_id"] == emission_scenario)
+    ].copy()  # 👈 Add .copy() here
+
+    df = filtered[[c for c in all_cols if c in df.columns]].copy()
+
+    conversion = unit_map[variable_type][unit_mode]
+
+    df.loc[:, convert_cols] = df.loc[:, convert_cols].apply(conversion["func"])
+    legend_title = conversion["label"]
 
     # Check if the 'elec_emissions' column exists
-    if "elec_emissions" not in df.columns:
-        raise ValueError("Missing required column: 'elec_emissions'")
+    if emission_type not in df.columns:
+        raise ValueError(f"Missing required column: '{emission_type}'")
 
     # Ensure the index is datetime
     if not pd.api.types.is_datetime64_any_dtype(df.index):
@@ -227,7 +494,7 @@ def plot_emissions_heatmap(df, year):
 
     # Pivot to 2D array (hour x day of year)
     heatmap_data = df.pivot_table(
-        index="hour", columns="doy", values="elec_emissions", aggfunc="mean"
+        index="hour", columns="doy", values=emission_type, aggfunc="mean"
     )
 
     # Create the heatmap plot
@@ -237,19 +504,27 @@ def plot_emissions_heatmap(df, year):
             x=heatmap_data.columns,
             y=heatmap_data.index,
             colorscale="YlGnBu",
-            colorbar=dict(title="Electricity Emissions (kg CO₂)"),
+            colorbar=dict(title=legend_title),
             hovertemplate="Day of Year: %{x}<br>Hour: %{y}<br>Emissions: %{z:.2f} kg CO₂<extra></extra>",
             zsmooth="best",
         )
     )
 
     fig.update_layout(
-        title="Electricity Emissions Heatmap (Hour of Day vs. Day of Year)",
         xaxis_title="Day of Year",
         yaxis_title="Hour of Day",
+        margin=dict(b=150),
+        height=500,
+        template="decarb-tool-theme",
     )
 
-    fig.show()
+    fig = apply_standard_layout(
+        fig,
+        y_offset=-0.4,
+        subtitle_text=f"Annual heatmap of hourly emissions for {emission_type}.",
+    )
+
+    return fig
 
 
 def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
@@ -310,127 +585,3 @@ def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
         yaxis={"categoryorder": "total ascending"},
     )
     fig.show()
-
-
-def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios):
-    """
-    Plot annual totals for energy (left) and emissions (right) by scenario.
-    No legend or annotations; scenario/category info is in hover tooltips.
-    """
-
-    if "scenario_id" not in df.columns:
-        raise ValueError("DataFrame must include a 'scenario_id' column.")
-
-    elec_components = [
-        "elec_hr_Wh",
-        "elec_awhp_h_Wh",
-        "elec_awhp_c_Wh",
-        "elec_res_Wh",
-        "elec_chiller_Wh",
-    ]
-    gas_components = ["gas_boiler_Wh"]
-
-    color_map_energy = {"Heating": "red", "Cooling": "blue", "Gas": "orange"}
-    color_map_emissions = {
-        "Electricity": "black",
-        "Gas": "yellow",
-        "Refrigerant": "green",
-    }
-
-    df = df[
-        (df["scenario_id"].isin(equipment_scenarios))
-        & (df["em_scen_id"].isin(emission_scenarios))
-    ]
-
-    scenarios = df["scenario_id"].unique()
-    n_scen = len(scenarios)
-    opacities = np.linspace(0.7, 0.3, n_scen)
-
-    fig = make_subplots(rows=1, cols=2, column_widths=[0.5, 0.5])
-
-    # --- LOOP OVER SCENARIOS ---
-    for i, scen in enumerate(scenarios):
-        df_s = df[df["scenario_id"] == scen]
-
-        # --- ENERGY TOTALS ---
-        elec_heat = (
-            df_s[["elec_hr_Wh", "elec_awhp_h_Wh", "elec_res_Wh"]].sum().sum() / 1000
-        )
-        elec_cool = df_s[["elec_awhp_c_Wh", "elec_chiller_Wh"]].sum().sum() / 1000
-        gas_heat = df_s["gas_boiler_Wh"].sum() / 1000
-
-        totals_energy = [
-            {"Type": "Gas", "Category": "Heating", "kWh": gas_heat},
-            {"Type": "Electricity", "Category": "Heating", "kWh": elec_heat},
-            {"Type": "Electricity", "Category": "Cooling", "kWh": elec_cool},
-        ]
-
-        for s in totals_energy:
-            fig.add_trace(
-                go.Bar(
-                    x=[s["Type"]],
-                    y=[s["kWh"]],
-                    width=0.2,
-                    marker=dict(
-                        color=color_map_energy[s["Category"]],
-                        opacity=opacities[i],
-                    ),
-                    hovertemplate=(
-                        f"Scenario: {scen}<br>"
-                        f"Type: {s['Type']}<br>"
-                        f"Category: {s['Category']}<br>"
-                        f"kWh: {s['kWh']:.0f}<extra></extra>"
-                    ),
-                    showlegend=False,
-                ),
-                row=1,
-                col=1,
-            )
-
-        # --- EMISSIONS TOTALS ---
-        elec_emissions = df_s["elec_emissions"].sum().sum()
-        gas_emissions = df_s["gas_emissions"].sum().sum()
-        refrigerant_emissions = df_s["total_refrig_emissions"].sum().sum()
-
-        totals_emissions = [
-            {"Type": "Gas", "Category": "Emissions", "Value": gas_emissions},
-            {"Type": "Electricity", "Category": "Emissions", "Value": elec_emissions},
-            {
-                "Type": "Refrigerant",
-                "Category": "Emissions",
-                "Value": refrigerant_emissions,
-            },
-        ]
-
-        for s in totals_emissions:
-            fig.add_trace(
-                go.Bar(
-                    x=[s["Type"]],
-                    y=[s["Value"]],
-                    width=0.2,
-                    marker=dict(
-                        color=color_map_emissions[s["Type"]],
-                        opacity=opacities[i],
-                    ),
-                    hovertemplate=(
-                        f"Scenario: {scen}<br>"
-                        f"Type: {s['Type']}<br>"
-                        f"Value: {s['Value']:.1f} kgCO₂<extra></extra>"
-                    ),
-                    showlegend=False,
-                ),
-                row=1,
-                col=2,
-            )
-
-    fig.update_layout(
-        xaxis=dict(domain=[0, 0.3]),
-        xaxis2=dict(domain=[0.5, 1.0]),
-    )
-
-    fig.update_yaxes(title_text="kWh", row=1, col=1)
-    fig.update_yaxes(title_text="Emissions [kgCO₂]", row=1, col=2)
-
-    fig = apply_standard_layout(fig, "Annual Energy & Emissions by Scenario")
-
-    return fig

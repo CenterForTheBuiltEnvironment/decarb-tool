@@ -22,7 +22,12 @@ from layout.output import summary_project_info, summary_scenario_results
 from layout.charts import chart_tabs
 
 from src.metadata import Metadata
-from src.visuals import plot_meter_timeseries, plot_total_emissions_bar
+from src.visuals import (
+    plot_meter_timeseries,
+    plot_energy_and_emissions,
+    plot_emission_scenarios_grouped,
+    plot_emissions_heatmap,
+)
 
 dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
 
@@ -47,16 +52,6 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            # dbc.Label(
-                            #     [
-                            #         "Results-Info",
-                            #         html.Br(),
-                            #         html.Small(
-                            #             "Subtitle with additional information",
-                            #             className="text-muted",
-                            #         ),
-                            #     ]
-                            # ),
                             results_utility_bar(),
                             chart_tabs(),
                             html.Hr(),
@@ -172,7 +167,7 @@ def update_meter_plot(
 
 
 @callback(
-    Output("total-emissions-plot", "figure"),
+    Output("energy-and-emissions-plot", "figure"),
     Input("source-energy-store", "data"),
     Input("total-equipment-scen-dropdown", "value"),
     Input("total-emission-scen-dropdown", "value"),
@@ -180,14 +175,72 @@ def update_meter_plot(
     # prevent_initial_call=True
 )
 def update_total_emissions_plot(
-    source_json, equipment_scenario, emission_scenario, unit_mode
+    source_json, equipment_scenarios, emission_scenario, unit_mode
 ):
     if not source_json:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     df = pd.read_json(StringIO(source_json), orient="split")
 
-    fig = plot_total_emissions_bar(
-        df, equipment_scenario, emission_scenario, unit_mode=unit_mode
+    # Ensure equipment_scenarios and emission_scenario are lists
+    # if isinstance(equipment_scenarios, str):
+    #     equipment_scenarios = [equipment_scenarios]
+    if isinstance(emission_scenario, str):
+        emission_scenario = [emission_scenario]
+
+    fig = plot_energy_and_emissions(
+        df, equipment_scenarios, emission_scenario, unit_mode=unit_mode
+    )
+    return fig
+
+
+@callback(
+    Output("emissions-bar-plot", "figure"),
+    Input("source-energy-store", "data"),
+    Input("emission-em-scen-dropdown", "value"),
+    Input("unit-toggle", "value"),
+    # prevent_initial_call=True
+)
+def update_emissions_bar_plot(source_json, emission_scenarios, unit_mode):
+    if not source_json:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+
+    df = pd.read_json(StringIO(source_json), orient="split")
+
+    equipment_scenarios = df["scenario_id"].unique().tolist()
+
+    # Ensure emission_scenarios is a list
+    if isinstance(emission_scenarios, str):
+        emission_scenarios = [emission_scenarios]
+
+    fig = plot_emission_scenarios_grouped(
+        df, equipment_scenarios, emission_scenarios, unit_mode=unit_mode
+    )
+    return fig
+
+
+@callback(
+    Output("emissions-heatmap-plot", "figure"),
+    Input("source-energy-store", "data"),
+    Input("heatmap-equipment-scen-dropdown", "value"),
+    Input("heatmap-emission-scen-dropdown", "value"),
+    Input("heatmap-emission-type-dropdown", "value"),
+    Input("unit-toggle", "value"),
+    # prevent_initial_call=True
+)
+def update_emissions_heatmap(
+    source_json, equipment_scenario, emission_scenario, emission_type, unit_mode
+):
+    if not source_json:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+
+    df = pd.read_json(StringIO(source_json), orient="split")
+
+    fig = plot_emissions_heatmap(
+        df,
+        equipment_scenario,
+        emission_scenario,
+        unit_mode=unit_mode,
+        emission_type=emission_type,
     )
     return fig

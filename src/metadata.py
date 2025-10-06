@@ -37,7 +37,13 @@ class Metadata(BaseModel):
             vintage=2022,
             load_type="load_simulated",
             ashrae_climate_zone="3C",
-            equipment_scenarios="eq_scenario_1",
+            equipment_scenarios=[
+                "eq_scenario_1",
+                "eq_scenario_2",
+                "eq_scenario_3",
+                "eq_scenario_4",
+                "eq_scenario_5",
+            ],
             emission_settings=[
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
