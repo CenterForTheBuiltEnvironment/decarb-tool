@@ -913,7 +913,7 @@
       "resistance_heater": "res01"
     },
     {
-      "eq_scen_id": "heatingHP_01",
+      "eq_scen_id": "eq_scenario_5",
       "eq_scen_name": "Chiller + 80% AWHP/Gas Backup",
       "hr_wwhp": null,
       "awhp_h": "aermec_h_01",
