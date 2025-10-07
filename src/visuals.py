@@ -582,6 +582,6 @@ def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
 
     fig.update_traces(texttemplate="%{text:.2s}", textposition="outside")
     fig.update_layout(
-        yaxis={"categoryorder": "total ascending"},
+        yaxis={"categoryorder": "category ascending"},
     )
     fig.show()
