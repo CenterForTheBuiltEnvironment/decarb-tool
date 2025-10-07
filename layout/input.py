@@ -4,8 +4,22 @@ from dash_iconify import DashIconify
 import pandas as pd
 import json
 
+from utils.units import unit_map
+
 with open("data/input/metadata_index.json", "r") as f:
     metadata_index = json.load(f)
+
+
+def unit_toggle():
+    return dbc.RadioItems(
+        id="unit-toggle",
+        options=[
+            {"label": "SI", "value": "SI"},
+            {"label": "IP", "value": "IP"},
+        ],
+        value="SI",
+        inline=True,
+    )
 
 
 def select_location(locations_df: pd.DataFrame):
@@ -24,7 +38,6 @@ def select_location(locations_df: pd.DataFrame):
             html.P(
                 "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
             ),
-            html.Br(),
             dcc.Dropdown(
                 id="location-input",
                 options=options,
@@ -44,7 +57,6 @@ def select_load_data():
             ),
             html.Br(),
             html.P("Select the type of load data you want to use for analysis."),
-            html.Br(),
             dbc.Accordion(
                 [
                     dbc.AccordionItem(
@@ -79,6 +91,371 @@ def select_load_data():
                 flush=True,
             ),
         ]
+    )
+
+
+def select_equipment(equipment_data):
+
+    equipment_list = equipment_data.get("equipment", [])
+
+    hr_heat_pump_options = [
+        {
+            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
+            "value": eq.get("eq_id"),
+        }
+        for eq in equipment_list
+        if eq.get("eq_type") == "hr_heat_pump"
+    ]
+
+    heat_pump_options = [
+        {
+            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
+            "value": eq.get("eq_id"),
+        }
+        for eq in equipment_list
+        if eq.get("eq_type") == "heat_pump"
+    ]
+
+    boiler_options = [
+        {
+            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
+            "value": eq.get("eq_id"),
+        }
+        for eq in equipment_list
+        if eq.get("eq_type") == "boiler"
+    ]
+
+    chiller_options = [
+        {
+            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
+            "value": eq.get("eq_id"),
+        }
+        for eq in equipment_list
+        if eq.get("eq_type") == "chiller"
+    ]
+
+    label_styling = {"width": "180px", "align": "right"}
+
+    return html.Div(
+        [
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupText("HR Heat Pump", style=label_styling),
+                    dbc.Select(
+                        id="hr-wwhp-input",
+                        options=hr_heat_pump_options,
+                        value=(
+                            hr_heat_pump_options[0]["value"]
+                            if hr_heat_pump_options
+                            else None
+                        ),
+                    ),
+                ]
+            ),
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupText("Heat Pump", style=label_styling),
+                    dbc.Select(
+                        id="awhp-input",
+                        options=heat_pump_options,
+                        value=(
+                            heat_pump_options[0]["value"] if heat_pump_options else None
+                        ),
+                    ),
+                ]
+            ),
+            html.Hr(style={"marginTop": "10px", "marginBottom": "10px"}),
+            dbc.Label("Heat Pump Sizing", style=label_styling),
+            html.Div(
+                children=[
+                    dbc.RadioItems(
+                        id="awhp-sizing-radio",
+                        options=[
+                            {"label": "% Peak Load", "value": "percent"},
+                            {"label": "No. Units", "value": "units"},
+                        ],
+                        value="percent",
+                        inline=True,
+                        style={"marginRight": "15px"},
+                    ),
+                    html.Div(
+                        dcc.Slider(
+                            id="awhp-sizing-slider",
+                            min=0,
+                            max=1,
+                            step=0.05,
+                            value=0.85,
+                            marks={i: f"{i * 100}%" for i in range(0, 21, 5)},
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                        style={"flex": "1"},  # make slider expand
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center", "gap": "10px"},
+            ),
+            html.Hr(style={"marginTop": "10px", "marginBottom": "10px"}),
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupText("Boiler", style=label_styling),
+                    dbc.Select(
+                        id="boiler-input",
+                        options=boiler_options,
+                        value=(boiler_options[0]["value"] if boiler_options else None),
+                    ),
+                ]
+            ),
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupText("Chiller", style=label_styling),
+                    dbc.Select(
+                        id="chiller-input",
+                        options=chiller_options,
+                        value=(
+                            chiller_options[0]["value"] if chiller_options else None
+                        ),
+                    ),
+                ]
+            ),
+        ]
+    )
+
+
+def set_grid_year():
+
+    year_options = metadata_index["emissions"]["year"]
+
+    return html.Div(
+        [
+            dbc.Label("Grid Year"),
+            dcc.Slider(
+                id="grid-year-input",
+                min=min(year_options),
+                max=max(year_options),
+                step=5,
+                included=False,
+                value=min(year_options),
+                marks={year: str(year) for year in year_options},
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+        ]
+    )
+
+
+def select_grid_scenario():
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["emissions"]["emission_scenario"]
+    ]
+    return html.Div(
+        [
+            dbc.Label("Grid Scenario"),
+            # html.P(
+            #     "Select the grid emission scenario to use for the analysis. This will set the grid emission factors over time."
+            # ),
+            dcc.Dropdown(
+                id="grid-scenario-input",
+                options=options,
+                value="MidCase",
+            ),
+        ]
+    )
+
+
+def set_emission_type():
+    options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["emissions"]["emission_type"]
+    ]
+    return html.Div(
+        [
+            dbc.Label("Emission Type", style={"fontWeight": "bold"}),
+            dbc.RadioItems(
+                id="emission-type-input",
+                options=options,
+                value="Combustion only",
+                inline=True,
+            ),
+        ]
+    )
+
+
+def set_shortrun_weighting():
+    return html.Div(
+        [
+            dbc.Label("Short-Run Weighting"),
+            # html.P(
+            #     "Set the short-run weighting factor to adjust the importance of short-run marginal emission rates in the analysis."
+            # ),
+            dcc.Slider(
+                id="shortrun-weighting-input",
+                min=0.0,
+                max=1.0,
+                step=0.1,
+                value=0.0,
+                marks={0: "0", 0.5: "0.5", 1: "1"},
+                # marks={i / 10: str(i / 10) for i in range(0, 11)},
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+        ]
+    )
+
+
+def set_static_emissions(unit_mode="SI"):
+
+    conversion = unit_map["static_emission_intensity"][unit_mode]
+    refrig_placeholder = conversion["refrig_default"]
+    ng_placeholder = conversion["ng_default"]
+
+    return html.Div(
+        [
+            dbc.Label("Static Emission Factors", style={"fontWeight": "bold"}),
+            html.P("Annual Refrigerant Leakage."),
+            html.Div(
+                children=[
+                    dcc.Input(
+                        id="refrigerant-leakage-input",
+                        type="number",
+                        placeholder=refrig_placeholder,
+                        value=None,
+                        style={"width": "40%"},
+                        step=0.01,
+                    ),
+                    html.Div(
+                        id="refrigerant-leakage-unit", style={"marginLeft": "8px"}
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center"},
+            ),
+            html.Hr(),
+            html.P("Annual Natural Gas Leakage."),
+            html.Div(
+                children=[
+                    dcc.Input(
+                        id="natural-gas-leakage-input",
+                        type="number",
+                        placeholder=ng_placeholder,
+                        value=None,
+                        style={"width": "40%"},
+                        step=0.001,
+                    ),
+                    html.Div(
+                        id="natural-gas-leakage-unit", style={"marginLeft": "8px"}
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center"},
+            ),
+        ]
+    )
+
+
+def equipment_scenario_saving_buttons():
+    return html.Div(
+        [
+            html.P("Save my current equipment settings as:"),
+            dbc.ButtonGroup(
+                [
+                    dbc.Button(
+                        "Scenario 1",
+                        id="update-eq-scen-1",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    dbc.Button(
+                        "Scenario 2",
+                        id="update-eq-scen-2",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    dbc.Button(
+                        "Scenario 3",
+                        id="update-eq-scen-3",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    dbc.Button(
+                        "Scenario 4",
+                        id="update-eq-scen-4",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    dbc.Button(
+                        "Scenario 5",
+                        id="update-eq-scen-5",
+                        outline=True,
+                        color="secondary",
+                    ),
+                ],
+                size="md",
+                vertical=False,
+            ),
+            # Store to remember which button was clicked
+            dcc.Store(id="scenario-trigger-store"),
+            # Modal for name input
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("Save Scenario")),
+                    dbc.ModalBody(
+                        dbc.Input(
+                            id="scenario-name-input",
+                            placeholder="Enter scenario name...",
+                            type="text",
+                        )
+                    ),
+                    dbc.ModalFooter(
+                        dbc.Button(
+                            "Confirm", id="confirm-scenario-name", color="primary"
+                        )
+                    ),
+                ],
+                id="scenario-name-modal",
+                is_open=False,
+                backdrop="static",
+                keyboard=False,
+                centered=True,
+            ),
+            html.Hr(),
+        ],
+    )
+
+
+def emission_scenario_saving_buttons():
+    return html.Div(
+        [
+            html.P("Save my current settings as:"),
+            dbc.ButtonGroup(
+                [
+                    dbc.Button(
+                        "Scenario A",
+                        id="update-scen-A",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    # html.Span(" "),  # spacer
+                    dbc.Button(
+                        "Scenario B",
+                        id="update-scen-B",
+                        outline=True,
+                        color="secondary",
+                    ),
+                    # html.Span(" "),  # spacer
+                    dbc.Button(
+                        "Scenario C",
+                        id="update-scen-C",
+                        outline=True,
+                        color="secondary",
+                    ),
+                ],
+                size="md",
+                vertical=True,
+            ),
+            html.Hr(),
+        ],
     )
 
 
@@ -131,28 +508,7 @@ def modal_load_simulation_data():
         ],
         id="modal-load-simulation-data",
         size="lg",
-    )
-
-
-def filter_equipment_type():
-
-    options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["equipment"]["equipment_type"]
-    ]
-    return html.Div(
-        [
-            dbc.Label("Filter by Equipment Type"),
-            dcc.Dropdown(
-                id="equipment-type-input",
-                options=options,
-                placeholder="Select equipment type...",
-                clearable=True,
-            ),
-        ]
+        centered=True,
     )
 
 
@@ -179,18 +535,16 @@ def emission_rate_dropdown():
 def emission_period_slider():
     return html.Div(
         [
-            html.Small(
-                "Emission Period",
-                className="text-muted",
-            ),
+            html.Small("Emission Year", className="text-muted"),
             html.Br(),
             dcc.Slider(
                 id="year-slider",
-                min=2020,
-                max=2050,
-                step=5,
-                value=2025,
-                marks={i: str(i) for i in range(2020, 2060, 10)},
+                min=0,  # placeholder
+                max=0,  # placeholder
+                step=None,
+                marks={},
+                value=0,
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
         ]
     )
@@ -229,7 +583,7 @@ def filter_sidebar():
             ),
             html.Hr(),
             html.H5("Emissions", className="mb-3"),
-            emission_period_slider(),
+            emission_period_slider(),  # no metadata passed in
             html.Hr(),
             emission_rate_dropdown(),
         ],

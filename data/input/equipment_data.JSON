@@ -738,6 +738,20 @@
       "eq_id": "bo01",
       "eq_type": "boiler",
       "eq_subtype": "hot_water",
+      "model": "GenericBoiler",
+      "fuel": "natural_gas",
+      "capacity_W": 500000,
+      "performance": {
+        "efficiency": 0.8
+      },
+      "emissions": {
+        "co2_kg_per_mwh": 200
+      }
+    },
+    {
+      "eq_id": "bo02",
+      "eq_type": "boiler",
+      "eq_subtype": "hot_water",
       "model": "GenericBoiler-180HHWST",
       "fuel": "natural_gas",
       "capacity_W": 500000,
@@ -749,7 +763,7 @@
       }
     },
     {
-      "eq_id": "bo02",
+      "eq_id": "bo03",
       "eq_type": "boiler",
       "eq_subtype": "hot_water",
       "model": "GenericBoiler-160HHWST",
@@ -763,7 +777,7 @@
       }
     },
     {
-      "eq_id": "bo03",
+      "eq_id": "bo04",
       "eq_type": "boiler",
       "eq_subtype": "hot_water",
       "model": "GenericBoiler-140HHWST",
@@ -855,7 +869,7 @@
 
   "equipment_scenarios": [
     {
-      "eq_scen_id": "baseline_01",
+      "eq_scen_id": "eq_scenario_1",
       "eq_scen_name": "Baseline System",
       "hr_wwhp": null,
       "awhp_h": "hp01",
@@ -866,7 +880,7 @@
       "resistance_heater": "res01"
     },
     {
-      "eq_scen_id": "decarb_01",
+      "eq_scen_id": "eq_scenario_2",
       "eq_scen_name": "Decarbonized HP Only",
       "hr_wwhp": "hr01",
       "awhp_h": "hp01",
@@ -877,7 +891,7 @@
       "resistance_heater": "res01"
     },
     {
-      "eq_scen_id": "typ_01",
+      "eq_scen_id": "eq_scenario_3",
       "eq_scen_name": "Chiller + Gas Boiler",
       "hr_wwhp": null,
       "awhp_h": null,
@@ -888,7 +902,7 @@
       "resistance_heater": null
     },
     {
-      "eq_scen_id": "typ_02",
+      "eq_scen_id": "eq_scenario_4",
       "eq_scen_name": "Chiller + Electric Boiler",
       "hr_wwhp": null,
       "awhp_h": null,

@@ -8,30 +8,29 @@ import dash_bootstrap_components as dbc
 
 
 def get_nested_value(obj, attr_path):
-    """Helper to get nested attributes or dict keys using dot notation."""
+    """Fetch nested values using dot-separated path.
+    Handles dicts, objects, and lists of dicts/objects."""
     parts = attr_path.split(".")
-    val = obj
-    for p in parts:
-        if isinstance(val, dict):
-            val = val.get(p, None)
+
+    # Walk down each level
+    for part in parts:
+        if isinstance(obj, list):
+            # Apply recursively to each item
+            obj = [
+                get_nested_value(o, ".".join(parts[parts.index(part) :])) for o in obj
+            ]
+            # Stop recursion once we’ve handled list expansion
+            return obj
+        elif isinstance(obj, dict):
+            obj = obj.get(part)
         else:
-            val = getattr(val, p, None)
-        if val is None:
-            break
-    return val
+            obj = getattr(obj, part, None)
+    return obj
 
 
 def make_metadata_card(metadata, fields, title="Summary"):
     """
     Create a Bootstrap card with a table of selected metadata fields.
-
-    Args:
-        metadata: object or dict with metadata info
-        fields: list of (attr_path, label) pairs. Example:
-                [("location", "Location"),
-                 ("building_type", "Building Type"),
-                 ("emissions.emission_scenario", "Emission Scenario")]
-        title: header title of the card
     """
     # Normalize to dict if object has __dict__
     meta_dict = metadata.__dict__ if hasattr(metadata, "__dict__") else metadata
@@ -54,7 +53,7 @@ def make_metadata_card(metadata, fields, title="Summary"):
                         hover=True,
                         responsive=True,
                         size="sm",
-                        style={"fontSize": "12px"},
+                        style={"fontSize": "14px"},
                     )
                 ]
             ),
@@ -62,9 +61,7 @@ def make_metadata_card(metadata, fields, title="Summary"):
     )
 
 
-def summary_selection_info(metadata):
-
-    # building information
+def summary_loads_selection(metadata):
 
     building_fields = [
         ("location", "Location"),
@@ -73,22 +70,100 @@ def summary_selection_info(metadata):
         ("ashrae_climate_zone", "Climate Region"),
     ]
 
-    building_card = make_metadata_card(
+    building_loads_card = make_metadata_card(
         metadata, building_fields, title="Building Information"
     )
 
-    # emission information
+    return building_loads_card
 
-    emission_fields = [
-        ("emissions.emission_scenario", "Emission Scenario"),
-        ("emissions.gea_grid_region", "GEA Grid Region"),
-    ]
 
-    emission_card = make_metadata_card(
-        metadata, emission_fields, title="Emission Information"
+def summary_equipment_selection(equipment_library, active_tab=None):
+    eq_lookup = {
+        eq["eq_id"]: f"{eq['model']}".strip() for eq in equipment_library["equipment"]
+    }
+
+    tabs = []
+    for scen in equipment_library["equipment_scenarios"]:
+        scen_display = scen.copy()
+        for field, _ in [
+            ("eq_scen_name", "Scenario"),
+            ("hr_wwhp", "HR WWHP"),
+            ("awhp_h", "AWHP"),
+            ("awhp_sizing", "AWHP Sizing"),
+            ("boiler", "Boiler"),
+            ("chiller", "Chiller"),
+        ]:
+            eq_id = scen.get(field)
+            if eq_id in eq_lookup:
+                scen_display[field] = eq_lookup[eq_id]
+
+        card = make_metadata_card(
+            scen_display,
+            [
+                ("eq_scen_name", "Scenario"),
+                ("hr_wwhp", "HR WWHP"),
+                ("awhp_h", "AWHP"),
+                ("awhp_sizing", "AWHP Sizing"),
+                ("boiler", "Boiler"),
+                ("chiller", "Chiller"),
+            ],
+            title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
+        )
+
+        tabs.append(
+            dbc.Tab(
+                label="S-" + scen["eq_scen_id"][-1].upper(),
+                tab_id=scen["eq_scen_id"],
+                children=[card],
+            )
+        )
+
+    # If no tab stored, default to first one
+    default_tab = equipment_library["equipment_scenarios"][0]["eq_scen_id"]
+
+    return dbc.Tabs(
+        tabs,
+        id="equipment-scenario-tabs",
+        active_tab=active_tab if active_tab else default_tab,
     )
 
-    return building_card, emission_card
+
+def summary_emissions_selection(metadata, active_tab=None):
+    tabs = []
+    for scen in metadata["emission_settings"]:
+        emission_fields = [
+            ("grid_scenario", "Grid Scenario"),
+            ("gea_grid_region", "GEA Grid Region"),
+            ("emission_type", "Emission Type"),
+            ("shortrun_weighting", "Short-Run Weighting"),
+            ("annual_refrig_leakage", "Refrig. Leakage, p.a."),
+            ("annual_ng_leakage", "Nat. Gas Leakage, p.a."),
+            ("year", "Year"),
+        ]
+        card = make_metadata_card(
+            scen,
+            emission_fields,
+            title="Summary | Scenario " + scen["em_scen_id"][-1].upper(),
+        )
+
+        tabs.append(
+            dbc.Tab(
+                label="Scenario "
+                + scen["em_scen_id"][-1].upper(),  # Tab label, e.g. "Scenario A"
+                tab_id=scen["em_scen_id"],  # needed to control active tab
+                children=[card],
+            )
+        )
+
+    default_tab = metadata["emission_settings"][0]["em_scen_id"]  # default first one
+
+    return (
+        dbc.Tabs(
+            tabs,
+            id="emission-scenario-tabs",
+            active_tab=active_tab if active_tab else default_tab,
+        ),  #! more style in custom css
+    )
 
 
 def summary_project_info(metadata):

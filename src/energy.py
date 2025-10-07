@@ -4,9 +4,10 @@ from typing import Optional, Union
 
 from src.loads import StandardLoad
 from src.equipment import EquipmentLibrary, Equipment
-from src.emissions import StandardEmissions, EmissionsSettings
+from src.emissions import StandardEmissions, get_emissions_data
+from src.metadata import EmissionScenario, Metadata
 
-from utils.conversions import cop_h_to_cop_c
+from utils.units import cop_h_to_cop_c
 from utils.interp import interp_vector
 
 
@@ -60,25 +61,6 @@ def loads_to_site_energy(
     """
     Convert hourly heating/cooling loads to site energy (kWh_electricity and kWh_gas)
     using the selected equipment scenarios from the EquipmentLibrary.
-
-    Parameters
-    ----------
-    load : StandardLoad
-        Canonical loads wrapper (index = timestamp; cols: t_out_C, heating_W, cooling_W).
-    library : EquipmentLibrary
-        Validated equipment + scenarios.
-    scenario_id : str
-        Which scenario in the library to use.
-    detail : bool
-        If True, include per-technology breakdown columns.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame indexed by timestamp with totals and (optionally) detail columns.
-        Key outputs:
-          - elec_Wh: total site electricity per hour
-          - gas_Wh: total site gas (fuel) per hour
     """
     # --- normalize input ---
     if isinstance(scenario_ids, str):
@@ -421,86 +403,59 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
 
 def site_to_source(
     df_loads: pd.DataFrame,
-    emissions: StandardEmissions,
-    settings: EmissionsSettings,
+    metadata: Metadata,
     gas_emissions_rate: float = 180,  # gCO2e/kWh (example default)
     annual_refrig_leakage: float = 0.02,  # fraction per year
     shortrun_weighting: float = 0.5,  # between 0 and 1
 ) -> pd.DataFrame:
     """
     Convert site energy data (from loads_to_site) into source emissions
-    using StandardEmissions data and user EmissionsSettings.
-
-    Parameters
-    ----------
-    df_loads : DataFrame
-        Hourly site load data with index = datetime and columns:
-          - elec [Wh]
-          - gas [Wh] (optional)
-          - total_refrig_emissions_inventory [kgCO₂e] (optional)
-
-    emissions : StandardEmissions
-        Canonical emissions dataset, already filtered to requested scenario/region.
-
-    settings : EmissionsSettings
-        User settings with years, emission_type, etc.
-
-    gas_emissions_rate : float
-        Default gCO₂e/kWh for gas.
-
-    annual_refrig_leakage : float
-        Annual refrigerant leakage fraction.
-
-    shortrun_weighting : float
-        Weighting factor for SR vs LR marginal emissions.
-
-    Returns
-    -------
-    DataFrame
-        Loads dataframe expanded across all requested emissions years,
-        with added columns:
-          - emission_year
-          - elec_emissions_rate [g/Wh]
-          - elec_emissions [kgCO₂e]
-          - gas_emissions [kgCO₂e]
-          - total_refrig_emissions [kgCO₂e]
+    using StandardEmissions data and user EmissionsScenario settings.
     """
+
     results = []
 
-    # extract month/hour from loads
-    base = df_loads.copy()
-    base["month"] = base.index.month
-    base["day"] = base.index.day
-    base["hour"] = base.index.hour
-    base["doy"] = base.index.dayofyear
+    for scenario_id in metadata.list_emission_scenarios():
 
-    for year in settings.years:
-        df_year = emissions.slice_year(year).copy()
+        emissions_data = get_emissions_data(metadata[scenario_id])
+
+        scen = metadata[scenario_id]
+
+        # extract month/hour from loads
+        base = df_loads.copy()
+        base["month"] = base.index.month
+        base["day"] = base.index.day
+        base["hour"] = base.index.hour
+        base["doy"] = base.index.dayofyear
 
         # collapse emissions to month-hour averages
-        df_year["month"] = df_year.index.month
-        df_year["hour"] = df_year.index.hour
+        emissions_data.df["month"] = emissions_data.df.index.month
+        emissions_data.df["hour"] = emissions_data.df.index.hour
         group_cols = ["month", "hour"]
 
-        if settings.emission_type == "Combustion only":
-            df_year["elec_emissions_rate"] = (
-                df_year["lrmer_co2e_c"] * (1 - shortrun_weighting)
-                + df_year["srmer_co2e_c"] * shortrun_weighting
+        if scen.emission_type == "Combustion only":
+            emissions_data.df["elec_emissions_rate"] = (
+                emissions_data.df["lrmer_co2e_c"] * (1 - shortrun_weighting)
+                + emissions_data.df["srmer_co2e_c"] * shortrun_weighting
             )
-        elif settings.emission_type == "Includes pre-combustion":
-            df_year["elec_emissions_rate"] = (
-                df_year["lrmer_co2e_c"] + df_year["lrmer_co2e_p"]
+        elif scen.emission_type == "Includes pre-combustion":
+            emissions_data.df["elec_emissions_rate"] = (
+                emissions_data.df["lrmer_co2e_c"] + emissions_data.df["lrmer_co2e_p"]
             ) * (1 - shortrun_weighting) + (
-                df_year["srmer_co2e_c"] + df_year["srmer_co2e_p"]
+                emissions_data.df["srmer_co2e_c"] + emissions_data.df["srmer_co2e_p"]
             ) * shortrun_weighting
         else:
-            raise ValueError(f"Invalid emissions_type: {settings.emission_type}")
+            raise ValueError(f"Invalid emissions_type: {scen.emission_type}")
 
-        df_em = df_year.groupby(group_cols)["elec_emissions_rate"].mean().reset_index()
+        df_em = (
+            emissions_data.df.groupby(group_cols)["elec_emissions_rate"]
+            .mean()
+            .reset_index()
+        )
 
         # expand loads with this year's emissions
         merged = base.merge(df_em, on=["month", "hour"], how="left")
-        merged["emission_year"] = year
+        merged["year"] = scen.year
 
         # electricity emissions
         merged["elec_emissions"] = (
@@ -523,16 +478,15 @@ def site_to_source(
         else:
             merged["total_refrig_emissions"] = 0.0
 
-        results.append(merged)
+        # result_df["year"] = result_df["emission_year"]
+        merged["timestamp"] = pd.to_datetime(merged[["year", "month", "day", "hour"]])
 
-        result_df = pd.concat(results, ignore_index=True)
-        result_df["year"] = result_df["emission_year"]
-        result_df["timestamp"] = pd.to_datetime(
-            result_df[["year", "month", "day", "hour"]]
-        )
-
-        result_df = result_df.drop(columns=["month", "day", "doy", "hour"]).set_index(
+        merged = merged.drop(columns=["month", "day", "doy", "hour"]).set_index(
             "timestamp"
         )
 
-    return result_df
+        merged["em_scen_id"] = scenario_id  # tag scenario
+
+        results.append(merged)
+
+    return pd.concat(results, axis=0, ignore_index=False)

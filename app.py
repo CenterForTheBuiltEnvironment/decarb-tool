@@ -8,6 +8,8 @@ from layout.footer import cbe_footer
 from src.metadata import Metadata
 from src.equipment import load_library
 
+from utils.plotly_theme import *
+
 app = Dash(
     __name__,
     use_pages=True,

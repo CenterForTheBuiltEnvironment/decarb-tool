@@ -23,17 +23,33 @@ ng_combustion_to_co2e = (
 )  # 5.3kg/therm to g/kWh (same unit as cambium emissions data, kg/MWh)
 
 
-### TEMPERATURE CONVERSIONS ###
-
-
-# celsius to fahrenheit
-def c_to_f(c_val):
+### CONVERSIONS ###
+def C_to_F(c_val):
     return c_val * 1.8 + 32
 
 
-# fahrenheit to celsius
-def f_to_c(f_val):
+def F_to_C(f_val):
     return (f_val - 32) / 1.8
+
+
+def Wh_to_kWh(Wh):
+    return Wh / 1000
+
+
+def Wh_to_BTUh(Wh):
+    return Wh * 3.412
+
+
+def kg_to_lbs(kg):
+    return kg * 2.20462
+
+
+def lbs_to_ton(lbs):
+    return lbs / 2000
+
+
+def kg_to_ton(kg):  # imperial tons
+    return kg / 907.185
 
 
 ### COP CONVERSIONS ###
@@ -61,3 +77,34 @@ def cop_hc_to_cop_c(cop_hc):
 
 def cop_hc_to_cop_h(cop_hc):
     return ((cop_hc - 1) / 2) + 1
+
+
+### MAPPING FOR CHARTS ###
+unit_map = {
+    "energy": {
+        "SI": {"func": Wh_to_kWh, "label": "Energy [kWh]"},
+        "IP": {"func": Wh_to_BTUh, "label": "Energy [BTU/h]"},
+    },
+    "temperature": {
+        "SI": {"func": lambda x: x, "label": "Temperature [°C]"},
+        "IP": {"func": C_to_F, "label": "Temperature [°F]"},
+    },
+    "emissions": {
+        "SI": {"func": lambda x: x, "label": "Emissions [kgCO2]"},
+        "IP": {"func": kg_to_lbs, "label": "Emissions [lbCO2]"},
+    },
+    "static_emission_intensity": {
+        "SI": {
+            "label": "kgCO₂/kWh",
+            "func": lambda x: x / 1000,  # kgCO₂/kWh → kgCO₂/W·h
+            "refrig_default": 0.01,
+            "ng_default": 0.005,
+        },
+        "IP": {
+            "label": "lbCO₂/kBTU",
+            "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂/kBTU → kgCO₂/Wh
+            "refrig_default": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
+            "ng_default": 0.005 * (2.20462) / (1000 * 3.412),  #! use function
+        },
+    },
+}

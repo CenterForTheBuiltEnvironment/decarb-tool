@@ -30,11 +30,35 @@
   },
   "equipment": {
     "equipment_type": [
-      "hr_heat_pump",
-      "heat_pump",
+      "resistance_heater",
       "boiler",
       "chiller",
-      "resistance_heater"
+      "heat_pump",
+      "hr_heat_pump"
+    ]
+  },
+  "emissions": {
+    "year": [
+      2025,
+      2030,
+      2035,
+      2040,
+      2045,
+      2050
+    ],
+    "emission_scenario": [
+      "MidCase",
+      "LowRECost",
+      "HighRECost",
+      "HighDemandGrowth",
+      "LowNGPrice",
+      "HighNGPrice",
+      "LowRECost_HighNGPrice",
+      "HighRECost_LowNGPrice"
+    ],
+    "emission_type": [
+      "Combustion only",
+      "Includes pre-combustion"
     ]
   }
 }

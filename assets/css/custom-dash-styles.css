@@ -1,0 +1,47 @@
+/* Slider */
+
+:root {
+    --slider-color: #690fe7;
+}
+
+/* Track */
+.rc-slider-track {
+    background-color: var(--slider-color);
+}
+
+/* Handle (default) */
+.rc-slider-handle {
+    border: solid 2px var(--slider-color);
+    background-color: white;
+}
+
+/* Handle (hover, focus, active) */
+.rc-slider-handle:hover,
+.rc-slider-handle:focus,
+.rc-slider-handle:active {
+    border: solid 2px var(--slider-color);
+    background-color: var(--slider-color);
+}
+
+/* Active dots (if using marks) */
+.rc-slider-dot-active {
+    border: solid 2px var(--slider-color);
+    background-color: var(--slider-color);
+}
+
+
+
+/* Stronger highlight for active tab */
+.nav-tabs .nav-link.active {
+    background-color: rgb(0, 0, 0); /* Bootstrap primary */
+    color: white !important;
+    font-weight: bold;
+    border-radius: 0.5rem 0.5rem 0 0; /* rounded top */
+}
+
+
+.nav-pills .nav-link.active {
+    background-color: rgb(240, 241, 242); /* Bootstrap primary */
+    color: rgb(0, 0, 0) !important;
+    border-radius: 0.5rem 0.5rem 0.5rem 0.5rem;
+}
