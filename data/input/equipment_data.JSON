@@ -1137,14 +1137,14 @@
     },
     {
       "eq_scen_id": "eq_scenario_3",
-      "eq_scen_name": "80% AWHP+Elec Backup",
+      "eq_scen_name": "20% AWHP+Gas Backup",
       "hr_wwhp": null,
       "awhp_h": "hp01",
       "awhp_c": "hp01",
-      "awhp_sizing": 0.8,
-      "boiler": null,
+      "awhp_sizing": 0.2,
+      "boiler": "bo02",
       "chiller": "ch03",
-      "resistance_heater": "res01"
+      "resistance_heater": null
     },
     {
       "eq_scen_id": "eq_scenario_4",
@@ -1159,7 +1159,7 @@
     },
     {
       "eq_scen_id": "eq_scenario_5",
-      "eq_scen_name": "HR WWHP+100% AWHP",
+      "eq_scen_name": "HR WWHP+100% AWHP+Elec Backup",
       "hr_wwhp": "hr01",
       "awhp_h": "hp01",
       "awhp_c": "hp01",
