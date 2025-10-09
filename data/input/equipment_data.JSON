@@ -9,14 +9,16 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 200000,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [135700, 271300, 319100, 606700, 414900, 510700],
-          "cop": [2.28, 2.28, 2.3, 2.33, 2.35, 2.37],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [135700, 271300, 319100, 606700, 414900, 510700],
+            "cop": [2.28, 2.28, 2.3, 2.33, 2.35, 2.37],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -28,14 +30,16 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 17700,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [50000, 105500],
-          "cop": [4.2, 3.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [50000, 105500],
+            "cop": [4.2, 3.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -47,14 +51,16 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 17700,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [50000, 105500],
-          "cop": [3.3, 2.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [50000, 105500],
+            "cop": [3.3, 2.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -66,14 +72,16 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 29000,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [70000, 140000, 211000],
-          "cop": [4.2, 4.0, 3.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [70000, 140000, 211000],
+            "cop": [4.2, 4.0, 3.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -85,14 +93,16 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 29000,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [70000, 140000, 211000],
-          "cop": [3.3, 3.1, 2.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [70000, 140000, 211000],
+            "cop": [3.3, 3.1, 2.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -104,14 +114,16 @@
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 300800,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [175000, 300000, 500000, 700000, 879250],
-          "cop": [4.6, 4.5, 4.3, 3.9, 3.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [175000, 300000, 500000, 700000, 879250],
+            "cop": [4.6, 4.5, 4.3, 3.9, 3.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -123,14 +135,16 @@
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 300800,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [175000, 300000, 500000, 700000, 879250],
-          "cop": [3.6, 3.5, 3.3, 2.9, 2.68],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [175000, 300000, 500000, 700000, 879250],
+            "cop": [3.6, 3.5, 3.3, 2.9, 2.68],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -142,14 +156,16 @@
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 453600,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
-          "cop": [5.0, 4.8, 4.6, 4.2, 3.96],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
+            "cop": [5.0, 4.8, 4.6, 4.2, 3.96],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -161,14 +177,16 @@
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 453600,
       "performance": {
-        "plr_curve": {
-          "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
-          "cop": [4.0, 3.8, 3.6, 3.2, 2.97],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 55
+        "heating": {
+          "plr_curve": {
+            "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
+            "cop": [4.0, 3.8, 3.6, 3.2, 2.97],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 55
+            }
           }
-        }
+        }        
       }
     },
     {
@@ -179,41 +197,43 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 54000,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
-          "cop": [1.98, 2.06, 2.32, 2.70, 3.00, 3.20, 3.50],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
+            "cop": [1.98, 2.06, 2.32, 2.70, 3.00, 3.20, 3.50],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
+            "capacity_W": [132000, 154200, 168600, 195500, 229200, 254000, 272000],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
-          "capacity_W": [132000, 154200, 168600, 195500, 229200, 254000, 272000],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [15, 25, 35, 45],
+            "cop": [4.4, 4.0, 2.97, 2.65],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [15, 25, 35, 45],
+            "capacity_W": [250000, 220000, 201200, 183000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [15, 25, 35, 45],
-          "cop": [4.4, 4.0, 2.97, 2.65],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [15, 25, 35, 45],
-          "capacity_W": [250000, 220000, 201200, 183000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
+        } 
       }
     },
     {
@@ -225,23 +245,25 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 40000,
       "capacity_W": 105500,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-8, 8],
-          "cop": [1.78, 2.77],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-8, 8],
+            "cop": [1.78, 2.77],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 35
+            }
           }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 35],
-          "cop": [3.2, 2.81],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        },
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 35],
+            "cop": [3.2, 2.81],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -255,23 +277,25 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 40000,
       "capacity_W": 105500,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-8, 8],
-          "cop": [1.48, 2.31],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-8, 8],
+            "cop": [1.48, 2.31],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 35
+            }
           }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 35],
-          "cop": [3.2, 2.81],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        },
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 35],
+            "cop": [3.2, 2.81],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -285,23 +309,25 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 80000,
       "capacity_W": 211000,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-8, 8],
-          "cop": [1.78, 2.77],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-8, 8],
+            "cop": [1.78, 2.77],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 35
+            }
           }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 35],
-          "cop": [3.2, 2.81],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        },
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 35],
+            "cop": [3.2, 2.81],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -315,23 +341,25 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 80000,
       "capacity_W": 211000,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-8, 8],
-          "cop": [1.48, 2.31],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-8, 8],
+            "cop": [1.48, 2.31],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 35
+            }
           }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 35],
-          "cop": [3.2, 2.81],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        },
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 35],
+            "cop": [3.2, 2.81],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -345,39 +373,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [1.76, 1.84, 2.19, 2.41, 2.66, 2.88, 3.04, 3.13, 3.20],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [1.76, 1.84, 2.19, 2.41, 2.66, 2.88, 3.04, 3.13, 3.20],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [136831, 142105, 170526, 188985, 210667, 232349, 248464, 260184, 268974],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [136831, 142105, 170526, 188985, 210667, 232349, 248464, 260184, 268974],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [253568, 232467, 209959, 198353, 187099],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [253568, 232467, 209959, 198353, 187099],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -391,39 +421,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [1.89,	1.94,	2.04,	2.44,	2.69,	2.95,	3.19,	3.35,	3.45,	3.51],
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [1.89,	1.94,	2.04,	2.44,	2.69,	2.95,	3.19,	3.35,	3.45,	3.51],
+            "constraints": {
+              "min_temp_C": -10,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [137196, 137196, 143820, 173745, 192880, 214823, 236025, 251542, 262725, 270929],
+            "constraints": {
+              "min_temp_C": -10,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [137196, 137196, 143820, 173745, 192880, 214823, 236025, 251542, 262725, 270929],
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [253568, 232467, 209959, 198353, 187099],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [253568, 232467, 209959, 198353, 187099],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -437,39 +469,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [1.98,	2.29,	2.35,	2.50,	3.00,	3.29,	3.59,	3.86,	4.03,	4.15,	4.22],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [1.98,	2.29,	2.35,	2.50,	3.00,	3.29,	3.59,	3.86,	4.03,	4.15,	4.22],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [118948,	135599,	139544,	148258,	180562,	200729,	222975,	243083,	257523,	267647,	274811],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [118948,	135599,	139544,	148258,	180562,	200729,	222975,	243083,	257523,	267647,	274811],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [253568, 232467, 209959, 198353, 187099],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [253568, 232467, 209959, 198353, 187099],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -483,39 +517,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [1.86,	1.95,	2.32,	2.55,	2.81,	3.05,	3.21,	3.31,	3.38],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [1.86,	1.95,	2.32,	2.55,	2.81,	3.05,	3.21,	3.31,	3.38],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [292510,	303938,	364857,	404450,	450327,	496807,	531115,	556145,	574787],
+            "constraints": {
+              "min_temp_C": -5,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [292510,	303938,	364857,	404450,	450327,	496807,	531115,	556145,	574787],
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [540547, 495179, 447349, 423083, 398816],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [540547, 495179, 447349, 423083, 398816],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -529,39 +565,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [2.00,	2.05,	2.16,	2.58,	2.84,	3.12,	3.37,	3.54,	3.64,	3.71],
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [2.00,	2.05,	2.16,	2.58,	2.84,	3.12,	3.37,	3.54,	3.64,	3.71],
+            "constraints": {
+              "min_temp_C": -10,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [289504,	293226,	307384,	371343,	412239,	459137,	504452,	537616,	561518,	579053],
+            "constraints": {
+              "min_temp_C": -10,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [289504,	293226,	307384,	371343,	412239,	459137,	504452,	537616,	561518,	579053],
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [540547, 495179, 447349, 423083, 398816],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [540547, 495179, 447349, 423083, 398816],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -575,39 +613,41 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "cop": [2.10,	2.42,	2.49,	2.65,	3.17,	3.48,	3.80,	4.08,	4.27,	4.38,	4.46],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "cop": [2.10,	2.42,	2.49,	2.65,	3.17,	3.48,	3.80,	4.08,	4.27,	4.38,	4.46],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 30
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+            "capacity_W": [254226,	289812,	298244,	316868,	385913,	429016,	476561,	519537,	550399,	572038,	587348],
+            "constraints": {
+              "min_temp_C": -15,
+              "max_temp_C": 30
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-          "capacity_W": [254226,	289812,	298244,	316868,	385913,	429016,	476561,	519537,	550399,	572038,	587348],
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [10, 20, 30, 35, 40],
-          "capacity_W": [540547, 495179, 447349, 423083, 398816],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [10, 20, 30, 35, 40],
+            "capacity_W": [540547, 495179, 447349, 423083, 398816],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 40
+            }
           }
         }
       }
@@ -621,39 +661,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [2.09, 2.32, 2.37, 2.57, 2.87, 3.19, 3.67],
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [2.09, 2.32, 2.37, 2.57, 2.87, 3.19, 3.67],
+            "constraints": {
+              "min_temp_C": -27,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [113070, 128224, 154712, 169923, 193875, 219918, 248389],
+            "constraints": {
+              "min_temp_C": -27,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [113070, 128224, 154712, 169923, 193875, 219918, 248389],
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.0,	2.89,	2.65],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [250000, 203980, 185000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.0,	2.89,	2.65],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [250000, 203980, 185000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -667,39 +709,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.92, 2.12, 2.18, 2.35, 2.62, 2.90, 3.31],
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.92, 2.12, 2.18, 2.35, 2.62, 2.90, 3.31],
+            "constraints": {
+              "min_temp_C": -27,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [116085, 131012, 155846, 171631, 195106, 220565, 247700],
+            "constraints": {
+              "min_temp_C": -27,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [116085, 131012, 155846, 171631, 195106, 220565, 247700],
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.0,	2.89,	2.65],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [250000, 203980, 185000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.0,	2.89,	2.65],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [250000, 203980, 185000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -713,39 +757,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.95, 2.01, 2.17, 2.40, 2.65, 3.01],
-          "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.95, 2.01, 2.17, 2.40, 2.65, 3.01],
+            "constraints": {
+              "min_temp_C": -18,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [134227, 157746, 174225, 196994, 221969, 248331],
+            "constraints": {
+              "min_temp_C": -18,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [134227, 157746, 174225, 196994, 221969, 248331],
-          "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.0,	2.89,	2.65],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [250000, 203980, 185000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.0,	2.89,	2.65],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [250000, 203980, 185000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -759,39 +805,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.86, 2.02, 2.23, 2.45, 2.77],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.86, 2.02, 2.23, 2.45, 2.77],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [160190, 177478, 200209, 224551, 250291],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [160190, 177478, 200209, 224551, 250291],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.0,	2.89,	2.65],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [250000, 203980, 185000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.0,	2.89,	2.65],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [250000, 203980, 185000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -805,39 +853,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.767, 1.996, 2.348, 2.507, 2.822, 3.147, 3.504],
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.767, 1.996, 2.348, 2.507, 2.822, 3.147, 3.504],
+            "constraints": {
+              "min_temp_C": -26,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [217957, 248261, 302156, 326774, 376010, 429642, 488843],
+            "constraints": {
+              "min_temp_C": -26,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [217957, 248261, 302156, 326774, 376010, 429642, 488843],
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.15,	2.97,	2.74],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [520000, 436790, 380000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.15,	2.97,	2.74],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [520000, 436790, 380000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -851,39 +901,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.636, 1.843, 2.136, 2.292, 2.557, 2.843, 3.152],
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.636, 1.843, 2.136, 2.292, 2.557, 2.843, 3.152],
+            "constraints": {
+              "min_temp_C": -26,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [225987, 254562, 302742, 328240, 375424, 427298, 485326],
+            "constraints": {
+              "min_temp_C": -26,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [225987, 254562, 302742, 328240, 375424, 427298, 485326],
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.15,	2.97,	2.74],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [520000, 436790, 380000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.15,	2.97,	2.74],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [520000, 436790, 380000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -897,39 +949,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.698, 1.974, 2.111, 2.323, 2.569, 2.837],
-          "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.698, 1.974, 2.111, 2.323, 2.569, 2.837],
+            "constraints": {
+              "min_temp_C": -18,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [261918, 305087, 330291, 375424, 242660, 480637],
+            "constraints": {
+              "min_temp_C": -18,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [261918, 305087, 330291, 375424, 242660, 480637],
-          "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.15,	2.97,	2.74],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [520000, 436790, 380000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.15,	2.97,	2.74],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [520000, 436790, 380000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -943,39 +997,41 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
-      "performance_h": {
-        "cop_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-          "cop": [1.767, 1.906, 2.130, 2.317, 2.552],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
+      "performance": {
+        "heating": {
+          "cop_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
+            "cop": [1.767, 1.906, 2.130, 2.317, 2.552],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
+            "capacity_W": [307432, 334101, 375707, 422022, 475068],
+            "constraints": {
+              "min_temp_C": -13,
+              "max_temp_C": 35
+            }
           }
         },
-        "cap_curve": {
-          "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-          "capacity_W": [307432, 334101, 375707, 422022, 475068],
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
-          }
-        }
-      },
-      "performance_c": {
-        "cop_curve": {
-          "t_out_C": [25, 35, 45],
-          "cop": [4.15,	2.97,	2.74],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        },
-        "cap_curve": {
-          "t_out_C": [25, 35, 45],
-          "capacity_W": [520000, 436790, 380000],
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+        "cooling": {
+          "cop_curve": {
+            "t_out_C": [25, 35, 45],
+            "cop": [4.15,	2.97,	2.74],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
+          },
+          "cap_curve": {
+            "t_out_C": [25, 35, 45],
+            "capacity_W": [520000, 436790, 380000],
+            "constraints": {
+              "min_temp_C": 5,
+              "max_temp_C": 45
+            }
           }
         }
       }
@@ -988,7 +1044,9 @@
       "fuel": "natural_gas",
       "capacity_W": 500000,
       "performance": {
-        "efficiency": 0.9
+        "heating": {
+          "efficiency": 0.9
+        } 
       },
       "emissions": {
         "co2_kg_per_mwh": 200
@@ -1002,7 +1060,9 @@
       "fuel": "natural_gas",
       "capacity_W": 500000,
       "performance": {
-        "efficiency": 0.8
+        "heating": {
+          "efficiency": 0.8
+        }
       },
       "emissions": {
         "co2_kg_per_mwh": 200
@@ -1016,7 +1076,9 @@
       "fuel": "natural_gas",
       "capacity_W": 500000,
       "performance": {
-        "efficiency": 0.7
+        "heating": {
+          "efficiency": 0.7
+        }
       },
       "emissions": {
         "co2_kg_per_mwh": 200
@@ -1032,7 +1094,9 @@
       "refrigerant_weight_g": 90700,
       "capacity_W": 150000,
       "performance": {
-        "efficiency": 2.84
+        "cooling": {
+          "efficiency": 2.84
+        }        
       }
     },
     {
@@ -1045,7 +1109,9 @@
       "refrigerant_weight_g": 45400,
       "capacity_W": 351700,
       "performance": {
-        "efficiency": 2.84
+        "cooling": {
+          "efficiency": 2.84
+        }        
       }
     },
     {
@@ -1058,7 +1124,9 @@
       "refrigerant_weight_g": 90700,
       "capacity_W": 703400,
       "performance": {
-        "efficiency": 2.84
+        "cooling": {
+          "efficiency": 2.84
+        }        
       }
     },
     {
@@ -1071,7 +1139,9 @@
       "refrigerant_weight_g": 363000,
       "capacity_W": 879250,
       "performance": {
-        "efficiency": 5.54
+        "cooling": {
+          "efficiency": 5.54
+        }        
       }
     },
     {
@@ -1084,7 +1154,9 @@
       "refrigerant_weight_g": 508000,
       "capacity_W": 1231000,
       "performance": {
-        "efficiency": 5.91
+        "cooling": {
+          "efficiency": 5.91
+        }        
       }
     },
     {
@@ -1097,7 +1169,9 @@
       "refrigerant_weight_g": 726000,
       "capacity_W": 1758500,
       "performance": {
-        "efficiency": 6.01
+        "cooling": {
+          "efficiency": 6.01
+        }        
       }
     },
     {
@@ -1107,7 +1181,9 @@
       "fuel": "electricity",
       "capacity_W": 50000,
       "performance": {
-        "efficiency": 1.0
+        "heating": {
+          "efficiency": 1.0
+        }        
       }
     }
   ],
