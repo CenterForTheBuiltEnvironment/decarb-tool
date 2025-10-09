@@ -171,10 +171,10 @@ def select_equipment(equipment_data):
                     dbc.RadioItems(
                         id="awhp-sizing-radio",
                         options=[
-                            {"label": "% Peak Load", "value": "percent"},
-                            {"label": "No. Units", "value": "units"},
+                            {"label": "% Peak Load", "value": "peak_load_percentage"},
+                            {"label": "No. Units", "value": "num_of_units"},
                         ],
-                        value="percent",
+                        value="peak_load_percentage",
                         inline=True,
                         style={"marginRight": "15px"},
                     ),

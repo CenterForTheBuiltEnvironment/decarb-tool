@@ -130,6 +130,7 @@ def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
     State("equipment-store", "data"),
     State("hr-wwhp-input", "value"),
     State("awhp-input", "value"),
+    State("awhp-sizing-radio", "value"),
     State("awhp-sizing-slider", "value"),
     State("boiler-input", "value"),
     State("chiller-input", "value"),
@@ -142,7 +143,8 @@ def save_scenario(
     equipment_data,
     selected_hr_wwhp,
     selected_awhp,
-    selected_awhp_sizing,
+    selected_awhp_sizing_mode,
+    selected_awhp_sizing_value,
     selected_boiler,
     selected_chiller,
 ):
@@ -172,9 +174,9 @@ def save_scenario(
             eq_scen_id=scen_id,
             eq_scen_name="Basic Scenario",
             hr_wwhp="hr01",
-            awhp_h="hp01",
-            awhp_c="hp01",
-            awhp_sizing=0.5,
+            awhp="hp01",
+            awhp_sizing_mode="peak_load_percentage",
+            awhp_sizing_value=0.5,
             boiler="bo01",
             chiller="ch01",
             resistance_heater=None,
@@ -187,10 +189,11 @@ def save_scenario(
     if selected_hr_wwhp is not None:
         scenario.hr_wwhp = selected_hr_wwhp
     if selected_awhp is not None:
-        scenario.awhp_h = selected_awhp
-        scenario.awhp_c = selected_awhp
-    if selected_awhp_sizing is not None:
-        scenario.awhp_sizing = selected_awhp_sizing
+        scenario.awhp = selected_awhp
+    if selected_awhp_sizing_mode is not None:
+        scenario.awhp_sizing_mode = selected_awhp_sizing_mode
+    if selected_awhp_sizing_value is not None:
+        scenario.awhp_sizing_value = selected_awhp_sizing_value
     if selected_boiler is not None:
         scenario.boiler = selected_boiler
     if selected_chiller is not None:
@@ -219,7 +222,7 @@ def store_active_equipment_tab(active_tab):
     Input("awhp-sizing-radio", "value"),
 )
 def update_awhp_slider(mode):
-    if mode == "percent":
+    if mode == "peak_load_percentage":
         return (
             0,  # min
             1,  # max
@@ -227,7 +230,7 @@ def update_awhp_slider(mode):
             {i: f"{i * 100}" for i in range(0, 21, 5)},  # marks
             0.85,  # default value
         )
-    elif mode == "units":
+    elif mode == "num_of_units":
         return (
             1,
             5,  # max 5 units (adjust as needed)

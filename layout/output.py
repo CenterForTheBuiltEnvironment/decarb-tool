@@ -88,8 +88,9 @@ def summary_equipment_selection(equipment_library, active_tab=None):
         for field, _ in [
             ("eq_scen_name", "Scenario"),
             ("hr_wwhp", "HR WWHP"),
-            ("awhp_h", "AWHP"),
-            ("awhp_sizing", "AWHP Sizing"),
+            ("awhp", "AWHP"),
+            ("awhp_sizing_mode", "AWHP Sizing Mode"),
+            ("awhp_sizing_value", "AWHP Sizing Value"),
             ("boiler", "Boiler"),
             ("chiller", "Chiller"),
         ]:
@@ -102,8 +103,9 @@ def summary_equipment_selection(equipment_library, active_tab=None):
             [
                 ("eq_scen_name", "Scenario"),
                 ("hr_wwhp", "HR WWHP"),
-                ("awhp_h", "AWHP"),
-                ("awhp_sizing", "AWHP Sizing"),
+                ("awhp", "AWHP"),
+                ("awhp_sizing_mode", "AWHP Sizing Mode"),
+                ("awhp_sizing_value", "AWHP Sizing Value"),
                 ("boiler", "Boiler"),
                 ("chiller", "Chiller"),
             ],

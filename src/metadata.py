@@ -7,18 +7,6 @@ from datetime import datetime
 from src.emissions import EmissionScenario
 
 
-# class EmissionScenario(BaseModel):
-#     em_scen_id: str
-#     grid_scenario: str
-#     gea_grid_region: str
-#     time_zone: str
-#     emission_type: str
-#     shortrun_weighting: float
-#     annual_refrig_leakage: float
-#     annual_ng_leakage: float
-#     year: int
-
-
 class Metadata(BaseModel):
     location: str
     building_type: str
@@ -53,9 +41,9 @@ class Metadata(BaseModel):
                     gea_grid_region="CAISO",
                     time_zone="America/Los_Angeles",
                     emission_type="Combustion only",
-                    shortrun_weighting=1.0,
-                    annual_refrig_leakage=0.01,
-                    annual_ng_leakage=0.005,
+                    shortrun_weighting=0,
+                    annual_refrig_leakage_percent=0.05,
+                    annual_ng_leakage_g_per_kWh=239.2,
                     year=2025,
                 ),
                 EmissionScenario(
@@ -64,9 +52,9 @@ class Metadata(BaseModel):
                     gea_grid_region="CAISO",
                     time_zone="America/Los_Angeles",
                     emission_type="Combustion only",
-                    shortrun_weighting=0.5,
-                    annual_refrig_leakage=0.01,
-                    annual_ng_leakage=0.005,
+                    shortrun_weighting=0,
+                    annual_refrig_leakage_percent=0.05,
+                    annual_ng_leakage_g_per_kWh=239.2,
                     year=2035,
                 ),
                 EmissionScenario(
@@ -75,9 +63,9 @@ class Metadata(BaseModel):
                     gea_grid_region="CAISO",
                     time_zone="America/Los_Angeles",
                     emission_type="Combustion only",
-                    shortrun_weighting=0.5,
-                    annual_refrig_leakage=0.01,
-                    annual_ng_leakage=0.005,
+                    shortrun_weighting=0,
+                    annual_refrig_leakage_percent=0.05,
+                    annual_ng_leakage_g_per_kWh=239.2,
                     year=2045,
                 ),
             ],

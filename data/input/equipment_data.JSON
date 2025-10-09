@@ -8,6 +8,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 200000,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -29,6 +30,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 17700,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -50,6 +52,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 17700,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -71,6 +74,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 29000,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -92,6 +96,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 29000,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -113,6 +118,7 @@
       "fuel": "electricity",
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 300800,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -134,6 +140,7 @@
       "fuel": "electricity",
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 300800,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -155,6 +162,7 @@
       "fuel": "electricity",
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 453600,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -176,6 +184,7 @@
       "fuel": "electricity",
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 453600,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "plr_curve": {
@@ -197,6 +206,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 54000,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -244,6 +254,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 40000,
+      "refrigerant_gwp": 466,
       "capacity_W": 105500,
       "performance": {
         "heating": {
@@ -276,6 +287,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 40000,
+      "refrigerant_gwp": 466,
       "capacity_W": 105500,
       "performance": {
         "heating": {
@@ -308,6 +320,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 80000,
+      "refrigerant_gwp": 466,
       "capacity_W": 211000,
       "performance": {
         "heating": {
@@ -339,6 +352,7 @@
       "model": "IMC-AWHP-60Ton-140HHWST",
       "fuel": "electricity",
       "refrigerant": "R-454B",
+      "refrigerant_gwp": 466,
       "refrigerant_weight_g": 80000,
       "capacity_W": 211000,
       "performance": {
@@ -373,6 +387,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -421,6 +436,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -469,6 +485,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -517,6 +534,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -565,6 +583,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -613,6 +632,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -661,6 +681,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -709,6 +730,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -757,6 +779,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -805,6 +828,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -853,6 +877,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -901,6 +926,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
+      "refrigerant_gwp": 299,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -949,6 +975,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -997,6 +1024,7 @@
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
           "cop_curve": {
@@ -1092,6 +1120,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 90700,
+      "refrigerant_gwp": 2088,
       "capacity_W": 150000,
       "performance": {
         "cooling": {
@@ -1107,6 +1136,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 45400,
+      "refrigerant_gwp": 2088,
       "capacity_W": 351700,
       "performance": {
         "cooling": {
@@ -1122,6 +1152,7 @@
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 90700,
+      "refrigerant_gwp": 2088,
       "capacity_W": 703400,
       "performance": {
         "cooling": {
@@ -1137,6 +1168,7 @@
       "fuel": "electricity",
       "refrigerant": "R-513A",
       "refrigerant_weight_g": 363000,
+      "refrigerant_gwp": 466,
       "capacity_W": 879250,
       "performance": {
         "cooling": {
@@ -1152,6 +1184,7 @@
       "fuel": "electricity",
       "refrigerant": "R-513A",
       "refrigerant_weight_g": 508000,
+      "refrigerant_gwp": 466,
       "capacity_W": 1231000,
       "performance": {
         "cooling": {
@@ -1167,6 +1200,7 @@
       "fuel": "electricity",
       "refrigerant": "R-513A",
       "refrigerant_weight_g": 726000,
+      "refrigerant_gwp": 466,
       "capacity_W": 1758500,
       "performance": {
         "cooling": {
@@ -1194,7 +1228,8 @@
       "eq_scen_name": "Gas Boiler+AC Chiller",
       "hr_wwhp": null,
       "awhp": null,
-      "awhp_sizing": 1,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 1,
       "awhp_use_cooling": false,
       "boiler": "bo02",
       "chiller": "ch03",
@@ -1205,7 +1240,8 @@
       "eq_scen_name": "Elec Boiler+AC Chiller",
       "hr_wwhp": null,
       "awhp": null,
-      "awhp_sizing": 1,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 1,
       "awhp_use_cooling": false,
       "boiler": null,
       "chiller": "ch03",
@@ -1216,7 +1252,8 @@
       "eq_scen_name": "20% AWHP (H+C)+Gas Backup",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing": 0.2,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 0.2,
       "awhp_use_cooling": true,
       "boiler": "bo02",
       "chiller": "ch03",
@@ -1227,7 +1264,8 @@
       "eq_scen_name": "100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing": 1,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 1,
       "awhp_use_cooling": true,
       "boiler": null,
       "chiller": "ch03",
@@ -1238,7 +1276,8 @@
       "eq_scen_name": "HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr01",
       "awhp": "hp01",
-      "awhp_sizing": 1,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 1,
       "awhp_use_cooling": true,
       "boiler": null,
       "chiller": "ch03",
@@ -1249,7 +1288,8 @@
       "eq_scen_name": "80% AWHP (H)+Gas Backup+AC Chiller",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing": 0.8,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 0.8,
       "awhp_use_cooling": false,
       "boiler": "bo02",
       "chiller": "ch03",
@@ -1260,7 +1300,8 @@
       "eq_scen_name": "80% AWHP (H)+Elec Backup+AC Chiller",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing": 0.8,
+      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_value": 0.8,
       "awhp_use_cooling": false,
       "boiler": null,
       "chiller": "ch03",

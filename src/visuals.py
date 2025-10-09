@@ -464,6 +464,7 @@ def plot_emissions_heatmap(
         "elec_emissions",
         "gas_emissions",
         "total_refrig_emissions",
+        "total_emissions",
     ]
 
     all_cols = metadata_cols + convert_cols
@@ -503,6 +504,7 @@ def plot_emissions_heatmap(
             z=heatmap_data.values,
             x=heatmap_data.columns,
             y=heatmap_data.index,
+            zmin=0,  # fix to zero to visualize constant refrigerant emissions
             colorscale="YlGnBu",
             colorbar=dict(title=legend_title),
             hovertemplate="Day of Year: %{x}<br>Hour: %{y}<br>Emissions: %{z:.2f} kg CO₂<extra></extra>",

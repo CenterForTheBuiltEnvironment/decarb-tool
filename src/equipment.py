@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Dict
+from typing import List, Literal, Optional, Union, Dict
 from pydantic import BaseModel, Field, PrivateAttr
 import json
 from pathlib import Path
@@ -51,6 +51,9 @@ class Equipment(BaseModel):
     eq_manufacturer: Optional[str] = None
     model: str
     fuel: str
+    refrigerant: Optional[str] = None
+    refrigerant_weight_g: Optional[float] = None
+    refrigerant_gwp: Optional[float] = None  # in kgCO2e per kg of refrigerant
     capacity_W: Optional[float] = None
     performance: Dict[str, Performance] = Field(default_factory=dict)
     emissions: Optional[Emissions] = (
@@ -71,7 +74,8 @@ class EquipmentScenario(BaseModel):
     eq_scen_name: str
     hr_wwhp: Optional[str]
     awhp: Optional[str]
-    awhp_sizing: float
+    awhp_sizing_mode: Optional[Literal["peak_load_percentage", "num_of_units"]] = None
+    awhp_sizing_value: float
     awhp_use_cooling: bool
     boiler: Optional[str]
     chiller: Optional[str] = None

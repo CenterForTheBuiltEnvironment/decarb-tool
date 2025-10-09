@@ -215,6 +215,22 @@ def loads_to_site_energy(
             # Electricity use
             elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
 
+            # add refrigerant information
+            hr_wwhp_refrigerant = (
+                hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
+            )
+            hr_wwhp_refrigerant_weight_kg = (
+                hr_wwhp.refrigerant_weight_g * 0.001 / 8760
+                if hr_wwhp.refrigerant_weight_g
+                else 0.0
+            )
+
+            hr_wwhp_refrigerant_gwp_kg = (
+                hr_wwhp.refrigerant_gwp * hr_wwhp_refrigerant_weight_kg
+                if hr_wwhp.refrigerant_gwp
+                else 0.0
+            )
+
             # Apply results
             df["max_cap_h_hr_W"] = max_cap_h  #! remove
             df["min_cap_h_hr_W"] = min_cap_h  #! remove
@@ -226,6 +242,9 @@ def loads_to_site_energy(
             df["elec_Wh"] += elec_hr
             df["hhw_rem_W"] -= hr_hhw
             df["chw_rem_W"] -= hr_chw
+            df["hr_wwhp_refrigerant"] = hr_wwhp_refrigerant
+            df["hr_wwhp_refrigerant_weight_kg"] = hr_wwhp_refrigerant_weight_kg
+            df["hr_wwhp_refrigerant_gwp_kg"] = hr_wwhp_refrigerant_gwp_kg
 
         # =========================
         # Phase 2 – AWHP Heating
@@ -238,33 +257,80 @@ def loads_to_site_energy(
                 raise ValueError(f"AWHP heating '{awhp_h.eq_id}' lacks a COP curve.")
 
             # Determine number of units
-            sizing = float(scen.awhp_sizing)
-            if sizing < 1.0:
-                # fraction of peak HHW at a conservative temperature (e.g., 0°C)
-                peak_hhw_W = float(df["hhw_W"].max())
-                if awhp_h.performance and awhp_h.performance_heating.cap_curve:
-                    cap_ref = interp_vector(
-                        awhp_h.performance_heating.cap_curve.t_out_C,
-                        awhp_h.performance_heating.cap_curve.capacity_W,
-                        np.array([0.0]),  # fall back / reference capacity
-                    )[0]
-                elif awhp_h.capacity_W:
-                    cap_ref = float(awhp_h.capacity_W)
-                else:
-                    raise ValueError(
-                        f"AWHP '{awhp_h.eq_id}' lacks a capacity reference."
-                    )
-                awhp_num_h = (
-                    int(np.ceil((peak_hhw_W * sizing) / cap_ref)) if cap_ref > 0 else 0
+            sizing_mode = scen.awhp_sizing_mode
+            sizing_value = scen.awhp_sizing_value
+
+            if sizing_mode is None or sizing_value is None:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires both "
+                    f"'awhp_sizing_mode' and 'awhp_sizing_value'."
                 )
+
+            ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
+
+            if awhp_h.performance and getattr(
+                awhp_h.performance_heating, "cap_curve", None
+            ):
+                cap_ref = interp_vector(
+                    awhp_h.performance_heating.cap_curve.t_out_C,
+                    awhp_h.performance_heating.cap_curve.capacity_W,
+                    np.array([ref_temp_C]),
+                )[0]
+            elif getattr(awhp_h, "capacity_W", None):
+                cap_ref = float(awhp_h.capacity_W)
             else:
-                awhp_num_h = int(np.ceil(sizing))
+                raise ValueError(
+                    f"AWHP '{awhp_h.eq_id}' lacks a valid capacity reference."
+                )
+
+            # --- Sizing Logic ---
+            if sizing_mode == "peak_load_percentage":
+                if not (0.0 <= sizing_value <= 1.0):
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires "
+                        f"'awhp_sizing_value' between 0 and 1 for peak_load_percentage mode."
+                    )
+
+                # Fraction of peak HHW load at reference temperature
+                peak_hhw_W = float(df["hhw_W"].max())
+                target_load_W = peak_hhw_W * sizing_value
+
+                awhp_num_h = np.ceil(target_load_W / cap_ref)
+
+            elif sizing_mode == "num_of_units":
+                if sizing_value < 0:
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires "
+                        f"'awhp_sizing_value' to be non-negative for num_of_units mode."
+                    )
+                awhp_num_h = np.ceil(sizing_value)
+
+            else:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized sizing mode: '{sizing_mode}'."
+                )
+
+            awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
 
             awhp_num_h = max(awhp_num_h, 0)
 
             cap_total_h_W = awhp_cap_h * awhp_num_h
             served_h_W = np.minimum(df["hhw_rem_W"].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
+
+            # add refrigerant information
+            awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
+            total_awhp_refrigerant_weight_kg = (
+                awhp_h.refrigerant_weight_g * 0.001 * awhp_num_h / 8760
+                if awhp_h.refrigerant_weight_g
+                else 0.0
+            )
+
+            total_awhp_refrigerant_gwp_kg = (
+                awhp_h.refrigerant_gwp * total_awhp_refrigerant_weight_kg / 1000
+                if awhp_h.refrigerant_gwp
+                else 0.0
+            )
 
             df["awhp_hhw_W"] = served_h_W
             df["awhp_cap_h_W"] = cap_total_h_W
@@ -273,6 +339,9 @@ def loads_to_site_energy(
             df["elec_Wh"] += elec_h_Wh
             df["hhw_rem_W"] -= served_h_W
             df["awhp_num_h"] = float(awhp_num_h)
+            df["awhp_refrigerant"] = awhp_refrigerant
+            df["total_awhp_refrigerant_weight_kg"] = total_awhp_refrigerant_weight_kg
+            df["total_awhp_refrigerant_gwp_kg"] = total_awhp_refrigerant_gwp_kg
 
         # =========================
         # Phase 3 – Boiler (optional)
@@ -315,35 +384,23 @@ def loads_to_site_energy(
             if np.isnan(awhp_cop_c).all():
                 raise ValueError(f"AWHP cooling '{awhp_c.eq_id}' lacks a COP curve.")
 
-            # Use same sizing logic as heating (from awhp_sizing)
-            # sizing = float(scen.awhp_sizing)
-            # if sizing < 1.0:
-            #     peak_chw_W = float(df["chw_W"].max())
-            #     if awhp_c.performance and awhp_c.performance_cooling.cap_curve:
-            #         cap_ref = interp_vector(
-            #             awhp_c.performance_cooling.cap_curve.t_out_C,
-            #             awhp_c.performance_cooling.cap_curve.capacity_W,
-            #             np.array([35.0]),  # conservative hot condition
-            #         )[0]
-            #     elif awhp_c.capacity_W:
-            #         cap_ref = float(awhp_c.capacity_W)
-            #     else:
-            #         raise ValueError(
-            #             f"AWHP '{awhp_c.eq_id}' lacks a capacity reference."
-            #         )
-            #     awhp_num_c = (
-            #         int(np.ceil((peak_chw_W * sizing) / cap_ref)) if cap_ref > 0 else 0
-            #     )
-            # else:
-            #     awhp_num_c = int(np.ceil(sizing))
-
             # awhp_num_c = max(awhp_num_c, 0)
             awhp_num_c = awhp_num_h  # use same number of units as heating
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
-            served_c_W = np.minimum(df["chw_rem_W"].to_numpy(), cap_total_c_W)
-            elec_c_Wh = served_c_W / awhp_cop_c
+            # served_c_W = np.minimum(df["chw_rem_W"].to_numpy(), cap_total_c_W)
+            # elec_c_Wh = served_c_W / awhp_cop_c
 
+            mask = (
+                df["awhp_hhw_W"] == 0
+            )  # create a mask for hours when no heating is served by AWHP
+            served_c_W = np.zeros(len(df))  # Initialize served_c_W as zeros
+            served_c_W[mask] = np.minimum(
+                df.loc[mask, "chw_rem_W"].to_numpy(), cap_total_c_W[mask]
+            )  # Compute only where mask is True
+
+            # Compute electricity only where cooling is served
+            elec_c_Wh = served_c_W / awhp_cop_c
             df["awhp_chw_W"] = served_c_W
             df["awhp_cap_c_W"] = cap_total_c_W
             df["awhp_cop_c"] = awhp_cop_c
@@ -382,6 +439,21 @@ def loads_to_site_energy(
             served_W = df["chw_rem_W"].to_numpy()
             elec_Wh = served_W / chiller_cop
 
+            # add refrigerant information
+            chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
+
+            chiller_refrigerant_weight_kg = (
+                chl.refrigerant_weight_g * 0.001 / 8760
+                if chl.refrigerant_weight_g
+                else 0.0
+            )
+
+            chiller_refrigerant_gwp_kg = (
+                chl.refrigerant_gwp * chiller_refrigerant_weight_kg
+                if chl.refrigerant_gwp
+                else 0.0
+            )
+
             if detail:
                 df["chiller_chw_W"] = served_W
                 df["elec_chiller_Wh"] = elec_Wh
@@ -389,6 +461,9 @@ def loads_to_site_energy(
 
             df["elec_Wh"] += elec_Wh
             df["chw_rem_W"] = 0.0
+            df["chiller_refrigerant"] = chiller_refrigerant
+            df["chiller_refrigerant_weight_kg"] = chiller_refrigerant_weight_kg
+            df["chiller_refrigerant_gwp_kg"] = chiller_refrigerant_gwp_kg
 
             df = df.round(2)
 
@@ -418,11 +493,17 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         "min_cap_h_hr_W",  #! remove
         "simult_h_hr_W",  #! remove
         "elec_hr_Wh",
+        "hr_wwhp_refrigerant",
+        "hr_wwhp_refrigerant_weight_kg",
+        "hr_wwhp_refrigerant_gwp_kg",
         "awhp_num_h",
         "awhp_cap_h_W",
         "awhp_cop_h",
         "awhp_hhw_W",
         "elec_awhp_h_Wh",
+        "awhp_refrigerant",
+        "total_awhp_refrigerant_weight_kg",
+        "total_awhp_refrigerant_gwp_kg",
         "boiler_eff",
         "boiler_hhw_W",
         "gas_boiler_Wh",
@@ -436,6 +517,9 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         "chiller_cop",
         "chiller_chw_W",
         "elec_chiller_Wh",
+        "chiller_refrigerant",
+        "chiller_refrigerant_weight_kg",
+        "chiller_refrigerant_gwp_kg",
     ]
     # only include those that actually exist
     detail_cols = [c for c in detail_cols if c in df.columns]
@@ -445,8 +529,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
 def site_to_source(
     df_loads: pd.DataFrame,
     metadata: Metadata,
-    gas_emissions_rate: float = 180,  # gCO2e/kWh (example default)
-    annual_refrig_leakage: float = 0.02,  # fraction per year
+    gas_emissions_rate: float = 239.2,  # gCO2e/kWh (example default)
+    annual_refrig_leakage_percent: float = 0.05,  # fraction per year
     shortrun_weighting: float = 0.5,  # between 0 and 1
 ) -> pd.DataFrame:
     """
@@ -510,20 +594,36 @@ def site_to_source(
             merged["gas_emissions"] = 0.0
 
         # refrigerant emissions
-        if "total_refrig_emissions_inventory" in merged.columns:
-            merged["total_refrig_emissions"] = (
-                merged["total_refrig_emissions_inventory"]
-                * annual_refrig_leakage
-                / 8760
-            )
+        refrig_cols = [
+            "hr_wwhp_refrigerant_gwp_kg",
+            "total_awhp_refrigerant_gwp_kg",
+            "chiller_refrigerant_gwp_kg",
+        ]
+
+        existing_refrig_cols = [c for c in refrig_cols if c in merged.columns]
+
+        if existing_refrig_cols:
+            # Compute the total refrigerant emissions inventory by summing available columns
+            merged["total_refrig_gwp_kg"] = merged[existing_refrig_cols].sum(axis=1)
         else:
-            merged["total_refrig_emissions"] = 0.0
+            # If none exist, default to zero
+            merged["total_refrig_gwp_kg"] = 0.0
+
+        merged["total_refrig_emissions"] = (
+            merged["total_refrig_gwp_kg"] * annual_refrig_leakage_percent
+        )
 
         # result_df["year"] = result_df["emission_year"]
         merged["timestamp"] = pd.to_datetime(merged[["year", "month", "day", "hour"]])
 
         merged = merged.drop(columns=["month", "day", "doy", "hour"]).set_index(
             "timestamp"
+        )
+
+        merged["total_emissions"] = (
+            merged["elec_emissions"]
+            + merged["gas_emissions"]
+            + merged["total_refrig_emissions"]
         )
 
         merged["em_scen_id"] = scenario_id  # tag scenario

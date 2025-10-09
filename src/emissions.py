@@ -13,8 +13,8 @@ class EmissionScenario(BaseModel):
     time_zone: str
     emission_type: str
     shortrun_weighting: float
-    annual_refrig_leakage: float
-    annual_ng_leakage: float
+    annual_refrig_leakage_percent: float
+    annual_ng_leakage_g_per_kWh: float
     year: int
 
 
