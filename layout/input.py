@@ -193,7 +193,16 @@ def select_equipment(equipment_data):
                 ],
                 style={"display": "flex", "alignItems": "center", "gap": "10px"},
             ),
-            html.Hr(style={"marginTop": "10px", "marginBottom": "10px"}),
+            html.Hr(
+                style={
+                    "marginTop": "25px",
+                    "marginBottom": "10px",
+                    "borderTop": "2px solid grey",
+                }
+            ),
+            dbc.Label(
+                "Backup Equipment", style={"fontWeight": "bold", "marginBottom": "20px"}
+            ),
             dbc.InputGroup(
                 [
                     dbc.InputGroupText("Heating", style=label_styling),
