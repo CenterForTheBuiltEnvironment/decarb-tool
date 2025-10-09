@@ -12,7 +12,8 @@ from src.config import URLS
 
 from utils.units import unit_map
 
-from src.metadata import Metadata, EmissionScenario
+from src.metadata import Metadata
+from src.emissions import EmissionScenario
 
 from layout.input import (
     emission_scenario_saving_buttons,

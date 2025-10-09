@@ -2,7 +2,21 @@ from pprint import pprint
 import pandas as pd
 from pathlib import Path
 from typing import Union
-from src.metadata import Metadata, EmissionScenario
+
+from pydantic import BaseModel
+from src.metadata import Metadata
+
+
+class EmissionScenario(BaseModel):
+    em_scen_id: str
+    grid_scenario: str
+    gea_grid_region: str
+    time_zone: str
+    emission_type: str
+    shortrun_weighting: float
+    annual_refrig_leakage: float
+    annual_ng_leakage: float
+    year: int
 
 
 class StandardEmissions:

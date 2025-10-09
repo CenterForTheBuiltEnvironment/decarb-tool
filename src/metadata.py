@@ -4,17 +4,19 @@ from pathlib import Path
 import json
 from datetime import datetime
 
+from src.emissions import EmissionScenario
 
-class EmissionScenario(BaseModel):
-    em_scen_id: str
-    grid_scenario: str
-    gea_grid_region: str
-    time_zone: str
-    emission_type: str
-    shortrun_weighting: float
-    annual_refrig_leakage: float
-    annual_ng_leakage: float
-    year: int
+
+# class EmissionScenario(BaseModel):
+#     em_scen_id: str
+#     grid_scenario: str
+#     gea_grid_region: str
+#     time_zone: str
+#     emission_type: str
+#     shortrun_weighting: float
+#     annual_refrig_leakage: float
+#     annual_ng_leakage: float
+#     year: int
 
 
 class Metadata(BaseModel):

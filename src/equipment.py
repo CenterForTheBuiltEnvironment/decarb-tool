@@ -1,5 +1,5 @@
 from typing import List, Optional, Union, Dict
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 import json
 from pathlib import Path
 import numpy as np
@@ -52,7 +52,7 @@ class Equipment(BaseModel):
     model: str
     fuel: str
     capacity_W: Optional[float] = None
-    performance: Performance
+    performance: Dict[str, Performance] = Field(default_factory=dict)
     emissions: Optional[Emissions] = (
         None  #! potentially rename to something more specific
     )
@@ -62,9 +62,9 @@ class EquipmentScenario(BaseModel):
     eq_scen_id: str
     eq_scen_name: str
     hr_wwhp: Optional[str]
-    awhp_h: Optional[str]
-    awhp_c: Optional[str]
+    awhp: Optional[str]
     awhp_sizing: float
+    awhp_use_cooling: bool
     boiler: Optional[str]
     chiller: Optional[str] = None
     resistance_heater: Optional[str] = None

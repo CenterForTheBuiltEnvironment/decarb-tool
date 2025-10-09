@@ -4,8 +4,8 @@ from typing import Optional, Union
 
 from src.loads import StandardLoad
 from src.equipment import EquipmentLibrary, Equipment
-from src.emissions import StandardEmissions, get_emissions_data
-from src.metadata import EmissionScenario, Metadata
+from src.emissions import StandardEmissions, get_emissions_data, EmissionScenario
+from src.metadata import Metadata
 
 from utils.units import cop_h_to_cop_c
 from utils.interp import interp_vector
@@ -141,9 +141,9 @@ def loads_to_site_energy(
 
             num_units = 1
             least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
-            max_cap_h = num_units*plr_curve[
-                "cap"
-            ].max()  # max heating capacity required in timeframe <- allowed by unit, timeframe not relevant
+            max_cap_h = (
+                num_units * plr_curve["cap"].max()
+            )  # max heating capacity required in timeframe <- allowed by unit, timeframe not relevant
             min_cap_h = plr_curve[
                 "cap"
             ].min()  # min heating capacity required in timeframe <- allowed by unit, timeframe not relevant
