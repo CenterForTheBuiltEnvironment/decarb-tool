@@ -57,6 +57,14 @@ class Equipment(BaseModel):
         None  #! potentially rename to something more specific
     )
 
+    @property
+    def performance_heating(self) -> Optional[Performance]:
+        return self.performance.get("heating")
+
+    @property
+    def performance_cooling(self) -> Optional[Performance]:
+        return self.performance.get("cooling")
+
 
 class EquipmentScenario(BaseModel):
     eq_scen_id: str

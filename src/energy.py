@@ -13,42 +13,82 @@ from utils.interp import interp_vector
 
 def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
-    if e.performance and e.performance.plr_curve:
-        cap = e.performance.plr_curve.capacity_W
-        cop = e.performance.plr_curve.cop
+    if e.performance and e.performance_heating.plr_curve:
+        cap = e.performance_heating.plr_curve.capacity_W
+        cop = e.performance_heating.plr_curve.cop
         return pd.DataFrame({"cap": cap, "cop": cop})
     raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
 
 
-def _per_unit_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance.cap_curve:
+    if e.performance and e.performance_heating.cap_curve:
         return interp_vector(
-            e.performance.cap_curve.t_out_C, e.performance.cap_curve.capacity_W, t_out
+            e.performance_heating.cap_curve.t_out_C,
+            e.performance_heating.cap_curve.capacity_W,
+            t_out,
         )
     # fallback to fixed capacity if provided
     if e.capacity_W is not None:
         return np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     raise ValueError(
-        f"Equipment '{e.eq_id}' has no capacity info (cap_curve or capacity_W)."
+        f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
     )
 
 
-def _per_unit_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
     # If the device has a COP curve, use it
-    if e.performance and e.performance.cop_curve:
+    if e.performance and e.performance_heating.cop_curve:
         return interp_vector(
-            e.performance.cop_curve.t_out_C, e.performance.cop_curve.cop, t_out
+            e.performance_heating.cop_curve.t_out_C,
+            e.performance_heating.cop_curve.cop,
+            t_out,
         )
     # Some devices (boiler/resistance) use efficiency instead (not COP).
     # We'll not use COP for them here.
     return np.full_like(t_out, fill_value=np.nan, dtype=float)
 
 
-def _constant_efficiency(e: Equipment) -> Optional[float]:
-    if e.performance and e.performance.efficiency is not None:
-        return float(e.performance.efficiency)
+def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+    """Per-unit thermal capacity [W] vs outdoor temperature."""
+    if e.performance and e.performance_cooling.cap_curve:
+        return interp_vector(
+            e.performance_cooling.cap_curve.t_out_C,
+            e.performance_cooling.cap_curve.capacity_W,
+            t_out,
+        )
+    # fallback to fixed capacity if provided
+    if e.capacity_W is not None:
+        return np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
+    raise ValueError(
+        f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+    )
+
+
+def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+    """Per-unit COP vs outdoor temperature."""
+    # If the device has a COP curve, use it
+    if e.performance and e.performance_cooling.cop_curve:
+        return interp_vector(
+            e.performance_cooling.cop_curve.t_out_C,
+            e.performance_cooling.cop_curve.cop,
+            t_out,
+        )
+    # Some devices (boiler/resistance) use efficiency instead (not COP).
+    # We'll not use COP for them here.
+    return np.full_like(t_out, fill_value=np.nan, dtype=float)
+
+
+def _constant_heating_efficiency(e: Equipment) -> Optional[float]:
+    if e.performance and e.performance_heating.efficiency is not None:
+        return float(e.performance_heating.efficiency)
+    return None
+
+
+def _constant_cooling_efficiency(e: Equipment) -> Optional[float]:
+    if e.performance and e.performance_cooling.efficiency is not None:
+        return float(e.performance_cooling.efficiency)
     return None
 
 
@@ -190,10 +230,10 @@ def loads_to_site_energy(
         # =========================
         # Phase 2 – AWHP Heating
         # =========================
-        if scen.awhp_h:
-            awhp_h = library.get_equipment(scen.awhp_h)
-            awhp_cap_h = _per_unit_capacity_W(awhp_h, temps)
-            awhp_cop_h = _per_unit_cop(awhp_h, temps)
+        if scen.awhp:
+            awhp_h = library.get_equipment(scen.awhp)
+            awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps)
+            awhp_cop_h = _per_unit_heating_cop(awhp_h, temps)
             if np.isnan(awhp_cop_h).all():
                 raise ValueError(f"AWHP heating '{awhp_h.eq_id}' lacks a COP curve.")
 
@@ -202,10 +242,10 @@ def loads_to_site_energy(
             if sizing < 1.0:
                 # fraction of peak HHW at a conservative temperature (e.g., 0°C)
                 peak_hhw_W = float(df["hhw_W"].max())
-                if awhp_h.performance and awhp_h.performance.cap_curve:
+                if awhp_h.performance and awhp_h.performance_heating.cap_curve:
                     cap_ref = interp_vector(
-                        awhp_h.performance.cap_curve.t_out_C,
-                        awhp_h.performance.cap_curve.capacity_W,
+                        awhp_h.performance_heating.cap_curve.t_out_C,
+                        awhp_h.performance_heating.cap_curve.capacity_W,
                         np.array([0.0]),  # fall back / reference capacity
                     )[0]
                 elif awhp_h.capacity_W:
@@ -214,15 +254,15 @@ def loads_to_site_energy(
                     raise ValueError(
                         f"AWHP '{awhp_h.eq_id}' lacks a capacity reference."
                     )
-                num_awhp_h = (
+                awhp_num_h = (
                     int(np.ceil((peak_hhw_W * sizing) / cap_ref)) if cap_ref > 0 else 0
                 )
             else:
-                num_awhp_h = int(np.ceil(sizing))
+                awhp_num_h = int(np.ceil(sizing))
 
-            num_awhp_h = max(num_awhp_h, 0)
+            awhp_num_h = max(awhp_num_h, 0)
 
-            cap_total_h_W = awhp_cap_h * num_awhp_h
+            cap_total_h_W = awhp_cap_h * awhp_num_h
             served_h_W = np.minimum(df["hhw_rem_W"].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
 
@@ -232,14 +272,14 @@ def loads_to_site_energy(
             df["elec_awhp_h_Wh"] = elec_h_Wh
             df["elec_Wh"] += elec_h_Wh
             df["hhw_rem_W"] -= served_h_W
-            df["awhp_num_h"] = float(num_awhp_h)
+            df["awhp_num_h"] = float(awhp_num_h)
 
         # =========================
         # Phase 3 – Boiler (optional)
         # =========================
         if scen.boiler:
             blr = library.get_equipment(scen.boiler)
-            eff = _constant_efficiency(blr)
+            eff = _constant_heating_efficiency(blr)
             if eff is None or eff <= 0:
                 raise ValueError(
                     f"Boiler '{blr.eq_id}' requires a positive 'efficiency'."
@@ -268,36 +308,37 @@ def loads_to_site_energy(
         # =========================
         # Phase 5 – AWHP Cooling
         # =========================
-        if scen.awhp_c:
-            awhp_c = library.get_equipment(scen.awhp_c)
-            awhp_cap_c = _per_unit_capacity_W(awhp_c, temps)
-            awhp_cop_c = _per_unit_cop(awhp_c, temps)
+        if scen.awhp and scen.awhp_use_cooling:
+            awhp_c = library.get_equipment(scen.awhp)
+            awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps)
+            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps)
             if np.isnan(awhp_cop_c).all():
                 raise ValueError(f"AWHP cooling '{awhp_c.eq_id}' lacks a COP curve.")
 
             # Use same sizing logic as heating (from awhp_sizing)
-            sizing = float(scen.awhp_sizing)
-            if sizing < 1.0:
-                peak_chw_W = float(df["chw_W"].max())
-                if awhp_c.performance and awhp_c.performance.cap_curve:
-                    cap_ref = interp_vector(
-                        awhp_c.performance.cap_curve.t_out_C,
-                        awhp_c.performance.cap_curve.capacity_W,
-                        np.array([35.0]),  # conservative hot condition
-                    )[0]
-                elif awhp_c.capacity_W:
-                    cap_ref = float(awhp_c.capacity_W)
-                else:
-                    raise ValueError(
-                        f"AWHP '{awhp_c.eq_id}' lacks a capacity reference."
-                    )
-                awhp_num_c = (
-                    int(np.ceil((peak_chw_W * sizing) / cap_ref)) if cap_ref > 0 else 0
-                )
-            else:
-                awhp_num_c = int(np.ceil(sizing))
+            # sizing = float(scen.awhp_sizing)
+            # if sizing < 1.0:
+            #     peak_chw_W = float(df["chw_W"].max())
+            #     if awhp_c.performance and awhp_c.performance_cooling.cap_curve:
+            #         cap_ref = interp_vector(
+            #             awhp_c.performance_cooling.cap_curve.t_out_C,
+            #             awhp_c.performance_cooling.cap_curve.capacity_W,
+            #             np.array([35.0]),  # conservative hot condition
+            #         )[0]
+            #     elif awhp_c.capacity_W:
+            #         cap_ref = float(awhp_c.capacity_W)
+            #     else:
+            #         raise ValueError(
+            #             f"AWHP '{awhp_c.eq_id}' lacks a capacity reference."
+            #         )
+            #     awhp_num_c = (
+            #         int(np.ceil((peak_chw_W * sizing) / cap_ref)) if cap_ref > 0 else 0
+            #     )
+            # else:
+            #     awhp_num_c = int(np.ceil(sizing))
 
-            awhp_num_c = max(awhp_num_c, 0)
+            # awhp_num_c = max(awhp_num_c, 0)
+            awhp_num_c = awhp_num_h  # use same number of units as heating
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
             served_c_W = np.minimum(df["chw_rem_W"].to_numpy(), cap_total_c_W)
@@ -319,11 +360,11 @@ def loads_to_site_energy(
             if scen.chiller:
                 chl = library.get_equipment(scen.chiller)
                 # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
-                eff = _constant_efficiency(chl)
+                eff = _constant_cooling_efficiency(chl)
                 if eff and eff > 0:
                     chiller_cop = eff
                 else:
-                    cop_curve = _per_unit_cop(chl, temps)  # could be array
+                    cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
                     if not np.isnan(cop_curve).all():
                         # if a curve exists, use the hourly values
                         served_W = df["chw_rem_W"].to_numpy()

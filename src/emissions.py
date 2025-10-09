@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Union
 
 from pydantic import BaseModel
-from src.metadata import Metadata
 
 
 class EmissionScenario(BaseModel):

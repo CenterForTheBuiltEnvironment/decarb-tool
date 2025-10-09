@@ -196,7 +196,7 @@ def select_equipment(equipment_data):
             html.Hr(style={"marginTop": "10px", "marginBottom": "10px"}),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupText("Boiler", style=label_styling),
+                    dbc.InputGroupText("Heating", style=label_styling),
                     dbc.Select(
                         id="boiler-input",
                         options=boiler_options,
@@ -206,7 +206,7 @@ def select_equipment(equipment_data):
             ),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupText("Chiller", style=label_styling),
+                    dbc.InputGroupText("Cooling", style=label_styling),
                     dbc.Select(
                         id="chiller-input",
                         options=chiller_options,
