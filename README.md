@@ -160,7 +160,7 @@ Thanks!
 
 
 ## License
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+Distributed under the GNU General Public License. See `LICENSE_GNU_GPLv3` file for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
