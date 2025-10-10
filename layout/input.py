@@ -486,9 +486,8 @@ def emission_scenario_saving_buttons():
                     ),
                 ],
                 size="md",
-                vertical=True,
+                vertical=False,
             ),
-            html.Hr(),
         ],
     )
 

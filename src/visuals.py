@@ -66,6 +66,8 @@ def plot_energy_and_emissions(
     ]
 
     scenarios = df["scenario_id"].unique()
+    name_map = dict(zip(df["scenario_id"], df["eq_scen_name"]))
+
     n_scen = len(scenarios)
     opacities = np.linspace(1, 1, n_scen)  # fade scenarios slightly, ignore for now
 
@@ -99,6 +101,9 @@ def plot_energy_and_emissions(
     for i, scen in enumerate(scenarios):
         df_s = df[df["scenario_id"] == scen]
 
+        scen_name = name_map.get(scen, scen)
+        scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
+
         elec_total = (
             df_s[
                 [
@@ -118,13 +123,13 @@ def plot_energy_and_emissions(
         # Electricity
         fig.add_trace(
             go.Bar(
-                x=[scen],
+                x=[scen_name_short],
                 y=[elec_total],
                 name="Electricity",
                 marker=dict(
                     color=color_map_energy["Electricity"], opacity=opacities[i]
                 ),
-                hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_total:.0f} kWh<extra></extra>",
+                hovertemplate=f"Scenario: {scen_name}<br>Electricity: {elec_total:.0f} kWh<extra></extra>",
                 showlegend=False,
             ),
             row=1,
@@ -134,11 +139,11 @@ def plot_energy_and_emissions(
         # Gas
         fig.add_trace(
             go.Bar(
-                x=[scen],
+                x=[scen_name_short],
                 y=[gas_total],
                 name="Gas",
                 marker=dict(color=color_map_energy["Gas"], opacity=opacities[i]),
-                hovertemplate=f"Scenario: {scen}<br>Gas: {gas_total:.0f} kWh<extra></extra>",
+                hovertemplate=f"Scenario: {scen_name}<br>Gas: {gas_total:.0f} kWh<extra></extra>",
                 showlegend=False,
             ),
             row=1,
@@ -150,6 +155,8 @@ def plot_energy_and_emissions(
     # --- EMISSIONS STACKED BAR ---
     for i, scen in enumerate(scenarios):
         df_s = df[df["scenario_id"] == scen]
+        scen_name = name_map.get(scen, scen)
+        scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
 
         elec_em = df_s["elec_emissions"].sum().sum()
         gas_em = df_s["gas_emissions"].sum().sum()
@@ -158,13 +165,13 @@ def plot_energy_and_emissions(
         show_legend = "Electricity" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen],
+                x=[scen_name_short],
                 y=[elec_em],
                 name="Electricity",
                 marker=dict(
                     color=color_map_emissions["Electricity"], opacity=opacities[i]
                 ),
-                hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
+                hovertemplate=f"Scenario: {scen_name}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
                 showlegend=show_legend,
             ),
             row=1,
@@ -175,11 +182,11 @@ def plot_energy_and_emissions(
         show_legend = "Gas" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen],
+                x=[scen_name_short],
                 y=[gas_em],
                 name="Gas",
                 marker=dict(color=color_map_emissions["Gas"], opacity=opacities[i]),
-                hovertemplate=f"Scenario: {scen}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
+                hovertemplate=f"Scenario: {scen_name}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
                 showlegend=show_legend,
             ),
             row=1,
@@ -190,13 +197,13 @@ def plot_energy_and_emissions(
         show_legend = "Refrigerant" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen],
+                x=[scen_name_short],
                 y=[refrig_em],
                 name="Refrigerant",
                 marker=dict(
                     color=color_map_emissions["Refrigerant"], opacity=opacities[i]
                 ),
-                hovertemplate=f"Scenario: {scen}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
+                hovertemplate=f"Scenario: {scen_name}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
                 showlegend=show_legend,
             ),
             row=1,
@@ -218,7 +225,10 @@ def plot_energy_and_emissions(
 
 
 def plot_emission_scenarios_grouped(
-    df, equipment_scenarios, emission_scenarios, unit_mode="SI"
+    df,
+    equipment_scenarios,
+    emission_scenarios,
+    unit_mode="SI",
 ):
     col_to_type = {
         "elec_emissions": "emissions",
@@ -267,6 +277,13 @@ def plot_emission_scenarios_grouped(
 
         for scen in equipment_scenarios:
             df_s = df_e[df_e["scenario_id"] == scen]
+            scen_name = df_s["eq_scen_name"].iloc[
+                0
+            ]  # get readable name for hovertemplate
+            scen_name_short = (
+                scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
+            )  # shorten for x tick label
+
             elec_em = df_s["elec_emissions"].sum()
             gas_em = df_s["gas_emissions"].sum()
             refrig_em = df_s["total_refrig_emissions"].sum()
@@ -275,11 +292,11 @@ def plot_emission_scenarios_grouped(
             show_legend = "Electricity" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen],
+                    x=[scen_name_short],  # 👈 use name instead of ID
                     y=[elec_em],
                     name="Electricity",
                     marker=dict(color=color_map_emissions["Electricity"]),
-                    hovertemplate=f"Equipment: {scen}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
+                    hovertemplate=f"Equipment: {scen_name}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
                     showlegend=show_legend,
                 ),
                 row=1,
@@ -291,11 +308,11 @@ def plot_emission_scenarios_grouped(
             show_legend = "Gas" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen],
+                    x=[scen_name_short],
                     y=[gas_em],
                     name="Gas",
                     marker=dict(color=color_map_emissions["Gas"]),
-                    hovertemplate=f"Equipment: {scen}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
+                    hovertemplate=f"Equipment: {scen_name}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
                     showlegend=show_legend,
                 ),
                 row=1,
@@ -307,11 +324,11 @@ def plot_emission_scenarios_grouped(
             show_legend = "Refrigerant" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen],
+                    x=[scen_name_short],
                     y=[refrig_em],
                     name="Refrigerant",
                     marker=dict(color=color_map_emissions["Refrigerant"]),
-                    hovertemplate=f"Equipment: {scen}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
+                    hovertemplate=f"Equipment: {scen_name}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
                     showlegend=show_legend,
                 ),
                 row=1,
@@ -603,3 +620,112 @@ def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
         yaxis={"categoryorder": "category ascending"},
     )
     fig.show()
+
+
+def plot_scatter_temp_vs_variable(
+    df,
+    y_var,
+    equipment_scenarios=None,
+    emission_scenarios=None,
+    agg="D",
+    unit_mode="SI",
+):
+    energy_cols = [
+        "elec_hr_Wh",
+        "elec_awhp_h_Wh",
+        "elec_awhp_c_Wh",
+        "elec_res_Wh",
+        "elec_chiller_Wh",
+        "gas_boiler_Wh",
+    ]
+    emission_cols = [
+        "elec_emissions",
+        "gas_emissions",
+        "total_refrig_emissions",
+        "total_emissions",
+    ]
+    temp_cols = ["t_out_C"]
+
+    # --- Create col_to_type dict dynamically ---
+    col_to_type = {col: "energy" for col in energy_cols}
+    col_to_type.update({col: "emissions" for col in emission_cols})
+    col_to_type.update({col: "temperature" for col in temp_cols})
+
+    # --- Convert units if needed ---
+    for col, var_type in col_to_type.items():
+        if col in df.columns:
+            df[col] = df[col].apply(unit_map[var_type][unit_mode]["func"])
+
+    # --- Determine y-axis type and label ---
+    if y_var not in df.columns:
+        raise ValueError(f"{y_var} not found in DataFrame columns.")
+
+    if y_var in energy_cols:
+        var_type = "energy"
+    elif y_var in emission_cols:
+        var_type = "emissions"
+    else:
+        raise ValueError(f"{y_var} not recognized as energy or emissions variable.")
+
+    yaxis_title = unit_map[var_type][unit_mode]["label"]
+    xaxis_title_temp = unit_map["temperature"][unit_mode]["label"]
+
+    # --- Filter scenarios ---
+    df = df[
+        (df["scenario_id"].isin(equipment_scenarios))
+        & (df["em_scen_id"].isin(emission_scenarios))
+    ].copy()
+
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        raise ValueError("DataFrame index must be datetime for daily averaging.")
+
+    # --- Use readable scenario names if available ---
+    if "eq_scen_name" in df.columns:
+        df["label"] = df["eq_scen_name"]
+    else:
+        df["label"] = df["scenario_id"]
+
+    if agg == "D":
+        df["period"] = df.index.date  # simple daily period
+    elif agg == "W":
+        df["period"] = df.index.to_period("W").start_time  # weekly starting date
+    else:
+        raise ValueError("Aggregation method not recognized. Use 'daily' or 'weekly'.")
+
+    # --- Now group on columns only ---
+    daily = df.groupby(
+        ["period", "scenario_id", "em_scen_id", "label"], as_index=False
+    ).agg({"t_out_C": "mean", y_var: "mean"})
+
+    # --- Build figure ---
+    fig = go.Figure()
+    for (scen_id, em_scen), df_s in daily.groupby(["scenario_id", "em_scen_id"]):
+        scen_name = df_s["label"].iloc[0]
+        fig.add_trace(
+            go.Scatter(
+                x=df_s["t_out_C"],
+                y=df_s[y_var],
+                mode="markers",
+                marker=dict(size=10, opacity=0.5),
+                name=f"{scen_name}",  # add {em_scen} back in if needed
+                hovertemplate=(
+                    "Equipment: %{customdata[0]}<br>"
+                    "Emissions: %{customdata[1]}<br>"
+                    f"T_out ({agg} mean) : " + "%{customdata[2]:.2f}<br>"
+                    f"{y_var.replace('_',' ').title()} ({agg} mean) :"
+                    + "%{customdata[3]:.2f}<extra></extra>"
+                    # "T_out (avg): %{customdata[2]} °C<br>" #! need to fix
+                    # "{y_var.replace('_',' ').title()} (daily avg): %{customdata[3]}<extra></extra>"
+                ),
+                customdata=df_s[["label", "em_scen_id", "t_out_C", y_var]].values,
+            )
+        )
+
+    fig.update_layout(
+        xaxis_title=xaxis_title_temp,
+        yaxis_title=yaxis_title,
+        height=600,
+        legend_title_text="Scenario",
+    )
+
+    return fig

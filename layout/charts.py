@@ -209,6 +209,107 @@ def emissions_heatmap_chart():
     )
 
 
+def scatter_chart():
+    return html.Div(
+        [
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id="scatter-equipment-scen-dropdown",
+                        options=[
+                            {
+                                "label": f"Equipment Scenario {i}",
+                                "value": f"eq_scenario_{i}",
+                            }
+                            for i in range(1, 6)
+                        ],  # to be populated dynamically
+                        multi=True,
+                        value=[
+                            "eq_scenario_1",
+                            "eq_scenario_2",
+                            "eq_scenario_3",
+                            "eq_scenario_4",
+                            "eq_scenario_5",
+                        ],
+                        placeholder="Equipment Scenarios",
+                        clearable=False,
+                        style={"width": "500px"},
+                    ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="scatter-emission-scen-dropdown",
+                                options=[
+                                    {
+                                        "label": f"Emission Scenario {chr(96 + i)}",
+                                        "value": f"em_scenario_{chr(96 + i)}",
+                                    }
+                                    for i in range(1, 4)
+                                ],  # to be populated dynamically
+                                value="em_scenario_a",
+                                placeholder="Emission Scenarios",
+                                clearable=False,
+                                style={"width": "300px"},
+                            ),
+                            dcc.Dropdown(
+                                id="scatter-yvar-dropdown",
+                                options=[
+                                    {
+                                        "label": "Electricity Emissions",
+                                        "value": "elec_emissions",
+                                    },
+                                    {
+                                        "label": "Gas Emissions",
+                                        "value": "gas_emissions",
+                                    },
+                                    {
+                                        "label": "Total Emissions (inc. Refrig.)",
+                                        "value": "total_emissions",
+                                    },
+                                    {"label": "Electricity Use", "value": "elec_Wh"},
+                                    {"label": "Gas Use", "value": "gas_Wh"},
+                                ],
+                                value="total_emissions",
+                                placeholder="Y Variable",
+                                clearable=False,
+                                style={"width": "300px"},
+                            ),
+                            html.Div(
+                                [
+                                    dbc.Label("Aggregation:"),
+                                    dcc.Dropdown(
+                                        id="scatter-frequency-dropdown",
+                                        options=[
+                                            {"label": "Weekly", "value": "W"},
+                                            {"label": "Daily", "value": "D"},
+                                        ],
+                                        value="D",
+                                        clearable=False,
+                                        style={"width": "120px"},
+                                    ),
+                                ],
+                                style={
+                                    "display": "flex",
+                                    "gap": "10px",
+                                    "justifyContent": "center",
+                                    "alignItems": "center",
+                                },
+                            ),
+                        ],
+                        style={
+                            "display": "flex",
+                            "flex-direction": "column",
+                            "gap": "5px",
+                        },
+                    ),
+                ],
+                className="d-flex align-items-top justify-content-center mb-1 gap-2",
+            ),
+            dcc.Graph(id="scatter-plot"),
+        ]
+    )
+
+
 def chart_tabs():
 
     active_label_style = {"color": "#EF4692", "fontWeight": "bold"}
@@ -221,7 +322,7 @@ def chart_tabs():
                     type="default",
                     children=emissions_bar_chart(),
                 ),
-                label="Emissions Bar",
+                label="Emissions",
                 active_label_style=active_label_style,
             ),
             dbc.Tab(
@@ -230,7 +331,7 @@ def chart_tabs():
                     type="default",
                     children=energy_emissions_chart(),
                 ),
-                label="Energy + Emissions Bar",
+                label="Energy + Emissions",
                 active_label_style=active_label_style,
             ),
             dbc.Tab(
@@ -239,7 +340,7 @@ def chart_tabs():
                     type="default",
                     children=meter_timeseries_chart(),
                 ),
-                label="Meter Timeseries",
+                label="Timeseries",
                 active_label_style=active_label_style,
             ),
             dbc.Tab(
@@ -248,7 +349,16 @@ def chart_tabs():
                     type="default",
                     children=emissions_heatmap_chart(),
                 ),
-                label="Emissions Heatmap",
+                label="Heatmap",
+                active_label_style=active_label_style,
+            ),
+            dbc.Tab(
+                dcc.Loading(
+                    id="loading-icon",
+                    type="default",
+                    children=scatter_chart(),
+                ),
+                label="Scatter",
                 active_label_style=active_label_style,
             ),
         ],

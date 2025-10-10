@@ -29,6 +29,7 @@ from src.visuals import (
     plot_energy_and_emissions,
     plot_emission_scenarios_grouped,
     plot_emissions_heatmap,
+    plot_scatter_temp_vs_variable,
 )
 
 dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
@@ -202,5 +203,41 @@ def update_emissions_heatmap(
         emission_scenario,
         unit_mode=unit_mode,
         emission_type=emission_type,
+    )
+    return fig
+
+
+@callback(
+    Output("scatter-plot", "figure"),
+    Input("source-energy-store", "data"),
+    Input("scatter-equipment-scen-dropdown", "value"),
+    Input("scatter-emission-scen-dropdown", "value"),
+    Input("scatter-yvar-dropdown", "value"),
+    Input("scatter-frequency-dropdown", "value"),
+    Input("unit-toggle", "value"),
+    # prevent_initial_call=True
+)
+def update_scatter_plot(
+    source_json,
+    equipment_scenarios,
+    emission_scenario,
+    y_variable,
+    frequency_value,
+    unit_mode,
+):
+    if not source_json:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+
+    df = pd.read_json(StringIO(source_json), orient="split")
+
+    frequency_value = frequency_value if frequency_value else "D"
+
+    fig = plot_scatter_temp_vs_variable(
+        df,
+        y_var=y_variable,
+        equipment_scenarios=equipment_scenarios,
+        emission_scenarios=[emission_scenario],
+        agg=frequency_value,
+        unit_mode=unit_mode,
     )
     return fig

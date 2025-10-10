@@ -56,7 +56,7 @@ def layout():
                             set_shortrun_weighting(),
                             html.Hr(),
                         ],
-                        width=4,
+                        width=3,
                     ),
                     dbc.Col(
                         [
@@ -65,9 +65,11 @@ def layout():
                             html.Hr(),
                             select_gea_grid_region(),
                             html.Hr(),
+                            html.Hr(),
+                            html.Hr(),
                             emission_scenario_saving_buttons(),
                         ],
-                        width=3,
+                        width=4,
                     ),
                     dbc.Col(
                         [
@@ -89,7 +91,9 @@ def layout():
                                 color="primary",
                                 style={"float": "right"},
                             ),
-                            html.Div(id="calc-status"),  #! for debugging: remove later
+                            html.Div(
+                                id="calc-status-toast"
+                            ),  #! for debugging: remove later
                         ],
                         width=5,
                     ),
@@ -254,7 +258,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json):
 
 @callback(
     Output("source-energy-store", "data"),
-    Output("calc-status", "children"),
+    Output("calc-status-toast", "children"),
     Input("site-energy-store", "data"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
@@ -267,5 +271,23 @@ def run_site_to_source(site_energy_json, metadata_json):
 
     return (
         source_energy.to_json(date_format="iso", orient="split"),
-        "Calculation finished!",
+        dbc.Toast(
+            "Calculation finished!",
+            duration=3000,
+            is_open=True,
+            style={
+                "position": "fixed",
+                "top": 66,
+                "right": 50,
+                "width": 250,
+                "zIndex": 9999,
+            },
+            header=[
+                DashIconify(
+                    icon="ei:check",
+                    width=20,
+                ),
+                "Success",
+            ],
+        ),
     )

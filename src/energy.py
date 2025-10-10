@@ -472,7 +472,7 @@ def loads_to_site_energy(
 
         df = df[cols]
         df["scenario_id"] = scenario_id  # tag scenario
-        df["eq_scenario_name"] = library.get_scenario(scenario_id).eq_scen_name
+        df["eq_scen_name"] = library.get_scenario(scenario_id).eq_scen_name
         results.append(df)
 
     return pd.concat(results, axis=0, ignore_index=False)
