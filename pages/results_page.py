@@ -1,3 +1,5 @@
+import json
+
 import dash
 from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
@@ -46,6 +48,9 @@ def layout():
                             dbc.Button(
                                 "Download Results",
                                 color="primary",
+                                id="download-button",
+                                n_clicks=0,
+                                active=False,
                             ),
                         ],
                         width=3,
@@ -60,6 +65,7 @@ def layout():
                     ),
                 ]
             ),
+            dcc.Download(id="download-data"),
             # filter_sidebar(),
             # settings_sidebar(),
         ],
@@ -76,52 +82,6 @@ def show_metadata(data):
         return "No metadata yet"
 
     return summary_project_info(data)
-
-
-# @callback(
-#     Output("year-slider", "min"),
-#     Output("year-slider", "max"),
-#     Output("year-slider", "marks"),
-#     Output("year-slider", "step"),
-#     Output("year-slider", "value"),
-#     Input("metadata-store", "data"),
-# )
-# def update_year_slider(data):
-#     if not data:
-#         # keep placeholder state
-#         return 0, 0, {}, None, 0
-
-#     # assume metadata is JSON -> rehydrate
-#     metadata = Metadata(**data)
-#     year_options = metadata.emissions.years
-
-#     return (
-#         min(year_options),
-#         max(year_options),
-#         {year: str(year) for year in year_options},
-#         10 if len(year_options) > 1 else None,
-#         min(year_options),
-#     )
-
-
-# @callback(
-#     Output("filter-sidebar", "is_open"),
-#     Input("open-filter", "n_clicks"),
-#     State("filter-sidebar", "is_open"),
-#     prevent_initial_call=True,
-# )
-# def toggle_filter(n, is_open):
-#     return not is_open
-
-
-# @callback(
-#     Output("settings-sidebar", "is_open"),
-#     Input("open-settings", "n_clicks"),
-#     State("settings-sidebar", "is_open"),
-#     prevent_initial_call=True,
-# )
-# def toggle_settings(n, is_open):
-#     return not is_open
 
 
 @callback(

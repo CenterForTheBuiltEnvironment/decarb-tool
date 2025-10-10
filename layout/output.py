@@ -1,11 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import html
 
-import dash_bootstrap_components as dbc
-
-
-### Bootstrap Card with Table for Metadata Summary ###
-
 
 def get_nested_value(obj, attr_path):
     """Fetch nested values using dot-separated path.
