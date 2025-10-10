@@ -20,9 +20,22 @@ def cbe_header():
                     # ),
                     html.Nav(
                         [
-                            html.A("About", href="about.html"),
-                            html.A("Documentation", href="#"),
-                            html.A("Data", href="#"),
+                            html.A(
+                                "About",
+                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/main/README.md",
+                                target="_blank",
+                            ),
+                            html.A(
+                                "Documentation",
+                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/main/docs/documentation-short.md",
+                                target="_blank",
+                            ),
+                            html.A(
+                                "Data",
+                                href="#",
+                                disable_n_clicks=True,
+                                style={"color": "lightgrey"},
+                            ),
                         ],
                         className="cbe-header-nav",
                     ),

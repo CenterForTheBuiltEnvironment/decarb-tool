@@ -19,6 +19,7 @@ from src.metadata import Metadata
 # from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import (
+    select_gea_grid_region,
     select_location,
     select_load_data,
     modal_load_simulation_data,
@@ -61,9 +62,7 @@ def layout():
                         style={"backgroundColor": "#f8f9fa", "borderRadius": "10px"},
                     ),
                     dbc.Col(
-                        [
-                            html.Div(),
-                        ],
+                        [html.Div()],
                         width=4,
                     ),
                     dbc.Col(
@@ -132,7 +131,10 @@ def toggle_modal(open_clicks, close_clicks, is_open):
     prevent_initial_call=True,
 )
 def update_metadata(
-    selected_zip, selected_building_type, selected_vintage, metadata_data
+    selected_zip,
+    selected_building_type,
+    selected_vintage,
+    metadata_data,
 ):
     # Figure out which input triggered
     trigger = ctx.triggered_id
@@ -164,50 +166,3 @@ def show_metadata(data):
         return "No metadata yet"
 
     return summary_loads_selection(data)
-
-
-# @callback(
-#     Output("site-energy-store", "data"),
-#     Input("calculate-button-start-page", "n_clicks"),
-#     State("metadata-store", "data"),
-#     State("equipment-store", "data"),
-#     prevent_initial_call=True,
-# )
-# def run_loads_to_site(n_clicks, metadata_json, equipment_json):
-#     if not n_clicks or n_clicks < 1:
-#         return no_update  # do nothing until button clicked at least once
-
-#     if not metadata_json or not equipment_json:
-#         return no_update
-
-#     metadata = Metadata(**metadata_json) if metadata_json else None
-#     equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
-
-#     load_data = get_load_data(metadata)
-
-#     site_energy = loads_to_site_energy(
-#         load_data, equipment, metadata.equipment_scenarios, detail=True
-#     )
-
-#     print(site_energy.head())  #! for debugging: remove later
-
-#     return site_energy.to_json(date_format="iso", orient="split")
-
-
-# @callback(
-#     Output("source-energy-store", "data"),
-#     Output("calc-status", "children"),
-#     Input("site-energy-store", "data"),
-#     State("metadata-store", "data"),
-#     prevent_initial_call=True,
-# )
-# def run_site_to_source(site_energy_json, metadata_json):
-#     site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
-#     metadata = Metadata(**metadata_json) if metadata_json else None
-
-#     source_energy = site_to_source(site_energy, metadata=metadata)
-
-#     return (
-#         source_energy.to_json(date_format="iso", orient="split"),
-#         "Calculation finished!",
-#     )

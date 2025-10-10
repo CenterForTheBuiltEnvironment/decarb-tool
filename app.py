@@ -21,6 +21,7 @@ app = Dash(
     serve_locally=True,
 )
 
+
 # Initialize Metadata and Equipment Library at startup
 initial_metadata = Metadata.create().model_dump()
 equipment_library = load_library("data/input/equipment_data.json").model_dump()

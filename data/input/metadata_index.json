@@ -30,11 +30,11 @@
   },
   "equipment": {
     "equipment_type": [
+      "hr_heat_pump",
+      "chiller",
       "resistance_heater",
       "boiler",
-      "chiller",
-      "heat_pump",
-      "hr_heat_pump"
+      "heat_pump"
     ]
   },
   "emissions": {
@@ -45,6 +45,26 @@
       2040,
       2045,
       2050
+    ],
+    "gea_grid_region": [
+      "CAISO",
+      "ERCOT",
+      "FRCC",
+      "ISONE",
+      "MISO_Central",
+      "MISO_North",
+      "MISO_South",
+      "NYISO",
+      "NorthernGrid_East",
+      "NorthernGrid_South",
+      "NorthernGrid_West",
+      "PJM_East",
+      "PJM_West",
+      "SERTP",
+      "SPP_North",
+      "SPP_South",
+      "WestConnect_North",
+      "WestConnect_South"
     ],
     "emission_scenario": [
       "MidCase",

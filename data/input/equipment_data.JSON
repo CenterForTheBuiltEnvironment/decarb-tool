@@ -1161,54 +1161,6 @@
       }
     },
     {
-      "eq_id": "ch04",
-      "eq_type": "chiller",
-      "eq_subtype": "water_cooled_centrifugal",
-      "model": "IMC-WaterCooledChiller-Centrifugal-250Ton",
-      "fuel": "electricity",
-      "refrigerant": "R-513A",
-      "refrigerant_weight_g": 363000,
-      "refrigerant_gwp": 466,
-      "capacity_W": 879250,
-      "performance": {
-        "cooling": {
-          "efficiency": 5.54
-        }        
-      }
-    },
-    {
-      "eq_id": "ch05",
-      "eq_type": "chiller",
-      "eq_subtype": "water_cooled_centrifugal",
-      "model": "IMC-WaterCooledChiller-Centrifugal-350Ton",
-      "fuel": "electricity",
-      "refrigerant": "R-513A",
-      "refrigerant_weight_g": 508000,
-      "refrigerant_gwp": 466,
-      "capacity_W": 1231000,
-      "performance": {
-        "cooling": {
-          "efficiency": 5.91
-        }        
-      }
-    },
-    {
-      "eq_id": "ch06",
-      "eq_type": "chiller",
-      "eq_subtype": "water_cooled_centrifugal",
-      "model": "IMC-WaterCooledChiller-Centrifugal-500Ton",
-      "fuel": "electricity",
-      "refrigerant": "R-513A",
-      "refrigerant_weight_g": 726000,
-      "refrigerant_gwp": 466,
-      "capacity_W": 1758500,
-      "performance": {
-        "cooling": {
-          "efficiency": 6.01
-        }        
-      }
-    },
-    {
       "eq_id": "res01",
       "eq_type": "resistance_heater",
       "model": "GenericResHeater",
@@ -1279,30 +1231,6 @@
       "awhp_sizing_mode": "peak_load_percentage",
       "awhp_sizing_value": 1,
       "awhp_use_cooling": true,
-      "boiler": null,
-      "chiller": "ch03",
-      "resistance_heater": "res01"
-    },
-    {
-      "eq_scen_id": "eq_scenario_6",
-      "eq_scen_name": "80% AWHP (H)+Gas Backup+AC Chiller",
-      "hr_wwhp": null,
-      "awhp": "hp01",
-      "awhp_sizing_mode": "peak_load_percentage",
-      "awhp_sizing_value": 0.8,
-      "awhp_use_cooling": false,
-      "boiler": "bo02",
-      "chiller": "ch03",
-      "resistance_heater": null
-    },
-    {
-      "eq_scen_id": "eq_scenario_7",
-      "eq_scen_name": "80% AWHP (H)+Elec Backup+AC Chiller",
-      "hr_wwhp": null,
-      "awhp": "hp01",
-      "awhp_sizing_mode": "peak_load_percentage",
-      "awhp_sizing_value": 0.8,
-      "awhp_use_cooling": false,
       "boiler": null,
       "chiller": "ch03",
       "resistance_heater": "res01"

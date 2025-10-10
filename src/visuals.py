@@ -7,6 +7,12 @@ from plotly.subplots import make_subplots
 from utils.units import unit_map
 
 
+# colors
+berkeley_blue = "#002676"
+berkeley_gold = "#FDB515"
+rose_medium = "#E7115E"
+
+
 def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
     # Keep existing annotations (like subplot titles)
     existing_annotations = (
@@ -61,7 +67,7 @@ def plot_energy_and_emissions(
 
     scenarios = df["scenario_id"].unique()
     n_scen = len(scenarios)
-    opacities = np.linspace(1, 0.7, n_scen)  # fade scenarios slightly
+    opacities = np.linspace(1, 1, n_scen)  # fade scenarios slightly, ignore for now
 
     # --- Convert all columns according to unit mode ---
     for col in df.columns:
@@ -74,11 +80,11 @@ def plot_energy_and_emissions(
     yaxis_title_emissions = unit_map["emissions"][unit_mode]["label"]
 
     # --- Colors ---
-    color_map_energy = {"Electricity": "#225577", "Gas": "#ffcc55"}
+    color_map_energy = {"Electricity": berkeley_blue, "Gas": berkeley_gold}
     color_map_emissions = {
-        "Electricity": "#225577",
-        "Gas": "#ffcc55",
-        "Refrigerant": "#e763ca",
+        "Electricity": berkeley_blue,
+        "Gas": berkeley_gold,
+        "Refrigerant": rose_medium,
     }
 
     # --- Build subplot container ---
@@ -119,7 +125,7 @@ def plot_energy_and_emissions(
                     color=color_map_energy["Electricity"], opacity=opacities[i]
                 ),
                 hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_total:.0f} kWh<extra></extra>",
-                showlegend=(i == 0),  # only show once in legend
+                showlegend=False,
             ),
             row=1,
             col=1,
@@ -133,11 +139,13 @@ def plot_energy_and_emissions(
                 name="Gas",
                 marker=dict(color=color_map_energy["Gas"], opacity=opacities[i]),
                 hovertemplate=f"Scenario: {scen}<br>Gas: {gas_total:.0f} kWh<extra></extra>",
-                showlegend=(i == 0),
+                showlegend=False,
             ),
             row=1,
             col=1,
         )
+
+    added_legends = set()  # manage legends, would otherwise duplicate
 
     # --- EMISSIONS STACKED BAR ---
     for i, scen in enumerate(scenarios):
@@ -147,6 +155,7 @@ def plot_energy_and_emissions(
         gas_em = df_s["gas_emissions"].sum().sum()
         refrig_em = df_s["total_refrig_emissions"].sum().sum()
 
+        show_legend = "Electricity" not in added_legends
         fig.add_trace(
             go.Bar(
                 x=[scen],
@@ -156,11 +165,14 @@ def plot_energy_and_emissions(
                     color=color_map_emissions["Electricity"], opacity=opacities[i]
                 ),
                 hovertemplate=f"Scenario: {scen}<br>Electricity: {elec_em:.1f} kgCO₂<extra></extra>",
-                showlegend=(i == 0),
+                showlegend=show_legend,
             ),
             row=1,
             col=2,
         )
+        added_legends.add("Electricity")
+
+        show_legend = "Gas" not in added_legends
         fig.add_trace(
             go.Bar(
                 x=[scen],
@@ -168,11 +180,14 @@ def plot_energy_and_emissions(
                 name="Gas",
                 marker=dict(color=color_map_emissions["Gas"], opacity=opacities[i]),
                 hovertemplate=f"Scenario: {scen}<br>Gas: {gas_em:.1f} kgCO₂<extra></extra>",
-                showlegend=(i == 0),
+                showlegend=show_legend,
             ),
             row=1,
             col=2,
         )
+        added_legends.add("Gas")
+
+        show_legend = "Refrigerant" not in added_legends
         fig.add_trace(
             go.Bar(
                 x=[scen],
@@ -182,11 +197,12 @@ def plot_energy_and_emissions(
                     color=color_map_emissions["Refrigerant"], opacity=opacities[i]
                 ),
                 hovertemplate=f"Scenario: {scen}<br>Refrigerant: {refrig_em:.1f} kgCO₂<extra></extra>",
-                showlegend=(i == 0),
+                showlegend=show_legend,
             ),
             row=1,
             col=2,
         )
+        added_legends.add("Refrigerant")
 
     # --- Layout ---
     fig.update_layout(barmode="stack", height=600, margin=dict(b=150))
@@ -227,9 +243,9 @@ def plot_emission_scenarios_grouped(
 
     # --- Colors ---
     color_map_emissions = {
-        "Electricity": "#225577",
-        "Gas": "#ffcc55",
-        "Refrigerant": "#e763ca",
+        "Electricity": berkeley_blue,
+        "Gas": berkeley_gold,
+        "Refrigerant": rose_medium,
     }
 
     # --- Create subplots (shared y-axis) ---

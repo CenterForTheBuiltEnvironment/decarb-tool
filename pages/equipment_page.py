@@ -66,17 +66,6 @@ def layout():
 
 
 @callback(
-    Output("url", "href", allow_duplicate=True),
-    Input("button-specify-grid-scenarios", "n_clicks"),
-    prevent_initial_call=True,
-)
-def navigate_to_equipment(n_clicks):
-    if not n_clicks:  # ignore None or 0
-        raise dash.exceptions.PreventUpdate
-    return "/emissions"
-
-
-@callback(
     Output("select-equipment-options", "children"),
     Input("equipment-store", "data"),
 )
@@ -132,6 +121,7 @@ def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
     State("awhp-input", "value"),
     State("awhp-sizing-radio", "value"),
     State("awhp-sizing-slider", "value"),
+    State("awhp-use-cooling", "value"),
     State("boiler-input", "value"),
     State("chiller-input", "value"),
     prevent_initial_call=True,
@@ -145,6 +135,7 @@ def save_scenario(
     selected_awhp,
     selected_awhp_sizing_mode,
     selected_awhp_sizing_value,
+    selected_awhp_use_cooling,
     selected_boiler,
     selected_chiller,
 ):
@@ -177,6 +168,7 @@ def save_scenario(
             awhp="hp01",
             awhp_sizing_mode="peak_load_percentage",
             awhp_sizing_value=0.5,
+            awhp_use_cooling=False,
             boiler="bo01",
             chiller="ch01",
             resistance_heater=None,
@@ -194,6 +186,8 @@ def save_scenario(
         scenario.awhp_sizing_mode = selected_awhp_sizing_mode
     if selected_awhp_sizing_value is not None:
         scenario.awhp_sizing_value = selected_awhp_sizing_value
+    if selected_awhp_use_cooling is not None:
+        scenario.awhp_use_cooling = selected_awhp_use_cooling
     if selected_boiler is not None:
         scenario.boiler = selected_boiler
     if selected_chiller is not None:
@@ -239,3 +233,14 @@ def update_awhp_slider(mode):
             1,
         )
     return dash.no_update
+
+
+@callback(
+    Output("url", "href", allow_duplicate=True),
+    Input("button-specify-grid-scenarios", "n_clicks"),
+    prevent_initial_call=True,
+)
+def navigate_to_equipment(n_clicks):
+    if not n_clicks:  # ignore None or 0
+        raise dash.exceptions.PreventUpdate
+    return "/emissions"

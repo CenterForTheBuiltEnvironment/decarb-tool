@@ -67,13 +67,13 @@ def energy_emissions_chart():
                             "eq_scenario_5",
                         ],
                         placeholder="Equipment Scenarios",
-                        style={"width": "600px"},
+                        style={"width": "550px"},
                     ),
                     dcc.Dropdown(
                         id="total-emission-scen-dropdown",
                         options=[
                             {
-                                "label": f"Em.{chr(96 + i)}",
+                                "label": f"Emission Scenario {chr(96 + i)}",
                                 "value": f"em_scenario_{chr(96 + i)}",
                             }
                             for i in range(1, 4)
@@ -81,7 +81,7 @@ def energy_emissions_chart():
                         multi=False,
                         value="em_scenario_a",
                         placeholder="Emission Scenarios",
-                        style={"width": "200px"},
+                        style={"width": "250px"},
                     ),
                 ],
                 className="d-flex align-items-center justify-content-center mb-1 gap-2",
@@ -108,7 +108,7 @@ def meter_timeseries_chart():
                         ],  # to be populated dynamically
                         value="eq_scenario_1",
                         placeholder="Equipment Scenarios",
-                        style={"width": "220px"},
+                        style={"width": "200px"},
                     ),
                     dcc.Dropdown(
                         id="emission-scen-dropdown",
@@ -121,7 +121,7 @@ def meter_timeseries_chart():
                         ],  # to be populated dynamically
                         value="em_scenario_a",
                         placeholder="Emission Scenarios",
-                        style={"width": "220px"},
+                        style={"width": "200px"},
                     ),
                     dbc.Checklist(
                         id="stacked-toggle",
@@ -135,6 +135,7 @@ def meter_timeseries_chart():
                         value=["gas"],  # default on
                         inline=True,
                     ),
+                    dbc.Label("Aggregation:", style={"marginBottom": "2.5px"}),
                     dcc.Dropdown(
                         id="frequency-dropdown",
                         options=[
@@ -191,6 +192,10 @@ def emissions_heatmap_chart():
                         options=[
                             {"label": "Electricity", "value": "elec_emissions"},
                             {"label": "Gas", "value": "gas_emissions"},
+                            {
+                                "label": "Total (inc. Refrig.)",
+                                "value": "total_emissions",
+                            },
                         ],
                         value="elec_emissions",
                         placeholder="Category",

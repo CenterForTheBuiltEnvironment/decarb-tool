@@ -52,7 +52,7 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            results_utility_bar(),
+                            # results_utility_bar(),
                             chart_tabs(),
                             html.Hr(),
                         ],

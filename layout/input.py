@@ -4,6 +4,8 @@ from dash_iconify import DashIconify
 import pandas as pd
 import json
 
+from sqlalchemy import null
+
 from utils.units import unit_map
 
 with open("data/input/metadata_index.json", "r") as f:
@@ -34,7 +36,10 @@ def select_location(locations_df: pd.DataFrame):
     ]
     return html.Div(
         [
-            dbc.Label("1. Building Location"),
+            dbc.Label(
+                "1. Building Location",
+                style={"fontWeight": "bold", "marginBottom": "10px"},
+            ),
             html.P(
                 "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
             ),
@@ -54,6 +59,7 @@ def select_load_data():
         [
             dbc.Label(
                 "2. Load Data",
+                style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
             html.P("Select the type of load data you want to use for analysis."),
@@ -78,13 +84,23 @@ def select_load_data():
                             dbc.Button("Select building", color="secondary"),
                         ],
                         title="Measured Data",
+                        style={
+                            "pointerEvents": "none",
+                            "opacity": 0.5,
+                        },  # disable for now
                     ),
                     dbc.AccordionItem(
                         [
                             html.P("Upload your own hourly load data."),
-                            dbc.Button("Upload Custom Data", color="secondary"),
+                            dbc.Button(
+                                "Upload Custom Data", color="secondary", active=False
+                            ),
                         ],
                         title="Upload Custom Data",
+                        style={
+                            "pointerEvents": "none",
+                            "opacity": 0.5,
+                        },  # disable for now
                     ),
                 ],
                 start_collapsed=True,
@@ -94,27 +110,26 @@ def select_load_data():
     )
 
 
+def with_none_option(options, none_label="None"):
+    return [{"label": none_label, "value": ""}] + options
+
+
 def select_equipment(equipment_data):
 
     equipment_list = equipment_data.get("equipment", [])
 
-    hr_heat_pump_options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in equipment_list
-        if eq.get("eq_type") == "hr_heat_pump"
-    ]
+    def options_for(eq_type):
+        return [
+            {
+                "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
+                "value": eq.get("eq_id"),
+            }
+            for eq in equipment_list
+            if eq.get("eq_type") == eq_type
+        ]
 
-    heat_pump_options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in equipment_list
-        if eq.get("eq_type") == "heat_pump"
-    ]
+    hr_heat_pump_options = with_none_option(options_for("hr_heat_pump"))
+    heat_pump_options = with_none_option(options_for("heat_pump"))
 
     boiler_options = [
         {
@@ -145,7 +160,7 @@ def select_equipment(equipment_data):
                         id="hr-wwhp-input",
                         options=hr_heat_pump_options,
                         value=(
-                            hr_heat_pump_options[0]["value"]
+                            hr_heat_pump_options[1]["value"]
                             if hr_heat_pump_options
                             else None
                         ),
@@ -159,7 +174,7 @@ def select_equipment(equipment_data):
                         id="awhp-input",
                         options=heat_pump_options,
                         value=(
-                            heat_pump_options[0]["value"] if heat_pump_options else None
+                            heat_pump_options[1]["value"] if heat_pump_options else None
                         ),
                     ),
                 ]
@@ -192,6 +207,11 @@ def select_equipment(equipment_data):
                     ),
                 ],
                 style={"display": "flex", "alignItems": "center", "gap": "10px"},
+            ),
+            dbc.Checkbox(
+                label="Use Heat Pump also for Cooling",
+                id="awhp-use-cooling",
+                style={"marginTop": "10px", "marginBottom": "10px"},
             ),
             html.Hr(
                 style={
@@ -286,8 +306,10 @@ def set_emission_type():
             dbc.Label("Emission Type", style={"fontWeight": "bold"}),
             dbc.RadioItems(
                 id="emission-type-input",
-                options=options,
-                value="Combustion only",
+                options=options[
+                    ::-1
+                ],  # reverse order to have "Includes pre-combustion" first
+                value="Includes pre-combustion",
                 inline=True,
             ),
         ]
@@ -319,7 +341,6 @@ def set_static_emissions(unit_mode="SI"):
 
     conversion = unit_map["static_emission_intensity"][unit_mode]
     refrig_placeholder = conversion["refrig_default"]
-    ng_placeholder = conversion["ng_default"]
 
     return html.Div(
         [
@@ -331,33 +352,37 @@ def set_static_emissions(unit_mode="SI"):
                         id="refrigerant-leakage-input",
                         type="number",
                         placeholder=refrig_placeholder,
-                        value=None,
+                        value=5,
                         style={"width": "40%"},
-                        step=0.01,
+                        step=1,
                     ),
-                    html.Div(
-                        id="refrigerant-leakage-unit", style={"marginLeft": "8px"}
-                    ),
+                    html.Div("%", style={"marginLeft": "8px"}),
                 ],
                 style={"display": "flex", "alignItems": "center"},
             ),
-            html.Hr(),
-            html.P("Annual Natural Gas Leakage."),
-            html.Div(
-                children=[
-                    dcc.Input(
-                        id="natural-gas-leakage-input",
-                        type="number",
-                        placeholder=ng_placeholder,
-                        value=None,
-                        style={"width": "40%"},
-                        step=0.001,
-                    ),
-                    html.Div(
-                        id="natural-gas-leakage-unit", style={"marginLeft": "8px"}
-                    ),
-                ],
-                style={"display": "flex", "alignItems": "center"},
+        ]
+    )
+
+
+def select_gea_grid_region():
+    options = [
+        {
+            "label": region,
+            "value": region,
+        }
+        for region in metadata_index["emissions"]["gea_grid_region"]
+    ]
+    return html.Div(
+        [
+            dbc.Label(
+                "GEA Grid Region",
+                style={"fontWeight": "bold", "marginBottom": "10px"},
+            ),
+            html.P("Select the GEA grid region to use for the analysis."),
+            dcc.Dropdown(
+                id="gea-grid-region-input",
+                options=options,
+                value="CAISO",
             ),
         ]
     )

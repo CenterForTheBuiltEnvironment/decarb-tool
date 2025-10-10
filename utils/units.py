@@ -82,29 +82,46 @@ def cop_hc_to_cop_h(cop_hc):
 ### MAPPING FOR CHARTS ###
 unit_map = {
     "energy": {
-        "SI": {"func": Wh_to_kWh, "label": "Energy [kWh]"},
-        "IP": {"func": Wh_to_BTUh, "label": "Energy [BTU/h]"},
+        "SI": {
+            "func": Wh_to_kWh,
+            "label": 'Energy <span style="font-weight:200">| kWh</span>',
+        },
+        "IP": {
+            "func": Wh_to_BTUh,
+            "label": 'Energy <span style="font-weight:200">| BTU</span>',
+        },
     },
     "temperature": {
-        "SI": {"func": lambda x: x, "label": "Temperature [°C]"},
-        "IP": {"func": C_to_F, "label": "Temperature [°F]"},
+        "SI": {
+            "func": lambda x: x,
+            "label": 'Temperature <span style="font-weight:200">| °C</span>',
+        },
+        "IP": {
+            "func": C_to_F,
+            "label": 'Temperature <span style="font-weight:200">| °F</span>',
+        },
     },
     "emissions": {
-        "SI": {"func": lambda x: x, "label": "Emissions [kgCO2]"},
-        "IP": {"func": kg_to_lbs, "label": "Emissions [lbCO2]"},
+        "SI": {
+            "func": lambda x: x,
+            "label": 'Emissions <span style="font-weight:200">| kgCO₂e</span>',
+        },
+        "IP": {
+            "func": kg_to_lbs,
+            "label": 'Emissions <span style="font-weight:200">| lbCO₂e</span>',
+        },
     },
     "static_emission_intensity": {
         "SI": {
-            "label": "kgCO₂/kWh",
-            "func": lambda x: x / 1000,  # kgCO₂/kWh → kgCO₂/W·h
-            "refrig_default": 0.01,
-            "ng_default": 0.005,
+            "label": "kgCO₂e/kWh",
+            "func": lambda x: x / 1000,  # kgCO₂e/kWh → kgCO₂e/W·h
+            "refrig_default": 0.05,
+            "setting_type": "%",
         },
         "IP": {
-            "label": "lbCO₂/kBTU",
-            "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂/kBTU → kgCO₂/Wh
+            "label": "lbCO₂e/kBTU",
+            "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂e/kBTU → kgCO₂e/Wh
             "refrig_default": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
-            "ng_default": 0.005 * (2.20462) / (1000 * 3.412),  #! use function
         },
     },
 }

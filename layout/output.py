@@ -91,6 +91,7 @@ def summary_equipment_selection(equipment_library, active_tab=None):
             ("awhp", "AWHP"),
             ("awhp_sizing_mode", "AWHP Sizing Mode"),
             ("awhp_sizing_value", "AWHP Sizing Value"),
+            ("awhp_use_cooling", "AWHP Use Cooling"),
             ("boiler", "Boiler"),
             ("chiller", "Chiller"),
         ]:
@@ -106,17 +107,20 @@ def summary_equipment_selection(equipment_library, active_tab=None):
                 ("awhp", "AWHP"),
                 ("awhp_sizing_mode", "AWHP Sizing Mode"),
                 ("awhp_sizing_value", "AWHP Sizing Value"),
+                ("awhp_use_cooling", "AWHP Use Cooling"),
                 ("boiler", "Boiler"),
                 ("chiller", "Chiller"),
             ],
-            title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
+            # title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
+            title="Summary",
         )
 
         tabs.append(
             dbc.Tab(
-                label="S-" + scen["eq_scen_id"][-1].upper(),
+                label="Scen. " + scen["eq_scen_id"][-1].upper(),
                 tab_id=scen["eq_scen_id"],
                 children=[card],
+                tab_style={"margin": "0.2rem"},
             )
         )
 
@@ -138,14 +142,14 @@ def summary_emissions_selection(metadata, active_tab=None):
             ("gea_grid_region", "GEA Grid Region"),
             ("emission_type", "Emission Type"),
             ("shortrun_weighting", "Short-Run Weighting"),
-            ("annual_refrig_leakage", "Refrig. Leakage, p.a."),
-            ("annual_ng_leakage", "Nat. Gas Leakage, p.a."),
+            ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),
             ("year", "Year"),
         ]
         card = make_metadata_card(
             scen,
             emission_fields,
-            title="Summary | Scenario " + scen["em_scen_id"][-1].upper(),
+            # title="Summary | Scenario " + scen["em_scen_id"][-1].upper(),
+            title="Summary",
         )
 
         tabs.append(

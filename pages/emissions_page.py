@@ -17,6 +17,7 @@ from src.emissions import EmissionScenario
 
 from layout.input import (
     emission_scenario_saving_buttons,
+    select_gea_grid_region,
     select_grid_scenario,
     set_emission_type,
     set_grid_year,
@@ -62,6 +63,7 @@ def layout():
                             html.Hr(),
                             set_static_emissions(),
                             html.Hr(),
+                            select_gea_grid_region(),
                             html.Hr(),
                             emission_scenario_saving_buttons(),
                         ],
@@ -120,7 +122,7 @@ def show_emissions_scenarios(data, active_tab):
     State("emission-type-input", "value"),
     State("shortrun-weighting-input", "value"),
     State("refrigerant-leakage-input", "value"),
-    State("natural-gas-leakage-input", "value"),
+    State("gea-grid-region-input", "value"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
 )
@@ -133,7 +135,7 @@ def update_metadata(
     selected_emission_type,
     selected_shortrun_weighting,
     ref_leakage,
-    ng_leakage,
+    gea_grid_region,
     metadata_data,
 ):
     trigger = ctx.triggered_id
@@ -164,8 +166,7 @@ def update_metadata(
             time_zone="America/Los_Angeles",
             emission_type="Combustion only",
             shortrun_weighting=1.0,
-            annual_refrig_leakage=0.01,
-            annual_ng_leakage=0.005,
+            annual_refrig_leakage_percent=0.05,
             year=2025,
         )
 
@@ -179,9 +180,11 @@ def update_metadata(
     if selected_shortrun_weighting is not None:
         scenario.shortrun_weighting = selected_shortrun_weighting
     if ref_leakage is not None:
-        scenario.annual_refrig_leakage = ref_leakage
-    if ng_leakage is not None:
-        scenario.annual_ng_leakage = ng_leakage
+        scenario.annual_refrig_leakage_percent = (
+            ref_leakage / 100
+        )  # convert % to fraction
+    if gea_grid_region is not None:
+        scenario.gea_grid_region = gea_grid_region
 
     # Save back into metadata
     metadata.add_emission_scenario(scenario, overwrite=True)
@@ -189,33 +192,27 @@ def update_metadata(
     return metadata.model_dump()
 
 
-@callback(
-    [
-        Output("refrigerant-leakage-unit", "children"),
-        Output("natural-gas-leakage-unit", "children"),
-        Output("refrigerant-leakage-input", "placeholder"),
-        Output("natural-gas-leakage-input", "placeholder"),
-        Output("refrigerant-leakage-input", "value"),
-        Output("natural-gas-leakage-input", "value"),
-    ],
-    [
-        Input("unit-toggle", "value"),  # "SI" or "IP"
-        State("refrigerant-leakage-input", "value"),
-        State("natural-gas-leakage-input", "value"),
-    ],
-)
-def update_static_emission_fields(unit_mode, ref_value, gas_value):
-    conversion = unit_map["static_emission_intensity"][unit_mode]
+# @callback(
+#     [
+#         Output("refrigerant-leakage-unit", "children"),
+#         Output("refrigerant-leakage-input", "placeholder"),
+#         Output("refrigerant-leakage-input", "value"),
+#     ],
+#     [
+#         Input("unit-toggle", "value"),  # "SI" or "IP"
+#         State("refrigerant-leakage-input", "value"),
+#     ],
+# )
+# def update_static_emission_fields(unit_mode, ref_value):
+#     conversion = unit_map["static_emission_intensity"][unit_mode]
 
-    unit = conversion["label"]
-    refrig_placeholder = conversion["refrig_default"]
-    ng_placeholder = conversion["ng_default"]
+#     unit = conversion["label"]
+#     refrig_placeholder = conversion["refrig_default"]
 
-    # Convert existing user inputs to SI if they exist
-    ref_value_si = conversion["func"](ref_value) if ref_value is not None else None
-    gas_value_si = conversion["func"](gas_value) if gas_value is not None else None
+#     # Convert existing user inputs to SI if they exist
+#     ref_value_si = conversion["func"](ref_value) if ref_value is not None else None
 
-    return unit, unit, refrig_placeholder, ng_placeholder, ref_value_si, gas_value_si
+#     return unit, refrig_placeholder, ref_value_si
 
 
 @callback(
