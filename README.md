@@ -183,6 +183,9 @@ For general feedback and anything related to the codebase, the tool functionalit
 
 
 ## Acknowledgements
-Credits to those who have contributed to the tool or resources (e.g. libraries) that were helpful.
+
+We would like to acknowledge the following resources:
+
+1. This tool uses the **2024 Cambium** dataset: Gagnon, Pieter, Pedro Andres Sanchez Perez, Julian Florez, James Morris, Marck Llerena Velasquez, and Jordan Eisenman. 2025. Cambium 2024 Scenario Descriptions and Documentation. Golden, CO: National Renewable Energy Laboratory. NREL/TP-6A40-93005. https://www.nrel.gov/docs/fy25osti/93005.pdf.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
