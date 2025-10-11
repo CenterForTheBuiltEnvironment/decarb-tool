@@ -143,9 +143,6 @@ def update_total_emissions_plot(
 
     df = pd.read_json(StringIO(source_json), orient="split")
 
-    # Ensure equipment_scenarios and emission_scenario are lists
-    # if isinstance(equipment_scenarios, str):
-    #     equipment_scenarios = [equipment_scenarios]
     if isinstance(emission_scenario, str):
         emission_scenario = [emission_scenario]
 
@@ -168,7 +165,7 @@ def update_emissions_bar_plot(source_json, emission_scenarios, unit_mode):
 
     df = pd.read_json(StringIO(source_json), orient="split")
 
-    equipment_scenarios = df["scenario_id"].unique().tolist()
+    equipment_scenarios = df["eq_scen_id"].unique().tolist()
 
     # Ensure emission_scenarios is a list
     if isinstance(emission_scenarios, str):

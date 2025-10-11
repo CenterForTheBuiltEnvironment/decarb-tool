@@ -637,6 +637,8 @@ def plot_scatter_temp_vs_variable(
         "elec_res_Wh",
         "elec_chiller_Wh",
         "gas_boiler_Wh",
+        "elec_Wh",
+        "gas_Wh",
     ]
     emission_cols = [
         "elec_emissions",
