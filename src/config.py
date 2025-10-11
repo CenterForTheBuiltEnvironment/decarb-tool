@@ -12,6 +12,10 @@ class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"
     YEAR = "year"
+    MONTH = "month"
+    DAY = "day"
+    HOUR = "hour"
+    DOY = "doy"
     EQ_SCEN_ID = "eq_scen_id"
     EQ_SCEN_NAME = "eq_scen_name"
     EM_SCEN_ID = "em_scen_id"
@@ -26,6 +30,8 @@ class Columns(str, Enum):
     # --- Heating & cooling water loops ---
     HHW_W = "hhw_W"
     CHW_W = "chw_W"
+    HHW_REM_W = "hhw_rem_W"
+    CHW_REM_W = "chw_rem_W"
 
     # --- Heat Recovery Water-to-Water Heat Pump (H+C) ---
     HR_HHW_W = "hr_hhw_W"
@@ -71,13 +77,13 @@ class Columns(str, Enum):
     # --- Refrigerant (general) ---
     HR_WWHP_REFRIGERANT = "hr_wwhp_refrigerant"
     HR_WWHP_REFRIGERANT_WEIGHT_KG = "hr_wwhp_refrigerant_weight_kg"
-    HR_WWHP_REFRIGERANT_GWP_KG = "hr_wwhp_refrigerant_gwp_kg"
+    HR_WWHP_REFRIGERANT_GWP = "hr_wwhp_refrigerant_gwp_kgCO2e_per_kgRefrig"
     AWHP_REFRIGERANT = "awhp_refrigerant"
     AWHP_REFRIGERANT_WEIGHT_KG = "total_awhp_refrigerant_weight_kg"
-    AWHP_REFRIGERANT_GWP_KG = "total_awhp_refrigerant_gwp_kg"
+    AWHP_REFRIGERANT_GWP = "total_awhp_refrigerant_gwp_kgCO2e_per_kgRefrig"
     CHILLER_REFRIGERANT = "chiller_refrigerant"
     CHILLER_REFRIGERANT_WEIGHT_KG = "chiller_refrigerant_weight_kg"
-    CHILLER_REFRIGERANT_GWP_KG = "chiller_refrigerant_gwp_kg"
+    CHILLER_REFRIGERANT_GWP = "chiller_refrigerant_gwp_kgCO2e_per_kgRefrig"
 
     # --- Emissions & energy rates ---
     LRMER_CO2E_C = "lrmer_co2e_c"
@@ -87,11 +93,11 @@ class Columns(str, Enum):
     SRMER_CO2E_P = "srmer_co2e_p"
     SRMER_CO2E = "srmer_co2e"
     SHORTRUN_WEIGHTING = "shortrun_weighting"
-    ELEC_EMISSIONS_RATE = "elec_emissions_rate"
+    ELEC_EMISSIONS_RATE_G_PER_KWH = "elec_emissions_rate_gCO2e_per_kWh"
 
     # --- Resulting emissions summary ---
-    ELEC_EMISSIONS = "elec_emissions"
-    GAS_EMISSIONS = "gas_emissions"
+    ELEC_EMISSIONS_KG_CO2E = "elec_emissions"
+    GAS_EMISSIONS_KG_CO2E = "gas_emissions"
     TOTAL_REFRIG_GWP_KG = "total_refrig_gwp_kg"
-    TOTAL_REFRIG_EMISSIONS = "total_refrig_emissions"
-    TOTAL_EMISSIONS = "total_emissions"
+    TOTAL_REFRIG_EMISSIONS_KG_CO2E = "total_refrig_emissions"
+    TOTAL_EMISSIONS_KG_CO2E = "total_emissions"

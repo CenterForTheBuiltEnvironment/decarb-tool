@@ -61,12 +61,12 @@ def plot_energy_and_emissions(
 
     # --- Filter scenarios ---
     df = df[
-        (df["scenario_id"].isin(equipment_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ]
 
-    scenarios = df["scenario_id"].unique()
-    name_map = dict(zip(df["scenario_id"], df["eq_scen_name"]))
+    scenarios = df["eq_scen_id"].unique()
+    name_map = dict(zip(df["eq_scen_id"], df["eq_scen_name"]))
 
     n_scen = len(scenarios)
     opacities = np.linspace(1, 1, n_scen)  # fade scenarios slightly, ignore for now
@@ -99,7 +99,7 @@ def plot_energy_and_emissions(
 
     # --- ENERGY STACKED BAR ---
     for i, scen in enumerate(scenarios):
-        df_s = df[df["scenario_id"] == scen]
+        df_s = df[df["eq_scen_id"] == scen]
 
         scen_name = name_map.get(scen, scen)
         scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
@@ -153,7 +153,7 @@ def plot_energy_and_emissions(
 
     # --- EMISSIONS STACKED BAR ---
     for i, scen in enumerate(scenarios):
-        df_s = df[df["scenario_id"] == scen]
+        df_s = df[df["eq_scen_id"] == scen]
         scen_name = name_map.get(scen, scen)
         scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
 
@@ -237,7 +237,7 @@ def plot_emission_scenarios_grouped(
 
     # --- Filter scenarios ---
     df = df[
-        (df["scenario_id"].isin(equipment_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ]
 
@@ -275,7 +275,7 @@ def plot_emission_scenarios_grouped(
         df_e = df[df["em_scen_id"] == em_scen]
 
         for scen in equipment_scenarios:
-            df_s = df_e[df_e["scenario_id"] == scen]
+            df_s = df_e[df_e["eq_scen_id"] == scen]
             scen_name = df_s["eq_scen_name"].iloc[
                 0
             ]  # get readable name for hovertemplate
@@ -368,7 +368,7 @@ def plot_meter_timeseries(
     # Setting up unit conversion
     variable_type = "energy"
 
-    metadata_cols = ["scenario_id", "em_scen_id"]
+    metadata_cols = ["eq_scen_id", "em_scen_id"]
 
     convert_cols = [
         "elec_hr_Wh",
@@ -382,7 +382,7 @@ def plot_meter_timeseries(
     all_cols = metadata_cols + convert_cols
 
     filtered = df[
-        (df["scenario_id"] == equipment_scenario)
+        (df["eq_scen_id"] == equipment_scenario)
         & (df["em_scen_id"] == emission_scenario)
     ]
 
@@ -393,7 +393,7 @@ def plot_meter_timeseries(
     df.loc[:, convert_cols] = df.loc[:, convert_cols].apply(conversion["func"])
     yaxis_title = conversion["label"]
 
-    df = df.drop(columns=["scenario_id"], errors="ignore")
+    df = df.drop(columns=["eq_scen_id"], errors="ignore")
     df = df.drop(columns=["em_scen_id"], errors="ignore")
 
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -491,7 +491,7 @@ def plot_emissions_heatmap(
     # Setting up unit conversion
     variable_type = "emissions"
 
-    metadata_cols = ["scenario_id", "em_scen_id"]
+    metadata_cols = ["eq_scen_id", "em_scen_id"]
 
     convert_cols = [
         "elec_emissions",
@@ -503,9 +503,9 @@ def plot_emissions_heatmap(
     all_cols = metadata_cols + convert_cols
 
     filtered = df[
-        (df["scenario_id"] == equipment_scenario)
+        (df["eq_scen_id"] == equipment_scenario)
         & (df["em_scen_id"] == emission_scenario)
-    ].copy()  # 👈 Add .copy() here
+    ].copy()
 
     df = filtered[[c for c in all_cols if c in df.columns]].copy()
 
@@ -587,7 +587,7 @@ def plot_energy_breakdown(df, equipment_scenarios, emission_scenarios):
         raise ValueError(f"Missing required columns in DataFrame: {missing}")
 
     filtered = df[
-        (df["scenario_id"].isin(equipment_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ]
 
@@ -672,7 +672,7 @@ def plot_scatter_temp_vs_variable(
 
     # --- Filter scenarios ---
     df = df[
-        (df["scenario_id"].isin(equipment_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
@@ -683,7 +683,7 @@ def plot_scatter_temp_vs_variable(
     if "eq_scen_name" in df.columns:
         df["label"] = df["eq_scen_name"]
     else:
-        df["label"] = df["scenario_id"]
+        df["label"] = df["eq_scen_id"]
 
     if agg == "D":
         df["period"] = df.index.date  # simple daily period
@@ -694,12 +694,12 @@ def plot_scatter_temp_vs_variable(
 
     # --- Now group on columns only ---
     daily = df.groupby(
-        ["period", "scenario_id", "em_scen_id", "label"], as_index=False
+        ["period", "eq_scen_id", "em_scen_id", "label"], as_index=False
     ).agg({"t_out_C": "mean", y_var: "mean"})
 
     # --- Build figure ---
     fig = go.Figure()
-    for (scen_id, em_scen), df_s in daily.groupby(["scenario_id", "em_scen_id"]):
+    for (scen_id, em_scen), df_s in daily.groupby(["eq_scen_id", "em_scen_id"]):
         scen_name = df_s["label"].iloc[0]
         fig.add_trace(
             go.Scatter(
