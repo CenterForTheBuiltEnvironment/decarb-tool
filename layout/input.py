@@ -339,8 +339,10 @@ def set_shortrun_weighting():
 
 def set_static_emissions(unit_mode="SI"):
 
-    conversion = unit_map["static_emission_intensity"][unit_mode]
-    refrig_placeholder = conversion["refrig_default"]
+    # conversion = unit_map["static_emission_intensity"][unit_mode]
+    # refrig_placeholder = conversion["refrig_default"]
+    conversion = unit_map["gas_emission_factor"][unit_mode]
+    gas_emission_factor_placeholder = conversion["default_value"]
 
     return html.Div(
         [
@@ -351,12 +353,32 @@ def set_static_emissions(unit_mode="SI"):
                     dcc.Input(
                         id="refrigerant-leakage-input",
                         type="number",
-                        placeholder=refrig_placeholder,
                         value=5,
                         style={"width": "40%"},
                         step=1,
                     ),
                     html.Div("%", style={"marginLeft": "8px"}),
+                ],
+                style={"display": "flex", "alignItems": "center"},
+            ),
+            html.Br(),
+            html.P("Natural Gas Emission Factor"),
+            html.Div(
+                children=[
+                    dcc.Input(
+                        id="ng-emission-factor-input",
+                        type="number",
+                        value=gas_emission_factor_placeholder,
+                        style={"width": "40%"},
+                        step=1,
+                        readOnly=True,
+                        disabled=True,
+                    ),
+                    html.Div(
+                        "gCO₂e/kWh",
+                        style={"marginLeft": "8px"},
+                        id="ng-emission-factor-unit",
+                    ),  # fixed unit
                 ],
                 style={"display": "flex", "alignItems": "center"},
             ),

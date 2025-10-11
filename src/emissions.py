@@ -97,19 +97,19 @@ def get_emissions_data(
             f"No emissions data found for scenario={scenario.grid_scenario}, region={scenario.gea_grid_region}, year={scenario.year}"
         )
 
-    # --- Handle emissions type mapping ---
-    if scenario.emission_type == "Combustion only":
-        lrmer_c = "lrmer_co2e_c"
-        lrmer_p = "lrmer_co2e_p"
-        srmer_c = "srmer_co2e_c"
-        srmer_p = "srmer_co2e_p"
-    elif scenario.emission_type == "Includes pre-combustion":
-        lrmer_c = lrmer_p = "lrmer_co2e"
-        srmer_c = srmer_p = "srmer_co2e"
-    else:
-        raise ValueError(
-            "Invalid emissions_type. Use 'Combustion only' or 'Includes pre-combustion'."
-        )
+    # # --- Handle emissions type mapping ---
+    # if scenario.emission_type == "Combustion only":
+    # lrmer_c = "lrmer_co2e_c"
+    # lrmer_p = "lrmer_co2e_p"
+    # srmer_c = "srmer_co2e_c"
+    # srmer_p = "srmer_co2e_p"
+    # elif scenario.emission_type == "Includes pre-combustion":
+    # lrmer_c = lrmer_p = "lrmer_co2e"
+    # srmer_c = srmer_p = "srmer_co2e"
+    # else:
+    #     raise ValueError(
+    #         "Invalid emissions_type. Use 'Combustion only' or 'Includes pre-combustion'."
+    #     )
 
     # --- Build canonical schema ---
     result = pd.DataFrame(
@@ -121,10 +121,12 @@ def get_emissions_data(
             "emission_type": scenario.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],
-            "lrmer_co2e_c": df[lrmer_c],
-            "lrmer_co2e_p": df[lrmer_p],
-            "srmer_co2e_c": df[srmer_c],
-            "srmer_co2e_p": df[srmer_p],
+            "lrmer_co2e_c": df["lrmer_co2e_c"],
+            "lrmer_co2e_p": df["lrmer_co2e_p"],
+            "lrmer_co2e": df["lrmer_co2e"],
+            "srmer_co2e_c": df["srmer_co2e_c"],
+            "srmer_co2e_p": df["srmer_co2e_p"],
+            "srmer_co2e": df["srmer_co2e"],
         }
     )
 

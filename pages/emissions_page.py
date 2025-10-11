@@ -65,8 +65,6 @@ def layout():
                             html.Hr(),
                             select_gea_grid_region(),
                             html.Hr(),
-                            html.Hr(),
-                            html.Hr(),
                             emission_scenario_saving_buttons(),
                         ],
                         width=4,
@@ -159,20 +157,7 @@ def update_metadata(
     if not scen_id:
         return metadata_data
 
-    try:
-        scenario = metadata.get_emission_scenario(scen_id)
-    except KeyError:
-        # If it doesn't exist yet, create one
-        scenario = EmissionScenario(
-            em_scen_id=scen_id,
-            grid_scenario="MidCase",
-            gea_grid_region="CAISO",
-            time_zone="America/Los_Angeles",
-            emission_type="Combustion only",
-            shortrun_weighting=1.0,
-            annual_refrig_leakage_percent=0.05,
-            year=2025,
-        )
+    scenario = metadata.get_emission_scenario(scen_id)
 
     # Update with new values if provided
     if selected_grid_year is not None:
@@ -191,32 +176,33 @@ def update_metadata(
         scenario.gea_grid_region = gea_grid_region
 
     # Save back into metadata
-    metadata.add_emission_scenario(scenario, overwrite=True)
+    if trigger in ["update-scen-A", "update-scen-B", "update-scen-C"]:
+        metadata.add_emission_scenario(scenario, overwrite=True)
 
     return metadata.model_dump()
 
 
-# @callback(
-#     [
-#         Output("refrigerant-leakage-unit", "children"),
-#         Output("refrigerant-leakage-input", "placeholder"),
-#         Output("refrigerant-leakage-input", "value"),
-#     ],
-#     [
-#         Input("unit-toggle", "value"),  # "SI" or "IP"
-#         State("refrigerant-leakage-input", "value"),
-#     ],
-# )
-# def update_static_emission_fields(unit_mode, ref_value):
-#     conversion = unit_map["static_emission_intensity"][unit_mode]
+@callback(
+    [
+        Output("ng-emission-factor-unit", "children"),
+        Output("ng-emission-factor-unit", "placeholder"),
+        Output("ng-emission-factor-input", "value"),
+    ],
+    [
+        Input("unit-toggle", "value"),  # "SI" or "IP"
+        State("ng-emission-factor-input", "value"),
+    ],
+)
+def update_static_emission_fields(unit_mode, ref_value):
+    conversion = unit_map["gas_emission_factor"][unit_mode]
 
-#     unit = conversion["label"]
-#     refrig_placeholder = conversion["refrig_default"]
+    unit = conversion["label"]
+    gas_emission_factor_placeholder = conversion["default_value"]
 
-#     # Convert existing user inputs to SI if they exist
-#     ref_value_si = conversion["func"](ref_value) if ref_value is not None else None
+    # Convert existing user inputs to SI if they exist
+    gas_value_si = conversion["func"](ref_value) if ref_value is not None else None
 
-#     return unit, refrig_placeholder, ref_value_si
+    return unit, gas_emission_factor_placeholder, gas_value_si
 
 
 @callback(
@@ -251,7 +237,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json):
         load_data, equipment, metadata.equipment_scenarios, detail=True
     )
 
-    print(site_energy.head())  #! for debugging: remove later
+    # site_energy.to_csv("site_energy_debug.csv")  # for debugging
 
     return site_energy.to_json(date_format="iso", orient="split")
 
@@ -268,6 +254,8 @@ def run_site_to_source(site_energy_json, metadata_json):
     metadata = Metadata(**metadata_json) if metadata_json else None
 
     source_energy = site_to_source(site_energy, metadata=metadata)
+
+    source_energy.to_csv("source_energy_debug.csv")  # for debugging
 
     return (
         source_energy.to_json(date_format="iso", orient="split"),

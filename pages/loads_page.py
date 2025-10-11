@@ -56,13 +56,27 @@ def layout():
                             html.Hr(),
                             select_load_data(),
                             modal_load_simulation_data(),
-                            html.Hr(),
                         ],
                         width=4,
                         style={"backgroundColor": "#f8f9fa", "borderRadius": "10px"},
                     ),
                     dbc.Col(
-                        [html.Div()],
+                        [
+                            html.Div(
+                                id="plot-container",
+                                children=[
+                                    html.Img(
+                                        src="/assets/img/map-placeholder.png",
+                                        style={
+                                            "width": "100%",
+                                            "margin": "auto",
+                                            "display": "block",
+                                            "opacity": "0.7",
+                                        },
+                                    ),
+                                ],
+                            ),
+                        ],
                         width=4,
                     ),
                     dbc.Col(

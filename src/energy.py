@@ -465,7 +465,7 @@ def loads_to_site_energy(
             df["chiller_refrigerant_weight_kg"] = chiller_refrigerant_weight_kg
             df["chiller_refrigerant_gwp_kg"] = chiller_refrigerant_gwp_kg
 
-            df = df.round(2)
+            df = df.round(4)
 
         # ---- finalize ----
         cols = _finalize_columns(df, detail)
@@ -531,8 +531,6 @@ def site_to_source(
     df_loads: pd.DataFrame,
     metadata: Metadata,
     gas_emissions_rate: float = 239.2,  # gCO2e/kWh (example default)
-    annual_refrig_leakage_percent: float = 0.05,  # fraction per year
-    shortrun_weighting: float = 0.5,  # between 0 and 1
 ) -> pd.DataFrame:
     """
     Convert site energy data (from loads_to_site) into source emissions
@@ -547,6 +545,9 @@ def site_to_source(
 
         scen = metadata[scenario_id]
 
+        shortrun_weighting = float(scen.shortrun_weighting)
+        annual_refrig_leakage_percent = float(scen.annual_refrig_leakage_percent)
+
         # extract month/hour from loads
         base = df_loads.copy()
         base["month"] = base.index.month
@@ -557,27 +558,42 @@ def site_to_source(
         # collapse emissions to month-hour averages
         emissions_data.df["month"] = emissions_data.df.index.month
         emissions_data.df["hour"] = emissions_data.df.index.hour
+        emissions_data.df["shortrun_weighting"] = shortrun_weighting
         group_cols = ["month", "hour"]
 
         if scen.emission_type == "Combustion only":
             emissions_data.df["elec_emissions_rate"] = (
                 emissions_data.df["lrmer_co2e_c"] * (1 - shortrun_weighting)
-                + emissions_data.df["srmer_co2e_c"] * shortrun_weighting
-            )
+            ) + (emissions_data.df["srmer_co2e_c"] * shortrun_weighting)
         elif scen.emission_type == "Includes pre-combustion":
             emissions_data.df["elec_emissions_rate"] = (
-                emissions_data.df["lrmer_co2e_c"] + emissions_data.df["lrmer_co2e_p"]
-            ) * (1 - shortrun_weighting) + (
-                emissions_data.df["srmer_co2e_c"] + emissions_data.df["srmer_co2e_p"]
-            ) * shortrun_weighting
+                (emissions_data.df["lrmer_co2e_c"] + emissions_data.df["lrmer_co2e_p"])
+                * (1 - shortrun_weighting)
+            ) + (
+                (emissions_data.df["srmer_co2e_c"] + emissions_data.df["srmer_co2e_p"])
+                * shortrun_weighting
+            )
         else:
             raise ValueError(f"Invalid emissions_type: {scen.emission_type}")
 
         df_em = (
-            emissions_data.df.groupby(group_cols)["elec_emissions_rate"]
+            emissions_data.df.groupby(group_cols)[
+                [
+                    "elec_emissions_rate",
+                    "lrmer_co2e_c",
+                    "lrmer_co2e_p",
+                    "lrmer_co2e",
+                    "srmer_co2e_c",
+                    "srmer_co2e_p",
+                    "srmer_co2e",
+                    "shortrun_weighting",
+                ]
+            ]
             .mean()
             .reset_index()
         )
+
+        # df_em.to_csv("debug_em.csv", index=False)
 
         # expand loads with this year's emissions
         merged = base.merge(df_em, on=["month", "hour"], how="left")
@@ -587,6 +603,8 @@ def site_to_source(
         merged["elec_emissions"] = (
             merged["elec_Wh"] * merged["elec_emissions_rate"] / 1_000_000
         )
+
+        # merged.to_csv(f"debug_merged_{scenario_id}.csv", index=True)
 
         # gas emissions
         if "gas_Wh" in merged.columns:

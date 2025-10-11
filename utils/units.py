@@ -111,17 +111,16 @@ unit_map = {
             "label": 'Emissions <span style="font-weight:200">| lbCO₂e</span>',
         },
     },
-    "static_emission_intensity": {
+    "gas_emission_factor": {
         "SI": {
-            "label": "kgCO₂e/kWh",
-            "func": lambda x: x / 1000,  # kgCO₂e/kWh → kgCO₂e/W·h
-            "refrig_default": 0.05,
-            "setting_type": "%",
+            "label": "gCO₂e/kWh",
+            "func": lambda x: x,
+            "default_value": 239.2,
         },
         "IP": {
             "label": "lbCO₂e/kBTU",
             "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂e/kBTU → kgCO₂e/Wh
-            "refrig_default": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
+            "default_value": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
         },
     },
 }

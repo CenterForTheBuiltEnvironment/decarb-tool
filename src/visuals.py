@@ -466,11 +466,12 @@ def plot_meter_timeseries(
             yaxis_title=(yaxis_title if aggfunc == "sum" else f"Average {yaxis_title}"),
             template="decarb-tool-theme",
             margin=dict(b=150),
+            height=600,
         )
 
         fig = apply_standard_layout(
             fig,
-            y_offset=-0.35,
+            y_offset=-0.2,
             subtitle_text="Stacked Meter Usage, aggregated over time.",
         )
 
@@ -549,13 +550,13 @@ def plot_emissions_heatmap(
         xaxis_title="Day of Year",
         yaxis_title="Hour of Day",
         margin=dict(b=150),
-        height=500,
+        height=600,
         template="decarb-tool-theme",
     )
 
     fig = apply_standard_layout(
         fig,
-        y_offset=-0.4,
+        y_offset=-0.3,
         subtitle_text=f"Annual heatmap of hourly emissions for {emission_type}.",
     )
 
@@ -706,7 +707,7 @@ def plot_scatter_temp_vs_variable(
                 x=df_s["t_out_C"],
                 y=df_s[y_var],
                 mode="markers",
-                marker=dict(size=10, opacity=0.5),
+                marker=dict(size=10, opacity=0.6),
                 name=f"{scen_name}",  # add {em_scen} back in if needed
                 hovertemplate=(
                     "Equipment: %{customdata[0]}<br>"
@@ -724,8 +725,16 @@ def plot_scatter_temp_vs_variable(
     fig.update_layout(
         xaxis_title=xaxis_title_temp,
         yaxis_title=yaxis_title,
-        height=600,
+        height=450,
+        margin=dict(b=150, t=10),
         legend_title_text="Scenario",
+        template="decarb-tool-theme",
+    )
+
+    fig = apply_standard_layout(
+        fig,
+        y_offset=-0.35,
+        subtitle_text=f"Average Outdoor Temperature against {y_var.replace('_',' ').title()}.",
     )
 
     return fig
