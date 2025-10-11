@@ -101,18 +101,6 @@ def layout():
     )
 
 
-@callback(
-    Output("summary-emissions-info", "children"),
-    Input("metadata-store", "data"),
-    State("active-emissions-tab", "data"),
-)
-def show_emissions_scenarios(data, active_tab):
-    if not data:
-        return "No emission scenarios yet"
-
-    return summary_emissions_selection(data, active_tab)
-
-
 # Overwrite EmissionScenario in metadata based on user inputs
 @callback(
     Output("metadata-store", "data", allow_duplicate=True),
@@ -141,8 +129,11 @@ def update_metadata(
     metadata_data,
 ):
     trigger = ctx.triggered_id
-    if not trigger:
-        return metadata_data
+    trigger_val = ctx.triggered[0]["value"] if ctx.triggered else None
+
+    # prevent firing on first page load
+    if not trigger or trigger_val in (None, 0):
+        raise dash.exceptions.PreventUpdate
 
     metadata = Metadata(**metadata_data)
 
@@ -154,8 +145,6 @@ def update_metadata(
     }
 
     scen_id = mapping.get(trigger)
-    if not scen_id:
-        return metadata_data
 
     scenario = metadata.get_emission_scenario(scen_id)
 
@@ -175,11 +164,24 @@ def update_metadata(
     if gea_grid_region is not None:
         scenario.gea_grid_region = gea_grid_region
 
+    # print(f"Updated scenario: {scenario}")
     # Save back into metadata
     if trigger in ["update-scen-A", "update-scen-B", "update-scen-C"]:
         metadata.add_emission_scenario(scenario, overwrite=True)
 
     return metadata.model_dump()
+
+
+@callback(
+    Output("summary-emissions-info", "children"),
+    Input("metadata-store", "data"),
+    State("active-emissions-tab", "data"),
+)
+def show_emissions_scenarios(data, active_tab):
+    if not data or data is None:
+        raise dash.exceptions.PreventUpdate
+
+    return summary_emissions_selection(data, active_tab)
 
 
 @callback(
@@ -252,6 +254,8 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json):
 def run_site_to_source(site_energy_json, metadata_json):
     site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
     metadata = Metadata(**metadata_json) if metadata_json else None
+
+    # print(metadata.emission_settings)
 
     source_energy = site_to_source(site_energy, metadata=metadata)
 

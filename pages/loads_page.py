@@ -11,12 +11,6 @@ from src.config import URLS
 
 from src.metadata import Metadata
 
-# from src.equipment import EquipmentLibrary
-
-# from src.loads import get_load_data
-# from src.emissions import get_emissions_data
-
-# from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import (
     select_gea_grid_region,
@@ -156,8 +150,7 @@ def update_metadata(
     if not trigger:  # no trigger
         return metadata_data
 
-    # rebuild metadata object
-    metadata = Metadata(**metadata_data)
+    metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
 
     if trigger == "location-input" and selected_zip:
         # look up the location row

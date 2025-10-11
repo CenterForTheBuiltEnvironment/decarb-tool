@@ -10,7 +10,7 @@ def tabs():
     return dbc.Container(
         children=[
             html.Div(id="initial-load", style={"display": "none"}),
-            dcc.Location(id="url", refresh=True),
+            dcc.Location(id="url", refresh=False),
             dbc.Row(
                 dbc.Nav(
                     [

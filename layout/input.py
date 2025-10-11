@@ -491,6 +491,7 @@ def emission_scenario_saving_buttons():
                         id="update-scen-A",
                         outline=True,
                         color="secondary",
+                        n_clicks=0,
                     ),
                     # html.Span(" "),  # spacer
                     dbc.Button(
@@ -498,6 +499,7 @@ def emission_scenario_saving_buttons():
                         id="update-scen-B",
                         outline=True,
                         color="secondary",
+                        n_clicks=0,
                     ),
                     # html.Span(" "),  # spacer
                     dbc.Button(
@@ -505,6 +507,7 @@ def emission_scenario_saving_buttons():
                         id="update-scen-C",
                         outline=True,
                         color="secondary",
+                        n_clicks=0,
                     ),
                 ],
                 size="md",

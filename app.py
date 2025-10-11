@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc
+from dash import Dash, Input, Output, callback, html, dcc
 import dash_bootstrap_components as dbc
 
 from layout.header import cbe_header
@@ -22,8 +22,7 @@ app = Dash(
 )
 
 
-# Initialize Metadata and Equipment Library at startup
-initial_metadata = Metadata.create().model_dump()
+# Initialize Equipment Library at startup
 equipment_library = load_library("data/input/equipment_data.json").model_dump()
 
 app.layout = dbc.Container(
@@ -31,12 +30,12 @@ app.layout = dbc.Container(
     style={"padding": "0"},
     children=[
         cbe_header(),
+        dcc.Store(id="metadata-store", storage_type="session"),
+        dcc.Store(id="equipment-store", data=equipment_library),
+        dcc.Store(id="site-energy-store"),
+        dcc.Store(id="source-energy-store"),
         html.Div(
             children=[
-                dcc.Store(id="metadata-store", data=initial_metadata),
-                dcc.Store(id="equipment-store", data=equipment_library),
-                dcc.Store(id="site-energy-store"),
-                dcc.Store(id="source-energy-store"),
                 tabs(),
             ],
             style={"padding": "10px"},
