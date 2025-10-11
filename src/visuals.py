@@ -116,9 +116,8 @@ def plot_energy_and_emissions(
             ]
             .sum()
             .sum()
-            / 1000
         )
-        gas_total = df_s["gas_boiler_Wh"].sum() / 1000
+        gas_total = df_s["gas_boiler_Wh"].sum()
 
         # Electricity
         fig.add_trace(
