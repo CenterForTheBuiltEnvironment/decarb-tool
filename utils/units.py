@@ -5,10 +5,14 @@ ton_to_W = 12000 * 0.293  # refrigerant-ton to W
 W_to_ton = 1 / ton_to_W
 BTUh_to_W = 0.293  # BTU/hr to W
 W_to_BTUh = 1 / BTUh_to_W
+Wh_to_BTU = 3.412
+BTU_to_Wh = 1/Wh_to_BTU
 lbs_to_ton = 0.454 / 1000  # lbs (e.g. of CO2) to metric tons
 ton_to_lbs = 1 / lbs_to_ton
 lb_to_kg = 0.454  # lbs (e.g. of CO2) to metric tons
 kg_to_lb = 1 / lb_to_kg
+lb_to_g = 454  # lbs (e.g. of CO2) to metric tons
+g_to_lb = 1 / lb_to_g
 dC_to_dF = 1.8  # conversion of temperature differences (i.e. delta Ts)
 dF_to_dC = 1 / dC_to_dF
 cfm_to_lps = 0.47194745  # cfm to l/s
@@ -114,13 +118,13 @@ unit_map = {
     "gas_emission_factor": {
         "SI": {
             "label": "gCO₂e/kWh",
-            "func": lambda x: x,
-            "default_value": 239.2,
+            "func": lambda x: (x * lb_to_g / BTU_to_Wh),  # gCO₂e/kWh → lbCO₂e/kBTU 
+            "default_value": 239.2/(lb_to_g / BTU_to_Wh), #! use function
         },
         "IP": {
             "label": "lbCO₂e/kBTU",
-            "func": lambda x: (x / 2.20462) / (1000 * 3.412),  # lbCO₂e/kBTU → kgCO₂e/Wh
-            "default_value": 0.01 * (2.20462) / (1000 * 3.412),  #! use function
+            "func": lambda x: (x * g_to_lb / Wh_to_BTU),  # lbCO₂e/kBTU → gCO₂e/kWh
+            "default_value": 0.15455 / (g_to_lb / Wh_to_BTU),  #! use function
         },
     },
 }
