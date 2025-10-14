@@ -259,8 +259,6 @@ def run_site_to_source(site_energy_json, metadata_json):
 
     source_energy = site_to_source(site_energy, metadata=metadata)
 
-    source_energy.to_csv("source_energy_debug.csv")  # for debugging
-
     return (
         source_energy.to_json(date_format="iso", orient="split"),
         dbc.Toast(
