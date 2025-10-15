@@ -23,7 +23,7 @@ app = Dash(
 
 
 # Initialize Equipment Library at startup
-equipment_library = load_library("data/input/equipment_data.json").model_dump()
+equipment_library = load_library("data/input/equipment_data.JSON").model_dump()
 
 app.layout = dbc.Container(
     fluid=True,
@@ -46,7 +46,7 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     app.run(
-        debug=True,
-        host="localhost",
-        port=8050,
+        debug=False,
+        host="0.0.0.0",
+        port=8080,
     )

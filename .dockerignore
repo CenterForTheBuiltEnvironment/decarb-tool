@@ -1,0 +1,22 @@
+# Don't include local Python environments
+venv/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Don't include build/output
+build/
+dist/
+*.egg-info
+
+# Don't include version control or IDE files
+.git/
+.gitignore
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Don't include util Python scripts
+utils/create_meta_index.py
