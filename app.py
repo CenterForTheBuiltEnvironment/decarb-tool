@@ -1,11 +1,11 @@
-from dash import Dash, Input, Output, callback, html, dcc
+import uuid
+from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
 
 from layout.header import cbe_header
 from layout.tabs import tabs
 from layout.footer import cbe_footer
 
-from src.metadata import Metadata
 from src.equipment import load_library
 
 from utils.plotly_theme import *
@@ -32,8 +32,9 @@ app.layout = dbc.Container(
         cbe_header(),
         dcc.Store(id="metadata-store", storage_type="session"),
         dcc.Store(id="equipment-store", data=equipment_library),
-        dcc.Store(id="site-energy-store"),
-        dcc.Store(id="source-energy-store"),
+        dcc.Store(id="session-store", data={"id": str(uuid.uuid4())}),
+        # dcc.Store(id="site-energy-store"),
+        # dcc.Store(id="source-energy-store"),
         html.Div(
             children=[
                 tabs(),
@@ -44,9 +45,16 @@ app.layout = dbc.Container(
     ],
 )
 
+# if __name__ == "__main__":
+#     app.run(
+#         debug=False,
+#         host="0.0.0.0",
+#         port=8080,
+#     )
+
 if __name__ == "__main__":
     app.run(
-        debug=False,
-        host="0.0.0.0",
-        port=8080,
+        debug=True,
+        host="localhost",
+        port=8050,
     )

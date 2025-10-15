@@ -3,6 +3,8 @@ from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
 
 import pandas as pd
+from pathlib import Path
+import pickle
 
 from io import StringIO
 
@@ -41,6 +43,8 @@ def layout():
     return dbc.Container(
         children=[
             dcc.Store(id="active-emissions-tab"),
+            dcc.Store(id="site-energy-store"),
+            dcc.Store(id="source-energy-store"),
             dbc.Row(
                 [
                     dbc.Col(
@@ -221,27 +225,29 @@ def store_active_emissions_tab(active_tab):
     Input("button-calculate", "n_clicks"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
+    State("session-store", "data"),
     prevent_initial_call=True,
 )
-def run_loads_to_site(n_clicks, metadata_json, equipment_json):
-    if not n_clicks or n_clicks < 1:
-        return no_update  # do nothing until button clicked at least once
+def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
+    if not n_clicks or not metadata_json or not equipment_json:
+        raise dash.exceptions.PreventUpdate
 
-    if not metadata_json or not equipment_json:
-        return no_update
+    session_id = session_data["id"]
+    folder = Path(f"data/output/{session_id}")
+    folder.mkdir(parents=True, exist_ok=True)
 
-    metadata = Metadata(**metadata_json) if metadata_json else None
-    equipment = EquipmentLibrary(**equipment_json) if equipment_json else None
+    metadata = Metadata(**metadata_json)
+    equipment = EquipmentLibrary(**equipment_json)
 
     load_data = get_load_data(metadata)
-
     site_energy = loads_to_site_energy(
         load_data, equipment, metadata.equipment_scenarios, detail=True
     )
 
-    # site_energy.to_csv("site_energy_debug.csv")  # for debugging
+    site_path = folder / "site_energy.pkl"
+    site_energy.to_pickle(site_path)
 
-    return site_energy.to_json(date_format="iso", orient="split")
+    return str(site_path)
 
 
 @callback(
@@ -249,35 +255,34 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json):
     Output("calc-status-toast", "children"),
     Input("site-energy-store", "data"),
     State("metadata-store", "data"),
+    State("session-store", "data"),
     prevent_initial_call=True,
 )
-def run_site_to_source(site_energy_json, metadata_json):
-    site_energy = pd.read_json(StringIO(site_energy_json), orient="split")
-    metadata = Metadata(**metadata_json) if metadata_json else None
+def run_site_to_source(site_energy_path, metadata_json, session_data):
+    if not site_energy_path:
+        raise dash.exceptions.PreventUpdate
 
-    # print(metadata.emission_settings)
+    site_energy = pd.read_pickle(site_energy_path)
+    metadata = Metadata(**metadata_json)
 
     source_energy = site_to_source(site_energy, metadata=metadata)
 
-    return (
-        source_energy.to_json(date_format="iso", orient="split"),
-        dbc.Toast(
-            "Calculation finished!",
-            duration=3000,
-            is_open=True,
-            style={
-                "position": "fixed",
-                "top": 66,
-                "right": 50,
-                "width": 250,
-                "zIndex": 9999,
-            },
-            header=[
-                DashIconify(
-                    icon="ei:check",
-                    width=20,
-                ),
-                "Success",
-            ],
-        ),
+    folder = Path(f"data/output/{session_data['id']}")
+    source_path = folder / "source_energy.pkl"
+    source_energy.to_pickle(source_path)
+
+    toast = dbc.Toast(
+        "Calculation finished!",
+        duration=3000,
+        is_open=True,
+        style={
+            "position": "fixed",
+            "top": 66,
+            "right": 50,
+            "width": 250,
+            "zIndex": 9999,
+        },
+        header=[DashIconify(icon="ei:check", width=20), "Success"],
     )
+
+    return str(source_path), toast

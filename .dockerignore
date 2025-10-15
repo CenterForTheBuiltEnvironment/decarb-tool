@@ -9,6 +9,7 @@ __pycache__/
 build/
 dist/
 *.egg-info
+data/output/
 
 # Don't include version control or IDE files
 .git/

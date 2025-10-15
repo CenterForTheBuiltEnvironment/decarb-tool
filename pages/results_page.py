@@ -1,4 +1,4 @@
-import json
+import os
 
 import dash
 from dash import html, dcc, Input, Output, State, callback
@@ -6,18 +6,11 @@ import dash_bootstrap_components as dbc
 
 import pandas as pd
 import plotly.express as px
+from pathlib import Path
 
 from io import StringIO
 
 from src.config import URLS
-
-from layout.input import (
-    emission_rate_dropdown,
-    emission_period_slider,
-    results_utility_bar,
-    filter_sidebar,
-    settings_sidebar,
-)
 
 from layout.output import summary_project_info, summary_scenario_results
 
@@ -33,6 +26,9 @@ from src.visuals import (
 )
 
 dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
+
+
+DATA_PATH = "data/output"  #  where session files are stored
 
 
 def layout():
@@ -67,11 +63,27 @@ def layout():
                 ]
             ),
             dcc.Download(id="download-data"),
-            # filter_sidebar(),
-            # settings_sidebar(),
         ],
         fluid=True,
     )
+
+
+def load_source_energy(session_data):
+    """Load the source energy dataframe for this user session."""
+    if not session_data or "id" not in session_data:
+        return None
+
+    session_id = session_data["id"]
+    filepath = os.path.join(DATA_PATH, session_id, "source_energy.pkl")
+
+    if not os.path.exists(filepath):
+        return None
+
+    try:
+        return pd.read_pickle(filepath)
+    except Exception as e:
+        print(f"[ERROR] Failed to load source_energy.pkl for session {session_id}: {e}")
+        return None
 
 
 @callback(
@@ -87,28 +99,28 @@ def show_metadata(data):
 
 @callback(
     Output("meter-timeseries-plot", "figure"),
+    Input("session-store", "data"),
     Input("equipment-scen-dropdown", "value"),
     Input("emission-scen-dropdown", "value"),
     Input("stacked-toggle", "value"),
     Input("gas-toggle", "value"),
     Input("frequency-dropdown", "value"),
-    Input("source-energy-store", "data"),
     Input("unit-toggle", "value"),
     # prevent_initial_call=True
 )
 def update_meter_plot(
+    session_data,
     equipment_scenarios,
     emission_scenarios,
     stacked_value,
     gas_value,
     frequency_value,
-    source_json,
     unit_mode,
 ):
-    if not source_json:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
-    df = pd.read_json(StringIO(source_json), orient="split")
+    df = load_source_energy(session_data)
+    if df is None:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     # flags from toggles
     stacked = "stacked" in stacked_value
@@ -129,19 +141,17 @@ def update_meter_plot(
 
 @callback(
     Output("energy-and-emissions-plot", "figure"),
-    Input("source-energy-store", "data"),
+    Input("session-store", "data"),
     Input("total-equipment-scen-dropdown", "value"),
     Input("total-emission-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
-    # prevent_initial_call=True
 )
 def update_total_emissions_plot(
-    source_json, equipment_scenarios, emission_scenario, unit_mode
+    session_data, equipment_scenarios, emission_scenario, unit_mode
 ):
-    if not source_json:
+    df = load_source_energy(session_data)
+    if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
-
-    df = pd.read_json(StringIO(source_json), orient="split")
 
     if isinstance(emission_scenario, str):
         emission_scenario = [emission_scenario]
@@ -154,16 +164,16 @@ def update_total_emissions_plot(
 
 @callback(
     Output("emissions-bar-plot", "figure"),
-    Input("source-energy-store", "data"),
+    Input("session-store", "data"),
     Input("emission-em-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
     # prevent_initial_call=True
 )
-def update_emissions_bar_plot(source_json, emission_scenarios, unit_mode):
-    if not source_json:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode):
 
-    df = pd.read_json(StringIO(source_json), orient="split")
+    df = load_source_energy(session_data)
+    if df is None:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     equipment_scenarios = df["eq_scen_id"].unique().tolist()
 
@@ -179,7 +189,7 @@ def update_emissions_bar_plot(source_json, emission_scenarios, unit_mode):
 
 @callback(
     Output("emissions-heatmap-plot", "figure"),
-    Input("source-energy-store", "data"),
+    Input("session-store", "data"),
     Input("heatmap-equipment-scen-dropdown", "value"),
     Input("heatmap-emission-scen-dropdown", "value"),
     Input("heatmap-emission-type-dropdown", "value"),
@@ -187,12 +197,11 @@ def update_emissions_bar_plot(source_json, emission_scenarios, unit_mode):
     # prevent_initial_call=True
 )
 def update_emissions_heatmap(
-    source_json, equipment_scenario, emission_scenario, emission_type, unit_mode
+    session_data, equipment_scenario, emission_scenario, emission_type, unit_mode
 ):
-    if not source_json:
+    df = load_source_energy(session_data)
+    if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
-
-    df = pd.read_json(StringIO(source_json), orient="split")
 
     fig = plot_emissions_heatmap(
         df,
@@ -206,7 +215,7 @@ def update_emissions_heatmap(
 
 @callback(
     Output("scatter-plot", "figure"),
-    Input("source-energy-store", "data"),
+    Input("session-store", "data"),
     Input("scatter-equipment-scen-dropdown", "value"),
     Input("scatter-emission-scen-dropdown", "value"),
     Input("scatter-yvar-dropdown", "value"),
@@ -215,17 +224,16 @@ def update_emissions_heatmap(
     # prevent_initial_call=True
 )
 def update_scatter_plot(
-    source_json,
+    session_data,
     equipment_scenarios,
     emission_scenario,
     y_variable,
     frequency_value,
     unit_mode,
 ):
-    if not source_json:
+    df = load_source_energy(session_data)
+    if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
-
-    df = pd.read_json(StringIO(source_json), orient="split")
 
     frequency_value = frequency_value if frequency_value else "D"
 

@@ -19,5 +19,6 @@ __pycache__/
 docs/variables.md
 
 data/testing/
+data/output/
 
 utils/create_meta_index.py
