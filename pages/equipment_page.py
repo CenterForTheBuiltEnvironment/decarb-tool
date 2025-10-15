@@ -124,6 +124,7 @@ def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
     State("awhp-use-cooling", "value"),
     State("boiler-input", "value"),
     State("chiller-input", "value"),
+    State("session-store", "data"),
     prevent_initial_call=True,
 )
 def save_scenario(
@@ -138,7 +139,14 @@ def save_scenario(
     selected_awhp_use_cooling,
     selected_boiler,
     selected_chiller,
+    session_data,
 ):
+    if not session_data:
+        raise dash.exceptions.PreventUpdate
+
+    session_id = session_data["session_id"]
+
+    print(f"Updating Equipment Metadata for Session ID: {session_id}")
 
     if not confirm or not trigger:
         return equipment_data

@@ -118,6 +118,7 @@ def layout():
     State("refrigerant-leakage-input", "value"),
     State("gea-grid-region-input", "value"),
     State("metadata-store", "data"),
+    State("session-store", "data"),
     prevent_initial_call=True,
 )
 def update_metadata(
@@ -131,7 +132,16 @@ def update_metadata(
     ref_leakage,
     gea_grid_region,
     metadata_data,
+    session_data,
 ):
+
+    if not session_data:
+        raise dash.exceptions.PreventUpdate
+
+    session_id = session_data["session_id"]
+
+    print(f"Updating Metadata for Session ID: {session_id}")
+
     trigger = ctx.triggered_id
     trigger_val = ctx.triggered[0]["value"] if ctx.triggered else None
 
@@ -232,7 +242,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
     if not n_clicks or not metadata_json or not equipment_json:
         raise dash.exceptions.PreventUpdate
 
-    session_id = session_data["id"]
+    session_id = session_data["session_id"]
     folder = Path(f"data/output/{session_id}")
     folder.mkdir(parents=True, exist_ok=True)
 
@@ -267,7 +277,7 @@ def run_site_to_source(site_energy_path, metadata_json, session_data):
 
     source_energy = site_to_source(site_energy, metadata=metadata)
 
-    folder = Path(f"data/output/{session_data['id']}")
+    folder = Path(f"data/output/{session_data['session_id']}")
     source_path = folder / "source_energy.pkl"
     source_energy.to_pickle(source_path)
 

@@ -32,7 +32,7 @@ app.layout = dbc.Container(
         cbe_header(),
         dcc.Store(id="metadata-store", storage_type="session"),
         dcc.Store(id="equipment-store", data=equipment_library),
-        dcc.Store(id="session-store", data={"id": str(uuid.uuid4())}),
+        dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
         html.Div(
             children=[
                 tabs(),
@@ -43,9 +43,16 @@ app.layout = dbc.Container(
     ],
 )
 
+# if __name__ == "__main__":
+#     app.run(
+#         debug=False,
+#         host="0.0.0.0",
+#         port=8080,
+#     )
+
 if __name__ == "__main__":
     app.run(
-        debug=False,
-        host="0.0.0.0",
-        port=8080,
+        debug=True,
+        host="localhost",
+        port=8050,
     )

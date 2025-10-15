@@ -70,10 +70,10 @@ def layout():
 
 def load_source_energy(session_data):
     """Load the source energy dataframe for this user session."""
-    if not session_data or "id" not in session_data:
+    if not session_data or "session_id" not in session_data:
         return None
 
-    session_id = session_data["id"]
+    session_id = session_data["session_id"]
     filepath = os.path.join(DATA_PATH, session_id, "source_energy.pkl")
 
     if not os.path.exists(filepath):
