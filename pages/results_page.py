@@ -1,5 +1,3 @@
-import os
-
 import dash
 from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
@@ -26,9 +24,6 @@ from src.visuals import (
 )
 
 dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
-
-
-DATA_PATH = "data/output"  #  where session files are stored
 
 
 def layout():
@@ -70,13 +65,16 @@ def layout():
 
 def load_source_energy(session_data):
     """Load the source energy dataframe for this user session."""
+
     if not session_data or "session_id" not in session_data:
         return None
 
     session_id = session_data["session_id"]
-    filepath = os.path.join(DATA_PATH, session_id, "source_energy.pkl")
+    folder = Path(f"/tmp/{session_data['session_id']}")
+    filepath = folder / "source_energy.pkl"
+    print(f"L: {filepath}")
 
-    if not os.path.exists(filepath):
+    if not filepath.exists():
         return None
 
     try:

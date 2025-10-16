@@ -1,5 +1,5 @@
 import uuid
-from dash import Dash, html, dcc
+from dash import Dash, html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 
 from layout.header import cbe_header
@@ -25,34 +25,51 @@ app = Dash(
 # Initialize Equipment Library at startup
 equipment_library = load_library("data/input/equipment_data.JSON").model_dump()
 
-app.layout = dbc.Container(
-    fluid=True,
-    style={"padding": "0"},
-    children=[
-        cbe_header(),
-        dcc.Store(id="metadata-store", storage_type="session"),
-        dcc.Store(id="equipment-store", data=equipment_library),
-        dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
-        html.Div(
-            children=[
-                tabs(),
-            ],
-            style={"padding": "10px"},
-        ),
-        cbe_footer(),
-    ],
-)
 
-# if __name__ == "__main__":
-#     app.run(
-#         debug=False,
-#         host="0.0.0.0",
-#         port=8080,
-#     )
+def serve_layout():
+    return dbc.Container(
+        fluid=True,
+        style={"padding": "0"},
+        children=[
+            cbe_header(),
+            dcc.Store(id="metadata-store"),
+            dcc.Store(id="equipment-store", data=equipment_library),
+            dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
+            html.Div(
+                children=[
+                    tabs(),
+                ],
+                style={"padding": "10px"},
+            ),
+            cbe_footer(),
+        ],
+    )
+
+
+app.layout = serve_layout
+
+
+@callback(
+    Output("session-store", "data", allow_duplicate=True),
+    Input("session-store", "data"),
+    prevent_initial_call=True,
+)
+def print_session_id(session_data):
+    print(f"[DEBUG] Session ID: {session_data['session_id']}")
+    return session_data
+
 
 if __name__ == "__main__":
     app.run(
-        debug=True,
-        host="localhost",
-        port=8050,
+        debug=False,
+        host="0.0.0.0",
+        port=8080,
     )
+
+
+# if __name__ == "__main__":
+#     app.run(
+#         debug=True,
+#         host="localhost",
+#         port=8050,
+#     )

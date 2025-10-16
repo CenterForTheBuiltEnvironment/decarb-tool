@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 
 import pandas as pd
 from pathlib import Path
+import tempfile, os
 import pickle
 
 from io import StringIO
@@ -242,8 +243,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
     if not n_clicks or not metadata_json or not equipment_json:
         raise dash.exceptions.PreventUpdate
 
-    session_id = session_data["session_id"]
-    folder = Path(f"data/output/{session_id}")
+    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
     folder.mkdir(parents=True, exist_ok=True)
 
     metadata = Metadata(**metadata_json)
@@ -256,6 +256,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
 
     site_path = folder / "site_energy.pkl"
     site_energy.to_pickle(site_path)
+    print(f"Saving Site Energy for to: {site_path}")
 
     return str(site_path)
 
@@ -269,17 +270,21 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
     prevent_initial_call=True,
 )
 def run_site_to_source(site_energy_path, metadata_json, session_data):
+
     if not site_energy_path:
         raise dash.exceptions.PreventUpdate
+
+    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
+    folder.mkdir(parents=True, exist_ok=True)
 
     site_energy = pd.read_pickle(site_energy_path)
     metadata = Metadata(**metadata_json)
 
     source_energy = site_to_source(site_energy, metadata=metadata)
 
-    folder = Path(f"data/output/{session_data['session_id']}")
     source_path = folder / "source_energy.pkl"
     source_energy.to_pickle(source_path)
+    print(f"Saving Source Energy for to: {source_path}")
 
     toast = dbc.Toast(
         "Calculation finished!",
