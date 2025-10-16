@@ -72,7 +72,6 @@ def load_source_energy(session_data):
     session_id = session_data["session_id"]
     folder = Path(f"/tmp/{session_data['session_id']}")
     filepath = folder / "source_energy.pkl"
-    print(f"L: {filepath}")
 
     if not filepath.exists():
         return None

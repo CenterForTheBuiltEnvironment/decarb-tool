@@ -83,18 +83,23 @@ def layout():
                             html.Pre(
                                 id="metadata-display", style={"whiteSpace": "pre-wrap"}
                             ),
-                            dbc.Button(
+                            dcc.Link(
                                 [
-                                    "Specify Equipment ",
-                                    DashIconify(
-                                        icon="tabler:arrow-narrow-right-dashed",
-                                        width=20,
+                                    dbc.Button(
+                                        [
+                                            "Specify Equipment ",
+                                            DashIconify(
+                                                icon="tabler:arrow-narrow-right-dashed",
+                                                width=20,
+                                            ),
+                                        ],
+                                        color="primary",
+                                        id="button-specify-equipment",
+                                        n_clicks=0,
+                                        style={"float": "right"},
                                     ),
                                 ],
-                                color="primary",
-                                id="button-specify-equipment",
-                                n_clicks=0,
-                                style={"float": "right"},
+                                href="/equipment",
                             ),
                         ],
                         width=4,

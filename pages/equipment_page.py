@@ -43,18 +43,23 @@ def layout():
                             html.Div(
                                 id="summary-equipment-info",
                             ),
-                            dbc.Button(
+                            dcc.Link(
                                 [
-                                    "Specify Grid Scenarios ",
-                                    DashIconify(
-                                        icon="tabler:arrow-narrow-right-dashed",
-                                        width=20,
+                                    dbc.Button(
+                                        [
+                                            "Specify Grid Scenarios ",
+                                            DashIconify(
+                                                icon="tabler:arrow-narrow-right-dashed",
+                                                width=20,
+                                            ),
+                                        ],
+                                        color="primary",
+                                        id="button-to-emissions",
+                                        n_clicks=0,
+                                        style={"float": "right"},
                                     ),
                                 ],
-                                color="primary",
-                                id="button-specify-grid-scenarios",
-                                n_clicks=0,
-                                style={"float": "right"},
+                                href="/emissions",
                             ),
                         ],
                         width=5,
@@ -241,14 +246,3 @@ def update_awhp_slider(mode):
             1,
         )
     return dash.no_update
-
-
-@callback(
-    Output("url", "href", allow_duplicate=True),
-    Input("button-specify-grid-scenarios", "n_clicks"),
-    prevent_initial_call=True,
-)
-def navigate_to_equipment(n_clicks):
-    if not n_clicks:  # ignore None or 0
-        raise dash.exceptions.PreventUpdate
-    return "/emissions"
