@@ -32,6 +32,16 @@ def serve_layout():
         style={"padding": "0"},
         children=[
             cbe_header(),
+            html.Div(
+                dbc.Badge(
+                    "Alpha Version",
+                    color="danger",
+                    className="me-1",
+                    pill=True,
+                    style={"borderRadius": "5px", "margin-top": "10px"},
+                ),
+                className="d-flex justify-content-center",
+            ),
             dcc.Store(id="metadata-store"),
             dcc.Store(id="equipment-store", data=equipment_library),
             dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
