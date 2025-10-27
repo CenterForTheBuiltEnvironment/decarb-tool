@@ -24,11 +24,11 @@ class Metadata(BaseModel):
     @classmethod
     def create(cls, **overrides: Any) -> "Metadata":
         defaults = dict(
-            location="Berkeley",
-            building_type="OfficeLarge",
-            vintage=2022,
+            location="Sacramento",
+            building_type="Hospital",
+            vintage=2004,
             load_type="load_simulated",
-            ashrae_climate_zone="3C",
+            ashrae_climate_zone="3A",
             equipment_scenarios=[
                 "eq_scenario_1",
                 "eq_scenario_2",

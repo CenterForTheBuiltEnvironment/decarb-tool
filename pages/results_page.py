@@ -243,3 +243,38 @@ def update_scatter_plot(
         unit_mode=unit_mode,
     )
     return fig
+
+# Download the full results/source energy dataframe as CSV
+@callback(
+    Output("download-data", "data"),
+    Input("download-button", "n_clicks"),
+    State("session-store", "data"),
+    prevent_initial_call=True,
+)
+def download_results(n_clicks, session_data):
+    """Download the entire results dataframe as a .csv file
+
+    Checks if results pkl file exists for given session_id. 
+    Prevents update if file doesn't exist or fails to load
+    """
+    if not session_data or "session_id" not in session_data:
+        raise dash.exceptions.PreventUpdate
+
+    session_id = session_data["session_id"]
+    filepath = Path("/tmp/", session_id, "source_energy.pkl")
+
+    if not filepath.exists:
+        # Nothing to download
+        print(f"[INFO] No results file found for session {session_id}: {filepath}")
+        raise dash.exceptions.PreventUpdate
+
+    try:
+        df = pd.read_pickle(filepath)
+    except Exception as e:
+        print(f"[ERROR] Failed to load results for download for session {session_id}: {e}")
+        raise dash.exceptions.PreventUpdate
+
+    filename = f"results_{session_id}.csv"
+
+    # Use dcc.send_data_frame to stream the dataframe as CSV
+    return dcc.send_data_frame(df.to_csv, filename, index=True)
