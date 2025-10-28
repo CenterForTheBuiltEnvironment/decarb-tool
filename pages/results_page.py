@@ -2,6 +2,7 @@ import dash
 from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
+import datetime
 import pandas as pd
 import plotly.express as px
 from pathlib import Path
@@ -243,3 +244,24 @@ def update_scatter_plot(
         unit_mode=unit_mode,
     )
     return fig
+
+# Download the full results/source energy dataframe as CSV
+@callback(
+    Output("download-data", "data"),
+    Input("download-button", "n_clicks"),
+    State("session-store", "data"),
+    prevent_initial_call=True,
+)
+def download_results(n_clicks, session_data):
+    """Download the entire results dataframe as a .csv file
+    
+    """
+    if not session_data or "session_id" not in session_data:
+        raise dash.exceptions.PreventUpdate
+
+    df = load_source_energy(session_data)
+
+    filename = f"results_{datetime.datetime.now()}.csv"
+
+    # Use dcc.send_data_frame to stream the dataframe as CSV
+    return dcc.send_data_frame(df.to_csv, filename, index=True)
