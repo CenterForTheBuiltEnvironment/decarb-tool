@@ -2,6 +2,7 @@ import dash
 from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
+import datetime
 import pandas as pd
 import plotly.express as px
 from pathlib import Path
@@ -253,28 +254,14 @@ def update_scatter_plot(
 )
 def download_results(n_clicks, session_data):
     """Download the entire results dataframe as a .csv file
-
-    Checks if results pkl file exists for given session_id. 
-    Prevents update if file doesn't exist or fails to load
+    
     """
     if not session_data or "session_id" not in session_data:
         raise dash.exceptions.PreventUpdate
 
-    session_id = session_data["session_id"]
-    filepath = Path("/tmp/", session_id, "source_energy.pkl")
+    df = load_source_energy(session_data)
 
-    if not filepath.exists:
-        # Nothing to download
-        print(f"[INFO] No results file found for session {session_id}: {filepath}")
-        raise dash.exceptions.PreventUpdate
-
-    try:
-        df = pd.read_pickle(filepath)
-    except Exception as e:
-        print(f"[ERROR] Failed to load results for download for session {session_id}: {e}")
-        raise dash.exceptions.PreventUpdate
-
-    filename = f"results_{session_id}.csv"
+    filename = f"results_{datetime.datetime.now()}.csv"
 
     # Use dcc.send_data_frame to stream the dataframe as CSV
     return dcc.send_data_frame(df.to_csv, filename, index=True)
