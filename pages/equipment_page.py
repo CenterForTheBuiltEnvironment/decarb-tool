@@ -70,6 +70,13 @@ def layout():
     )
 
 
+def to_json_nullable(val):
+    # map the UI “None” choice to JSON null
+    if val in ("", None, "None"):
+        return None
+    return val
+
+
 @callback(
     Output("select-equipment-options", "children"),
     Input("equipment-store", "data"),
@@ -187,14 +194,13 @@ def save_scenario(
             resistance_heater=None,
         )
 
-    # Update scenario name from user input
     if scenario_name and scenario_name.strip():
         scenario.eq_scen_name = scenario_name.strip()
 
     if selected_hr_wwhp is not None:
-        scenario.hr_wwhp = selected_hr_wwhp
+        scenario.hr_wwhp = to_json_nullable(selected_hr_wwhp)
     if selected_awhp is not None:
-        scenario.awhp = selected_awhp
+        scenario.awhp = to_json_nullable(selected_awhp)
     if selected_awhp_sizing_mode is not None:
         scenario.awhp_sizing_mode = selected_awhp_sizing_mode
     if selected_awhp_sizing_value is not None:

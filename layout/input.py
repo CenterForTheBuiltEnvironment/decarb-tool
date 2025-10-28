@@ -111,7 +111,7 @@ def select_load_data():
 
 
 def with_none_option(options, none_label="None"):
-    return [{"label": none_label, "value": ""}] + options
+    return [{"label": none_label, "value": "None"}] + options
 
 
 def select_equipment(equipment_data):
