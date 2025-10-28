@@ -1,13 +1,9 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback, ctx, no_update
+from dash import dcc, html, Input, Output, State, callback, ctx
 import dash_bootstrap_components as dbc
 
 import pandas as pd
 from pathlib import Path
-import tempfile, os
-import pickle
-
-from io import StringIO
 
 from dash_iconify import DashIconify
 
@@ -16,7 +12,6 @@ from src.config import URLS
 from utils.units import unit_map
 
 from src.metadata import Metadata
-from src.emissions import EmissionScenario
 
 from layout.input import (
     emission_scenario_saving_buttons,
@@ -31,7 +26,6 @@ from layout.input import (
 from src.equipment import EquipmentLibrary
 
 from src.loads import get_load_data
-from src.emissions import get_emissions_data
 
 from src.energy import loads_to_site_energy, site_to_source
 
@@ -45,7 +39,13 @@ def layout():
         children=[
             dcc.Store(id="active-emissions-tab"),
             dcc.Store(id="site-energy-store"),
-            dcc.Store(id="source-energy-store"),
+            dbc.Spinner(
+                html.Div(id="source-energy-store"),
+                color="primary",
+                fullscreen=True,
+                fullscreen_style={"backgroundColor": "rgba(255,255,255,0.6)"},
+                show_initially=False,
+            ),
             dbc.Row(
                 [
                     dbc.Col(
@@ -262,7 +262,7 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
 
 
 @callback(
-    Output("source-energy-store", "data"),
+    Output("source-energy-store", "children"),
     Output("calc-status-toast", "children"),
     Input("site-energy-store", "data"),
     State("metadata-store", "data"),
@@ -300,4 +300,4 @@ def run_site_to_source(site_energy_path, metadata_json, session_data):
         header=[DashIconify(icon="ei:check", width=20), "Success"],
     )
 
-    return str(source_path), toast
+    return dcc.Store(id="source-energy-store", data=str(source_path)), toast
