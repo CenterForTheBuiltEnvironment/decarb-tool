@@ -117,6 +117,10 @@ class Metadata(BaseModel):
         else:
             self.emission_settings.append(scenario)
 
+    def set_gea_grid_region_for_all(self, region: str) -> None:
+        for scen in self.emission_settings:
+            scen.gea_grid_region = region
+
     # ---------- Dict-like interface ----------
     def __getitem__(self, em_scen_id: str) -> EmissionScenario:
         return self.get_emission_scenario(em_scen_id)

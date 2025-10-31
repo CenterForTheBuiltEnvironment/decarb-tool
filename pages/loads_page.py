@@ -162,6 +162,7 @@ def update_metadata(
         row = locations_df.loc[locations_df["zip"] == selected_zip].iloc[0]
         metadata.location = row["city"]
         metadata.ashrae_climate_zone = row["ASHRAE"]
+        metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
 
     elif trigger == "building-type-input" and selected_building_type:
         metadata.building_type = selected_building_type
