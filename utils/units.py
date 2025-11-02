@@ -6,7 +6,7 @@ W_to_ton = 1 / ton_to_W
 BTUh_to_W = 0.293  # BTU/hr to W
 W_to_BTUh = 1 / BTUh_to_W
 Wh_to_BTU = 3.412
-BTU_to_Wh = 1/Wh_to_BTU
+BTU_to_Wh = 1 / Wh_to_BTU
 lbs_to_ton = 0.454 / 1000  # lbs (e.g. of CO2) to metric tons
 ton_to_lbs = 1 / lbs_to_ton
 lb_to_kg = 0.454  # lbs (e.g. of CO2) to metric tons
@@ -89,37 +89,43 @@ unit_map = {
         "SI": {
             "func": Wh_to_kWh,
             "label": 'Energy <span style="font-weight:200">| kWh</span>',
+            "hover_unit": "kWh",
         },
         "IP": {
             "func": Wh_to_BTUh,
             "label": 'Energy <span style="font-weight:200">| BTU</span>',
+            "hover_unit": "BTU",
         },
     },
     "temperature": {
         "SI": {
             "func": lambda x: x,
             "label": 'Temperature <span style="font-weight:200">| °C</span>',
+            "hover_unit": "°C",
         },
         "IP": {
             "func": C_to_F,
             "label": 'Temperature <span style="font-weight:200">| °F</span>',
+            "hover_unit": "°F",
         },
     },
     "emissions": {
         "SI": {
             "func": lambda x: x,
             "label": 'Emissions <span style="font-weight:200">| kgCO₂e</span>',
+            "hover_unit": "kgCO₂e",
         },
         "IP": {
             "func": kg_to_lbs,
             "label": 'Emissions <span style="font-weight:200">| lbCO₂e</span>',
+            "hover_unit": "lbCO₂e",
         },
     },
     "gas_emission_factor": {
         "SI": {
             "label": "gCO₂e/kWh",
-            "func": lambda x: (x * lb_to_g / BTU_to_Wh),  # gCO₂e/kWh → lbCO₂e/kBTU 
-            "default_value": 239.2/(lb_to_g / BTU_to_Wh), #! use function
+            "func": lambda x: (x * lb_to_g / BTU_to_Wh),  # gCO₂e/kWh → lbCO₂e/kBTU
+            "default_value": 239.2 / (lb_to_g / BTU_to_Wh),  #! use function
         },
         "IP": {
             "label": "lbCO₂e/kBTU",
@@ -128,3 +134,13 @@ unit_map = {
         },
     },
 }
+
+
+def get_unit_converter(var_type: str, unit_mode: str):
+    """Return the converter function you already use."""
+    return unit_map[var_type][unit_mode]["func"]
+
+
+def get_hover_unit(var_type: str, unit_mode: str) -> str:
+    """Return the short unit string for hovers."""
+    return unit_map[var_type][unit_mode]["hover_unit"]
