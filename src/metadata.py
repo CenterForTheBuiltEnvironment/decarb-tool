@@ -1,6 +1,6 @@
 import json
 
-from typing import List, Any, Union
+from typing import List, Any, Union, Optional
 from pydantic import BaseModel
 from pathlib import Path
 
@@ -13,12 +13,13 @@ class Metadata(BaseModel):
     location: str
     building_type: str
     vintage: int
-    load_type: str
+    load_type: str  # 'load_simulated' or 'load_custom'
     ashrae_climate_zone: str
     equipment_scenarios: Union[str, List[str]]
     emission_settings: List[EmissionScenario]
     units: str
     last_updated: str
+    custom_load_path: Optional[str] = None  # Path to custom load data file if load_type='load_custom'
 
     # ---------- Factory ----------
     @classmethod

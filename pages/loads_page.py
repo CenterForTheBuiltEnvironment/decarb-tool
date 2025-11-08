@@ -2,14 +2,19 @@ from pprint import pprint
 import dash
 from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
+import base64
+import io
+import json
+import tempfile
+from pathlib import Path
 
 from dash_iconify import DashIconify
-
 import pandas as pd
 
 from src.config import URLS
-
 from src.metadata import Metadata
+from src.loads import StandardLoad, STANDARD_COLUMNS
+
 
 
 from layout.input import (
@@ -179,3 +184,86 @@ def show_metadata(data):
         return "No metadata yet"
 
     return summary_loads_selection(data)
+
+
+def parse_custom_load_data(contents, filename):
+    """Parse and validate uploaded CSV file contents."""
+    content_type, content_string = contents.split(",")
+    decoded = base64.b64decode(content_string)
+    
+    try:
+        # Read CSV into DataFrame
+        df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        
+        # Check for required columns (using template names)
+        missing_cols = [col for col in STANDARD_COLUMNS if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Missing required columns: {missing_cols}")
+                    
+        # Create StandardLoad object (this runs validation)
+        load_data = StandardLoad(df)
+        
+        # Save to temporary file
+        temp_dir = Path("data/output/custom")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_file = temp_dir / f"custom_load_{Path(filename).stem}.parquet"
+        load_data.to_parquet(temp_file)
+        
+        return {
+            "status": "success",
+            "message": f"Successfully loaded {len(df)} rows of custom load data",
+            "filepath": str(temp_file),
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error processing file: {str(e)}"
+        }
+
+
+@callback(
+    [Output("upload-data-alert", "children"),
+     Output("metadata-store", "data", allow_duplicate=True)],
+    Input("upload-data", "contents"),
+    State("upload-data", "filename"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True
+)
+def process_upload(contents, filename, metadata_data):
+    """Process uploaded custom load data file."""
+    if not contents:
+        return no_update, no_update
+    
+    # Parse and validate the file
+    result = parse_custom_load_data(contents, filename)
+    
+    # Create alert component based on result
+    if result["status"] == "success":
+        alert = dbc.Alert(
+            [
+                DashIconify(icon="bi:check-circle-fill", className="me-2"),
+                result["message"]
+            ],
+            color="success",
+            dismissable=True,
+            is_open=True,
+        )
+        
+        # Update metadata to use custom load data
+        metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
+        metadata.load_type = "load_custom"
+        metadata.custom_load_path = result["filepath"]
+        
+        return alert, metadata.model_dump()
+    else:
+        alert = dbc.Alert(
+            [
+                DashIconify(icon="bi:exclamation-circle-fill", className="me-2"),
+                result["message"]
+            ],
+            color="danger",
+            dismissable=True,
+            is_open=True,
+        )
+        return alert, no_update

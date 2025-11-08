@@ -91,16 +91,22 @@ def select_load_data():
                     ),
                     dbc.AccordionItem(
                         [
-                            html.P("Upload your own hourly load data."),
-                            dbc.Button(
-                                "Upload Custom Data", color="secondary", active=False
+                            html.P("Upload your own hourly load data in CSV format."),
+                            dcc.Upload(
+                                id="upload-data",
+                                children=dbc.Button(
+                                    [
+                                        "Upload Custom Data ",
+                                        DashIconify(icon="material-symbols:upload", width=20),
+                                    ],
+                                    color="secondary",
+                                ),
+                                accept=".csv",
+                                multiple=False,
                             ),
+                            html.Div(id="upload-data-alert", className="mt-2"),
                         ],
                         title="Upload Custom Data",
-                        style={
-                            "pointerEvents": "none",
-                            "opacity": 0.5,
-                        },  # disable for now
                     ),
                 ],
                 start_collapsed=True,
