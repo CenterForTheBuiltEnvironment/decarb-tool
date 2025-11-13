@@ -24,18 +24,19 @@ def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
 def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
     if e.performance and e.performance_heating.cap_curve:
-        return interp_vector(
+        cap_h = interp_vector(
             e.performance_heating.cap_curve.t_out_C,
             e.performance_heating.cap_curve.capacity_W,
             t_out,
         )
-    # fallback to fixed capacity if provided
-    if e.capacity_W is not None:
-        return np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
-    raise ValueError(
-        f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
-    )
-
+    elif e.capacity_W is not None: # fallback to fixed capacity if provided 
+        cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
+    else: 
+        raise ValueError(
+            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+        )
+    cap_h = _capacity_constraints(e, t_out, cap_h, True)
+    return cap_h
 
 def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
@@ -54,18 +55,19 @@ def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
 def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
     if e.performance and e.performance_cooling.cap_curve:
-        return interp_vector(
+        cap_c = interp_vector(
             e.performance_cooling.cap_curve.t_out_C,
             e.performance_cooling.cap_curve.capacity_W,
             t_out,
         )
-    # fallback to fixed capacity if provided
-    if e.capacity_W is not None:
-        return np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
-    raise ValueError(
-        f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
-    )
-
+    elif e.capacity_W is not None: # fallback to fixed capacity if provided
+        cap_c = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
+    else:
+        raise ValueError(
+            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+        )
+    cap_c = _capacity_constraints(e, t_out, cap_c, False)
+    return cap_c
 
 def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
@@ -92,6 +94,18 @@ def _constant_cooling_efficiency(e: Equipment) -> Optional[float]:
         return float(e.performance_cooling.efficiency)
     return None
 
+def _capacity_constraints(e: Equipment, t_out: np.ndarray, cap: np.ndarray, heating: bool) -> np.ndarray:
+    """Per-unit thermal capacity [W] vs outdoor temperature, limited by OAT constraints."""
+    temps = np.asarray(t_out, dtype=float)
+    if heating:
+        high_t = np.nonzero(temps>e.performance_heating.constraints['max_temp_C'])
+        low_t = np.nonzero(temps<e.performance_heating.constraints['min_temp_C'])
+    else:
+        high_t = np.nonzero(temps>e.performance_cooling.constraints['max_temp_C'])
+        low_t = np.nonzero(temps<e.performance_cooling.constraints['min_temp_C'])
+    np.put(cap, high_t[0], [0]) # replace capacities where temps are outside the HP's operating bounds with 0
+    np.put(cap, low_t[0], [0])
+    return cap
 
 def loads_to_site_energy(
     load: StandardLoad,
