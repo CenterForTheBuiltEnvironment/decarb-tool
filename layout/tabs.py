@@ -36,6 +36,6 @@ def tabs():
                 ),
             ),
             html.Hr(),
-            dbc.Row(dash.page_container),
+            # dbc.Row(dash.page_container),
         ]
     )
