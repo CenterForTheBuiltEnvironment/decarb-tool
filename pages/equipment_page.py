@@ -186,7 +186,7 @@ def save_scenario(
             eq_scen_name="Basic Scenario",
             hr_wwhp="hr01",
             awhp="hp01",
-            awhp_sizing_mode="peak_load_percentage",
+            awhp_sizing_mode="peak_load_percentage_integer",
             awhp_sizing_value=0.5,
             awhp_use_cooling=False,
             boiler="bo01",
@@ -235,7 +235,7 @@ def store_active_equipment_tab(active_tab):
     Input("awhp-sizing-radio", "value"),
 )
 def update_awhp_slider(mode):
-    if mode == "peak_load_percentage":
+    if "peak_load_percentage" in mode:
         return (
             0,  # min
             1,  # max
