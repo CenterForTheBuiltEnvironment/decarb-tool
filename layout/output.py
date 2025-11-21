@@ -1,6 +1,9 @@
 import dash_bootstrap_components as dbc
 from dash import html
 
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+
 
 def get_nested_value(obj, attr_path):
     """Fetch nested values using dot-separated path.
@@ -56,7 +59,7 @@ def make_metadata_card(metadata, fields, title="Summary"):
     )
 
 
-def summary_loads_selection(metadata):
+def building_characteristics_card(metadata):
 
     building_fields = [
         ("location", "Location"),
@@ -65,11 +68,27 @@ def summary_loads_selection(metadata):
         ("ashrae_climate_zone", "Climate Region"),
     ]
 
-    building_loads_card = make_metadata_card(
-        metadata, building_fields, title="Building Information"
+    building_characteristics_card = make_metadata_card(
+        metadata, building_fields, title="Building characteristics"
     )
 
-    return building_loads_card
+    return building_characteristics_card
+
+
+def load_characteristics_card(metadata):
+
+    load_fields = [
+        ("location", "Location"),
+        ("building_type", "Building Type"),
+        ("vintage", "Vintage"),
+        ("ashrae_climate_zone", "Climate Region"),
+    ]
+
+    load_characteristics_card = make_metadata_card(
+        metadata, load_fields, title="Load characteristics"
+    )
+
+    return load_characteristics_card
 
 
 def summary_equipment_selection(equipment_library, active_tab=None):
@@ -198,4 +217,47 @@ def summary_scenario_results():
                 ]
             ),
         ]
+    )
+
+
+def empty_state(
+    title="Nothing selected :(",
+    description="Please make a selection to continue.",
+    icon="ph:info",
+    icon_size=40,
+    padding=40,
+):
+    """
+    Reusable empty-state component for placeholder panels.
+
+    Parameters
+    ----------
+    title : str
+        Main title text, e.g. "No load selected :(".
+    description : str
+        Supporting hint text shown below the title.
+    icon : str
+        Iconify icon name, e.g. "ph:chart-line-up".
+    icon_size : int
+        Icon size in pixels.
+    padding : int
+        Vertical padding (top + bottom) in pixels.
+    """
+
+    return dmc.Stack(
+        [
+            dmc.Center(
+                DashIconify(icon=icon, width=icon_size),
+            ),
+            dmc.Text(title, fw=500),
+            dmc.Text(
+                description,
+                size="sm",
+                c="dimmed",
+                ta="center",
+            ),
+        ],
+        align="center",
+        gap="xs",
+        style={"padding": f"{padding}px 0"},
     )

@@ -37,7 +37,7 @@ def select_location(locations_df: pd.DataFrame):
     return html.Div(
         [
             dbc.Label(
-                "1. Building Location",
+                "Building Location",
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.P(
@@ -58,7 +58,7 @@ def select_load_data():
     return html.Div(
         [
             dbc.Label(
-                "2. Load Data",
+                "Load Data",
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
@@ -97,7 +97,9 @@ def select_load_data():
                                 children=dbc.Button(
                                     [
                                         "Upload Custom Data ",
-                                        DashIconify(icon="material-symbols:upload", width=20),
+                                        DashIconify(
+                                            icon="material-symbols:upload", width=20
+                                        ),
                                     ],
                                     color="secondary",
                                 ),

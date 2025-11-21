@@ -5,8 +5,8 @@ import dash
 from dash import dcc, html, Input, Output, State, ALL, callback
 import dash_mantine_components as dmc
 
-from layout.header import cbe_header
-from layout.footer import cbe_footer
+from layout.header import shell_header
+from layout.footer import shell_footer
 from layout.input import unit_toggle
 
 from src.config import LINKS
@@ -33,7 +33,7 @@ def build_shell(page_content):
     header = dmc.AppShellHeader(
         dmc.Group(
             [
-                cbe_header(),
+                shell_header(),
             ],
             h="100%",
             px="md",
@@ -61,7 +61,7 @@ def build_shell(page_content):
 
     # ---- FOOTER: wrap your existing footer ----
     footer = dmc.AppShellFooter(
-        cbe_footer(),
+        shell_footer(),
         p=0,
     )
 

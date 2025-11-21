@@ -1,7 +1,7 @@
 import dash_mantine_components as dmc
 
 
-def cbe_header():
+def shell_header():
     burger = dmc.Burger(
         id="burger",
         size="sm",

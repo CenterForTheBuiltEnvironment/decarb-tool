@@ -2,10 +2,9 @@ from pprint import pprint
 import dash
 from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import base64
 import io
-import json
-import tempfile
 from pathlib import Path
 
 from dash_iconify import DashIconify
@@ -16,7 +15,6 @@ from src.metadata import Metadata
 from src.loads import StandardLoad, STANDARD_COLUMNS
 
 
-
 from layout.input import (
     select_gea_grid_region,
     select_location,
@@ -24,7 +22,11 @@ from layout.input import (
     modal_load_simulation_data,
 )
 
-from layout.output import summary_loads_selection
+from layout.output import (
+    building_characteristics_card,
+    load_characteristics_card,
+    empty_state,
+)
 
 
 dash.register_page(__name__, name="Loads", path=URLS.HOME.value, order=0)
@@ -42,76 +44,85 @@ locations_df["zip"] = locations_df["zip"].astype(str)
 
 
 def layout():
-
-    return dbc.Container(
-        children=[
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Loads"),
-                            html.Hr(),
-                            select_location(locations_df=locations_df),
-                            html.Hr(),
-                            select_load_data(),
-                            modal_load_simulation_data(),
-                        ],
-                        width=4,
-                        style={"backgroundColor": "#f8f9fa", "borderRadius": "10px"},
-                    ),
-                    dbc.Col(
-                        [
-                            html.Div(
-                                id="plot-container",
-                                children=[
-                                    html.Img(
-                                        src="/assets/img/map-placeholder.png",
-                                        style={
-                                            "width": "100%",
-                                            "margin": "auto",
-                                            "display": "block",
-                                            "opacity": "0.7",
-                                        },
-                                    ),
-                                ],
-                            ),
-                        ],
-                        width=4,
-                    ),
-                    dbc.Col(
-                        [
-                            html.H5("Summary"),
-                            html.Hr(),
-                            html.Div(
-                                id="summary-selection-info",
-                            ),
-                            html.Pre(
-                                id="metadata-display", style={"whiteSpace": "pre-wrap"}
-                            ),
-                            dcc.Link(
-                                [
-                                    dbc.Button(
-                                        [
-                                            "Specify Equipment ",
-                                            DashIconify(
-                                                icon="tabler:arrow-narrow-right-dashed",
-                                                width=20,
-                                            ),
-                                        ],
-                                        color="primary",
-                                        id="button-specify-equipment",
-                                        n_clicks=0,
-                                        style={"float": "right"},
-                                    ),
-                                ],
-                                href="/equipment",
-                            ),
-                        ],
-                        width=4,
-                    ),
-                ],
+    return dmc.Grid(
+        [
+            dmc.GridCol(
+                dmc.Paper(
+                    [
+                        html.H5("Loads"),
+                        html.Hr(),
+                        select_location(locations_df=locations_df),
+                        html.Hr(),
+                        select_load_data(),
+                        modal_load_simulation_data(),
+                    ],
+                    bg="gray.0",
+                    radius="md",
+                    withBorder=False,
+                    p="md",
+                    shadow="xs",
+                ),
+                span=3,
             ),
-        ]
+            dmc.GridCol(
+                dmc.Paper(
+                    [
+                        html.H5("Summary"),
+                        html.Div(
+                            id="summary-selection-info",
+                        ),
+                        html.Pre(
+                            id="metadata-display", style={"whiteSpace": "pre-wrap"}
+                        ),
+                        dcc.Link(
+                            [
+                                dbc.Button(
+                                    [
+                                        "Specify Equipment ",
+                                        DashIconify(
+                                            icon="tabler:arrow-narrow-right-dashed",
+                                            width=20,
+                                        ),
+                                    ],
+                                    color="primary",
+                                    id="button-specify-equipment",
+                                    n_clicks=0,
+                                    style={"float": "right"},
+                                ),
+                            ],
+                            href="/equipment",
+                        ),
+                    ],
+                    bg="white",
+                    radius="md",
+                    withBorder=False,
+                    p="md",
+                ),
+                span=3,
+            ),
+            dmc.GridCol(
+                dmc.Paper(
+                    [
+                        html.H5("Load visualization"),
+                        empty_state(
+                            icon="ph:chart-line-up",
+                        ),
+                        dmc.Divider(),
+                        empty_state(
+                            title="Same here!",
+                            description="A nice plot will pop up here once load data is selected.",
+                            icon="ph:bug",
+                        ),
+                    ],
+                    bg="white",
+                    radius="md",
+                    withBorder=False,
+                    p="md",
+                ),
+                span=6,
+            ),
+        ],
+        gutter="xl",
     )
 
 
@@ -183,84 +194,83 @@ def show_metadata(data):
     if not data:
         return "No metadata yet"
 
-    return summary_loads_selection(data)
+    return building_characteristics_card(data), load_characteristics_card(data)
 
 
 def parse_custom_load_data(contents, filename):
     """Parse and validate uploaded CSV file contents."""
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
-    
+
     try:
         # Read CSV into DataFrame
         df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-        
+
         # Check for required columns (using template names)
         missing_cols = [col for col in STANDARD_COLUMNS if col not in df.columns]
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
-                    
+
         # Create StandardLoad object (this runs validation)
         load_data = StandardLoad(df)
-        
+
         # Save to temporary file
         temp_dir = Path("data/output/custom")
         temp_dir.mkdir(parents=True, exist_ok=True)
         temp_file = temp_dir / f"custom_load_{Path(filename).stem}.parquet"
         load_data.to_parquet(temp_file)
-        
+
         return {
             "status": "success",
             "message": f"Successfully loaded {len(df)} rows of custom load data",
             "filepath": str(temp_file),
         }
-        
+
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Error processing file: {str(e)}"
-        }
+        return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 
 @callback(
-    [Output("upload-data-alert", "children"),
-     Output("metadata-store", "data", allow_duplicate=True)],
+    [
+        Output("upload-data-alert", "children"),
+        Output("metadata-store", "data", allow_duplicate=True),
+    ],
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
     State("metadata-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def process_upload(contents, filename, metadata_data):
     """Process uploaded custom load data file."""
     if not contents:
         return no_update, no_update
-    
+
     # Parse and validate the file
     result = parse_custom_load_data(contents, filename)
-    
+
     # Create alert component based on result
     if result["status"] == "success":
         alert = dbc.Alert(
             [
                 DashIconify(icon="bi:check-circle-fill", className="me-2"),
-                result["message"]
+                result["message"],
             ],
             color="success",
             dismissable=True,
             is_open=True,
         )
-        
+
         # Update metadata to use custom load data
         metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
         metadata.load_type = "load_custom"
         metadata.custom_load_path = result["filepath"]
-        
+
         return alert, metadata.model_dump()
     else:
         alert = dbc.Alert(
             [
                 DashIconify(icon="bi:exclamation-circle-fill", className="me-2"),
-                result["message"]
+                result["message"],
             ],
             color="danger",
             dismissable=True,

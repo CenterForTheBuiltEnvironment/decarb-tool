@@ -1,7 +1,7 @@
 import dash_mantine_components as dmc
 
 
-def cbe_footer():
+def shell_footer():
     # --- Top band: logos, nav links, socials, citation ---
 
     logos = dmc.Group(
