@@ -308,7 +308,7 @@ def loads_to_site_energy(
                 )
 
             # --- Sizing Logic ---
-            if "peak_load_percentage" in sizing_mode:
+            if sizing_mode in ["peak_load_percentage_integer", "peak_load_percentage_fractional"]:
                 if not (0.0 <= sizing_value <= 1.0):
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "
@@ -322,7 +322,7 @@ def loads_to_site_energy(
                 if "integer" in sizing_mode:
                     awhp_num_h = np.ceil(target_load_W / cap_ref)
                     awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
-                elif "fractional" in sizing_mode:
+                else:
                     awhp_num_h = target_load_W / cap_ref
 
             elif sizing_mode == "num_of_units":
