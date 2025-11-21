@@ -44,6 +44,7 @@ class Columns(str, Enum):
 
     # --- Air–Water Heat Pump (Heating) ---
     AWHP_NUM_H = "awhp_num_h"
+    AWHP_NUM_H_R = "awhp_num_h_redundant"
     AWHP_CAP_H_W = "awhp_cap_h_W"
     AWHP_COP_H = "awhp_cop_h"
     AWHP_HHW_W = "awhp_hhw_W"
