@@ -192,11 +192,12 @@ def select_equipment(equipment_data):
                     dbc.RadioItems(
                         id="awhp-sizing-radio",
                         options=[
-                            {"label": "% Peak Load", "value": "peak_load_percentage"},
+                            {"label": "% Peak Load (Integer Sizes)", "value": "peak_load_percentage_integer"},
+                            {"label": "% Peak Load (Fractional Sizes)", "value": "peak_load_percentage_fractional"},
                             {"label": "No. Units", "value": "num_of_units"},
                         ],
-                        value="peak_load_percentage",
-                        inline=True,
+                        value="peak_load_percentage_integer",
+                        # inline=True,
                         style={"marginRight": "15px"},
                     ),
                     html.Div(
@@ -213,6 +214,23 @@ def select_equipment(equipment_data):
                     ),
                 ],
                 style={"display": "flex", "alignItems": "center", "gap": "10px"},
+            ),
+            html.Div(
+                children=[
+                    dbc.Label("Heat Pump Redundancy"),
+                    dbc.RadioItems(
+                        id="awhp-redundancy-radio",
+                        options=[
+                            {"label": "N", "value": "N"},
+                            {"label": "N+1", "value": "N+1"},
+                            {"label": "2N", "value": "2N"},
+                        ],
+                        value="N",
+                        inline=True,
+                        # style={"marginRight": "15px"},
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center", "gap": "20px", "marginTop": "10px",},
             ),
             dbc.Checkbox(
                 label="Use Heat Pump also for Cooling",

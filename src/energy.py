@@ -153,6 +153,7 @@ def loads_to_site_energy(
                 Col.AWHP_COP_H.value,
                 Col.AWHP_CAP_H_W.value,
                 Col.AWHP_NUM_H.value,
+                Col.AWHP_NUM_H_R.value,
                 Col.ELEC_AWHP_H_WH.value,
                 # Boiler
                 Col.BOILER_HHW_W.value,
@@ -281,11 +282,12 @@ def loads_to_site_energy(
             # Determine number of units
             sizing_mode = scen.awhp_sizing_mode
             sizing_value = scen.awhp_sizing_value
+            redundancy = scen.awhp_redundancy
 
-            if sizing_mode is None or sizing_value is None:
+            if sizing_mode is None or sizing_value is None or redundancy is None:
                 raise ValueError(
-                    f"AWHP scenario '{scen.eq_scen_id}' requires both "
-                    f"'awhp_sizing_mode' and 'awhp_sizing_value'."
+                    f"AWHP scenario '{scen.eq_scen_id}' requires "
+                    f"'awhp_sizing_mode' and 'awhp_sizing_value' and 'awhp_redundancy'."
                 )
 
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
@@ -306,7 +308,7 @@ def loads_to_site_energy(
                 )
 
             # --- Sizing Logic ---
-            if sizing_mode == "peak_load_percentage":
+            if sizing_mode in ["peak_load_percentage_integer", "peak_load_percentage_fractional"]:
                 if not (0.0 <= sizing_value <= 1.0):
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "
@@ -317,7 +319,11 @@ def loads_to_site_energy(
                 peak_hhw_W = float(df["hhw_W"].max())
                 target_load_W = peak_hhw_W * sizing_value
 
-                awhp_num_h = np.ceil(target_load_W / cap_ref)
+                if "integer" in sizing_mode:
+                    awhp_num_h = np.ceil(target_load_W / cap_ref)
+                    awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
+                else:
+                    awhp_num_h = target_load_W / cap_ref
 
             elif sizing_mode == "num_of_units":
                 if sizing_value < 0:
@@ -326,24 +332,35 @@ def loads_to_site_energy(
                         f"'awhp_sizing_value' to be non-negative for num_of_units mode."
                     )
                 awhp_num_h = np.ceil(sizing_value)
+                awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
 
             else:
                 raise ValueError(
                     f"AWHP scenario '{scen.eq_scen_id}' has unrecognized sizing mode: '{sizing_mode}'."
                 )
 
-            awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
-
             awhp_num_h = max(awhp_num_h, 0)
 
-            cap_total_h_W = awhp_cap_h * awhp_num_h
+            # --- Redundancy Logic ---
+            if redundancy == "N":
+                awhp_num_h_r = awhp_num_h
+            elif redundancy == "N+1":
+                awhp_num_h_r = awhp_num_h+1
+            elif redundancy == "2N":
+                awhp_num_h_r = awhp_num_h*2
+            else:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized redundancy: '{redundancy}'."
+                )
+
+            cap_total_h_W = awhp_cap_h * awhp_num_h # capacity calculations use the original sizing number
             served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
             total_awhp_refrigerant_weight_kg = (
-                awhp_h.refrigerant_weight_g * 0.001 * awhp_num_h / 8760
+                awhp_h.refrigerant_weight_g * 0.001 * awhp_num_h_r / 8760 # emissions calculations use the redundancy sizing number
                 if awhp_h.refrigerant_weight_g
                 else 0.0
             )
@@ -361,6 +378,7 @@ def loads_to_site_energy(
             df[Col.ELEC_WH.value] += elec_h_Wh
             df[Col.HHW_REM_W.value] -= served_h_W
             df[Col.AWHP_NUM_H.value] = float(awhp_num_h)
+            df[Col.AWHP_NUM_H_R.value] = float(awhp_num_h_r)
             df[Col.AWHP_REFRIGERANT.value] = awhp_refrigerant
             df[Col.AWHP_REFRIGERANT_WEIGHT_KG.value] = total_awhp_refrigerant_weight_kg
             df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
@@ -523,6 +541,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value,
         Col.HR_WWHP_REFRIGERANT_GWP.value,
         Col.AWHP_NUM_H.value,
+        Col.AWHP_NUM_H_R.value,
         Col.AWHP_CAP_H_W.value,
         Col.AWHP_COP_H.value,
         Col.AWHP_HHW_W.value,
