@@ -215,6 +215,23 @@ def select_equipment(equipment_data):
                 ],
                 style={"display": "flex", "alignItems": "center", "gap": "10px"},
             ),
+            html.Div(
+                children=[
+                    dbc.Label("Heat Pump Redundancy"),
+                    dbc.RadioItems(
+                        id="awhp-redundancy-radio",
+                        options=[
+                            {"label": "N", "value": "N"},
+                            {"label": "N+1", "value": "N+1"},
+                            {"label": "2N", "value": "2N"},
+                        ],
+                        value="N",
+                        inline=True,
+                        # style={"marginRight": "15px"},
+                    ),
+                ],
+                style={"display": "flex", "alignItems": "center", "gap": "20px", "marginTop": "10px",},
+            ),
             dbc.Checkbox(
                 label="Use Heat Pump also for Cooling",
                 id="awhp-use-cooling",
