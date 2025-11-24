@@ -308,7 +308,7 @@ def loads_to_site_energy(
                 )
 
             # --- Sizing Logic ---
-            if sizing_mode in ["peak_load_percentage_integer", "peak_load_percentage_fractional"]:
+            if sizing_mode in ["integer_sizing_peak_load", "fractional_sizing_peak_load"]:
                 if not (0.0 <= sizing_value <= 1.0):
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "
@@ -319,13 +319,13 @@ def loads_to_site_energy(
                 peak_hhw_W = float(df["hhw_W"].max())
                 target_load_W = peak_hhw_W * sizing_value
 
-                if "integer" in sizing_mode:
+                if sizing_mode == "integer_sizing_peak_load":
                     awhp_num_h = np.ceil(target_load_W / cap_ref)
                     awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
                 else:
                     awhp_num_h = target_load_W / cap_ref
 
-            elif sizing_mode == "num_of_units":
+            elif sizing_mode == "fixed_num_units":
                 if sizing_value < 0:
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "

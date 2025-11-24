@@ -192,9 +192,9 @@ def select_equipment(equipment_data):
                     dbc.RadioItems(
                         id="awhp-sizing-radio",
                         options=[
-                            {"label": "% Peak Load (Integer Sizes)", "value": "peak_load_percentage_integer"},
-                            {"label": "% Peak Load (Fractional Sizes)", "value": "peak_load_percentage_fractional"},
-                            {"label": "No. Units", "value": "num_of_units"},
+                            {"label": "% Peak Load (Integer Sizes)", "value": "integer_sizing_peak_load"},
+                            {"label": "% Peak Load (Fractional Sizes)", "value": "fractional_sizing_peak_load"},
+                            {"label": "No. Units", "value": "fixed_num_units"},
                         ],
                         value="peak_load_percentage_integer",
                         # inline=True,
