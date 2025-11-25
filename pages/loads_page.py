@@ -18,8 +18,10 @@ from src.loads import StandardLoad, STANDARD_COLUMNS
 from layout.input import (
     select_gea_grid_region,
     select_location,
-    select_load_data,
-    modal_load_simulation_data,
+    select_load_type,
+    modal_load_data,
+    modal_load_data_dmc,
+    build_building_table,
 )
 
 from layout.output import (
@@ -43,6 +45,12 @@ locations_df = (
 locations_df["zip"] = locations_df["zip"].astype(str)
 
 
+# Load building metadata from CSV
+buildings_df = pd.read_csv("data/input/building_metadata.csv")
+
+BUILDINGS = buildings_df.to_dict("records")
+
+
 def layout():
     return dmc.Grid(
         [
@@ -53,8 +61,8 @@ def layout():
                         html.Hr(),
                         select_location(locations_df=locations_df),
                         html.Hr(),
-                        select_load_data(),
-                        modal_load_simulation_data(),
+                        select_load_type(),
+                        modal_load_data(),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -76,7 +84,7 @@ def layout():
                         ),
                         dcc.Link(
                             [
-                                dbc.Button(
+                                dmc.Button(
                                     [
                                         "Specify Equipment ",
                                         DashIconify(
@@ -84,7 +92,10 @@ def layout():
                                             width=20,
                                         ),
                                     ],
-                                    color="primary",
+                                    size="md",
+                                    radius="md",
+                                    variant="gradient",
+                                    gradient={"from": "indigo", "to": "cyan"},
                                     id="button-specify-equipment",
                                     n_clicks=0,
                                     style={"float": "right"},
@@ -113,6 +124,54 @@ def layout():
                             description="A nice plot will pop up here once load data is selected.",
                             icon="ph:bug",
                         ),
+                        dmc.Divider(),
+                        dmc.Group(
+                            align="flex-end",
+                            mb="md",
+                            children=[
+                                dmc.Select(
+                                    id="load-type-filter",
+                                    label="Load type",
+                                    placeholder="All",
+                                    data=[
+                                        {"value": "all", "label": "All"},
+                                        {"value": "measured", "label": "Measured"},
+                                        {"value": "simulation", "label": "Simulated"},
+                                    ],
+                                    value="all",  # default
+                                    clearable=False,
+                                    style={"width": 200},
+                                ),
+                            ],
+                        ),
+                        #
+                        # --- Table container (callback fills this) -------------------------
+                        #
+                        html.Div(
+                            id="building-table-container",
+                            children=build_building_table(
+                                buildings_df, selected_id=None
+                            ),
+                        ),
+                        dmc.Space(h="md"),
+                        dmc.Group(
+                            justify="space-between",
+                            align="center",
+                            children=[
+                                dmc.Text(
+                                    id="selected-building-text",
+                                    children="No building selected yet.",
+                                    c="dimmed",
+                                ),
+                                dmc.Button(
+                                    "Confirm selection",
+                                    id="confirm-building-button",
+                                    variant="filled",
+                                    disabled=True,  # enabled once a radio is selected
+                                ),
+                            ],
+                        ),
+                        dcc.Store(id="selected-building-store"),
                     ],
                     bg="white",
                     radius="md",
@@ -138,12 +197,12 @@ def navigate_to_equipment(n_clicks):
 
 
 @callback(
-    Output("modal-load-simulation-data", "is_open"),
+    Output("modal-load-data", "is_open"),
     [
-        Input("open-load-simulation-data-modal", "n_clicks"),
-        Input("button-close-simulation-data-modal", "n_clicks"),
+        Input("open-load-library-modal", "n_clicks"),
+        Input("button-close-load-data-modal", "n_clicks"),
     ],
-    [State("modal-load-simulation-data", "is_open")],
+    [State("modal-load-data", "is_open")],
 )
 def toggle_modal(open_clicks, close_clicks, is_open):
     if open_clicks or close_clicks:
@@ -277,3 +336,104 @@ def process_upload(contents, filename, metadata_data):
             is_open=True,
         )
         return alert, no_update
+
+
+# -------------------------------------------------------------------
+# Callback: filter and rebuild table
+# -------------------------------------------------------------------
+@callback(
+    Output("building-table-container", "children"),
+    Input("load-type-filter", "value"),
+    State("building-radio-group", "value"),
+)
+def update_table(load_type_filter, current_choice):
+    #
+    # 1. Filter rows
+    #
+    if load_type_filter == "all":
+        rows = BUILDINGS
+    else:
+        rows = [b for b in BUILDINGS if b["load_type"] == load_type_filter]
+
+    #
+    # 2. Preserve selection if still visible
+    #
+    visible_ids = [b["building_id"] for b in rows]
+    selected_id = current_choice if current_choice in visible_ids else None
+
+    #
+    # 3. Rebuild table with filtered rows + preserved selection
+    #
+    # Convert rows to DataFrame for easier handling
+    df = pd.DataFrame(rows)
+    return build_building_table(df, selected_id)
+
+
+# -------------------------------------------------------------------
+# Enable/disable confirm button
+# -------------------------------------------------------------------
+@callback(
+    Output("confirm-building-button", "disabled"),
+    Input("building-radio-group", "value"),
+)
+def toggle_confirm_button(current_choice):
+    return current_choice is None
+
+
+# -------------------------------------------------------------------
+# Show summary of selected building (on radio change)
+# -------------------------------------------------------------------
+@callback(
+    Output("selected-building-text", "children"),
+    Input("building-radio-group", "value"),
+)
+def update_selected_text(current_choice):
+    if current_choice is None:
+        return "No building selected yet."
+
+    building = next(
+        (
+            building
+            for building in BUILDINGS
+            if building["building_id"] == current_choice
+        ),
+        None,
+    )
+    if building is None:
+        return f"Selected building ID: {current_choice}"
+
+    return f"Selected: {building['building_id']} – {building['building_type']} ({building['load_type']})"
+
+
+# -------------------------------------------------------------------
+# Confirm selection (update metadata and close modal)
+# -------------------------------------------------------------------
+#! Framework that can be used later
+# @callback(
+#     [
+#         Output("selected-building-store", "data"),
+#         Output("modal-load-data", "is_open", allow_duplicate=True),
+#         Output("metadata-store", "data", allow_duplicate=True),
+#     ],
+#     Input("confirm-building-button", "n_clicks"),
+#     State("building-radio-group", "value"),
+#     State("metadata-store", "data"),
+#     prevent_initial_call=True,
+# )
+# def confirm_selection(n_clicks, current_choice, metadata_data):
+#     if current_choice is None:
+#         return no_update, no_update, no_update
+
+#     # Update metadata with selected building
+#     metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
+#     building = next(
+#         (b for b in BUILDINGS if b["building_id"] == current_choice),
+#         None,
+#     )
+#     if building:
+#         # Update metadata fields as needed based on building data
+#         # metadata.building_id = building["building_id"]
+#         # metadata.load_type = building["load_type"]
+#         pass
+
+#     return current_choice, False, metadata.model_dump()

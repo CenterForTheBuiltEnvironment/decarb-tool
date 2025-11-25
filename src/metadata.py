@@ -9,17 +9,56 @@ from datetime import datetime
 from src.emissions import EmissionScenario
 
 
+class LoadData(BaseModel):
+    load_type: str  # 'load_simulated' or 'load_custom'
+    annual_heating_cooling_ratio: Optional[float] = None
+    chw_annual_load: Optional[float] = None
+    chw_data_coverage: Optional[float] = None
+    chw_max_load: Optional[float] = None
+    chw_max_load_per_area: Optional[float] = None
+    chw_mean_load: Optional[float] = None
+    chw_median_load: Optional[float] = None
+    chw_min_load: Optional[float] = None
+    chw_pct_below_10pct_max: Optional[float] = None
+    chw_pct_below_20pct_max: Optional[float] = None
+    chw_pct_below_30pct_max: Optional[float] = None
+    chw_pct_below_40pct_max: Optional[float] = None
+    chw_pct_below_50pct_max: Optional[float] = None
+    chw_pct_below_60pct_max: Optional[float] = None
+    chw_pct_below_70pct_max: Optional[float] = None
+    chw_pct_below_80pct_max: Optional[float] = None
+    chw_pct_below_90pct_max: Optional[float] = None
+    chw_q25_load: Optional[float] = None
+    chw_q75_load: Optional[float] = None
+    chw_valid_hours: Optional[int] = None
+    heat_recovery_heating_fraction: Optional[float] = None
+    hhw_annual_load: Optional[float] = None
+    hhw_data_coverage: Optional[float] = None
+    hhw_max_load: Optional[float] = None
+    hhw_max_load_per_area: Optional[float] = None
+    hhw_mean_load: Optional[float] = None
+    hhw_median_load: Optional[float] = None
+    hhw_min_load: Optional[float] = None
+    hhw_pct_below_10pct_max: Optional[float] = None
+    hhw_pct_below_20pct_max: Optional[float] = None
+    hhw_pct_below_30pct_max: Optional[float] = None
+    hhw_pct_below_40pct_max: Optional[float] = None
+    hhw_pct_below_50pct_max: Optional[float] = None
+
+
 class Metadata(BaseModel):
     location: str
     building_type: str
     vintage: int
-    load_type: str  # 'load_simulated' or 'load_custom'
     ashrae_climate_zone: str
+    load_data: LoadData
     equipment_scenarios: Union[str, List[str]]
     emission_settings: List[EmissionScenario]
     units: str
     last_updated: str
-    custom_load_path: Optional[str] = None  # Path to custom load data file if load_type='load_custom'
+    custom_load_path: Optional[str] = (
+        None  # Path to custom load data file if load_type='load_custom'
+    )
 
     # ---------- Factory ----------
     @classmethod
@@ -28,8 +67,11 @@ class Metadata(BaseModel):
             location="Sacramento",
             building_type="Hospital",
             vintage=2004,
-            load_type="load_simulated",
             ashrae_climate_zone="3A",
+            load_data=LoadData(
+                load_type="load_simulated",
+                # All other fields default to None
+            ),
             equipment_scenarios=[
                 "eq_scenario_1",
                 "eq_scenario_2",

@@ -1,10 +1,9 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 from dash_iconify import DashIconify
+import dash_mantine_components as dmc
 import pandas as pd
 import json
-
-from sqlalchemy import null
 
 from utils.units import unit_map
 
@@ -22,6 +21,11 @@ def unit_toggle():
         value="SI",
         inline=True,
     )
+
+
+# --------------------------------
+# LOADS page inputs
+# --------------------------------
 
 
 def select_location(locations_df: pd.DataFrame):
@@ -54,7 +58,7 @@ def select_location(locations_df: pd.DataFrame):
     )
 
 
-def select_load_data():
+def select_load_type():
     return html.Div(
         [
             dbc.Label(
@@ -68,26 +72,15 @@ def select_load_data():
                     dbc.AccordionItem(
                         [
                             html.P(
-                                "Use pre-simulated data for different building types."
+                                "Choose from a library of pre-simulated and measured load profiles."
                             ),
                             dbc.Button(
-                                "Select Pre-Simulated Data",
+                                "Open Library",
                                 color="secondary",
-                                id="open-load-simulation-data-modal",
+                                id="open-load-library-modal",
                             ),
                         ],
-                        title="Pre-Simulated Data",
-                    ),
-                    dbc.AccordionItem(
-                        [
-                            html.P("Use measured data from real buildings."),
-                            dbc.Button("Select building", color="secondary"),
-                        ],
-                        title="Measured Data",
-                        style={
-                            "pointerEvents": "none",
-                            "opacity": 0.5,
-                        },  # disable for now
+                        title="Select From Library",
                     ),
                     dbc.AccordionItem(
                         [
@@ -116,6 +109,154 @@ def select_load_data():
             ),
         ]
     )
+
+
+def build_building_table(buildings_data, selected_id=None):
+    """
+    Build a table from a DataFrame with predefined columns.
+    Only displays columns that exist in the data.
+    """
+    # Define desired columns with their display names
+    column_config = [
+        ("building_type", "Building Type"),
+        ("load_type", "Source"),
+        ("climate", "Climate Zone"),
+        # ("area_m2", "Area [m²]"),
+        # ("heating_fuel", "Heating Fuel"),
+        # ("cooling_fuel", "Cooling Fuel"),
+    ]
+
+    available_columns = [
+        (col, label) for col, label in column_config if col in buildings_data.columns
+    ]
+
+    # Build body rows
+    body_rows = []
+    for idx, row in buildings_data.iterrows():
+        cells = [
+            dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
+        ]  # use 'building_id' field or index
+        cells.extend([dmc.TableTd(str(row[col])) for col, _ in available_columns])
+        body_rows.append(dmc.TableTr(cells))
+
+    # Build header
+    header_cells = [dmc.TableTh("")]  # radio column
+    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    header = dmc.TableThead(dmc.TableTr(header_cells))
+
+    body = dmc.TableTbody(body_rows)
+
+    table = dmc.ScrollArea(
+        dmc.Table(
+            [header, body],
+            striped=True,
+            highlightOnHover=True,
+            withColumnBorders=False,
+            horizontalSpacing="sm",
+            verticalSpacing="xs",
+        ),
+        h=400,  # Set height in pixels
+        type="auto",
+    )
+
+    return dmc.RadioGroup(
+        id="building-radio-group",
+        value=selected_id,
+        children=table,
+    )
+
+
+def modal_load_data():
+
+    building_type_options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["building_type"]
+    ]
+
+    vintage_options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["vintage"]
+    ]
+
+    return dbc.Modal(
+        [
+            dbc.ModalHeader("Select Pre-Simulated Data"),
+            dbc.ModalBody(
+                [
+                    html.P("Choose a building type:"),
+                    dbc.RadioItems(
+                        options=building_type_options,
+                        id="building-type-input",
+                    ),
+                    html.Br(),
+                    html.P("Choose a building vintage:"),
+                    dbc.RadioItems(
+                        options=vintage_options,
+                        id="vintage-input",
+                        value=vintage_options[0]["value"],
+                    ),
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "Close",
+                    id="button-close-load-data-modal",
+                    className="ml-auto",
+                )
+            ),
+        ],
+        id="modal-load-data",
+        size="lg",
+        centered=True,
+    )
+
+
+def modal_load_data_dmc():
+    building_type_options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["building_type"]
+    ]
+
+    vintage_options = [
+        {
+            "label": type,
+            "value": type,
+        }
+        for type in metadata_index["load_data_simulated"]["vintage"]
+    ]
+
+    return dmc.Modal(
+        title="Select Pre-Simulated Data",
+        children=[
+            dmc.Text("I am in a modal component."),
+            dmc.Space(h=20),
+            html.Div(id="prefiltered-building-table-div"),
+            dmc.Space(h=20),
+            dmc.Button(
+                "Close",
+                id="button-close-load-data-modal",
+                variant="outline",
+            ),
+        ],
+        id="modal-load-data",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+    )
+
+
+# --------------------------------
+# EQUIPMENT page inputs
+# --------------------------------
 
 
 def with_none_option(options, none_label="None"):
@@ -522,59 +663,6 @@ def emission_scenario_saving_buttons():
                 vertical=False,
             ),
         ],
-    )
-
-
-def modal_load_simulation_data():
-
-    building_type_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["building_type"]
-    ]
-
-    vintage_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["vintage"]
-    ]
-
-    return dbc.Modal(
-        [
-            dbc.ModalHeader("Select Pre-Simulated Data"),
-            dbc.ModalBody(
-                [
-                    html.P("Choose a building type:"),
-                    dbc.RadioItems(
-                        options=building_type_options,
-                        id="building-type-input",
-                    ),
-                    html.Br(),
-                    html.P("Choose a building vintage:"),
-                    dbc.RadioItems(
-                        options=vintage_options,
-                        id="vintage-input",
-                        value=vintage_options[0]["value"],
-                    ),
-                    # html.Br(),
-                    # dbc.Button("Load Data", color="primary", id="load-data-button"), #! can be removed, load should happen in one step
-                ]
-            ),
-            dbc.ModalFooter(
-                dbc.Button(
-                    "Close",
-                    id="button-close-simulation-data-modal",
-                    className="ml-auto",
-                )
-            ),
-        ],
-        id="modal-load-simulation-data",
-        size="lg",
-        centered=True,
     )
 
 
