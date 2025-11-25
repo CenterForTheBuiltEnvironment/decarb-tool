@@ -133,6 +133,7 @@ def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
     State("awhp-input", "value"),
     State("awhp-sizing-radio", "value"),
     State("awhp-sizing-slider", "value"),
+    State("awhp-redundancy-slider", "value"),
     State("awhp-use-cooling", "value"),
     State("boiler-input", "value"),
     State("chiller-input", "value"),
@@ -148,6 +149,7 @@ def save_scenario(
     selected_awhp,
     selected_awhp_sizing_mode,
     selected_awhp_sizing_value,
+    selected_awhp_redundancy,
     selected_awhp_use_cooling,
     selected_boiler,
     selected_chiller,
@@ -186,8 +188,9 @@ def save_scenario(
             eq_scen_name="Basic Scenario",
             hr_wwhp="hr01",
             awhp="hp01",
-            awhp_sizing_mode="peak_load_percentage",
+            awhp_sizing_mode="integer_sizing_peak",
             awhp_sizing_value=0.5,
+            awhp_redundancy=1,
             awhp_use_cooling=False,
             boiler="bo01",
             chiller="ch01",
@@ -205,6 +208,8 @@ def save_scenario(
         scenario.awhp_sizing_mode = selected_awhp_sizing_mode
     if selected_awhp_sizing_value is not None:
         scenario.awhp_sizing_value = selected_awhp_sizing_value
+    if selected_awhp_redundancy is not None:
+        scenario.awhp_redundancy = selected_awhp_redundancy
     if selected_awhp_use_cooling is not None:
         scenario.awhp_use_cooling = selected_awhp_use_cooling
     if selected_boiler is not None:
@@ -235,7 +240,7 @@ def store_active_equipment_tab(active_tab):
     Input("awhp-sizing-radio", "value"),
 )
 def update_awhp_slider(mode):
-    if mode == "peak_load_percentage":
+    if mode == "integer_sizing_peak_load" or mode == "fractional_sizing_peak_load":
         return (
             0,  # min
             1,  # max
@@ -243,7 +248,7 @@ def update_awhp_slider(mode):
             {i: f"{i * 100}" for i in range(0, 21, 5)},  # marks
             0.85,  # default value
         )
-    elif mode == "num_of_units":
+    elif mode == "fixed_num_units":
         return (
             1,
             5,  # max 5 units (adjust as needed)
