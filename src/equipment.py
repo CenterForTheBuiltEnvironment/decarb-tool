@@ -76,7 +76,7 @@ class EquipmentScenario(BaseModel):
     awhp: Optional[str]
     awhp_sizing_mode: Optional[Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"]] = None
     awhp_sizing_value: float
-    awhp_redundancy: Optional[Literal["N", "N+1", "2N"]] = None
+    awhp_redundancy: int
     awhp_use_cooling: bool
     boiler: Optional[str]
     chiller: Optional[str] = None

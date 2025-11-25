@@ -217,20 +217,18 @@ def select_equipment(equipment_data):
             ),
             html.Div(
                 children=[
-                    dbc.Label("Heat Pump Redundancy"),
-                    dbc.RadioItems(
-                        id="awhp-redundancy-radio",
-                        options=[
-                            {"label": "N", "value": "N"},
-                            {"label": "N+1", "value": "N+1"},
-                            {"label": "2N", "value": "2N"},
-                        ],
-                        value="N",
-                        inline=True,
-                        # style={"marginRight": "15px"},
+                    dbc.Label("Heat Pump Redundant Units"),
+                    dcc.Slider(
+                        id="awhp-redundancy-slider",
+                        min=0,
+                        max=5,
+                        step=1,
+                        value=1,
+                        marks={i: str(i) for i in range(1, 6)},
+                        tooltip={"placement": "bottom", "always_visible": True},
                     ),
                 ],
-                style={"display": "flex", "alignItems": "center", "gap": "20px", "marginTop": "10px",},
+                style={"marginTop": "10px"}
             ),
             dbc.Checkbox(
                 label="Use Heat Pump also for Cooling",

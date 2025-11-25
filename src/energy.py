@@ -312,7 +312,7 @@ def loads_to_site_energy(
                 if not (0.0 <= sizing_value <= 1.0):
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "
-                        f"'awhp_sizing_value' between 0 and 1 for peak_load_percentage mode."
+                        f"'awhp_sizing_value' between 0 and 1 for peak load percentage sizing."
                     )
 
                 # Fraction of peak HHW load at reference temperature
@@ -342,15 +342,12 @@ def loads_to_site_energy(
             awhp_num_h = max(awhp_num_h, 0)
 
             # --- Redundancy Logic ---
-            if redundancy == "N":
-                awhp_num_h_r = awhp_num_h
-            elif redundancy == "N+1":
-                awhp_num_h_r = awhp_num_h+1
-            elif redundancy == "2N":
-                awhp_num_h_r = awhp_num_h*2
+            if redundancy >= 0:
+                awhp_num_h_r = awhp_num_h + redundancy
             else:
                 raise ValueError(
-                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized redundancy: '{redundancy}'."
+                    f"AWHP scenario '{scen.eq_scen_id}' requires "
+                    f"'awhp_redundancy' greater than or equal to 0."
                 )
 
             cap_total_h_W = awhp_cap_h * awhp_num_h # capacity calculations use the original sizing number
