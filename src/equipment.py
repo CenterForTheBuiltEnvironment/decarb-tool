@@ -81,6 +81,27 @@ class EquipmentScenario(BaseModel):
     chiller: Optional[str] = None
     resistance_heater: Optional[str] = None
 
+    def get_value(self, path: str):
+        """
+        Resolve a (possibly dotted) field path, e.g.:
+        - "eq_scen_name"
+        - "awhp"
+        - "awhp_sizing_mode"
+        """
+        parts = path.split(".")
+        curr = self
+        for part in parts:
+            if isinstance(curr, BaseModel):
+                curr = getattr(curr, part, None)
+            elif isinstance(curr, dict):
+                curr = curr.get(part)
+            else:
+                curr = getattr(curr, part, None)
+
+            if curr is None:
+                return None
+        return curr
+
 
 # --- Dot-accessible wrapper with dynamic updates ---
 class DotDict:

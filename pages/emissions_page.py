@@ -193,10 +193,11 @@ def update_metadata(
     State("active-emissions-tab", "data"),
 )
 def show_emissions_scenarios(data, active_tab):
-    if not data or data is None:
-        raise dash.exceptions.PreventUpdate
+    if not data:
+        return "No emissions data available."
 
-    return summary_emissions_selection(data, active_tab)
+    metadata = Metadata(**data)
+    return summary_emissions_selection(metadata, active_tab)
 
 
 @callback(
@@ -224,7 +225,7 @@ def update_static_emission_fields(unit_mode, ref_value):
 
 @callback(
     Output("active-emissions-tab", "data"),
-    Input("emission-scenario-tabs", "active_tab"),
+    Input("emission-scenario-tabs", "value"),
     prevent_initial_call=True,
 )
 def store_active_emissions_tab(active_tab):

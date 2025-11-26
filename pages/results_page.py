@@ -34,9 +34,7 @@ def layout():
                 [
                     dbc.Col(
                         [
-                            html.Div(id="building-info-results"),
-                            html.Hr(),
-                            summary_scenario_results(),
+                            html.Div(id="summary-project-info"),
                             html.Hr(),
                             dbc.Button(
                                 "Download Results",
@@ -50,7 +48,6 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            # results_utility_bar(),
                             chart_tabs(),
                             html.Hr(),
                         ],
@@ -85,14 +82,15 @@ def load_source_energy(session_data):
 
 
 @callback(
-    Output("building-info-results", "children"),
+    Output("summary-project-info", "children"),
     Input("metadata-store", "data"),
 )
-def show_metadata(data):
-    if not data:
-        return "No metadata yet"
+def show_project_summary(metadata_json):
+    if not metadata_json:
+        return "No project metadata available."
 
-    return summary_project_info(data)
+    metadata = Metadata(**metadata_json)
+    return summary_project_info(metadata)
 
 
 @callback(
@@ -245,6 +243,7 @@ def update_scatter_plot(
     )
     return fig
 
+
 # Download the full results/source energy dataframe as CSV
 @callback(
     Output("download-data", "data"),
@@ -253,9 +252,7 @@ def update_scatter_plot(
     prevent_initial_call=True,
 )
 def download_results(n_clicks, session_data):
-    """Download the entire results dataframe as a .csv file
-    
-    """
+    """Download the entire results dataframe as a .csv file"""
     if not session_data or "session_id" not in session_data:
         raise dash.exceptions.PreventUpdate
 

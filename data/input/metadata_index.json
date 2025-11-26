@@ -1,40 +1,65 @@
 {
-  "load_data_simulated": {
+  "load_data_full": {
     "building_type": [
       "Hospital",
+      "HotelLarge",
       "OfficeLarge",
-      "OutPatientHealthCare"
+      "OutPatientHealthCare",
+      "Academic",
+      "Office",
+      "Warehouse",
+      "Other/Gymnasium",
+      "Lab",
+      "Academic/Lab",
+      "Medical Office",
+      "Academic/Office",
+      "Lab/Office",
+      "Tech HQ"
     ],
     "ashrae_climate_zone": [
-      "1A",
-      "4A",
+      "5B",
+      "8",
       "4C",
+      "6B",
+      "5C",
+      "3B",
+      "4B",
+      "1A",
+      "2A",
+      "7",
+      "4A",
+      "2B",
       "3A",
       "5A",
-      "2A",
-      "6B",
-      "5B",
-      "5C",
       "6A",
-      "7",
-      "2B",
-      "8",
-      "4B",
-      "3C",
-      "3B"
+      "3C"
     ],
-    "vintage": [
-      2022,
-      2004
-    ]
+    "load_type": [
+      "simulation",
+      "measured"
+    ],
+    "area_sqm": [
+      500,
+      70000
+    ],
+    "hhw_max_load": [
+      5000,
+      7092000
+    ],
+    "chw_max_load": [
+      35000,
+      5375000
+    ],
+    "min_temp": -38,
+    "max_temp": 97
   },
   "equipment": {
     "equipment_type": [
       "hr_heat_pump",
       "chiller",
       "resistance_heater",
-      "boiler",
-      "heat_pump"
+      "heat_pump",
+      "boiler"
     ]
   },
   "emissions": {

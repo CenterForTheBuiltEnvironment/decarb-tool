@@ -197,6 +197,7 @@ def update_metadata(
         Output("modal-load-data", "opened", allow_duplicate=True),
         Output("metadata-store", "data", allow_duplicate=True),
         Output("load-data-path-store", "data"),
+        Output("load-summary-store", "data"),
     ],
     Input("confirm-building-button", "n_clicks"),
     State("building-radio-group", "value"),
@@ -215,7 +216,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         None,
     )
     if building is None:
-        return no_update, no_update, metadata_data, no_update
+        # 5 outputs
+        return no_update, no_update, metadata_data, no_update, no_update
 
     # --- building_id explicitly on Metadata ------------------------------------
     metadata.building_id = str(building.get("building_id"))
@@ -274,12 +276,15 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         metadata.custom_load_path = building["load_file_path"]
 
     # ------------------------------------------------------------------
-    # Save filtered load data into /tmp/<session_id>/... and store path
+    # Load data once, save parquet path, and compute summary payload
     # ------------------------------------------------------------------
-    load_data_path = no_update
+    load_data_path = None
+    summary_payload = None
+
     try:
         # 1) get StandardLoad for this selection
         load_obj = get_load_data(metadata)
+        df = load_obj.df.sort_index()
 
         # 2) build session folder
         session_id = session_data.get("session_id") if session_data else "default"
@@ -295,13 +300,79 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
 
         # 5) store path as string
         load_data_path = str(path)
-
         print(f"Saved load data for building {metadata.building_id} to {path}")
+
+        # -------------------------
+        # Build summary for charts
+        # -------------------------
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("Expected DatetimeIndex in StandardLoad.df")
+
+        # Monthly peaks (HHW & CHW, W → kW)
+        monthly = df.copy()
+        monthly["month"] = monthly.index.month
+        peaks = (
+            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]]
+            .max()
+            .reset_index()
+        )
+
+        monthly_summary = [
+            {
+                "month": int(row["month"]),
+                "HHW_kW": float(row["heating_W"] / 1000.0),
+                "CHW_kW": float(row["cooling_W"] / 1000.0),
+            }
+            for _, row in peaks.iterrows()
+        ]
+
+        # Temp bins: centered 5°C bins
+        temp_df = df.copy()
+        bin_width = 5
+        half = bin_width / 2
+
+        t_min = temp_df["t_out_C"].min()
+        t_max = temp_df["t_out_C"].max()
+
+        center_start = np.floor(t_min / bin_width) * bin_width
+        center_end = np.ceil(t_max / bin_width) * bin_width
+        centers = np.arange(center_start, center_end + bin_width, bin_width)
+        bin_edges = np.arange(
+            center_start - half, center_end + half + bin_width, bin_width
+        )
+
+        temp_df["t_bin"] = pd.cut(
+            temp_df["t_out_C"],
+            bins=bin_edges,
+            labels=centers,
+            include_lowest=True,
+        )
+
+        bin_stats = (
+            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]]
+            .mean()
+            .reset_index()
+        )
+
+        temp_summary = [
+            {
+                "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
+                "HHW_kW": float(row["heating_W"] / 1000.0),
+                "CHW_kW": float(row["cooling_W"] / 1000.0),
+            }
+            for _, row in bin_stats.iterrows()
+        ]
+
+        summary_payload = {
+            "monthly_peaks": monthly_summary,
+            "temp_bins": temp_summary,
+        }
 
     except Exception as e:
         print(
-            f"Error loading/saving load data for building {metadata.building_id}: {e}"
+            f"Error loading/saving/summarizing load data for building {metadata.building_id}: {e}"
         )
+        # leave load_data_path and summary_payload as None
 
     selected_building_payload = {
         "building_id": building.get("building_id"),
@@ -314,6 +385,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         False,
         metadata.model_dump(),
         load_data_path,
+        summary_payload,
     )
 
 
@@ -418,40 +490,106 @@ def process_upload(contents, filename, metadata_data):
     Output("building-table-container", "children"),
     [
         Input("load-type-filter", "value"),
+        Input("climate-filter", "value"),
+        Input("building-type-filter", "value"),
+        Input("area-range-slider", "value"),
+        Input("hhw-range-slider", "value"),
+        Input("chw-range-slider", "value"),
+        # Input("temp-range-slider", "value"),
         Input("metadata-store", "data"),  # re-sort when metadata changes
     ],
     State("building-radio-group", "value"),
 )
-def update_table(load_type_filter, metadata_data, current_choice):
-
+def update_table(
+    load_type_filter,
+    climate_filter,
+    building_type_filter,
+    area_range,
+    hhw_range,
+    chw_range,
+    # temp_range,
+    metadata_data,
+    current_choice,
+):
+    # -----------------------------
+    # 0) Base filter: load_type
+    # -----------------------------
     if load_type_filter in (None, "all"):
         df = buildings_df.copy()
     else:
-        df = buildings_df[buildings_df["load_type"] == load_type_filter].copy()
+        if "load_type" in buildings_df.columns:
+            df = buildings_df[buildings_df["load_type"] == load_type_filter].copy()
+        else:
+            df = buildings_df.copy()
 
     if df.empty:
         return build_building_table(df, selected_id=None)
 
+    # -----------------------------
+    # 1) Additional filters
+    # -----------------------------
+
+    # Climate zone filter (use same logic as below for column detection)
+    if climate_filter:
+        clim_col = None
+        for cand in ("ashrae_climate_zone", "climate"):
+            if cand in df.columns:
+                clim_col = cand
+                break
+        if clim_col:
+            df = df[df[clim_col] == climate_filter]
+
+    # Building type filter
+    if building_type_filter and "building_type" in df.columns:
+        df = df[df["building_type"] == building_type_filter]
+
+    # Area range filter (try area_sqm or area_m2)
+    if area_range and len(area_range) == 2:
+        amin, amax = area_range
+        area_col = None
+        for cand in ("area_sqm", "area_m2"):
+            if cand in df.columns:
+                area_col = cand
+                break
+        if area_col:
+            df = df[df[area_col].between(amin, amax)]
+
+    # HHW peak range filter
+    if hhw_range and len(hhw_range) == 2 and "hhw_max_load" in df.columns:
+        hmin, hmax = hhw_range
+        df = df[df["hhw_max_load"].between(hmin, hmax)]
+
+    # CHW peak range filter
+    if chw_range and len(chw_range) == 2 and "chw_max_load" in df.columns:
+        cmin, cmax = chw_range
+        df = df[df["chw_max_load"].between(cmin, cmax)]
+
+    if df.empty:
+        return build_building_table(df, selected_id=None)
+
+    # -----------------------------
+    # 2) Metadata-based priority sort (unchanged)
+    # -----------------------------
     meta_location = None
     meta_climate = None
     if metadata_data:
         meta_location = metadata_data.get("location")
         meta_climate = metadata_data.get("ashrae_climate_zone")
 
-    # ? This could be streamlined, usually it's location + ashrae_climate_zone
+    # detect location column
     loc_col = None
     for cand in ("location", "city"):
         if cand in df.columns:
             loc_col = cand
             break
 
+    # detect climate column
     clim_col = None
     for cand in ("ashrae_climate_zone", "climate"):
         if cand in df.columns:
             clim_col = cand
             break
 
-    # implement your 3-step priority logic (location, climate zone, rest) for sorting table
     priority_col_added = False
 
     def apply_priority(mask_series):
@@ -486,6 +624,9 @@ def update_table(load_type_filter, metadata_data, current_choice):
 
         df = df.sort_values(sort_cols).drop(columns="__priority")
 
+    # -----------------------------
+    # 3) Preserve selection if still visible
+    # -----------------------------
     selected_id = None
     if "building_id" in df.columns:
         visible_ids = set(df["building_id"].astype(str).tolist())
@@ -515,56 +656,91 @@ def toggle_confirm_button(current_choice):
 )
 def update_selected_text(current_choice):
     if current_choice is None:
-        return "No building selected yet."
+        return dmc.Group(
+            [
+                DashIconify(icon="mdi:home-off-outline", width=15),
+                dmc.Text("No building selected yet.", c="gray", size="sm"),
+            ],
+            gap="xs",
+        )
 
     building = next(
-        (
-            building
-            for building in BUILDINGS
-            if building["building_id"] == current_choice
-        ),
+        (b for b in BUILDINGS if str(b["building_id"]) == str(current_choice)),
         None,
     )
-    if building is None:
-        return f"Selected building ID: {current_choice}"
 
-    return f"Selected: {building['building_id']} – {building['building_type']} ({building['load_type']})"
+    if building is None:
+        return dmc.Group(
+            [
+                DashIconify(icon="mdi:alert-circle-outline", width=15),
+                dmc.Text(
+                    f"Only found building ID: {current_choice}", c="red", size="sm"
+                ),
+            ],
+            gap="xs",
+        )
+
+    building_type = building["building_type"]
+    location = building["location"]
+    ashrae_climate_zone = building["ashrae_climate_zone"]
+
+    return dmc.Group(
+        [
+            DashIconify(
+                icon="mdi:office-building-marker-outline",
+                width=15,
+            ),
+            dmc.Text(
+                [
+                    "Select ",
+                    dmc.Text(building_type, fw=800, span=True),
+                    " building in ",
+                    dmc.Text(location, fw=800, span=True),
+                    ", ASHRAE Climate Zone ",
+                    dmc.Text(ashrae_climate_zone, fw=800, span=True),
+                    "?",
+                ],
+                c="blue",
+                size="sm",
+            ),
+        ],
+        gap="xs",
+        align="center",
+    )
 
 
 @callback(
     Output("load-visualization-panel", "children"),
-    Input("load-data-path-store", "data"),
-    prevent_initial_call=True,
+    [
+        Input("load-summary-store", "data"),
+        Input("url", "pathname"),
+    ],
+    prevent_initial_call=False,
 )
-def update_load_visualization(load_path):
-    # If no path (or some weird empty value), leave the layout as-is
-    if not load_path:
+def update_load_visualization(summary_data, pathname):
+
+    # Only draw when we are on the Loads page
+    if pathname != URLS.HOME.value:
+        raise dash.exceptions.PreventUpdate
+
+    # No summary yet → keep whatever is in the layout (empty_state defaults)
+    if not summary_data:
         raise dash.exceptions.PreventUpdate
 
     try:
-        load = StandardLoad.from_parquet(load_path)
-        df = load.df.sort_index()
-
-        if not isinstance(df.index, pd.DatetimeIndex):
-            raise ValueError("Expected DatetimeIndex in StandardLoad.df")
+        monthly_summary = summary_data.get("monthly_peaks", []) or []
+        temp_summary = summary_data.get("temp_bins", []) or []
 
         # ------------------------------------------------------------------
-        # Chart 1: Monthly peak HHW & CHW (W -> kW)
+        # Chart 1: Monthly peak HHW & CHW (kW) from summary
         # ------------------------------------------------------------------
-        monthly = df.copy()
-        monthly["month"] = monthly.index.month
-
-        peaks = monthly.groupby("month")[["heating_W", "cooling_W"]].max().reset_index()
-        peaks["HHW_kW"] = peaks["heating_W"] / 1000.0
-        peaks["CHW_kW"] = peaks["cooling_W"] / 1000.0
-
         monthly_data = [
             {
-                "month": calendar.month_abbr[int(row["month"])],
-                "HHW": round(row["HHW_kW"], 0),
-                "CHW": round(row["CHW_kW"], 0),
+                "month": calendar.month_abbr[item["month"]],
+                "HHW": round(item["HHW_kW"], 0),
+                "CHW": round(item["CHW_kW"], 0),
             }
-            for _, row in peaks.iterrows()
+            for item in monthly_summary
         ]
 
         monthly_chart = dmc.AreaChart(
@@ -583,56 +759,17 @@ def update_load_visualization(load_path):
         )
 
         # ------------------------------------------------------------------
-        # Chart 2: HHW & CHW vs 5°C T_out bins (CompositeChart)
+        # Chart 2: HHW & CHW vs 5°C T_out bins from summary
         # ------------------------------------------------------------------
-        if "t_out_C" not in df.columns:
-            raise ValueError("t_out_C column missing in load data")
-
-        temp_df = df.copy()
-
-        # define bin width and half-width
-        bin_width = 5
-        half = bin_width / 2
-
-        t_min = temp_df["t_out_C"].min()
-        t_max = temp_df["t_out_C"].max()
-
-        center_start = np.floor((t_min) / bin_width) * bin_width
-        center_end = np.ceil((t_max) / bin_width) * bin_width
-
-        centers = np.arange(center_start, center_end + bin_width, bin_width)
-
-        bin_edges = np.arange(
-            center_start - half, center_end + half + bin_width, bin_width
-        )
-
-        temp_df["t_bin"] = pd.cut(
-            temp_df["t_out_C"],
-            bins=bin_edges,
-            labels=centers,  # label bin by its center (clean!)
-            include_lowest=True,
-        )
-
-        bin_stats = (
-            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]]
-            .mean()
-            .reset_index()
-        )
-
-        # convert to kW + label formatting
-        bin_stats["HHW_kW"] = bin_stats["heating_W"] / 1000.0
-        bin_stats["CHW_kW"] = bin_stats["cooling_W"] / 1000.0
-        bin_stats["bin_label"] = bin_stats["t_bin"].apply(
-            lambda c: f"{int(c)} °C" if pd.notna(c) else "N/A"
-        )
-
         bin_data = [
             {
-                "bin": row["bin_label"],
-                "HHW": round(row["HHW_kW"], 0),
-                "CHW": round(row["CHW_kW"], 0),
+                "bin": (
+                    f"{int(item['center'])} °C" if item["center"] is not None else "N/A"
+                ),
+                "HHW": round(item["HHW_kW"], 0),
+                "CHW": round(item["CHW_kW"], 0),
             }
-            for _, row in bin_stats.iterrows()
+            for item in temp_summary
         ]
 
         temp_chart = dmc.CompositeChart(
@@ -669,11 +806,11 @@ def update_load_visualization(load_path):
         )
 
     except Exception as e:
-        print(f"Error building load charts from {load_path}: {e}")
+        print(f"Error building load charts from summary data: {e}")
         return [
             empty_state(
                 title="Unable to show load preview",
-                description="There was a problem reading the load data.",
+                description="There was a problem reading the load summary.",
                 icon="ph:warning-circle",
             )
         ]

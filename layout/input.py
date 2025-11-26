@@ -4,11 +4,15 @@ from dash_iconify import DashIconify
 import dash_mantine_components as dmc
 import pandas as pd
 import json
+from pathlib import Path
 
 from utils.units import unit_map
 
-with open("data/input/metadata_index.json", "r") as f:
-    metadata_index = json.load(f)
+META_INDEX_PATH = Path("data/input/metadata_index.json")
+with META_INDEX_PATH.open("r") as f:
+    METADATA_INDEX = json.load(f)
+
+LOAD_INDEX = METADATA_INDEX["load_data_full"]
 
 
 def unit_toggle():
@@ -123,8 +127,11 @@ def build_building_table(buildings_data, selected_id=None):
         ("building_type", "Building Type"),
         ("load_type", "Source"),
         ("area_sqm", "Area [m²]"),
-        # ("heating_fuel", "Heating Fuel"),
-        # ("cooling_fuel", "Cooling Fuel"),
+        ("hhw_max_load", "Peak HHW Load [W]"),
+        ("chw_max_load", "Peak CHW Load [W]"),
+        ("annual_heating_cooling_ratio", "Annual H/C Ratio"),
+        ("min_temp", "Min Temp [°C]"),
+        ("max_temp", "Max Temp [°C]"),
     ]
 
     available_columns = [
@@ -169,36 +176,134 @@ def build_building_table(buildings_data, selected_id=None):
 
 def modal_load_data_selection(buildings_df: pd.DataFrame):
 
+    # --- options from metadata_index.json ----------------------------------
+    building_type_options = sorted(LOAD_INDEX["building_type"])
+    climate_zone_options = sorted(LOAD_INDEX["ashrae_climate_zone"])
+    load_type_options = ["all"] + LOAD_INDEX["load_type"]
+
+    area_min, area_max = LOAD_INDEX["area_sqm"]
+    hhw_min, hhw_max = LOAD_INDEX["hhw_max_load"]
+    chw_min, chw_max = LOAD_INDEX["chw_max_load"]
+
     return dmc.Modal(
-        title="Select Simulated or Measured Data from Library",
+        title="Load Data Library",
         children=[
-            dmc.Group(
-                align="flex-end",
-                mb="md",
+            dmc.Text(
+                "Select simulated or measured load data from library.",
+                fw=400,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            # ------------------ FILTER CONTROLS ----------------------------
+            dmc.Stack(
+                gap="xl",
                 children=[
-                    dmc.Select(
-                        id="load-type-filter",
-                        label="Load type",
-                        placeholder="All",
-                        data=[
-                            {"value": "all", "label": "All"},
-                            {"value": "measured", "label": "Measured"},
-                            {"value": "simulation", "label": "Simulated"},
+                    dmc.Group(
+                        align="space-between",
+                        justify="space-around",
+                        gap="lg",
+                        children=[
+                            # Load type
+                            dmc.Select(
+                                id="load-type-filter",
+                                label="Load type",
+                                data=[
+                                    {"value": v, "label": v.capitalize()}
+                                    for v in load_type_options
+                                ],
+                                value="all",
+                                clearable=False,
+                                style={"width": 180},
+                            ),
+                            # Climate zone
+                            dmc.Select(
+                                id="climate-filter",
+                                label="Climate zone",
+                                placeholder="All",
+                                data=[
+                                    {"value": cz, "label": cz}
+                                    for cz in climate_zone_options
+                                ],
+                                value=None,
+                                clearable=True,
+                                style={"width": 180},
+                            ),
+                            # Building type
+                            dmc.Select(
+                                id="building-type-filter",
+                                label="Building type",
+                                placeholder="All",
+                                data=[
+                                    {"value": bt, "label": bt}
+                                    for bt in building_type_options
+                                ],
+                                value=None,
+                                clearable=True,
+                                searchable=True,
+                                style={"width": 220},
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("Area (m²)", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="area-range-slider",
+                                        min=area_min,
+                                        max=area_max,
+                                        step=500,
+                                        value=[area_min, area_max],
+                                        marks=[
+                                            {"value": area_min, "label": str(area_min)},
+                                            {"value": area_max, "label": str(area_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("HHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="hhw-range-slider",
+                                        min=hhw_min,
+                                        max=hhw_max,
+                                        step=1000,
+                                        value=[hhw_min, hhw_max],
+                                        marks=[
+                                            {"value": hhw_min, "label": str(hhw_min)},
+                                            {"value": hhw_max, "label": str(hhw_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("CHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="chw-range-slider",
+                                        min=chw_min,
+                                        max=chw_max,
+                                        step=1000,
+                                        value=[chw_min, chw_max],
+                                        marks=[
+                                            {"value": chw_min, "label": str(chw_min)},
+                                            {"value": chw_max, "label": str(chw_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
                         ],
-                        value="all",  # default
-                        clearable=False,
-                        style={"width": 200},
                     ),
                 ],
             ),
-            #
-            # --- Table container (callback fills this) -------------------------
-            #
+            dmc.Space(h="xl"),
+            # ------------------ TABLE + CONFIRM ----------------------------
             html.Div(
                 id="building-table-container",
                 children=build_building_table(buildings_df, selected_id=None),
             ),
-            dmc.Space(h="md"),
+            dmc.Space(h="xl"),
             dmc.Group(
                 justify="space-between",
                 align="center",
@@ -207,12 +312,13 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                         id="selected-building-text",
                         children="No building selected yet.",
                         c="dimmed",
+                        size="sm",
                     ),
                     dmc.Button(
                         "Confirm selection",
                         id="confirm-building-button",
                         variant="filled",
-                        disabled=True,  # enabled once a radio is selected
+                        disabled=True,
                     ),
                 ],
             ),
@@ -220,6 +326,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
         ],
         id="modal-load-data",
         size="80%",
+        radius="md",
         centered=True,
         withCloseButton=True,
     )
@@ -371,7 +478,7 @@ def select_equipment(equipment_data):
 
 def set_grid_year():
 
-    year_options = metadata_index["emissions"]["year"]
+    year_options = METADATA_INDEX["emissions"]["year"]
 
     return html.Div(
         [
@@ -396,7 +503,7 @@ def select_grid_scenario():
             "label": type,
             "value": type,
         }
-        for type in metadata_index["emissions"]["emission_scenario"]
+        for type in METADATA_INDEX["emissions"]["emission_scenario"]
     ]
     return html.Div(
         [
@@ -419,7 +526,7 @@ def set_emission_type():
             "label": type,
             "value": type,
         }
-        for type in metadata_index["emissions"]["emission_type"]
+        for type in METADATA_INDEX["emissions"]["emission_type"]
     ]
     return html.Div(
         [
@@ -459,8 +566,6 @@ def set_shortrun_weighting():
 
 def set_static_emissions(unit_mode="SI"):
 
-    # conversion = unit_map["static_emission_intensity"][unit_mode]
-    # refrig_placeholder = conversion["refrig_default"]
     conversion = unit_map["gas_emission_factor"][unit_mode]
     gas_emission_factor_placeholder = conversion["default_value"]
 
@@ -512,7 +617,7 @@ def select_gea_grid_region():
             "label": region,
             "value": region,
         }
-        for region in metadata_index["emissions"]["gea_grid_region"]
+        for region in METADATA_INDEX["emissions"]["gea_grid_region"]
     ]
     return html.Div(
         [
