@@ -10,7 +10,7 @@ from src.emissions import EmissionScenario
 
 
 class LoadData(BaseModel):
-    load_type: str  # 'load_simulated' or 'load_custom'
+    load_type: Optional[str] = None
     max_temp: Optional[float] = None
     median_temp: Optional[float] = None
     min_temp: Optional[float] = None
@@ -50,6 +50,7 @@ class LoadData(BaseModel):
 
 
 class Metadata(BaseModel):
+    building_id: Optional[str] = None
     location: str
     building_type: str
     vintage: int
@@ -74,7 +75,7 @@ class Metadata(BaseModel):
             ashrae_climate_zone="3A",
             area_sqm=None,
             load_data=LoadData(
-                load_type="load_simulated",
+                load_type=None,
                 # All other fields default to None
             ),
             equipment_scenarios=[

@@ -28,39 +28,6 @@ def get_nested_value(obj, attr_path):
     return obj
 
 
-# def make_metadata_card(metadata, fields, title="Summary"):
-#     """
-#     Create a Bootstrap card with a table of selected metadata fields.
-#     """
-#     # Normalize to dict if object has __dict__
-#     meta_dict = metadata.__dict__ if hasattr(metadata, "__dict__") else metadata
-
-#     table_rows = []
-#     for attr_path, label in fields:
-#         value = get_nested_value(meta_dict, attr_path)
-#         if isinstance(value, list):
-#             value = ", ".join(map(str, value))
-#         table_rows.append(html.Tr([html.Td(label), html.Td(str(value))]))
-
-#     return dbc.Card(
-#         [
-#             dbc.CardHeader(title),
-#             dbc.CardBody(
-#                 [
-#                     dbc.Table(
-#                         [html.Tbody(table_rows)],
-#                         bordered=True,
-#                         hover=True,
-#                         responsive=True,
-#                         size="sm",
-#                         style={"fontSize": "14px"},
-#                     )
-#                 ]
-#             ),
-#         ]
-#     )
-
-
 def make_metadata_card(metadata: Metadata, fields, title=""):
     rows = []
     for key, label in fields:
@@ -252,22 +219,6 @@ def empty_state(
     icon_size=40,
     padding=40,
 ):
-    """
-    Reusable empty-state component for placeholder panels.
-
-    Parameters
-    ----------
-    title : str
-        Main title text, e.g. "No load selected :(".
-    description : str
-        Supporting hint text shown below the title.
-    icon : str
-        Iconify icon name, e.g. "ph:chart-line-up".
-    icon_size : int
-        Icon size in pixels.
-    padding : int
-        Vertical padding (top + bottom) in pixels.
-    """
 
     return dmc.Stack(
         [
