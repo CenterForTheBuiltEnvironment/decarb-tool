@@ -78,9 +78,8 @@ class EquipmentScenario(BaseModel):
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
-    boiler: Optional[str]
+    backup_heating: Optional[str]
     chiller: Optional[str] = None
-    resistance_heater: Optional[str] = None
 
 
 # --- Dot-accessible wrapper with dynamic updates ---

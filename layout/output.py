@@ -88,7 +88,7 @@ def summary_equipment_selection(equipment_library, active_tab=None):
             ("awhp_sizing_value", "AWHP Sizing Value"),
             ("awhp_redundancy", "AWHP Redundancy"),
             ("awhp_use_cooling", "AWHP Use Cooling"),
-            ("boiler", "Boiler"),
+            ("backup_heating", "Backup Heating"),
             ("chiller", "Chiller"),
         ]:
             eq_id = scen.get(field)
@@ -105,7 +105,7 @@ def summary_equipment_selection(equipment_library, active_tab=None):
                 ("awhp_sizing_value", "AWHP Sizing Value"),
                 ("awhp_redundancy", "AWHP Redundancy"),
                 ("awhp_use_cooling", "AWHP Use Cooling"),
-                ("boiler", "Boiler"),
+                ("backup_heating", "Backup Heating"),
                 ("chiller", "Chiller"),
             ],
             # title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
