@@ -77,9 +77,8 @@ class EquipmentScenario(BaseModel):
     awhp_sizing_mode: Optional[Literal["peak_load_percentage", "num_of_units"]] = None
     awhp_sizing_value: float
     awhp_use_cooling: bool
-    boiler: Optional[str]
+    backup_heating: Optional[str]
     chiller: Optional[str] = None
-    resistance_heater: Optional[str] = None
 
 
 # --- Dot-accessible wrapper with dynamic updates ---

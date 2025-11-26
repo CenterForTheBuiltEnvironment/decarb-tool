@@ -134,7 +134,7 @@ def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
     State("awhp-sizing-radio", "value"),
     State("awhp-sizing-slider", "value"),
     State("awhp-use-cooling", "value"),
-    State("boiler-input", "value"),
+    State("backup-heating-input", "value"),
     State("chiller-input", "value"),
     State("session-store", "data"),
     prevent_initial_call=True,
@@ -149,7 +149,7 @@ def save_scenario(
     selected_awhp_sizing_mode,
     selected_awhp_sizing_value,
     selected_awhp_use_cooling,
-    selected_boiler,
+    selected_backup_heating,
     selected_chiller,
     session_data,
 ):
@@ -189,9 +189,8 @@ def save_scenario(
             awhp_sizing_mode="peak_load_percentage",
             awhp_sizing_value=0.5,
             awhp_use_cooling=False,
-            boiler="bo01",
-            chiller="ch01",
-            resistance_heater=None,
+            backup_heating="bo01",
+            chiller="ch01"
         )
 
     if scenario_name and scenario_name.strip():
@@ -207,8 +206,8 @@ def save_scenario(
         scenario.awhp_sizing_value = selected_awhp_sizing_value
     if selected_awhp_use_cooling is not None:
         scenario.awhp_use_cooling = selected_awhp_use_cooling
-    if selected_boiler is not None:
-        scenario.boiler = selected_boiler
+    if selected_backup_heating is not None:
+        scenario.backup_heating = selected_backup_heating
     if selected_chiller is not None:
         scenario.chiller = selected_chiller
 

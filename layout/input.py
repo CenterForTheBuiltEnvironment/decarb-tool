@@ -137,13 +137,13 @@ def select_equipment(equipment_data):
     hr_heat_pump_options = with_none_option(options_for("hr_heat_pump"))
     heat_pump_options = with_none_option(options_for("heat_pump"))
 
-    boiler_options = [
+    backup_heating_options = [
         {
             "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
             "value": eq.get("eq_id"),
         }
         for eq in equipment_list
-        if eq.get("eq_type") == "boiler"
+        if eq.get("eq_type") == "backup_heating"
     ]
 
     chiller_options = [
@@ -233,9 +233,9 @@ def select_equipment(equipment_data):
                 [
                     dbc.InputGroupText("Heating", style=label_styling),
                     dbc.Select(
-                        id="boiler-input",
-                        options=boiler_options,
-                        value=(boiler_options[0]["value"] if boiler_options else None),
+                        id="backup-heating-input",
+                        options=backup_heating_options,
+                        value=(backup_heating_options[0]["value"] if backup_heating_options else None),
                     ),
                 ]
             ),

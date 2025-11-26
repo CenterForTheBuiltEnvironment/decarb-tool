@@ -368,12 +368,12 @@ def loads_to_site_energy(
         # =========================
         # Phase 3 – Boiler (optional)
         # =========================
-        if scen.boiler:
-            blr = library.get_equipment(scen.boiler)
-            eff = _constant_heating_efficiency(blr)
+        backup_heating = library.get_equipment(scen.backup_heating)
+        if backup_heating.fuel == "natural_gas":
+            eff = _constant_heating_efficiency(backup_heating)
             if eff is None or eff <= 0:
                 raise ValueError(
-                    f"Boiler '{blr.eq_id}' requires a positive 'efficiency'."
+                    f"Boiler '{backup_heating.eq_id}' requires a positive 'efficiency'."
                 )
 
             boiler_served_W = df[Col.HHW_REM_W].to_numpy()
