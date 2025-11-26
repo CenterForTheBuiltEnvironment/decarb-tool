@@ -11,7 +11,7 @@ from dash_iconify import DashIconify
 import pandas as pd
 
 from src.config import URLS
-from src.metadata import Metadata
+from src.metadata import Metadata, LoadData
 from src.loads import StandardLoad, STANDARD_COLUMNS
 
 
@@ -19,8 +19,7 @@ from layout.input import (
     select_gea_grid_region,
     select_location,
     select_load_type,
-    modal_load_data,
-    modal_load_data_dmc,
+    modal_load_data_selection,
     build_building_table,
 )
 
@@ -62,7 +61,7 @@ def layout():
                         select_location(locations_df=locations_df),
                         html.Hr(),
                         select_load_type(),
-                        modal_load_data(),
+                        modal_load_data_selection(buildings_df=buildings_df),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -124,54 +123,6 @@ def layout():
                             description="A nice plot will pop up here once load data is selected.",
                             icon="ph:bug",
                         ),
-                        dmc.Divider(),
-                        dmc.Group(
-                            align="flex-end",
-                            mb="md",
-                            children=[
-                                dmc.Select(
-                                    id="load-type-filter",
-                                    label="Load type",
-                                    placeholder="All",
-                                    data=[
-                                        {"value": "all", "label": "All"},
-                                        {"value": "measured", "label": "Measured"},
-                                        {"value": "simulation", "label": "Simulated"},
-                                    ],
-                                    value="all",  # default
-                                    clearable=False,
-                                    style={"width": 200},
-                                ),
-                            ],
-                        ),
-                        #
-                        # --- Table container (callback fills this) -------------------------
-                        #
-                        html.Div(
-                            id="building-table-container",
-                            children=build_building_table(
-                                buildings_df, selected_id=None
-                            ),
-                        ),
-                        dmc.Space(h="md"),
-                        dmc.Group(
-                            justify="space-between",
-                            align="center",
-                            children=[
-                                dmc.Text(
-                                    id="selected-building-text",
-                                    children="No building selected yet.",
-                                    c="dimmed",
-                                ),
-                                dmc.Button(
-                                    "Confirm selection",
-                                    id="confirm-building-button",
-                                    variant="filled",
-                                    disabled=True,  # enabled once a radio is selected
-                                ),
-                            ],
-                        ),
-                        dcc.Store(id="selected-building-store"),
                     ],
                     bg="white",
                     radius="md",
@@ -197,31 +148,26 @@ def navigate_to_equipment(n_clicks):
 
 
 @callback(
-    Output("modal-load-data", "is_open"),
-    [
-        Input("open-load-library-modal", "n_clicks"),
-        Input("button-close-load-data-modal", "n_clicks"),
-    ],
-    [State("modal-load-data", "is_open")],
+    Output("modal-load-data", "opened"),
+    Input("open-load-library-modal", "n_clicks"),
+    State("modal-load-data", "opened"),
+    prevent_initial_call=True,
 )
-def toggle_modal(open_clicks, close_clicks, is_open):
-    if open_clicks or close_clicks:
-        return not is_open
-    return is_open
+def toggle_modal(n_clicks, opened):
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+    return not opened
 
 
+#! Needs to be reworked later + add trigger from modal confirm button
 @callback(
     Output("metadata-store", "data"),
     Input("location-input", "value"),
-    Input("building-type-input", "value"),
-    Input("vintage-input", "value"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
 )
 def update_metadata(
     selected_zip,
-    selected_building_type,
-    selected_vintage,
     metadata_data,
 ):
     # Figure out which input triggered
@@ -239,13 +185,85 @@ def update_metadata(
         metadata.ashrae_climate_zone = row["ASHRAE"]
         metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
 
-    elif trigger == "building-type-input" and selected_building_type:
-        metadata.building_type = selected_building_type
-
-    elif trigger == "vintage-input" and selected_vintage:
-        metadata.vintage = selected_vintage
-
     return metadata.model_dump()
+
+
+@callback(
+    [
+        Output("selected-building-store", "data"),
+        Output("modal-load-data", "opened", allow_duplicate=True),  # dmc.Modal
+        Output("metadata-store", "data", allow_duplicate=True),
+    ],
+    Input("confirm-building-button", "n_clicks"),
+    State("building-radio-group", "value"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True,
+)
+def confirm_selection(n_clicks, current_choice, metadata_data):
+    if not n_clicks or current_choice is None:
+        raise dash.exceptions.PreventUpdate
+
+    metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
+
+    building = next(
+        (b for b in BUILDINGS if str(b.get("building_id")) == str(current_choice)),
+        None,
+    )
+    if building is None:
+        return no_update, no_update, metadata_data
+
+    # --- Split building dict into metadata vs load_data updates -----------------
+    # Pydantic v2: use model_fields
+    meta_fields = set(Metadata.model_fields.keys())
+    load_fields = set(LoadData.model_fields.keys())
+
+    metadata_updates = {}
+    load_updates = {}
+
+    for key, value in building.items():
+        if key in ("building_id",):  # explicitly ignore
+            continue
+        if value in (None, ""):
+            continue
+
+        if key in load_fields:
+            load_updates[key] = value
+        elif key in meta_fields and key != "load_data":
+            metadata_updates[key] = value
+        # else: ignore extra columns
+
+    # place to fix types if needed
+    if "vintage" in metadata_updates:
+        metadata_updates["vintage"] = int(metadata_updates["vintage"])
+
+    if "ashrae_climate_zone" in metadata_updates:
+        metadata_updates["ashrae_climate_zone"] = str(
+            metadata_updates["ashrae_climate_zone"]
+        )
+
+    # --- Apply updates to metadata ---------------------------------------------
+    for field, value in metadata_updates.items():
+        setattr(metadata, field, value)
+
+    for field, value in load_updates.items():
+        setattr(metadata.load_data, field, value)
+
+    # --- Special handling for gea_grid_region, if present ----------------------
+    region = building.get("gea_grid_region")
+    if region:
+        metadata.set_gea_grid_region_for_all(region)
+
+    # --- Optional: custom_load_path if you have such a column ------------------
+    if "load_file_path" in building and building["load_file_path"]:
+        metadata.custom_load_path = building["load_file_path"]
+
+    selected_building_payload = {
+        "building_id": building.get("building_id"),
+        "building_type": building.get("building_type"),
+        "load_type": building.get("load_type"),
+    }
+
+    return selected_building_payload, False, metadata.model_dump()
 
 
 @callback(Output("summary-selection-info", "children"), Input("metadata-store", "data"))
@@ -253,7 +271,12 @@ def show_metadata(data):
     if not data:
         return "No metadata yet"
 
-    return building_characteristics_card(data), load_characteristics_card(data)
+    metadata = Metadata(**data)  # ← convert dict → Metadata
+
+    return (
+        building_characteristics_card(metadata),
+        load_characteristics_card(metadata),
+    )
 
 
 def parse_custom_load_data(contents, filename):
@@ -321,7 +344,7 @@ def process_upload(contents, filename, metadata_data):
 
         # Update metadata to use custom load data
         metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
-        metadata.load_type = "load_custom"
+        metadata.load_data.load_type = "load_custom"
         metadata.custom_load_path = result["filepath"]
 
         return alert, metadata.model_dump()
@@ -343,29 +366,88 @@ def process_upload(contents, filename, metadata_data):
 # -------------------------------------------------------------------
 @callback(
     Output("building-table-container", "children"),
-    Input("load-type-filter", "value"),
+    [
+        Input("load-type-filter", "value"),
+        Input("metadata-store", "data"),  # re-sort when metadata changes
+    ],
     State("building-radio-group", "value"),
 )
-def update_table(load_type_filter, current_choice):
-    #
-    # 1. Filter rows
-    #
-    if load_type_filter == "all":
-        rows = BUILDINGS
+def update_table(load_type_filter, metadata_data, current_choice):
+    # 0) Start from full DF and filter by load type
+    if load_type_filter in (None, "all"):
+        df = buildings_df.copy()
     else:
-        rows = [b for b in BUILDINGS if b["load_type"] == load_type_filter]
+        df = buildings_df[buildings_df["load_type"] == load_type_filter].copy()
 
-    #
-    # 2. Preserve selection if still visible
-    #
-    visible_ids = [b["building_id"] for b in rows]
-    selected_id = current_choice if current_choice in visible_ids else None
+    if df.empty:
+        return build_building_table(df, selected_id=None)
 
-    #
-    # 3. Rebuild table with filtered rows + preserved selection
-    #
-    # Convert rows to DataFrame for easier handling
-    df = pd.DataFrame(rows)
+    # 1) Pull current metadata values
+    meta_location = None
+    meta_climate = None
+    if metadata_data:
+        meta_location = metadata_data.get("location")
+        meta_climate = metadata_data.get("ashrae_climate_zone")
+
+    # 2) Figure out which columns in df hold location + climate
+    #    (tries a couple of reasonable options)
+    loc_col = None
+    for cand in ("location", "city"):
+        if cand in df.columns:
+            loc_col = cand
+            break
+
+    clim_col = None
+    for cand in ("ashrae_climate_zone", "climate"):
+        if cand in df.columns:
+            clim_col = cand
+            break
+
+    # 3) Implement your 3-step priority logic
+    priority_col_added = False
+
+    # Helper: apply priority given a mask
+    def apply_priority(mask_series):
+        nonlocal df, priority_col_added
+        df["__priority"] = 1  # default
+        df.loc[mask_series, "__priority"] = 0
+        priority_col_added = True
+
+    if loc_col and clim_col and meta_location and meta_climate:
+        # Step 1: exact match on BOTH location + climate
+        mask_both = (df[loc_col] == meta_location) & (df[clim_col] == meta_climate)
+        if mask_both.any():
+            apply_priority(mask_both)
+        else:
+            # Step 2: same climate zone only
+            if meta_climate:
+                mask_climate = df[clim_col] == meta_climate
+                if mask_climate.any():
+                    apply_priority(mask_climate)
+    elif clim_col and meta_climate:
+        # We at least know climate; use it directly
+        mask_climate = df[clim_col] == meta_climate
+        if mask_climate.any():
+            apply_priority(mask_climate)
+
+    # Step 3: if no matches, leave df order as-is
+    if priority_col_added:
+        sort_cols = ["__priority"]
+        if "building_type" in df.columns:
+            sort_cols.append("building_type")
+        if "building_id" in df.columns:
+            sort_cols.append("building_id")
+
+        df = df.sort_values(sort_cols).drop(columns="__priority")
+
+    # 4) Preserve selection if still visible
+    selected_id = None
+    if "building_id" in df.columns:
+        visible_ids = set(df["building_id"].astype(str).tolist())
+        if current_choice is not None and str(current_choice) in visible_ids:
+            selected_id = current_choice
+
+    # 5) Rebuild table with new ordering
     return build_building_table(df, selected_id)
 
 

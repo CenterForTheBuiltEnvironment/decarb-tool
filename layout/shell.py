@@ -77,7 +77,7 @@ def build_shell(page_content):
         navbar={
             "width": 300,
             "breakpoint": "sm",
-            "collapsed": {"mobile": True, "desktop": True},  # start collapsed on both
+            "collapsed": {"mobile": True, "desktop": False},
         },
         padding="md",
         id="appshell",
@@ -145,18 +145,15 @@ def set_active_navlinks(pathname, link_ids):
     Output("appshell", "navbar"),
     Input("burger", "opened"),
     State("appshell", "navbar"),
+    prevent_initial_call=True,
 )
 def toggle_navbar(opened, navbar):
-    # Defensive copy, in case navbar is None on first call
+    # Defensive copy
     navbar = dict(navbar or {})
     collapsed = dict(navbar.get("collapsed", {}))
 
-    collapsed.update(
-        {
-            "mobile": not opened,
-            "desktop": not opened,
-        }
-    )
+    collapsed["mobile"] = not opened
+    collapsed["desktop"] = not opened
 
     navbar["collapsed"] = collapsed
     return navbar

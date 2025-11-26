@@ -118,10 +118,11 @@ def build_building_table(buildings_data, selected_id=None):
     """
     # Define desired columns with their display names
     column_config = [
+        ("location", "Location"),
+        ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
         ("load_type", "Source"),
-        ("climate", "Climate Zone"),
-        # ("area_m2", "Area [m²]"),
+        ("area_sqm", "Area [m²]"),
         # ("heating_fuel", "Heating Fuel"),
         # ("cooling_fuel", "Cooling Fuel"),
     ]
@@ -166,89 +167,59 @@ def build_building_table(buildings_data, selected_id=None):
     )
 
 
-def modal_load_data():
-
-    building_type_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["building_type"]
-    ]
-
-    vintage_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["vintage"]
-    ]
-
-    return dbc.Modal(
-        [
-            dbc.ModalHeader("Select Pre-Simulated Data"),
-            dbc.ModalBody(
-                [
-                    html.P("Choose a building type:"),
-                    dbc.RadioItems(
-                        options=building_type_options,
-                        id="building-type-input",
-                    ),
-                    html.Br(),
-                    html.P("Choose a building vintage:"),
-                    dbc.RadioItems(
-                        options=vintage_options,
-                        id="vintage-input",
-                        value=vintage_options[0]["value"],
-                    ),
-                ]
-            ),
-            dbc.ModalFooter(
-                dbc.Button(
-                    "Close",
-                    id="button-close-load-data-modal",
-                    className="ml-auto",
-                )
-            ),
-        ],
-        id="modal-load-data",
-        size="lg",
-        centered=True,
-    )
-
-
-def modal_load_data_dmc():
-    building_type_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["building_type"]
-    ]
-
-    vintage_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["vintage"]
-    ]
+def modal_load_data_selection(buildings_df: pd.DataFrame):
 
     return dmc.Modal(
-        title="Select Pre-Simulated Data",
+        title="Select Simulated or Measured Data from Library",
         children=[
-            dmc.Text("I am in a modal component."),
-            dmc.Space(h=20),
-            html.Div(id="prefiltered-building-table-div"),
-            dmc.Space(h=20),
-            dmc.Button(
-                "Close",
-                id="button-close-load-data-modal",
-                variant="outline",
+            dmc.Group(
+                align="flex-end",
+                mb="md",
+                children=[
+                    dmc.Select(
+                        id="load-type-filter",
+                        label="Load type",
+                        placeholder="All",
+                        data=[
+                            {"value": "all", "label": "All"},
+                            {"value": "measured", "label": "Measured"},
+                            {"value": "simulation", "label": "Simulated"},
+                        ],
+                        value="all",  # default
+                        clearable=False,
+                        style={"width": 200},
+                    ),
+                ],
             ),
+            #
+            # --- Table container (callback fills this) -------------------------
+            #
+            html.Div(
+                id="building-table-container",
+                children=build_building_table(buildings_df, selected_id=None),
+            ),
+            dmc.Space(h="md"),
+            dmc.Group(
+                justify="space-between",
+                align="center",
+                children=[
+                    dmc.Text(
+                        id="selected-building-text",
+                        children="No building selected yet.",
+                        c="dimmed",
+                    ),
+                    dmc.Button(
+                        "Confirm selection",
+                        id="confirm-building-button",
+                        variant="filled",
+                        disabled=True,  # enabled once a radio is selected
+                    ),
+                ],
+            ),
+            dcc.Store(id="selected-building-store"),
         ],
         id="modal-load-data",
-        size="lg",
+        size="80%",
         centered=True,
         withCloseButton=True,
     )

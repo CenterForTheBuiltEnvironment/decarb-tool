@@ -11,6 +11,9 @@ from src.emissions import EmissionScenario
 
 class LoadData(BaseModel):
     load_type: str  # 'load_simulated' or 'load_custom'
+    max_temp: Optional[float] = None
+    median_temp: Optional[float] = None
+    min_temp: Optional[float] = None
     annual_heating_cooling_ratio: Optional[float] = None
     chw_annual_load: Optional[float] = None
     chw_data_coverage: Optional[float] = None
@@ -51,6 +54,7 @@ class Metadata(BaseModel):
     building_type: str
     vintage: int
     ashrae_climate_zone: str
+    area_sqm: Optional[float]
     load_data: LoadData
     equipment_scenarios: Union[str, List[str]]
     emission_settings: List[EmissionScenario]
@@ -68,6 +72,7 @@ class Metadata(BaseModel):
             building_type="Hospital",
             vintage=2004,
             ashrae_climate_zone="3A",
+            area_sqm=None,
             load_data=LoadData(
                 load_type="load_simulated",
                 # All other fields default to None
@@ -133,6 +138,26 @@ class Metadata(BaseModel):
         with Path(file_path).open("r") as f:
             data = json.load(f)
         return cls(**data)
+
+    def get_value(self, path: str):
+        """
+        Get a (possibly nested) field by dotted path, e.g.:
+        - "location"
+        - "load_data.chw_max_load"
+        """
+        parts = path.split(".")
+        curr = self
+        for part in parts:
+            if isinstance(curr, BaseModel):
+                curr = getattr(curr, part, None)
+            elif isinstance(curr, dict):
+                curr = curr.get(part)
+            else:
+                curr = getattr(curr, part, None)
+
+            if curr is None:
+                return None
+        return curr
 
     # ---------- Scenario helpers ----------
     def get_emission_scenario(self, scen_id: str) -> EmissionScenario:

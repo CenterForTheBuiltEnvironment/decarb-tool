@@ -4,6 +4,8 @@ from dash import html
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
+from src.metadata import Metadata
+
 
 def get_nested_value(obj, attr_path):
     """Fetch nested values using dot-separated path.
@@ -26,69 +28,91 @@ def get_nested_value(obj, attr_path):
     return obj
 
 
-def make_metadata_card(metadata, fields, title="Summary"):
-    """
-    Create a Bootstrap card with a table of selected metadata fields.
-    """
-    # Normalize to dict if object has __dict__
-    meta_dict = metadata.__dict__ if hasattr(metadata, "__dict__") else metadata
+# def make_metadata_card(metadata, fields, title="Summary"):
+#     """
+#     Create a Bootstrap card with a table of selected metadata fields.
+#     """
+#     # Normalize to dict if object has __dict__
+#     meta_dict = metadata.__dict__ if hasattr(metadata, "__dict__") else metadata
 
-    table_rows = []
-    for attr_path, label in fields:
-        value = get_nested_value(meta_dict, attr_path)
-        if isinstance(value, list):
-            value = ", ".join(map(str, value))
-        table_rows.append(html.Tr([html.Td(label), html.Td(str(value))]))
+#     table_rows = []
+#     for attr_path, label in fields:
+#         value = get_nested_value(meta_dict, attr_path)
+#         if isinstance(value, list):
+#             value = ", ".join(map(str, value))
+#         table_rows.append(html.Tr([html.Td(label), html.Td(str(value))]))
 
-    return dbc.Card(
-        [
-            dbc.CardHeader(title),
-            dbc.CardBody(
+#     return dbc.Card(
+#         [
+#             dbc.CardHeader(title),
+#             dbc.CardBody(
+#                 [
+#                     dbc.Table(
+#                         [html.Tbody(table_rows)],
+#                         bordered=True,
+#                         hover=True,
+#                         responsive=True,
+#                         size="sm",
+#                         style={"fontSize": "14px"},
+#                     )
+#                 ]
+#             ),
+#         ]
+#     )
+
+
+def make_metadata_card(metadata: Metadata, fields, title=""):
+    rows = []
+    for key, label in fields:
+        value = metadata.get_value(key)  # ← uses Metadata.get_value
+
+        rows.append(
+            dmc.Group(
                 [
-                    dbc.Table(
-                        [html.Tbody(table_rows)],
-                        bordered=True,
-                        hover=True,
-                        responsive=True,
-                        size="sm",
-                        style={"fontSize": "14px"},
-                    )
-                ]
+                    dmc.Text(label, fw=200),
+                    dmc.Text(str(value) if value is not None else "-", c="dimmed"),
+                ],
+                justify="space-between",
+            )
+        )
+
+    return dmc.Card(
+        [
+            dmc.CardSection(
+                dmc.Text(title, fw=500, p="md"),
             ),
-        ]
+            dmc.Stack(rows, gap="sm"),
+        ],
+        withBorder=False,
+        radius="md",
+        shadow="sm",
+        p="lg",
     )
 
 
-def building_characteristics_card(metadata):
-
-    building_fields = [
+def building_characteristics_card(metadata: Metadata):
+    fields = [
         ("location", "Location"),
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("ashrae_climate_zone", "Climate Region"),
+        ("area_sqm", "Building Area (m²)"),
     ]
-
-    building_characteristics_card = make_metadata_card(
-        metadata, building_fields, title="Building characteristics"
-    )
-
-    return building_characteristics_card
+    return make_metadata_card(metadata, fields, title="Building Characteristics")
 
 
-def load_characteristics_card(metadata):
-
+def load_characteristics_card(metadata: Metadata):
     load_fields = [
-        ("location", "Location"),
-        ("building_type", "Building Type"),
-        ("vintage", "Vintage"),
-        ("ashrae_climate_zone", "Climate Region"),
+        ("load_data.load_type", "Load Type"),
+        ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
+        ("load_data.hhw_max_load", "Peak Heating Load [W]"),
+        ("load_data.chw_max_load", "Peak Cooling Load [W]"),
+        ("load_data.max_temp", "Max. Outdoor Temp. [°C]"),
+        ("load_data.median_temp", "Median Outdoor Temp. [°C]"),
+        ("load_data.min_temp", "Min. Outdoor Temp. [°C]"),
     ]
 
-    load_characteristics_card = make_metadata_card(
-        metadata, load_fields, title="Load characteristics"
-    )
-
-    return load_characteristics_card
+    return make_metadata_card(metadata, load_fields, title="Load Characteristics")
 
 
 def summary_equipment_selection(equipment_library, active_tab=None):
@@ -193,6 +217,7 @@ def summary_project_info(metadata):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("ashrae_climate_zone", "Climate Region"),
+        ("area_sqm", "Building Area (m²)"),
     ]
 
     building_card = make_metadata_card(
