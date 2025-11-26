@@ -13,6 +13,7 @@ cycler==0.12.1
 dash==3.0.4
 dash-bootstrap-components==2.0.3
 dash-iconify==0.1.2
+dash_mantine_components==2.4.0
 debugpy==1.8.15
 decorator==5.2.1
 executing==2.2.0
