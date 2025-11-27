@@ -65,6 +65,7 @@ def building_characteristics_card(metadata: Metadata):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("ashrae_climate_zone", "Climate Region"),
+        ("base_gea_grid_region", "GEA Grid Region"),
         ("area_sqm", "Building Area (m²)"),
     ]
     return make_metadata_card(metadata, fields, title="Building Characteristics")

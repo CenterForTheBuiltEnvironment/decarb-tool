@@ -1,7 +1,7 @@
 from pprint import pprint
 import pandas as pd
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class EmissionScenario(BaseModel):
     em_scen_id: str
     grid_scenario: str
-    gea_grid_region: str
+    gea_grid_region: Optional[str] = None
     time_zone: str
     emission_type: str
     shortrun_weighting: float

@@ -2,19 +2,13 @@
   "load_data_full": {
     "building_type": [
       "Hospital",
-      "HotelLarge",
-      "OfficeLarge",
+      "Hotel",
+      "Office",
       "OutPatientHealthCare",
       "Academic",
-      "Office",
-      "Warehouse",
-      "Other/Gymnasium",
+      "Other",
       "Lab",
-      "Academic/Lab",
-      "Medical Office",
-      "Academic/Office",
-      "Lab/Office",
-      "Tech HQ"
+      "Medical Office"
     ],
     "ashrae_climate_zone": [
       "5B",
@@ -55,11 +49,11 @@
   },
   "equipment": {
     "equipment_type": [
-      "hr_heat_pump",
-      "chiller",
       "resistance_heater",
-      "heat_pump",
-      "boiler"
+      "hr_heat_pump",
+      "boiler",
+      "chiller",
+      "heat_pump"
     ]
   },
   "emissions": {

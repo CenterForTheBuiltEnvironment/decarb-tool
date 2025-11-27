@@ -51,10 +51,10 @@ class LoadData(BaseModel):
 
 class Metadata(BaseModel):
     building_id: Optional[str] = None
-    location: str
-    building_type: str
-    vintage: int
-    ashrae_climate_zone: str
+    location: Optional[str] = None
+    building_type: Optional[str] = None
+    vintage: Optional[int] = None
+    ashrae_climate_zone: Optional[str] = None
     area_sqm: Optional[float]
     load_data: LoadData
     equipment_scenarios: Union[str, List[str]]
@@ -65,14 +65,21 @@ class Metadata(BaseModel):
         None  # Path to custom load data file if load_type='load_custom'
     )
 
+    @property
+    def base_gea_grid_region(self) -> Optional[str]:
+        """Assumes all emission scenarios share the same grid region."""
+        if not self.emission_settings:
+            return None
+        return self.emission_settings[0].gea_grid_region
+
     # ---------- Factory ----------
     @classmethod
     def create(cls, **overrides: Any) -> "Metadata":
         defaults = dict(
-            location="Sacramento",
-            building_type="Hospital",
-            vintage=2004,
-            ashrae_climate_zone="3A",
+            location=None,
+            building_type=None,
+            vintage=None,
+            ashrae_climate_zone=None,
             area_sqm=None,
             load_data=LoadData(
                 load_type=None,
@@ -89,7 +96,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
@@ -100,7 +107,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_b",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
@@ -111,7 +118,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_c",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
