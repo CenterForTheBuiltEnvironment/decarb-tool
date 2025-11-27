@@ -9,27 +9,82 @@ from datetime import datetime
 from src.emissions import EmissionScenario
 
 
+class LoadData(BaseModel):
+    load_type: Optional[str] = None
+    max_temp: Optional[float] = None
+    median_temp: Optional[float] = None
+    min_temp: Optional[float] = None
+    annual_heating_cooling_ratio: Optional[float] = None
+    chw_annual_load: Optional[float] = None
+    chw_data_coverage: Optional[float] = None
+    chw_max_load: Optional[float] = None
+    chw_max_load_per_area: Optional[float] = None
+    chw_mean_load: Optional[float] = None
+    chw_median_load: Optional[float] = None
+    chw_min_load: Optional[float] = None
+    chw_pct_below_10pct_max: Optional[float] = None
+    chw_pct_below_20pct_max: Optional[float] = None
+    chw_pct_below_30pct_max: Optional[float] = None
+    chw_pct_below_40pct_max: Optional[float] = None
+    chw_pct_below_50pct_max: Optional[float] = None
+    chw_pct_below_60pct_max: Optional[float] = None
+    chw_pct_below_70pct_max: Optional[float] = None
+    chw_pct_below_80pct_max: Optional[float] = None
+    chw_pct_below_90pct_max: Optional[float] = None
+    chw_q25_load: Optional[float] = None
+    chw_q75_load: Optional[float] = None
+    chw_valid_hours: Optional[int] = None
+    heat_recovery_heating_fraction: Optional[float] = None
+    hhw_annual_load: Optional[float] = None
+    hhw_data_coverage: Optional[float] = None
+    hhw_max_load: Optional[float] = None
+    hhw_max_load_per_area: Optional[float] = None
+    hhw_mean_load: Optional[float] = None
+    hhw_median_load: Optional[float] = None
+    hhw_min_load: Optional[float] = None
+    hhw_pct_below_10pct_max: Optional[float] = None
+    hhw_pct_below_20pct_max: Optional[float] = None
+    hhw_pct_below_30pct_max: Optional[float] = None
+    hhw_pct_below_40pct_max: Optional[float] = None
+    hhw_pct_below_50pct_max: Optional[float] = None
+
+
 class Metadata(BaseModel):
-    location: str
-    building_type: str
-    vintage: int
-    load_type: str  # 'load_simulated' or 'load_custom'
-    ashrae_climate_zone: str
+    building_id: Optional[str] = None
+    location: Optional[str] = None
+    building_type: Optional[str] = None
+    vintage: Optional[int] = None
+    ashrae_climate_zone: Optional[str] = None
+    area_sqm: Optional[float]
+    load_data: LoadData
     equipment_scenarios: Union[str, List[str]]
     emission_settings: List[EmissionScenario]
     units: str
     last_updated: str
-    custom_load_path: Optional[str] = None  # Path to custom load data file if load_type='load_custom'
+    custom_load_path: Optional[str] = (
+        None  # Path to custom load data file if load_type='load_custom'
+    )
+
+    @property
+    def base_gea_grid_region(self) -> Optional[str]:
+        """Assumes all emission scenarios share the same grid region."""
+        if not self.emission_settings:
+            return None
+        return self.emission_settings[0].gea_grid_region
 
     # ---------- Factory ----------
     @classmethod
     def create(cls, **overrides: Any) -> "Metadata":
         defaults = dict(
-            location="Sacramento",
-            building_type="Hospital",
-            vintage=2004,
-            load_type="load_simulated",
-            ashrae_climate_zone="3A",
+            location=None,
+            building_type=None,
+            vintage=None,
+            ashrae_climate_zone=None,
+            area_sqm=None,
+            load_data=LoadData(
+                load_type=None,
+                # All other fields default to None
+            ),
             equipment_scenarios=[
                 "eq_scenario_1",
                 "eq_scenario_2",
@@ -41,7 +96,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
@@ -52,7 +107,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_b",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
@@ -63,7 +118,7 @@ class Metadata(BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_c",
                     grid_scenario="MidCase",
-                    gea_grid_region="CAISO",
+                    gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
@@ -91,6 +146,26 @@ class Metadata(BaseModel):
         with Path(file_path).open("r") as f:
             data = json.load(f)
         return cls(**data)
+
+    def get_value(self, path: str):
+        """
+        Get a (possibly nested) field by dotted path, e.g.:
+        - "location"
+        - "load_data.chw_max_load"
+        """
+        parts = path.split(".")
+        curr = self
+        for part in parts:
+            if isinstance(curr, BaseModel):
+                curr = getattr(curr, part, None)
+            elif isinstance(curr, dict):
+                curr = curr.get(part)
+            else:
+                curr = getattr(curr, part, None)
+
+            if curr is None:
+                return None
+        return curr
 
     # ---------- Scenario helpers ----------
     def get_emission_scenario(self, scen_id: str) -> EmissionScenario:

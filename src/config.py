@@ -8,6 +8,12 @@ class URLS(Enum):
     RESULTS: str = "/results"
 
 
+class LINKS(Enum):
+    DOCS_URL: str = (
+        "https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/main/docs/documentation-short.md"
+    )
+
+
 class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"

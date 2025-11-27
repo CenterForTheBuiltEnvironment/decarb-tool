@@ -9,6 +9,7 @@ STANDARD_COLUMNS = ["t_out_C", "heating_W", "cooling_W"]
 
 default_year = 2025  # for data without datetime info
 
+
 def ensure_datetime(df: pd.DataFrame, default_year: int = 2025) -> pd.DataFrame:
     if "timestamp" in df.columns:
         # User already gave datetime
@@ -69,11 +70,14 @@ class StandardLoad:
         if freq not in ("H", "h"):
             print(f"⚠️ Warning: inferred frequency = {freq}, expected hourly")
 
-        # Enforce numeric columns
+        # Enforce numeric columns, but allow NaNs
         for col in ["t_out_C", "heating_W", "cooling_W"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            if df[col].isnull().any():
-                raise ValueError(f"Invalid numeric values in column {col}")
+            bad_count = df[col].isnull().sum()
+            if bad_count > 0:
+                print(
+                    f"⚠️ Warning: {bad_count} invalid values in column {col}, set to NaN"
+                )
 
         return df
 
@@ -108,54 +112,50 @@ class StandardLoad:
         return self.df.describe()
 
 
-def get_load_data(settings: Metadata) -> StandardLoad:
+def get_load_data(metadata: Metadata) -> StandardLoad:
     """
     Load and filter load data based on Metadata settings.
-    Supports both `load_simulated` and `load_custom` types.
 
-    Parameters
-    ----------
-    settings : Metadata
-        User/project metadata including load_type, climate zone, building type.
-        For custom data, must include custom_load_path.
-
-    Returns
-    -------
-    StandardLoad
-        A validated, canonical load object ready for calculations.
+    - simulation / measured: from a single parquet, filtered by building_id + load_type
+    - custom: from user-uploaded csv at metadata.custom_load_path
     """
-    if settings.load_type == "load_simulated":
-        # Load the raw DataFrame
-        df = pd.read_parquet("data/input/load_data_simulated.parquet", engine="pyarrow")
+    load_type = metadata.load_data.load_type
 
-        # Filter by user metadata
-        mask = (
-            (df["ashrae_climate_zone"] == settings.ashrae_climate_zone)
-            & (df["building_type"] == settings.building_type)
-            & (df["vintage"] == settings.vintage)
+    if load_type in ("simulation", "measured"):
+        if metadata.building_id is None:
+            raise ValueError("building_id required to load simulation/measured data")
+
+        parquet_path = Path("data/input/load_data_full.parquet")
+
+        # filter at read-time for speed
+        df = pd.read_parquet(
+            parquet_path,
+            engine="pyarrow",
+            filters=[
+                ("building_id", "=", metadata.building_id),
+                ("source", "=", load_type),
+            ],
         )
-        df = df.loc[mask]
 
         if df.empty:
             raise ValueError(
-                f"No simulated load found for climate zone={settings.ashrae_climate_zone}, "
-                f"building type={settings.building_type}, vintage={settings.vintage}"
+                f"No {load_type} load found for building_id={metadata.building_id}"
             )
 
-        # Keep only canonical columns
-        df = df[["timestamp", "t_out_C", "heating_W", "cooling_W"]]
+        keep = ["timestamp", "t_out_C", "heating_W", "cooling_W"]
+        missing = [c for c in keep if c not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns in parquet: {missing}")
 
-        # Wrap into StandardLoad (validation runs here)
+        df = df[keep]
+
         return StandardLoad(df)
-        
-    elif settings.load_type == "load_custom":
-        if not settings.custom_load_path:
-            raise ValueError("custom_load_path required for load_type='load_custom'")
-            
-        # Load from parquet (already validated when uploaded)
-        return StandardLoad.from_parquet(settings.custom_load_path)
+
+    elif load_type == "custom":
+        if not metadata.custom_load_path:
+            raise ValueError("custom_load_path required for load_type='custom'")
+
+        return StandardLoad.from_parquet(metadata.custom_load_path)
 
     else:
-        raise NotImplementedError(
-            f"Load type {settings.load_type!r} not yet supported in get_load_data"
-        )
+        raise NotImplementedError(f"Unsupported load type: {load_type!r}")

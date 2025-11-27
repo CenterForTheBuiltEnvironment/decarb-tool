@@ -1,6 +1,13 @@
 import dash_bootstrap_components as dbc
 from dash import html
 
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+
+from src.metadata import Metadata
+
+from src.equipment import EquipmentLibrary, EquipmentScenario
+
 
 def get_nested_value(obj, attr_path):
     """Fetch nested values using dot-separated path.
@@ -23,166 +30,240 @@ def get_nested_value(obj, attr_path):
     return obj
 
 
-def make_metadata_card(metadata, fields, title="Summary"):
-    """
-    Create a Bootstrap card with a table of selected metadata fields.
-    """
-    # Normalize to dict if object has __dict__
-    meta_dict = metadata.__dict__ if hasattr(metadata, "__dict__") else metadata
+def make_metadata_card(metadata: Metadata, fields, title=""):
+    rows = []
+    for key, label in fields:
+        value = metadata.get_value(key)  # ← uses Metadata.get_value
 
-    table_rows = []
-    for attr_path, label in fields:
-        value = get_nested_value(meta_dict, attr_path)
-        if isinstance(value, list):
-            value = ", ".join(map(str, value))
-        table_rows.append(html.Tr([html.Td(label), html.Td(str(value))]))
-
-    return dbc.Card(
-        [
-            dbc.CardHeader(title),
-            dbc.CardBody(
+        rows.append(
+            dmc.Group(
                 [
-                    dbc.Table(
-                        [html.Tbody(table_rows)],
-                        bordered=True,
-                        hover=True,
-                        responsive=True,
-                        size="sm",
-                        style={"fontSize": "14px"},
-                    )
-                ]
+                    dmc.Text(label, fw=200),
+                    dmc.Text(str(value) if value is not None else "-", c="dimmed"),
+                ],
+                justify="space-between",
+            )
+        )
+
+    return dmc.Card(
+        [
+            dmc.CardSection(
+                dmc.Text(title, fw=500, p="md"),
             ),
-        ]
+            dmc.Stack(rows, gap="sm"),
+        ],
+        withBorder=False,
+        radius="md",
+        shadow="sm",
+        p="lg",
     )
 
 
-def summary_loads_selection(metadata):
-
-    building_fields = [
+def building_characteristics_card(metadata: Metadata):
+    fields = [
         ("location", "Location"),
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("ashrae_climate_zone", "Climate Region"),
+        ("base_gea_grid_region", "GEA Grid Region"),
+        ("area_sqm", "Building Area (m²)"),
+    ]
+    return make_metadata_card(metadata, fields, title="Building Characteristics")
+
+
+def load_characteristics_card(metadata: Metadata):
+    load_fields = [
+        ("load_data.load_type", "Load Type"),
+        ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
+        ("load_data.hhw_max_load", "Peak Heating Load [W]"),
+        ("load_data.chw_max_load", "Peak Cooling Load [W]"),
+        ("load_data.max_temp", "Max. Outdoor Temp. [°C]"),
+        ("load_data.median_temp", "Median Outdoor Temp. [°C]"),
+        ("load_data.min_temp", "Min. Outdoor Temp. [°C]"),
     ]
 
-    building_loads_card = make_metadata_card(
-        metadata, building_fields, title="Building Information"
+    return make_metadata_card(metadata, load_fields, title="Load Characteristics")
+
+
+def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=None):
+    """
+    Build a tabbed summary of all equipment scenarios.
+    - `equipment_library` is an EquipmentLibrary instance (not a dict)
+    - `active_tab` is the previously selected tab id (e.g. "eq_scenario_1")
+    """
+
+    # Map eq_id -> human-readable label (e.g. model name)
+    eq_lookup = {eq.eq_id: f"{eq.model}".strip() for eq in equipment_library.equipment}
+
+    # Helper: wrapper that resolves equipment IDs to model names for display
+    class ScenarioView:
+        def __init__(self, scenario: EquipmentScenario, lookup: dict[str, str]):
+            self._scenario = scenario
+            self._lookup = lookup
+
+        def get_value(self, path: str):
+            # only need simple attributes here (no deep nesting)
+            val = getattr(self._scenario, path, None)
+
+            # For equipment-id fields, map id -> model name if available
+            if path in ("hr_wwhp", "awhp", "boiler", "chiller") and val is not None:
+                return self._lookup.get(val, val)
+
+            return val
+
+    # Sort scenarios by id for stable ordering
+    scenarios = sorted(
+        equipment_library.equipment_scenarios,
+        key=lambda s: s.eq_scen_id,
     )
 
-    return building_loads_card
+    if not scenarios:
+        return dmc.Text("No equipment scenarios available.", c="dimmed")
 
+    # Build tabs
+    tabs_list_items = []
+    tabs_panels = []
 
-def summary_equipment_selection(equipment_library, active_tab=None):
-    eq_lookup = {
-        eq["eq_id"]: f"{eq['model']}".strip() for eq in equipment_library["equipment"]
-    }
+    fields = [
+        ("eq_scen_name", "Scenario"),
+        ("hr_wwhp", "HR WWHP"),
+        ("awhp", "AWHP"),
+        ("awhp_sizing_mode", "AWHP Sizing Mode"),
+        ("awhp_sizing_value", "AWHP Sizing Value"),
+        ("awhp_redundancy", "AWHP Redundancy"),
+        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("backup_heating", "Backup Heating"),
+        ("chiller", "Chiller"),
+    ]
 
-    tabs = []
-    for scen in equipment_library["equipment_scenarios"]:
-        scen_display = scen.copy()
-        for field, _ in [
-            ("eq_scen_name", "Scenario"),
-            ("hr_wwhp", "HR WWHP"),
-            ("awhp", "AWHP"),
-            ("awhp_sizing_mode", "AWHP Sizing Mode"),
-            ("awhp_sizing_value", "AWHP Sizing Value"),
-            ("awhp_redundancy", "AWHP Redundancy"),
-            ("awhp_use_cooling", "AWHP Use Cooling"),
-            ("backup_heating", "Backup Heating"),
-            ("chiller", "Chiller"),
-        ]:
-            eq_id = scen.get(field)
-            if eq_id in eq_lookup:
-                scen_display[field] = eq_lookup[eq_id]
+    for scen in scenarios:
+        scen_view = ScenarioView(scen, eq_lookup)
 
         card = make_metadata_card(
-            scen_display,
-            [
-                ("eq_scen_name", "Scenario"),
-                ("hr_wwhp", "HR WWHP"),
-                ("awhp", "AWHP"),
-                ("awhp_sizing_mode", "AWHP Sizing Mode"),
-                ("awhp_sizing_value", "AWHP Sizing Value"),
-                ("awhp_redundancy", "AWHP Redundancy"),
-                ("awhp_use_cooling", "AWHP Use Cooling"),
-                ("backup_heating", "Backup Heating"),
-                ("chiller", "Chiller"),
-            ],
-            # title="Summary | Scenario " + scen["eq_scen_id"][-1].upper(),
+            scen_view,  # 👈 object with .get_value()
+            fields,
             title="Summary",
         )
 
-        tabs.append(
-            dbc.Tab(
-                label="Scen. " + scen["eq_scen_id"][-1].upper(),
-                tab_id=scen["eq_scen_id"],
-                children=[card],
-                tab_style={"margin": "0.2rem"},
+        tab_label = (
+            f"Scen. {scen.eq_scen_id[-1].upper()}" if scen.eq_scen_id else "Scenario"
+        )
+
+        tabs_list_items.append(
+            dmc.TabsTab(
+                tab_label,  # children (text label)
+                value=scen.eq_scen_id,
             )
         )
 
-    # If no tab stored, default to first one
-    default_tab = equipment_library["equipment_scenarios"][0]["eq_scen_id"]
+        tabs_panels.append(
+            dmc.TabsPanel(
+                children=card,
+                value=scen.eq_scen_id,
+            )
+        )
 
-    return dbc.Tabs(
-        tabs,
+    # Default active tab
+    default_tab = active_tab or scenarios[0].eq_scen_id
+
+    return dmc.Tabs(
+        value=default_tab,
         id="equipment-scenario-tabs",
-        active_tab=active_tab if active_tab else default_tab,
+        children=[
+            dmc.TabsList(tabs_list_items, grow=True),
+            *tabs_panels,
+        ],
+        orientation="horizontal",
+        variant="outline",
+        keepMounted=False,
     )
 
 
-def summary_emissions_selection(metadata, active_tab=None):
-    tabs = []
-    for scen in metadata["emission_settings"]:
-        emission_fields = [
-            ("grid_scenario", "Grid Scenario"),
-            ("gea_grid_region", "GEA Grid Region"),
-            ("emission_type", "Emission Type"),
-            ("shortrun_weighting", "Short-Run Weighting"),
-            ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),
-            ("year", "Year"),
-        ]
+def summary_emissions_selection(metadata: Metadata, active_tab=None):
+    """
+    Build a tabbed summary of all emission scenarios.
+    `metadata` is a Metadata instance (not a dict).
+    """
+
+    scenarios = metadata.emission_settings or []
+    if not scenarios:
+        return dmc.Text("No emission scenarios available.", c="dimmed")
+
+    # Sort for stable ordering (e.g. by year then id)
+    scenarios = sorted(scenarios, key=lambda s: (s.year, s.em_scen_id))
+
+    emission_fields = [
+        ("grid_scenario", "Grid Scenario"),
+        ("gea_grid_region", "GEA Grid Region"),
+        ("emission_type", "Emission Type"),
+        ("shortrun_weighting", "Short-Run Weighting"),
+        ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),
+        ("year", "Year"),
+    ]
+
+    tabs_list_items = []
+    tabs_panels = []
+
+    for scen in scenarios:
+        # scen is an EmissionScenario with .get_value
         card = make_metadata_card(
             scen,
             emission_fields,
-            # title="Summary | Scenario " + scen["em_scen_id"][-1].upper(),
             title="Summary",
         )
 
-        tabs.append(
-            dbc.Tab(
-                label="Scenario "
-                + scen["em_scen_id"][-1].upper(),  # Tab label, e.g. "Scenario A"
-                tab_id=scen["em_scen_id"],  # needed to control active tab
-                children=[card],
+        # label similar to your original: "Scenario A", "Scenario B", ...
+        label_suffix = scen.em_scen_id[-1].upper() if scen.em_scen_id else "?"
+        tab_label = f"Scenario {label_suffix}"
+
+        tabs_list_items.append(
+            dmc.TabsTab(
+                tab_label,  # children (no 'label=' kwarg in dmc)
+                value=scen.em_scen_id,
             )
         )
 
-    default_tab = metadata["emission_settings"][0]["em_scen_id"]  # default first one
+        tabs_panels.append(
+            dmc.TabsPanel(
+                children=card,
+                value=scen.em_scen_id,
+            )
+        )
 
-    return (
-        dbc.Tabs(
-            tabs,
-            id="emission-scenario-tabs",
-            active_tab=active_tab if active_tab else default_tab,
-        ),  #! more style in custom css
+    # Default active tab: stored one or first scenario
+    default_tab = active_tab or scenarios[0].em_scen_id
+
+    return dmc.Tabs(
+        value=default_tab,
+        id="emission-scenario-tabs",  # keep your original id
+        children=[
+            dmc.TabsList(tabs_list_items, grow=True),
+            *tabs_panels,
+        ],
+        orientation="horizontal",
+        variant="outline",
+        keepMounted=False,
     )
 
 
-def summary_project_info(metadata):
+def summary_project_info(metadata: Metadata):
 
-    building_fields = [
+    overview_fields = [
         ("location", "Location"),
-        ("building_type", "Building Type"),
-        ("vintage", "Vintage"),
         ("ashrae_climate_zone", "Climate Region"),
+        ("building_type", "Building Type"),
+        ("area_sqm", "Building Area (m²)"),
+        # Load-side fields (from LoadData)
+        ("load_data.hhw_max_load", "Peak HHW Load [W]"),
+        ("load_data.chw_max_load", "Peak CHW Load [W]"),
+        ("load_data.annual_heating_cooling_ratio", "Annual Heating/Cooling Ratio"),
     ]
 
-    building_card = make_metadata_card(
-        metadata, building_fields, title="Building Information"
+    return make_metadata_card(
+        metadata,
+        overview_fields,
+        title="Project Overview",
     )
-
-    return building_card
 
 
 def summary_scenario_results():
@@ -200,4 +281,31 @@ def summary_scenario_results():
                 ]
             ),
         ]
+    )
+
+
+def empty_state(
+    title="Nothing selected :(",
+    description="Please make a selection to continue.",
+    icon="ph:info",
+    icon_size=40,
+    padding=40,
+):
+
+    return dmc.Stack(
+        [
+            dmc.Center(
+                DashIconify(icon=icon, width=icon_size),
+            ),
+            dmc.Text(title, fw=500),
+            dmc.Text(
+                description,
+                size="sm",
+                c="dimmed",
+                ta="center",
+            ),
+        ],
+        align="center",
+        gap="xs",
+        style={"padding": f"{padding}px 0"},
     )

@@ -1,15 +1,18 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 from dash_iconify import DashIconify
+import dash_mantine_components as dmc
 import pandas as pd
 import json
-
-from sqlalchemy import null
+from pathlib import Path
 
 from utils.units import unit_map
 
-with open("data/input/metadata_index.json", "r") as f:
-    metadata_index = json.load(f)
+META_INDEX_PATH = Path("data/input/metadata_index.json")
+with META_INDEX_PATH.open("r") as f:
+    METADATA_INDEX = json.load(f)
+
+LOAD_INDEX = METADATA_INDEX["load_data_full"]
 
 
 def unit_toggle():
@@ -22,6 +25,11 @@ def unit_toggle():
         value="SI",
         inline=True,
     )
+
+
+# --------------------------------
+# LOADS page inputs
+# --------------------------------
 
 
 def select_location(locations_df: pd.DataFrame):
@@ -37,7 +45,7 @@ def select_location(locations_df: pd.DataFrame):
     return html.Div(
         [
             dbc.Label(
-                "1. Building Location",
+                "Building Location",
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.P(
@@ -54,11 +62,11 @@ def select_location(locations_df: pd.DataFrame):
     )
 
 
-def select_load_data():
+def select_load_type():
     return html.Div(
         [
             dbc.Label(
-                "2. Load Data",
+                "Load Data",
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
@@ -68,26 +76,15 @@ def select_load_data():
                     dbc.AccordionItem(
                         [
                             html.P(
-                                "Use pre-simulated data for different building types."
+                                "Choose from a library of pre-simulated and measured load profiles."
                             ),
                             dbc.Button(
-                                "Select Pre-Simulated Data",
+                                "Open Library",
                                 color="secondary",
-                                id="open-load-simulation-data-modal",
+                                id="open-load-library-modal",
                             ),
                         ],
-                        title="Pre-Simulated Data",
-                    ),
-                    dbc.AccordionItem(
-                        [
-                            html.P("Use measured data from real buildings."),
-                            dbc.Button("Select building", color="secondary"),
-                        ],
-                        title="Measured Data",
-                        style={
-                            "pointerEvents": "none",
-                            "opacity": 0.5,
-                        },  # disable for now
+                        title="Select From Library",
                     ),
                     dbc.AccordionItem(
                         [
@@ -97,12 +94,16 @@ def select_load_data():
                                 children=dbc.Button(
                                     [
                                         "Upload Custom Data ",
-                                        DashIconify(icon="material-symbols:upload", width=20),
+                                        DashIconify(
+                                            icon="material-symbols:upload", width=20
+                                        ),
                                     ],
                                     color="secondary",
+                                    disabled=True,
                                 ),
                                 accept=".csv",
                                 multiple=False,
+                                disabled=True,
                             ),
                             html.Div(id="upload-data-alert", className="mt-2"),
                         ],
@@ -114,6 +115,228 @@ def select_load_data():
             ),
         ]
     )
+
+
+def build_building_table(buildings_data, selected_id=None):
+    """
+    Build a table from a DataFrame with predefined columns.
+    Only displays columns that exist in the data.
+    """
+    # Define desired columns with their display names
+    column_config = [
+        ("location", "Location"),
+        ("ashrae_climate_zone", "Climate Zone"),
+        ("building_type", "Building Type"),
+        ("load_type", "Source"),
+        ("area_sqm", "Area [m²]"),
+        ("hhw_max_load", "Peak HHW Load [W]"),
+        ("chw_max_load", "Peak CHW Load [W]"),
+        ("annual_heating_cooling_ratio", "Annual H/C Ratio"),
+        ("min_temp", "Min Temp [°C]"),
+        ("max_temp", "Max Temp [°C]"),
+    ]
+
+    available_columns = [
+        (col, label) for col, label in column_config if col in buildings_data.columns
+    ]
+
+    # Build body rows
+    body_rows = []
+    for idx, row in buildings_data.iterrows():
+        cells = [
+            dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
+        ]  # use 'building_id' field or index
+        cells.extend([dmc.TableTd(str(row[col])) for col, _ in available_columns])
+        body_rows.append(dmc.TableTr(cells))
+
+    # Build header
+    header_cells = [dmc.TableTh("")]  # radio column
+    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    header = dmc.TableThead(dmc.TableTr(header_cells))
+
+    body = dmc.TableTbody(body_rows)
+
+    table = dmc.ScrollArea(
+        dmc.Table(
+            [header, body],
+            striped=True,
+            highlightOnHover=True,
+            withColumnBorders=False,
+            horizontalSpacing="sm",
+            verticalSpacing="xs",
+        ),
+        h=400,  # Set height in pixels
+        type="auto",
+    )
+
+    return dmc.RadioGroup(
+        id="building-radio-group",
+        value=selected_id,
+        children=table,
+    )
+
+
+def modal_load_data_selection(buildings_df: pd.DataFrame):
+
+    # --- options from metadata_index.json ----------------------------------
+    building_type_options = sorted(LOAD_INDEX["building_type"])
+    climate_zone_options = sorted(LOAD_INDEX["ashrae_climate_zone"])
+    load_type_options = ["all"] + LOAD_INDEX["load_type"]
+
+    area_min, area_max = LOAD_INDEX["area_sqm"]
+    hhw_min, hhw_max = LOAD_INDEX["hhw_max_load"]
+    chw_min, chw_max = LOAD_INDEX["chw_max_load"]
+
+    return dmc.Modal(
+        title="Load Data Library",
+        children=[
+            dmc.Text(
+                "Select simulated or measured load data from library.",
+                fw=400,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            # ------------------ FILTER CONTROLS ----------------------------
+            dmc.Stack(
+                gap="xl",
+                children=[
+                    dmc.Group(
+                        align="space-between",
+                        justify="space-around",
+                        gap="lg",
+                        children=[
+                            # Load type
+                            dmc.Select(
+                                id="load-type-filter",
+                                label="Load type",
+                                data=[
+                                    {"value": v, "label": v.capitalize()}
+                                    for v in load_type_options
+                                ],
+                                value="all",
+                                clearable=False,
+                                style={"width": 180},
+                            ),
+                            # Climate zone
+                            dmc.Select(
+                                id="climate-filter",
+                                label="Climate zone",
+                                placeholder="All",
+                                data=[
+                                    {"value": cz, "label": cz}
+                                    for cz in climate_zone_options
+                                ],
+                                value=None,
+                                clearable=True,
+                                style={"width": 180},
+                            ),
+                            # Building type
+                            dmc.Select(
+                                id="building-type-filter",
+                                label="Building type",
+                                placeholder="All",
+                                data=[
+                                    {"value": bt, "label": bt}
+                                    for bt in building_type_options
+                                ],
+                                value=None,
+                                clearable=True,
+                                searchable=True,
+                                style={"width": 220},
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("Area (m²)", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="area-range-slider",
+                                        min=area_min,
+                                        max=area_max,
+                                        step=500,
+                                        value=[area_min, area_max],
+                                        marks=[
+                                            {"value": area_min, "label": str(area_min)},
+                                            {"value": area_max, "label": str(area_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("HHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="hhw-range-slider",
+                                        min=hhw_min,
+                                        max=hhw_max,
+                                        step=1000,
+                                        value=[hhw_min, hhw_max],
+                                        marks=[
+                                            {"value": hhw_min, "label": str(hhw_min)},
+                                            {"value": hhw_max, "label": str(hhw_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
+                            dmc.Stack(
+                                [
+                                    dmc.Text("CHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.RangeSlider(
+                                        id="chw-range-slider",
+                                        min=chw_min,
+                                        max=chw_max,
+                                        step=1000,
+                                        value=[chw_min, chw_max],
+                                        marks=[
+                                            {"value": chw_min, "label": str(chw_min)},
+                                            {"value": chw_max, "label": str(chw_max)},
+                                        ],
+                                        style={"width": 250},
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            dmc.Space(h="xl"),
+            # ------------------ TABLE + CONFIRM ----------------------------
+            html.Div(
+                id="building-table-container",
+                children=build_building_table(buildings_df, selected_id=None),
+            ),
+            dmc.Space(h="xl"),
+            dmc.Group(
+                justify="space-between",
+                align="center",
+                children=[
+                    dmc.Text(
+                        id="selected-building-text",
+                        children="No building selected yet.",
+                        c="dimmed",
+                        size="sm",
+                    ),
+                    dmc.Button(
+                        "Confirm selection",
+                        id="confirm-building-button",
+                        variant="filled",
+                        disabled=True,
+                    ),
+                ],
+            ),
+            dcc.Store(id="selected-building-store"),
+        ],
+        id="modal-load-data",
+        size="80%",
+        radius="md",
+        centered=True,
+        withCloseButton=True,
+    )
+
+
+# --------------------------------
+# EQUIPMENT page inputs
+# --------------------------------
 
 
 def with_none_option(options, none_label="None"):
@@ -273,7 +496,7 @@ def select_equipment(equipment_data):
 
 def set_grid_year():
 
-    year_options = metadata_index["emissions"]["year"]
+    year_options = METADATA_INDEX["emissions"]["year"]
 
     return html.Div(
         [
@@ -298,7 +521,7 @@ def select_grid_scenario():
             "label": type,
             "value": type,
         }
-        for type in metadata_index["emissions"]["emission_scenario"]
+        for type in METADATA_INDEX["emissions"]["emission_scenario"]
     ]
     return html.Div(
         [
@@ -321,7 +544,7 @@ def set_emission_type():
             "label": type,
             "value": type,
         }
-        for type in metadata_index["emissions"]["emission_type"]
+        for type in METADATA_INDEX["emissions"]["emission_type"]
     ]
     return html.Div(
         [
@@ -361,8 +584,6 @@ def set_shortrun_weighting():
 
 def set_static_emissions(unit_mode="SI"):
 
-    # conversion = unit_map["static_emission_intensity"][unit_mode]
-    # refrig_placeholder = conversion["refrig_default"]
     conversion = unit_map["gas_emission_factor"][unit_mode]
     gas_emission_factor_placeholder = conversion["default_value"]
 
@@ -414,7 +635,7 @@ def select_gea_grid_region():
             "label": region,
             "value": region,
         }
-        for region in metadata_index["emissions"]["gea_grid_region"]
+        for region in METADATA_INDEX["emissions"]["gea_grid_region"]
     ]
     return html.Div(
         [
@@ -536,59 +757,6 @@ def emission_scenario_saving_buttons():
                 vertical=False,
             ),
         ],
-    )
-
-
-def modal_load_simulation_data():
-
-    building_type_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["building_type"]
-    ]
-
-    vintage_options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in metadata_index["load_data_simulated"]["vintage"]
-    ]
-
-    return dbc.Modal(
-        [
-            dbc.ModalHeader("Select Pre-Simulated Data"),
-            dbc.ModalBody(
-                [
-                    html.P("Choose a building type:"),
-                    dbc.RadioItems(
-                        options=building_type_options,
-                        id="building-type-input",
-                    ),
-                    html.Br(),
-                    html.P("Choose a building vintage:"),
-                    dbc.RadioItems(
-                        options=vintage_options,
-                        id="vintage-input",
-                        value=vintage_options[0]["value"],
-                    ),
-                    # html.Br(),
-                    # dbc.Button("Load Data", color="primary", id="load-data-button"), #! can be removed, load should happen in one step
-                ]
-            ),
-            dbc.ModalFooter(
-                dbc.Button(
-                    "Close",
-                    id="button-close-simulation-data-modal",
-                    className="ml-auto",
-                )
-            ),
-        ],
-        id="modal-load-simulation-data",
-        size="lg",
-        centered=True,
     )
 
 

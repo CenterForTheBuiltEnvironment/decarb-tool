@@ -20,5 +20,6 @@ docs/variables.md
 
 data/testing/
 data/output/
+data/loads/
 
 utils/create_meta_index.py

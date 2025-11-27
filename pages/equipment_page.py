@@ -91,12 +91,14 @@ def update_equipment_options(equipment_library):
 @callback(
     Output("summary-equipment-info", "children"),
     Input("equipment-store", "data"),
-    State("active-equipment-tab", "data"),  # <- keep track of last active tab
+    State("active-equipment-tab", "data"),
 )
 def show_equipment_scenarios(data, active_tab):
     if not data:
         return "No equipment data available."
-    return summary_equipment_selection(data, active_tab)
+
+    equipment_lib = EquipmentLibrary(**data)
+    return summary_equipment_selection(equipment_lib, active_tab)
 
 
 @callback(
@@ -223,7 +225,7 @@ def save_scenario(
 
 @callback(
     Output("active-equipment-tab", "data"),
-    Input("equipment-scenario-tabs", "active_tab"),
+    Input("equipment-scenario-tabs", "value"),
     prevent_initial_call=True,
 )
 def store_active_equipment_tab(active_tab):

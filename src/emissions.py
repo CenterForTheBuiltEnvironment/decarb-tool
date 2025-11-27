@@ -1,7 +1,7 @@
 from pprint import pprint
 import pandas as pd
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -9,13 +9,34 @@ from pydantic import BaseModel
 class EmissionScenario(BaseModel):
     em_scen_id: str
     grid_scenario: str
-    gea_grid_region: str
+    gea_grid_region: Optional[str] = None
     time_zone: str
     emission_type: str
     shortrun_weighting: float
     annual_refrig_leakage_percent: float
     annual_ng_leakage_g_per_kWh: float
     year: int
+
+    def get_value(self, path: str):
+        """
+        Resolve a (possibly dotted) field path, e.g.:
+        - "em_scen_id"
+        - "year"
+        - "grid_scenario"
+        """
+        parts = path.split(".")
+        curr = self
+        for part in parts:
+            if isinstance(curr, BaseModel):
+                curr = getattr(curr, part, None)
+            elif isinstance(curr, dict):
+                curr = curr.get(part)
+            else:
+                curr = getattr(curr, part, None)
+
+            if curr is None:
+                return None
+        return curr
 
 
 class StandardEmissions:
@@ -96,20 +117,6 @@ def get_emissions_data(
         raise ValueError(
             f"No emissions data found for scenario={scenario.grid_scenario}, region={scenario.gea_grid_region}, year={scenario.year}"
         )
-
-    # # --- Handle emissions type mapping ---
-    # if scenario.emission_type == "Combustion only":
-    # lrmer_c = "lrmer_co2e_c"
-    # lrmer_p = "lrmer_co2e_p"
-    # srmer_c = "srmer_co2e_c"
-    # srmer_p = "srmer_co2e_p"
-    # elif scenario.emission_type == "Includes pre-combustion":
-    # lrmer_c = lrmer_p = "lrmer_co2e"
-    # srmer_c = srmer_p = "srmer_co2e"
-    # else:
-    #     raise ValueError(
-    #         "Invalid emissions_type. Use 'Combustion only' or 'Includes pre-combustion'."
-    #     )
 
     # --- Build canonical schema ---
     result = pd.DataFrame(
