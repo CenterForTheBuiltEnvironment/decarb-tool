@@ -946,7 +946,7 @@
     },
     {
       "eq_id": "bo01",
-      "eq_type": "boiler",
+      "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
       "model": "GenericBoiler-90%Eff",
       "fuel": "natural_gas",
@@ -962,7 +962,7 @@
     },
     {
       "eq_id": "bo02",
-      "eq_type": "boiler",
+      "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
       "model": "GenericBoiler-80%Eff",
       "fuel": "natural_gas",
@@ -978,7 +978,7 @@
     },
     {
       "eq_id": "bo03",
-      "eq_type": "boiler",
+      "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
       "model": "GenericBoiler-70%Eff",
       "fuel": "natural_gas",
@@ -1042,8 +1042,9 @@
     },
     {
       "eq_id": "res01",
-      "eq_type": "resistance_heater",
+      "eq_type": "backup_heating",
       "model": "GenericResHeater",
+      "eq_subtype": "electric",
       "fuel": "electricity",
       "capacity_W": 50000,
       "performance": {
@@ -1060,60 +1061,60 @@
       "eq_scen_name": "Gas Boiler+AC Chiller",
       "hr_wwhp": null,
       "awhp": null,
-      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
       "awhp_use_cooling": false,
-      "boiler": "bo02",
-      "chiller": "ch03",
-      "resistance_heater": null
+      "backup_heating": "bo02",
+      "chiller": "ch03"
     },
     {
       "eq_scen_id": "eq_scenario_2",
       "eq_scen_name": "Elec Boiler+AC Chiller",
       "hr_wwhp": null,
       "awhp": null,
-      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
       "awhp_use_cooling": false,
-      "boiler": null,
-      "chiller": "ch03",
-      "resistance_heater": "res01"
+      "backup_heating": "res01",
+      "chiller": "ch03"
     },
     {
       "eq_scen_id": "eq_scenario_3",
       "eq_scen_name": "20% AWHP (H+C)+Gas Backup",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 0.2,
+      "awhp_redundancy": 1,
       "awhp_use_cooling": true,
-      "boiler": "bo02",
-      "chiller": "ch03",
-      "resistance_heater": null
+      "backup_heating": "bo02",
+      "chiller": "ch03"
     },
     {
       "eq_scen_id": "eq_scenario_4",
       "eq_scen_name": "100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "awhp": "hp01",
-      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
       "awhp_use_cooling": true,
-      "boiler": null,
-      "chiller": "ch03",
-      "resistance_heater": "res01"
+      "backup_heating": "res01",
+      "chiller": "ch03"
     },
     {
       "eq_scen_id": "eq_scenario_5",
       "eq_scen_name": "HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr01",
       "awhp": "hp01",
-      "awhp_sizing_mode": "peak_load_percentage",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
       "awhp_use_cooling": true,
-      "boiler": null,
-      "chiller": "ch03",
-      "resistance_heater": "res01"
+      "backup_heating": "res01",
+      "chiller": "ch03"
     }
   ]
 }

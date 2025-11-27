@@ -360,13 +360,13 @@ def select_equipment(equipment_data):
     hr_heat_pump_options = with_none_option(options_for("hr_heat_pump"))
     heat_pump_options = with_none_option(options_for("heat_pump"))
 
-    boiler_options = [
+    backup_heating_options = [
         {
             "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
             "value": eq.get("eq_id"),
         }
         for eq in equipment_list
-        if eq.get("eq_type") == "boiler"
+        if eq.get("eq_type") == "backup_heating"
     ]
 
     chiller_options = [
@@ -415,11 +415,12 @@ def select_equipment(equipment_data):
                     dbc.RadioItems(
                         id="awhp-sizing-radio",
                         options=[
-                            {"label": "% Peak Load", "value": "peak_load_percentage"},
-                            {"label": "No. Units", "value": "num_of_units"},
+                            {"label": "% Peak Load (Integer Sizes)", "value": "integer_sizing_peak_load"},
+                            {"label": "% Peak Load (Fractional Sizes)", "value": "fractional_sizing_peak_load"},
+                            {"label": "No. Units", "value": "fixed_num_units"},
                         ],
-                        value="peak_load_percentage",
-                        inline=True,
+                        value="peak_load_percentage_integer",
+                        # inline=True,
                         style={"marginRight": "15px"},
                     ),
                     html.Div(
@@ -436,6 +437,21 @@ def select_equipment(equipment_data):
                     ),
                 ],
                 style={"display": "flex", "alignItems": "center", "gap": "10px"},
+            ),
+            html.Div(
+                children=[
+                    dbc.Label("Heat Pump Redundant Units"),
+                    dcc.Slider(
+                        id="awhp-redundancy-slider",
+                        min=0,
+                        max=5,
+                        step=1,
+                        value=1,
+                        marks={i: str(i) for i in range(1, 6)},
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                ],
+                style={"marginTop": "10px"}
             ),
             dbc.Checkbox(
                 label="Use Heat Pump also for Cooling",
@@ -456,9 +472,9 @@ def select_equipment(equipment_data):
                 [
                     dbc.InputGroupText("Heating", style=label_styling),
                     dbc.Select(
-                        id="boiler-input",
-                        options=boiler_options,
-                        value=(boiler_options[0]["value"] if boiler_options else None),
+                        id="backup-heating-input",
+                        options=backup_heating_options,
+                        value=(backup_heating_options[0]["value"] if backup_heating_options else None),
                     ),
                 ]
             ),

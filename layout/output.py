@@ -128,12 +128,12 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
         ("eq_scen_name", "Scenario"),
         ("hr_wwhp", "HR WWHP"),
         ("awhp", "AWHP"),
-        ("awhp_sizing_mode", "AWHP sizing mode"),
-        ("awhp_sizing_value", "AWHP sizing value"),
-        ("awhp_use_cooling", "AWHP use cooling"),
-        ("boiler", "Boiler"),
+        ("awhp_sizing_mode", "AWHP Sizing Mode"),
+        ("awhp_sizing_value", "AWHP Sizing Value"),
+        ("awhp_redundancy", "AWHP Redundancy"),
+        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("backup_heating", "Backup Heating"),
         ("chiller", "Chiller"),
-        ("resistance_heater", "Resistance heater"),
     ]
 
     for scen in scenarios:
