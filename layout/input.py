@@ -415,11 +415,17 @@ def select_equipment(equipment_data):
                     dbc.RadioItems(
                         id="awhp-sizing-radio",
                         options=[
-                            {"label": "% Peak Load (Integer Sizes)", "value": "integer_sizing_peak_load"},
-                            {"label": "% Peak Load (Fractional Sizes)", "value": "fractional_sizing_peak_load"},
+                            {
+                                "label": "% Peak Load (Integer Sizes)",
+                                "value": "integer_sizing_peak_load",
+                            },
+                            {
+                                "label": "% Peak Load (Fractional Sizes)",
+                                "value": "fractional_sizing_peak_load",
+                            },
                             {"label": "No. Units", "value": "fixed_num_units"},
                         ],
-                        value="peak_load_percentage_integer",
+                        value="fractional_sizing_peak_load",
                         # inline=True,
                         style={"marginRight": "15px"},
                     ),
@@ -451,7 +457,7 @@ def select_equipment(equipment_data):
                         tooltip={"placement": "bottom", "always_visible": True},
                     ),
                 ],
-                style={"marginTop": "10px"}
+                style={"marginTop": "10px"},
             ),
             dbc.Checkbox(
                 label="Use Heat Pump also for Cooling",
@@ -474,7 +480,11 @@ def select_equipment(equipment_data):
                     dbc.Select(
                         id="backup-heating-input",
                         options=backup_heating_options,
-                        value=(backup_heating_options[0]["value"] if backup_heating_options else None),
+                        value=(
+                            backup_heating_options[0]["value"]
+                            if backup_heating_options
+                            else None
+                        ),
                     ),
                 ]
             ),

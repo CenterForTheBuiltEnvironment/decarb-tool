@@ -49,11 +49,10 @@
   },
   "equipment": {
     "equipment_type": [
-      "resistance_heater",
-      "hr_heat_pump",
-      "boiler",
       "chiller",
-      "heat_pump"
+      "backup_heating",
+      "heat_pump",
+      "hr_heat_pump"
     ]
   },
   "emissions": {

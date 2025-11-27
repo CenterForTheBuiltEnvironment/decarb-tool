@@ -29,14 +29,15 @@ def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
             e.performance_heating.cap_curve.capacity_W,
             t_out,
         )
-    elif e.capacity_W is not None: # fallback to fixed capacity if provided 
+    elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
-    else: 
+    else:
         raise ValueError(
             f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
         )
     cap_h = _capacity_constraints(e, t_out, cap_h, True)
     return cap_h
+
 
 def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
@@ -60,7 +61,7 @@ def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
             e.performance_cooling.cap_curve.capacity_W,
             t_out,
         )
-    elif e.capacity_W is not None: # fallback to fixed capacity if provided
+    elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_c = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     else:
         raise ValueError(
@@ -68,6 +69,7 @@ def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
         )
     cap_c = _capacity_constraints(e, t_out, cap_c, False)
     return cap_c
+
 
 def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
@@ -94,18 +96,24 @@ def _constant_cooling_efficiency(e: Equipment) -> Optional[float]:
         return float(e.performance_cooling.efficiency)
     return None
 
-def _capacity_constraints(e: Equipment, t_out: np.ndarray, cap: np.ndarray, heating: bool) -> np.ndarray:
+
+def _capacity_constraints(
+    e: Equipment, t_out: np.ndarray, cap: np.ndarray, heating: bool
+) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature, limited by OAT constraints."""
     temps = np.asarray(t_out, dtype=float)
     if heating:
-        high_t = np.nonzero(temps>e.performance_heating.constraints['max_temp_C'])
-        low_t = np.nonzero(temps<e.performance_heating.constraints['min_temp_C'])
+        high_t = np.nonzero(temps > e.performance_heating.constraints["max_temp_C"])
+        low_t = np.nonzero(temps < e.performance_heating.constraints["min_temp_C"])
     else:
-        high_t = np.nonzero(temps>e.performance_cooling.constraints['max_temp_C'])
-        low_t = np.nonzero(temps<e.performance_cooling.constraints['min_temp_C'])
-    np.put(cap, high_t[0], [0]) # replace capacities where temps are outside the HP's operating bounds with 0
+        high_t = np.nonzero(temps > e.performance_cooling.constraints["max_temp_C"])
+        low_t = np.nonzero(temps < e.performance_cooling.constraints["min_temp_C"])
+    np.put(
+        cap, high_t[0], [0]
+    )  # replace capacities where temps are outside the HP's operating bounds with 0
     np.put(cap, low_t[0], [0])
     return cap
+
 
 def loads_to_site_energy(
     load: StandardLoad,
@@ -308,7 +316,10 @@ def loads_to_site_energy(
                 )
 
             # --- Sizing Logic ---
-            if sizing_mode in ["integer_sizing_peak_load", "fractional_sizing_peak_load"]:
+            if sizing_mode in [
+                "integer_sizing_peak_load",
+                "fractional_sizing_peak_load",
+            ]:
                 if not (0.0 <= sizing_value <= 1.0):
                     raise ValueError(
                         f"AWHP scenario '{scen.eq_scen_id}' requires "
@@ -350,14 +361,19 @@ def loads_to_site_energy(
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
 
-            cap_total_h_W = awhp_cap_h * awhp_num_h # capacity calculations use the original sizing number
+            cap_total_h_W = (
+                awhp_cap_h * awhp_num_h
+            )  # capacity calculations use the original sizing number
             served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
             total_awhp_refrigerant_weight_kg = (
-                awhp_h.refrigerant_weight_g * 0.001 * awhp_num_h_r / 8760 # emissions calculations use the redundancy sizing number
+                awhp_h.refrigerant_weight_g
+                * 0.001
+                * awhp_num_h_r
+                / 8760  # emissions calculations use the redundancy sizing number
                 if awhp_h.refrigerant_weight_g
                 else 0.0
             )
@@ -681,6 +697,18 @@ def site_to_source(
         merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
             merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
         )
+
+        # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
+        # # 1. Build the same argument you pass into to_datetime
+        # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
+
+        # # 2. Try converting with errors="coerce" to get NaT for bad rows
+        # ts = pd.to_datetime(arg, errors="coerce")
+
+        # # 3. Find the rows that failed
+        # bad_rows = merged[ts.isna()]
+
+        # print(bad_rows[["year", "month", "day", "hour"]].head())
 
         merged[Col.TIMESTAMP.value] = pd.to_datetime(
             merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
