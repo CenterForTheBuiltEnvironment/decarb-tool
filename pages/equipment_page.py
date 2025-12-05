@@ -1,13 +1,28 @@
 import dash
-from dash import callback, ctx, html, dcc, dash_table, Input, Output, State
-import dash_bootstrap_components as dbc
+from dash import (
+    callback,
+    ctx,
+    html,
+    dcc,
+    dash_table,
+    Input,
+    Output,
+    State,
+    callback_context,
+    no_update,
+)
+import dash_mantine_components as dmc
 
 from dash_iconify import DashIconify
 
 from layout.output import summary_equipment_selection
 from src.config import URLS
 
-from layout.input import select_equipment, equipment_scenario_saving_buttons
+from layout.input import (
+    build_equipment_table,
+    select_equipment,
+    equipment_scenario_saving_buttons,
+)
 from src.equipment import EquipmentLibrary, EquipmentScenario
 
 dash.register_page(
@@ -19,242 +34,152 @@ dash.register_page(
 
 
 def layout():
-    return dbc.Container(
-        children=[
+    return dmc.Container(
+        [
             dcc.Store(id="active-equipment-tab"),
-            dbc.Row(
+            dmc.Group(
                 [
-                    dbc.Col(
+                    dmc.Text("Specify Equipment", fw=500, size="lg"),
+                    dmc.Group(
                         [
-                            html.H5("Specify Equipment"),
-                            html.Div(id="select-equipment-options"),
-                            html.Hr(),
-                            equipment_scenario_saving_buttons(),
-                        ],
-                        width=7,
-                    ),
-                    dbc.Col(
-                        [
-                            html.H5("Overview"),
-                            html.P(
-                                "We use integers to identify equipment scenarios. Below a summary of all equipment scenarios currently considered."
+                            dmc.Button(
+                                "Add",
+                                id="button-add-equipment",
+                                variant="outline",
                             ),
-                            html.Hr(),
-                            html.Div(
-                                id="summary-equipment-info",
-                            ),
-                            dcc.Link(
-                                [
-                                    dbc.Button(
-                                        [
-                                            "Specify Grid Scenarios ",
-                                            DashIconify(
-                                                icon="tabler:arrow-narrow-right-dashed",
-                                                width=20,
-                                            ),
-                                        ],
-                                        color="primary",
-                                        id="button-to-emissions",
-                                        n_clicks=0,
-                                        style={"float": "right"},
-                                    ),
-                                ],
-                                href="/emissions",
+                            dmc.Button(
+                                "Remove",
+                                id="button-remove-equipment",
+                                variant="outline",
+                                color="red",
                             ),
                         ],
-                        width=5,
                     ),
-                ]
+                ],
+                justify="space-between",
+                mt="md",
+                mb="sm",
             ),
-        ]
+            dmc.Divider(),
+            html.Div(
+                id="equipment-table",
+                style={
+                    "minHeight": "300px",  # just to make the area visible while empty
+                    "marginTop": "16px",
+                },
+            ),
+            # Use Mantine spacing prop instead of marginTop
+            dmc.Divider(mt="md"),
+            dmc.Group(
+                [
+                    dmc.Button(
+                        "Confirm",
+                        id="button-confirm-equipment",
+                        variant="filled",
+                    )
+                ],
+                justify="flex-end",
+                mt="md",
+                mb="md",
+            ),
+            dmc.Modal(
+                id="equipment-confirm-modal",
+                opened=False,  # controlled via callback
+                title="Confirm selected scenarios",
+                children=[
+                    dmc.Text(
+                        id="equipment-modal-content",
+                        size="sm",
+                    ),
+                    dmc.Group(
+                        [
+                            dmc.Button(
+                                "OK",
+                                id="equipment-modal-ok-btn",
+                            )
+                        ],
+                        justify="flex-end",
+                        mt="md",
+                    ),
+                ],
+            ),
+        ],
+        fluid=True,
     )
 
 
-def to_json_nullable(val):
-    # map the UI “None” choice to JSON null
-    if val in ("", None, "None"):
-        return None
-    return val
-
-
 @callback(
-    Output("select-equipment-options", "children"),
+    Output("equipment-table", "children"),
     Input("equipment-store", "data"),
+    Input("selected-equipment-store", "data"),
 )
-def update_equipment_options(equipment_library):
-    if not equipment_library:
-        return html.Div("No equipment data available.")
+def update_equipment_table(equipment_store_data, selected_equipment_data):
+    """
+    Populate the equipment table from the data in equipment-store,
+    and pre-check rows based on selected-equipment-store.
+    """
+    if not equipment_store_data:
+        return dmc.Text("No equipment scenarios defined yet.")
 
-    return select_equipment(equipment_library)
+    scenarios = equipment_store_data.get("equipment_scenarios", [])
+    if not scenarios:
+        return dmc.Text("No equipment scenarios defined yet.")
+
+    selected_ids = selected_equipment_data or []
+
+    # Build the table with the current selections
+    table_component = build_equipment_table(scenarios, selected_ids=selected_ids)
+
+    return table_component
 
 
 @callback(
-    Output("summary-equipment-info", "children"),
-    Input("equipment-store", "data"),
-    State("active-equipment-tab", "data"),
-)
-def show_equipment_scenarios(data, active_tab):
-    if not data:
-        return "No equipment data available."
-
-    equipment_lib = EquipmentLibrary(**data)
-    return summary_equipment_selection(equipment_lib, active_tab)
-
-
-@callback(
-    Output("scenario-name-modal", "is_open"),
-    Output("scenario-name-input", "value"),
-    Output("scenario-trigger-store", "data"),
-    Input("update-eq-scen-1", "n_clicks"),
-    Input("update-eq-scen-2", "n_clicks"),
-    Input("update-eq-scen-3", "n_clicks"),
-    Input("update-eq-scen-4", "n_clicks"),
-    Input("update-eq-scen-5", "n_clicks"),
-    Input("confirm-scenario-name", "n_clicks"),
-    State("scenario-name-modal", "is_open"),
+    Output("selected-equipment-store", "data"),
+    Output("equipment-confirm-modal", "opened"),
+    Output("equipment-modal-content", "children"),
+    Input("button-confirm-equipment", "n_clicks"),
+    Input("equipment-modal-ok-btn", "n_clicks"),
+    State("equipment-checkbox-group", "value"),
+    State("selected-equipment-store", "data"),
     prevent_initial_call=True,
 )
-def toggle_modal(n1, n2, n3, n4, n5, confirm, is_open):
-    trigger = ctx.triggered_id
-    if trigger and trigger.startswith("update-eq-scen"):
-        # Open modal, clear input, and remember which button was clicked
-        return True, "", trigger
-    elif trigger == "confirm-scenario-name":
-        # Close modal, don’t clear input, don’t overwrite trigger store
-        return False, dash.no_update, dash.no_update
-    return is_open, dash.no_update, dash.no_update
-
-
-@callback(
-    Output("equipment-store", "data", allow_duplicate=True),
-    Input("confirm-scenario-name", "n_clicks"),
-    State("scenario-name-input", "value"),
-    State("scenario-trigger-store", "data"),
-    State("equipment-store", "data"),
-    State("hr-wwhp-input", "value"),
-    State("awhp-input", "value"),
-    State("awhp-sizing-radio", "value"),
-    State("awhp-sizing-slider", "value"),
-    State("awhp-redundancy-slider", "value"),
-    State("awhp-use-cooling", "value"),
-    State("backup-heating-input", "value"),
-    State("chiller-input", "value"),
-    State("session-store", "data"),
-    prevent_initial_call=True,
-)
-def save_scenario(
-    confirm,
-    scenario_name,
-    trigger,
-    equipment_data,
-    selected_hr_wwhp,
-    selected_awhp,
-    selected_awhp_sizing_mode,
-    selected_awhp_sizing_value,
-    selected_awhp_redundancy,
-    selected_awhp_use_cooling,
-    selected_backup_heating,
-    selected_chiller,
-    session_data,
+def confirm_equipment_selection(
+    confirm_clicks,
+    ok_clicks,
+    current_selected_values,
+    current_store_values,
 ):
-    if not session_data:
-        raise dash.exceptions.PreventUpdate
+    """
+    - Confirm:
+        * DO NOT update selected-equipment-store (use no_update)
+        * Open modal with summary (based on current checkboxes, capped to 5)
+    - OK:
+        * Write capped selection into selected-equipment-store
+        * Close modal
+    """
+    ctx = callback_context
+    if not ctx.triggered:
+        return current_store_values, False, ""
 
-    session_id = session_data["session_id"]
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    print(f"Updating Equipment Metadata for Session ID: {session_id}")
+    raw_selected = current_selected_values or []
+    capped_selected = raw_selected[:5]
 
-    if not confirm or not trigger:
-        return equipment_data
-
-    equipment_data = EquipmentLibrary(**equipment_data)
-
-    # Map button IDs to scenario IDs
-    mapping = {
-        "update-eq-scen-1": "eq_scenario_1",
-        "update-eq-scen-2": "eq_scenario_2",
-        "update-eq-scen-3": "eq_scenario_3",
-        "update-eq-scen-4": "eq_scenario_4",
-        "update-eq-scen-5": "eq_scenario_5",
-    }
-
-    scen_id = mapping.get(trigger)
-    if not scen_id:
-        return equipment_data
-
-    try:
-        scenario = equipment_data.get_scenario(scen_id)
-    except KeyError:
-        scenario = EquipmentScenario(
-            eq_scen_id=scen_id,
-            eq_scen_name="Basic Scenario",
-            hr_wwhp="hr01",
-            awhp="hp01",
-            awhp_sizing_mode="integer_sizing_peak",
-            awhp_sizing_value=0.5,
-            awhp_redundancy=1,
-            awhp_use_cooling=False,
-            backup_heating="bo01",
-            chiller="ch01"
+    # Shared summary text
+    if capped_selected:
+        base_summary = (
+            "You selected the following equipment scenarios (up to 5 stored): "
+            + ", ".join(capped_selected)
         )
+    else:
+        base_summary = "No equipment scenarios selected."
 
-    if scenario_name and scenario_name.strip():
-        scenario.eq_scen_name = scenario_name.strip()
+    # Case 1: Confirm clicked -> preview only
+    if trigger_id == "button-confirm-equipment":
+        # Don't touch the store at all; keep UI checkbox state untouched
+        return no_update, True, base_summary
 
-    if selected_hr_wwhp is not None:
-        scenario.hr_wwhp = to_json_nullable(selected_hr_wwhp)
-    if selected_awhp is not None:
-        scenario.awhp = to_json_nullable(selected_awhp)
-    if selected_awhp_sizing_mode is not None:
-        scenario.awhp_sizing_mode = selected_awhp_sizing_mode
-    if selected_awhp_sizing_value is not None:
-        scenario.awhp_sizing_value = selected_awhp_sizing_value
-    if selected_awhp_redundancy is not None:
-        scenario.awhp_redundancy = selected_awhp_redundancy
-    if selected_awhp_use_cooling is not None:
-        scenario.awhp_use_cooling = selected_awhp_use_cooling
-    if selected_backup_heating is not None:
-        scenario.backup_heating = selected_backup_heating
-    if selected_chiller is not None:
-        scenario.chiller = selected_chiller
-
-    equipment_data.add_equipment_scenario(scenario, overwrite=True)
-
-    return equipment_data.model_dump()
-
-
-@callback(
-    Output("active-equipment-tab", "data"),
-    Input("equipment-scenario-tabs", "value"),
-    prevent_initial_call=True,
-)
-def store_active_equipment_tab(active_tab):
-    return active_tab
-
-
-@callback(
-    Output("awhp-sizing-slider", "min"),
-    Output("awhp-sizing-slider", "max"),
-    Output("awhp-sizing-slider", "step"),
-    Output("awhp-sizing-slider", "marks"),
-    Output("awhp-sizing-slider", "value"),
-    Input("awhp-sizing-radio", "value"),
-)
-def update_awhp_slider(mode):
-    if mode == "integer_sizing_peak_load" or mode == "fractional_sizing_peak_load":
-        return (
-            0,  # min
-            1,  # max
-            0.05,  # step
-            {i: f"{i * 100}" for i in range(0, 21, 5)},  # marks
-            0.85,  # default value
-        )
-    elif mode == "fixed_num_units":
-        return (
-            1,
-            5,  # max 5 units (adjust as needed)
-            1,
-            {i: str(i) for i in range(1, 6)},
-            1,
-        )
-    return dash.no_update
+    # Case 2: OK clicked -> commit to store, close modal
+    if trigger_id == "equipment-modal-ok-btn":
+        return capped_selected, False, base_summary

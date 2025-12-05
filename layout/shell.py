@@ -32,6 +32,7 @@ def build_shell(page_content):
             data=None,
         ),
         dcc.Store(id="equipment-store", data=equipment_library),
+        dcc.Store(id="selected-equipment-store", storage_type="session"),
         dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
         dcc.Store(id="selected-building-store", storage_type="session"),
         dcc.Store(id="load-summary-store", storage_type="session", data=None),
@@ -67,7 +68,7 @@ def build_shell(page_content):
     )
 
     # ---- FOOTER: wrap your existing footer ----
-    footer = dmc.AppShellFooter(
+    footer = dmc.Paper(
         shell_footer(),
         p=0,
     )

@@ -7,8 +7,6 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 
-from io import StringIO
-
 from src.config import URLS
 
 from layout.output import summary_project_info, summary_scenario_results
@@ -262,3 +260,73 @@ def download_results(n_clicks, session_data):
 
     # Use dcc.send_data_frame to stream the dataframe as CSV
     return dcc.send_data_frame(df.to_csv, filename, index=True)
+
+
+@callback(
+    # total-equipment-scen-dropdown (multi)
+    Output("total-equipment-scen-dropdown", "options"),
+    Output("total-equipment-scen-dropdown", "value"),
+    # equipment-scen-dropdown (single)
+    Output("equipment-scen-dropdown", "options"),
+    Output("equipment-scen-dropdown", "value"),
+    # heatmap-equipment-scen-dropdown (single)
+    Output("heatmap-equipment-scen-dropdown", "options"),
+    Output("heatmap-equipment-scen-dropdown", "value"),
+    # scatter-equipment-scen-dropdown (multi)
+    Output("scatter-equipment-scen-dropdown", "options"),
+    Output("scatter-equipment-scen-dropdown", "value"),
+    Input("session-store", "data"),
+    State("selected-equipment-store", "data"),  # optional, keeps user ordering
+)
+def populate_equipment_dropdowns(session_data, selected_equipment_ids):
+    """
+    Populate all equipment scenario dropdowns with only the scenarios
+    that were actually computed for this session.
+    """
+    df = load_source_energy(session_data)
+    if df is None:
+        # No data yet: return empty dropdowns
+        return [], [], [], None, [], None, [], []
+
+    # Get unique eq_scen_id values from the results
+    df_ids = df["eq_scen_id"].unique().tolist()
+
+    # Optionally intersect with selected_equipment_store to preserve order
+    if selected_equipment_ids:
+        # Keep only those that are in df, and preserve user selection order
+        eq_ids = [sid for sid in selected_equipment_ids if sid in df_ids]
+    else:
+        eq_ids = df_ids
+
+    if not eq_ids:
+        # Fallback: nothing computed
+        return [], [], [], None, [], None, [], []
+
+    # Build options list
+    options = [{"label": scen_id, "value": scen_id} for scen_id in eq_ids]
+
+    # Defaults:
+    # - For multi-select dropdowns: select all by default
+    # - For single-select dropdowns: pick the first one
+    total_equipment_options = options
+    total_equipment_value = eq_ids[:]  # all
+
+    meter_options = options
+    meter_value = eq_ids[0]
+
+    heatmap_options = options
+    heatmap_value = eq_ids[0]
+
+    scatter_options = options
+    scatter_value = eq_ids[:]  # all
+
+    return (
+        total_equipment_options,
+        total_equipment_value,
+        meter_options,
+        meter_value,
+        heatmap_options,
+        heatmap_value,
+        scatter_options,
+        scatter_value,
+    )

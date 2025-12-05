@@ -237,11 +237,21 @@ def store_active_emissions_tab(active_tab):
     Input("button-calculate", "n_clicks"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
     State("session-store", "data"),
     prevent_initial_call=True,
 )
-def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
+def run_loads_to_site(
+    n_clicks,
+    metadata_json,
+    equipment_json,
+    selected_scenarios,
+    session_data,
+):
     if not n_clicks or not metadata_json or not equipment_json:
+        raise dash.exceptions.PreventUpdate
+
+    if not selected_scenarios:
         raise dash.exceptions.PreventUpdate
 
     folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
@@ -251,13 +261,17 @@ def run_loads_to_site(n_clicks, metadata_json, equipment_json, session_data):
     equipment = EquipmentLibrary(**equipment_json)
 
     load_data = get_load_data(metadata)
+
     site_energy = loads_to_site_energy(
-        load_data, equipment, metadata.equipment_scenarios, detail=True
+        load_data,
+        equipment,
+        scenario_ids=selected_scenarios,
+        detail=True,
     )
 
     site_path = folder / "site_energy.pkl"
     site_energy.to_pickle(site_path)
-    print(f"Saving Site Energy for to: {site_path}")
+    print(f"Saving Site Energy to: {site_path}")
 
     return str(site_path)
 

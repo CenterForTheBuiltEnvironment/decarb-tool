@@ -9,18 +9,18 @@ def shell_footer():
             dmc.Image(
                 src="../assets/img/CBE-logo-2019-white.png",
                 alt="CBE Logo",
-                h=60,
+                h=50,
             ),
             dmc.Image(
                 src="../assets/img/UCB-logo-white-transparent.png",
                 alt="UC Berkeley Logo",
-                h=60,
+                h=50,
             ),
         ],
-        gap="md",
-        align="center",
+        # gap="md",
         justify="space-between",
-        wrap="nowrap",
+        grow=True,
+        p=0,
     )
 
     nav_links = dmc.Group(

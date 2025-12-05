@@ -339,6 +339,84 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 # --------------------------------
 
 
+def build_equipment_table(equipment_data, selected_ids=None):
+    """
+    Build an equipment scenarios table from a DataFrame or list of dicts.
+    Multi-select via checkboxes. Selected_ids is a list of eq_scen_id strings.
+    """
+    # Accept both list-of-dicts and DataFrame
+    if isinstance(equipment_data, list):
+        equipment_df = pd.DataFrame(equipment_data)
+    else:
+        equipment_df = equipment_data
+
+    # Define desired columns with their display names
+    column_config = [
+        ("eq_scen_id", "Scenario ID"),
+        ("eq_scen_name", "Scenario Name"),
+        ("hr_wwhp", "HR WWHP"),
+        ("awhp", "AWHP"),
+        ("awhp_sizing_mode", "Sizing Mode"),
+        ("awhp_sizing_value", "Sizing Value"),
+        ("awhp_redundancy", "Redundancy"),
+        ("awhp_use_cooling", "Use Cooling"),
+        ("backup_heating", "Backup Heating"),
+        ("chiller", "Chiller"),
+    ]
+
+    # Only keep columns that actually exist in the data
+    available_columns = [
+        (col, label) for col, label in column_config if col in equipment_df.columns
+    ]
+
+    selected_ids = selected_ids or []
+
+    # Build body rows
+    body_rows = []
+    for idx, row in equipment_df.iterrows():
+        scen_id = row.get("eq_scen_id", idx)
+        scen_id_str = str(scen_id)
+
+        # First cell: checkbox for row selection
+        cells = [dmc.TableTd(dmc.Checkbox(value=scen_id_str))]
+
+        # Data cells
+        for col, _ in available_columns:
+            value = row.get(col, "")
+            if isinstance(value, bool):
+                value = "Yes" if value else "No"
+            cells.append(dmc.TableTd(str(value)))
+
+        body_rows.append(dmc.TableTr(cells))
+
+    # Header row
+    header_cells = [dmc.TableTh("")]  # checkbox column
+    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+
+    header = dmc.TableThead(dmc.TableTr(header_cells))
+    body = dmc.TableTbody(body_rows)
+
+    table = dmc.ScrollArea(
+        dmc.Table(
+            [header, body],
+            striped=True,
+            highlightOnHover=True,
+            withColumnBorders=False,
+            horizontalSpacing="sm",
+            verticalSpacing="xs",
+        ),
+        h=400,
+        type="auto",
+    )
+
+    # Wrap table in a CheckboxGroup so value is a list of selected scenario ids
+    return dmc.CheckboxGroup(
+        id="equipment-checkbox-group",
+        value=selected_ids,
+        children=table,
+    )
+
+
 def with_none_option(options, none_label="None"):
     return [{"label": none_label, "value": "None"}] + options
 

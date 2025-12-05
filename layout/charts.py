@@ -36,36 +36,9 @@ def energy_emissions_chart():
                 [
                     dcc.Dropdown(
                         id="total-equipment-scen-dropdown",
-                        options=[
-                            {
-                                "label": "Equip. 1",
-                                "value": "eq_scenario_1",
-                            },
-                            {
-                                "label": "Equip. 2",
-                                "value": "eq_scenario_2",
-                            },
-                            {
-                                "label": "Equip. 3",
-                                "value": "eq_scenario_3",
-                            },
-                            {
-                                "label": "Equip. 4",
-                                "value": "eq_scenario_4",
-                            },
-                            {
-                                "label": "Equip. 5",
-                                "value": "eq_scenario_5",
-                            },
-                        ],  # to be populated dynamically
+                        options=[],  # dynamic
                         multi=True,
-                        value=[
-                            "eq_scenario_1",
-                            "eq_scenario_2",
-                            "eq_scenario_3",
-                            "eq_scenario_4",
-                            "eq_scenario_5",
-                        ],
+                        value=[],  # dynamic
                         placeholder="Equipment Scenarios",
                         style={"width": "550px"},
                     ),
@@ -99,14 +72,8 @@ def meter_timeseries_chart():
                 [
                     dcc.Dropdown(
                         id="equipment-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Eq. Scenario {i}",
-                                "value": f"eq_scenario_{i}",
-                            }
-                            for i in range(1, 6)
-                        ],  # to be populated dynamically
-                        value="eq_scenario_1",
+                        options=[],  # dynamic
+                        value=None,  # dynamic
                         placeholder="Equipment Scenarios",
                         style={"width": "200px"},
                     ),
@@ -163,14 +130,8 @@ def emissions_heatmap_chart():
                 [
                     dcc.Dropdown(
                         id="heatmap-equipment-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Equipment Scenario {i}",
-                                "value": f"eq_scenario_{i}",
-                            }
-                            for i in range(1, 6)
-                        ],  # to be populated dynamically
-                        value="eq_scenario_1",
+                        options=[],  # dynamic
+                        value=None,  # dynamic
                         placeholder="Equipment Scenarios",
                         style={"width": "300px"},
                     ),
@@ -216,21 +177,9 @@ def scatter_chart():
                 [
                     dcc.Dropdown(
                         id="scatter-equipment-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Equipment Scenario {i}",
-                                "value": f"eq_scenario_{i}",
-                            }
-                            for i in range(1, 6)
-                        ],  # to be populated dynamically
+                        options=[],  # dynamic
                         multi=True,
-                        value=[
-                            "eq_scenario_1",
-                            "eq_scenario_2",
-                            "eq_scenario_3",
-                            "eq_scenario_4",
-                            "eq_scenario_5",
-                        ],
+                        value=[],  # dynamic
                         placeholder="Equipment Scenarios",
                         clearable=False,
                         style={"width": "500px"},
