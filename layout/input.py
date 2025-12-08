@@ -339,10 +339,11 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 # --------------------------------
 
 
-def build_equipment_table(equipment_data, selected_ids=None):
+def build_equipment_table(equipment_data, active_ids=None):
     """
     Build an equipment scenarios table from a DataFrame or list of dicts.
-    Multi-select via checkboxes. Selected_ids is a list of eq_scen_id strings.
+    Multi-select via checkboxes. selected_ids is a list of eq_scen_id strings
+    that are considered *active* (for calc) and will be highlighted.
     """
     # Accept both list-of-dicts and DataFrame
     if isinstance(equipment_data, list):
@@ -369,7 +370,7 @@ def build_equipment_table(equipment_data, selected_ids=None):
         (col, label) for col, label in column_config if col in equipment_df.columns
     ]
 
-    selected_ids = selected_ids or []
+    active_ids = set(active_ids or [])
 
     # Build body rows
     body_rows = []
@@ -377,20 +378,59 @@ def build_equipment_table(equipment_data, selected_ids=None):
         scen_id = row.get("eq_scen_id", idx)
         scen_id_str = str(scen_id)
 
-        # First cell: checkbox for row selection
-        cells = [dmc.TableTd(dmc.Checkbox(value=scen_id_str))]
+        is_active = scen_id_str in active_ids
+
+        checkbox_cell = dmc.TableTd(dmc.Checkbox(value=scen_id_str))
+
+        actions_cell = dmc.TableTd(
+            dmc.Group(
+                [
+                    dmc.ActionIcon(
+                        DashIconify(icon="mdi:pencil-outline"),
+                        variant="subtle",
+                        size="sm",
+                        # id={"type": "equipment-edit-btn", "eq_scen_id": scen_id_str},
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="mdi:trash-can-outline"),
+                        id={"type": "equipment-remove-btn", "eq_scen_id": scen_id_str},
+                        variant="subtle",
+                        color="red",
+                        size="sm",
+                    ),
+                ],
+                gap="xs",
+            )
+        )
 
         # Data cells
+        data_cells = []
         for col, _ in available_columns:
             value = row.get(col, "")
             if isinstance(value, bool):
                 value = "Yes" if value else "No"
-            cells.append(dmc.TableTd(str(value)))
+            data_cells.append(dmc.TableTd(str(value)))
 
-        body_rows.append(dmc.TableTr(cells))
+        # Highlight active rows
+        row_style = {}
+        if is_active:
+            row_style = {
+                "backgroundColor": "var(--mantine-color-blue-0)",
+                "fontWeight": 500,
+            }
+
+        body_rows.append(
+            dmc.TableTr(
+                [checkbox_cell, actions_cell, *data_cells],
+                style=row_style,
+            )
+        )
 
     # Header row
-    header_cells = [dmc.TableTh("")]  # checkbox column
+    header_cells = [
+        dmc.TableTh(""),  # checkbox column
+        dmc.TableTh("Actions"),  # actions column
+    ]
     header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
@@ -412,7 +452,7 @@ def build_equipment_table(equipment_data, selected_ids=None):
     # Wrap table in a CheckboxGroup so value is a list of selected scenario ids
     return dmc.CheckboxGroup(
         id="equipment-checkbox-group",
-        value=selected_ids,
+        value=list(active_ids),
         children=table,
     )
 

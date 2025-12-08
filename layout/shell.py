@@ -31,6 +31,7 @@ def build_shell(page_content):
             storage_type="session",
             data=None,
         ),
+        dcc.Store(id="equipment-initial-store", data=equipment_library),
         dcc.Store(id="equipment-store", data=equipment_library),
         dcc.Store(id="selected-equipment-store", storage_type="session"),
         dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
