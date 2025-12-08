@@ -345,13 +345,11 @@ def build_equipment_table(equipment_data, active_ids=None):
     Multi-select via checkboxes. selected_ids is a list of eq_scen_id strings
     that are considered *active* (for calc) and will be highlighted.
     """
-    # Accept both list-of-dicts and DataFrame
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
     else:
         equipment_df = equipment_data
 
-    # Define desired columns with their display names
     column_config = [
         ("eq_scen_id", "Scenario ID"),
         ("eq_scen_name", "Scenario Name"),
@@ -365,31 +363,29 @@ def build_equipment_table(equipment_data, active_ids=None):
         ("chiller", "Chiller"),
     ]
 
-    # Only keep columns that actually exist in the data
     available_columns = [
         (col, label) for col, label in column_config if col in equipment_df.columns
     ]
 
     active_ids = set(active_ids or [])
-
-    # Build body rows
     body_rows = []
     for idx, row in equipment_df.iterrows():
         scen_id = row.get("eq_scen_id", idx)
         scen_id_str = str(scen_id)
-
         is_active = scen_id_str in active_ids
 
+        # Selection checkbox (active for calc)
         checkbox_cell = dmc.TableTd(dmc.Checkbox(value=scen_id_str))
 
+        # Actions: EDIT + REMOVE (trash you already wired up)
         actions_cell = dmc.TableTd(
             dmc.Group(
                 [
                     dmc.ActionIcon(
                         DashIconify(icon="mdi:pencil-outline"),
+                        id={"type": "equipment-edit-btn", "eq_scen_id": scen_id_str},
                         variant="subtle",
                         size="sm",
-                        # id={"type": "equipment-edit-btn", "eq_scen_id": scen_id_str},
                     ),
                     dmc.ActionIcon(
                         DashIconify(icon="mdi:trash-can-outline"),
@@ -403,7 +399,6 @@ def build_equipment_table(equipment_data, active_ids=None):
             )
         )
 
-        # Data cells
         data_cells = []
         for col, _ in available_columns:
             value = row.get(col, "")
@@ -411,7 +406,6 @@ def build_equipment_table(equipment_data, active_ids=None):
                 value = "Yes" if value else "No"
             data_cells.append(dmc.TableTd(str(value)))
 
-        # Highlight active rows
         row_style = {}
         if is_active:
             row_style = {
@@ -426,10 +420,9 @@ def build_equipment_table(equipment_data, active_ids=None):
             )
         )
 
-    # Header row
     header_cells = [
-        dmc.TableTh(""),  # checkbox column
-        dmc.TableTh("Actions"),  # actions column
+        dmc.TableTh(""),
+        dmc.TableTh("Actions"),
     ]
     header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
 
@@ -449,7 +442,6 @@ def build_equipment_table(equipment_data, active_ids=None):
         type="auto",
     )
 
-    # Wrap table in a CheckboxGroup so value is a list of selected scenario ids
     return dmc.CheckboxGroup(
         id="equipment-checkbox-group",
         value=list(active_ids),
@@ -457,169 +449,205 @@ def build_equipment_table(equipment_data, active_ids=None):
     )
 
 
-def with_none_option(options, none_label="None"):
-    return [{"label": none_label, "value": "None"}] + options
-
-
-def select_equipment(equipment_data):
-
-    equipment_list = equipment_data.get("equipment", [])
-
-    def options_for(eq_type):
-        return [
-            {
-                "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-                "value": eq.get("eq_id"),
-            }
-            for eq in equipment_list
-            if eq.get("eq_type") == eq_type
-        ]
-
-    hr_heat_pump_options = with_none_option(options_for("hr_heat_pump"))
-    heat_pump_options = with_none_option(options_for("heat_pump"))
-
-    backup_heating_options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in equipment_list
-        if eq.get("eq_type") == "backup_heating"
-    ]
-
-    chiller_options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in equipment_list
-        if eq.get("eq_type") == "chiller"
-    ]
-
-    label_styling = {"width": "180px", "align": "right"}
-
-    return html.Div(
-        [
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("HR Heat Pump", style=label_styling),
-                    dbc.Select(
-                        id="hr-wwhp-input",
-                        options=hr_heat_pump_options,
-                        value=(
-                            hr_heat_pump_options[1]["value"]
-                            if hr_heat_pump_options
-                            else None
+def add_equipment_modal():
+    return dmc.Modal(
+        id="equipment-add-modal",
+        opened=False,  # controlled via callback
+        title="Add equipment scenario",
+        children=dmc.Stack(
+            [
+                dmc.Select(
+                    id="add-base-scenario-select",
+                    label="Base scenario",
+                    placeholder="Choose scenario to copy",
+                    data=[],  # filled from equipment-store
+                    searchable=True,
+                    nothingFoundMessage="No scenarios",
+                    withScrollArea=True,
+                ),
+                dmc.TextInput(
+                    id="add-scenario-id-input",
+                    label="New scenario ID",
+                    placeholder="e.g. eq_scenario_6",
+                ),
+                dmc.TextInput(
+                    id="add-scenario-name-input",
+                    label="New scenario name",
+                    placeholder="Descriptive name",
+                ),
+                dmc.Text(
+                    id="add-scenario-error",
+                    size="xs",
+                    c="red",
+                ),
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "Cancel",
+                            id="add-scenario-cancel-btn",
+                            variant="outline",
                         ),
-                    ),
-                ]
-            ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("Heat Pump", style=label_styling),
-                    dbc.Select(
-                        id="awhp-input",
-                        options=heat_pump_options,
-                        value=(
-                            heat_pump_options[1]["value"] if heat_pump_options else None
+                        dmc.Button(
+                            "Save",
+                            id="add-scenario-save-btn",
                         ),
-                    ),
-                ]
-            ),
-            html.Hr(style={"marginTop": "10px", "marginBottom": "10px"}),
-            dbc.Label("Heat Pump Sizing", style=label_styling),
-            html.Div(
-                children=[
-                    dbc.RadioItems(
-                        id="awhp-sizing-radio",
-                        options=[
-                            {
-                                "label": "% Peak Load (Integer Sizes)",
-                                "value": "integer_sizing_peak_load",
-                            },
-                            {
-                                "label": "% Peak Load (Fractional Sizes)",
-                                "value": "fractional_sizing_peak_load",
-                            },
-                            {"label": "No. Units", "value": "fixed_num_units"},
-                        ],
-                        value="fractional_sizing_peak_load",
-                        # inline=True,
-                        style={"marginRight": "15px"},
-                    ),
-                    html.Div(
-                        dcc.Slider(
-                            id="awhp-sizing-slider",
-                            min=0,
-                            max=1,
-                            step=0.05,
-                            value=0.85,
-                            marks={i: f"{i * 100}%" for i in range(0, 21, 5)},
-                            tooltip={"placement": "bottom", "always_visible": True},
-                        ),
-                        style={"flex": "1"},  # make slider expand
-                    ),
-                ],
-                style={"display": "flex", "alignItems": "center", "gap": "10px"},
-            ),
-            html.Div(
-                children=[
-                    dbc.Label("Heat Pump Redundant Units"),
-                    dcc.Slider(
-                        id="awhp-redundancy-slider",
-                        min=0,
-                        max=5,
-                        step=1,
-                        value=1,
-                        marks={i: str(i) for i in range(1, 6)},
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                ],
-                style={"marginTop": "10px"},
-            ),
-            dbc.Checkbox(
-                label="Use Heat Pump also for Cooling",
-                id="awhp-use-cooling",
-                style={"marginTop": "10px", "marginBottom": "10px"},
-            ),
-            html.Hr(
-                style={
-                    "marginTop": "25px",
-                    "marginBottom": "10px",
-                    "borderTop": "2px solid grey",
-                }
-            ),
-            dbc.Label(
-                "Backup Equipment", style={"fontWeight": "bold", "marginBottom": "20px"}
-            ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("Heating", style=label_styling),
-                    dbc.Select(
-                        id="backup-heating-input",
-                        options=backup_heating_options,
-                        value=(
-                            backup_heating_options[0]["value"]
-                            if backup_heating_options
-                            else None
-                        ),
-                    ),
-                ]
-            ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("Cooling", style=label_styling),
-                    dbc.Select(
-                        id="chiller-input",
-                        options=chiller_options,
-                        value=(
-                            chiller_options[0]["value"] if chiller_options else None
-                        ),
-                    ),
-                ]
-            ),
-        ]
+                    ],
+                    justify="flex-end",
+                    mt="sm",
+                ),
+            ]
+        ),
     )
+
+
+def edit_equipment_modal():
+    return dmc.Modal(
+        id="equipment-edit-modal",
+        opened=False,
+        title="Edit equipment scenario",
+        size="lg",
+        children=dmc.Stack(
+            [
+                dmc.Group(
+                    [
+                        dmc.TextInput(
+                            id="edit-scenario-id-input",
+                            label="Scenario ID",
+                            disabled=True,
+                            style={"flex": 1},
+                        ),
+                        dmc.TextInput(
+                            id="edit-scenario-name-input",
+                            label="Scenario name",
+                            style={"flex": 2},
+                        ),
+                    ],
+                    grow=True,
+                ),
+                dmc.Divider(label="Heat pump selection", labelPosition="center"),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
+                            id="edit-hr-wwhp-select",
+                            label="HR Heat Pump",
+                            placeholder="None",
+                            data=[],  # filled by callback
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-select",
+                            label="Air-to-water Heat Pump",
+                            placeholder="None",
+                            data=[],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                    ],
+                ),
+                dmc.Divider(label="Heat pump sizing", labelPosition="center"),
+                dmc.Stack(
+                    [
+                        dmc.SegmentedControl(
+                            id="edit-awhp-sizing-mode",
+                            data=[
+                                {
+                                    "label": "% peak load (integer)",
+                                    "value": "integer_sizing_peak_load",
+                                },
+                                {
+                                    "label": "% peak load (fractional)",
+                                    "value": "fractional_sizing_peak_load",
+                                },
+                                {
+                                    "label": "Fixed number of units",
+                                    "value": "fixed_num_units",
+                                },
+                            ],
+                            fullWidth=True,
+                        ),
+                        dmc.Group(
+                            [
+                                dmc.NumberInput(
+                                    id="edit-awhp-sizing-value",
+                                    label="Sizing value",
+                                    description="% of peak load or number of units",
+                                    min=0,
+                                    max=5,
+                                    step=0.05,  # will be overridden dynamically
+                                    style={"flex": 1},
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-awhp-redundancy",
+                                    label="Redundant units",
+                                    min=0,
+                                    max=5,
+                                    step=1,
+                                    style={"flex": 1},
+                                ),
+                            ],
+                            grow=True,
+                        ),
+                        dmc.Switch(
+                            id="edit-awhp-use-cooling",
+                            label="Use heat pump also for cooling",
+                            mt="xs",
+                        ),
+                    ]
+                ),
+                dmc.Divider(label="Backup equipment", labelPosition="center"),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
+                            id="edit-backup-heating-select",
+                            label="Backup heating",
+                            placeholder="Select backup heater",
+                            data=[],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-chiller-select",
+                            label="Chiller",
+                            placeholder="Select chiller",
+                            data=[],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                    ],
+                ),
+                dmc.Text(
+                    id="edit-scenario-error",
+                    size="xs",
+                    c="red",
+                ),
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "Cancel",
+                            id="edit-scenario-cancel-btn",
+                            variant="outline",
+                        ),
+                        dmc.Button(
+                            "Save",
+                            id="edit-scenario-save-btn",
+                        ),
+                    ],
+                    justify="flex-end",
+                    mt="sm",
+                ),
+            ]
+        ),
+    )
+
+
+# --------------------------------
+# EMISSION page inputs
+# --------------------------------
 
 
 def set_grid_year():
