@@ -13,6 +13,7 @@ with META_INDEX_PATH.open("r") as f:
     METADATA_INDEX = json.load(f)
 
 LOAD_INDEX = METADATA_INDEX["load_data_full"]
+EMISSIONS_INDEX = METADATA_INDEX["emissions"]
 
 
 def unit_toggle():
@@ -650,361 +651,316 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def set_grid_year():
+def build_emissions_table(emission_data, active_ids=None):
+    """
+    Build an emissions scenarios table where:
+      - Columns = emission scenarios (em_scen_id)
+      - Rows    = properties (year, region, etc.)
 
-    year_options = METADATA_INDEX["emissions"]["year"]
+    Layout (body rows, after header):
+      1) Selected (checkboxes + EDIT / REMOVE)
+      2) Scenario ID (em_scen_id)
+      3+) Other properties
+    """
+    if isinstance(emission_data, list):
+        emission_df = pd.DataFrame(emission_data)
+    else:
+        emission_df = emission_data
 
-    return html.Div(
-        [
-            dbc.Label("Grid Year"),
-            dcc.Slider(
-                id="grid-year-input",
-                min=min(year_options),
-                max=max(year_options),
-                step=5,
-                included=False,
-                value=min(year_options),
-                marks={year: str(year) for year in year_options},
-                tooltip={"placement": "bottom", "always_visible": True},
-            ),
-        ]
-    )
+    if emission_df.empty:
+        return dmc.Text("No emission scenarios defined yet.")
 
+    # Ensure an ID for each scenario
+    if "em_scen_id" not in emission_df.columns:
+        emission_df["em_scen_id"] = [f"em_scen_{i}" for i in range(len(emission_df))]
 
-def select_grid_scenario():
-    options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in METADATA_INDEX["emissions"]["emission_scenario"]
+    # Order scenarios by em_scen_id
+    emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
+
+    # Fields we want to show as rows (properties)
+    row_config = [
+        ("em_scen_id", "Scenario ID"),
+        ("grid_scenario", "Grid Scenario"),
+        ("gea_grid_region", "GEA Grid Region"),
+        ("time_zone", "Time Zone"),
+        ("emission_type", "Emission Type"),
+        ("shortrun_weighting", "Short-run weighting"),
+        ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
+        ("annual_ng_leakage_g_per_kWh", "NG leakage (g/kWh)"),
+        ("year", "Year"),
     ]
-    return html.Div(
-        [
-            dbc.Label("Grid Scenario"),
-            # html.P(
-            #     "Select the grid emission scenario to use for the analysis. This will set the grid emission factors over time."
-            # ),
-            dcc.Dropdown(
-                id="grid-scenario-input",
-                options=options,
-                value="MidCase",
-            ),
-        ]
-    )
 
-
-def set_emission_type():
-    options = [
-        {
-            "label": type,
-            "value": type,
-        }
-        for type in METADATA_INDEX["emissions"]["emission_type"]
+    available_rows = [
+        (field, label) for field, label in row_config if field in emission_df.columns
     ]
-    return html.Div(
-        [
-            dbc.Label("Emission Type", style={"fontWeight": "bold"}),
-            dbc.RadioItems(
-                id="emission-type-input",
-                options=options[
-                    ::-1
-                ],  # reverse order to have "Includes pre-combustion" first
-                value="Includes pre-combustion",
-                inline=True,
-            ),
-        ]
+
+    active_ids = set(active_ids or [])
+
+    # Style for active vs inactive columns
+    active_col_style = {
+        "backgroundColor": "var(--mantine-color-blue-0)",
+        "fontWeight": 500,
+    }
+    inactive_col_style = {}
+
+    # ---------- Header row ----------
+    header_cells = [dmc.TableTh("Property")]
+    scen_ids = []
+
+    for _, scen_row in emission_df.iterrows():
+        scen_id = str(scen_row.get("em_scen_id", ""))
+        scen_ids.append(scen_id)
+
+        cell_style = active_col_style if scen_id in active_ids else inactive_col_style
+        header_cells.append(dmc.TableTh(scen_id, style=cell_style))
+
+    header = dmc.TableThead(dmc.TableTr(header_cells))
+
+    body_rows = []
+
+    # ---------- Row 1: Selected (checkboxes + actions) ----------
+    selected_cells = [dmc.TableTh("Selected")]
+    for scen_id in scen_ids:
+        cell_style = active_col_style if scen_id in active_ids else inactive_col_style
+        selected_cells.append(
+            dmc.TableTd(
+                dmc.Group(
+                    [
+                        dmc.Checkbox(
+                            value=scen_id,
+                            checked=scen_id in active_ids,
+                        ),
+                        dmc.Space("  |  "),  # spacer
+                        dmc.ActionIcon(
+                            DashIconify(icon="mdi:pencil-outline"),
+                            id={"type": "emission-edit-btn", "em_scen_id": scen_id},
+                            variant="subtle",
+                            size="sm",
+                        ),
+                        dmc.ActionIcon(
+                            DashIconify(icon="mdi:trash-can-outline"),
+                            id={"type": "emission-remove-btn", "em_scen_id": scen_id},
+                            variant="subtle",
+                            color="red",
+                            size="sm",
+                        ),
+                    ],
+                    gap="xs",
+                    justify="center",
+                    align="start",
+                ),
+                style=cell_style,
+            )
+        )
+    body_rows.append(dmc.TableTr(selected_cells))
+
+    # ---------- Remaining rows: properties ----------
+    for field, label in available_rows:
+        row_cells = [dmc.TableTh(label)]
+        for idx, scen_id in enumerate(scen_ids):
+            cell_style = (
+                active_col_style if scen_id in active_ids else inactive_col_style
+            )
+            value = emission_df.iloc[idx].get(field, "")
+            if isinstance(value, float):
+                value = f"{value:.4g}"
+            row_cells.append(dmc.TableTd(str(value), style=cell_style))
+        body_rows.append(dmc.TableTr(row_cells))
+
+    body = dmc.TableTbody(body_rows)
+
+    table = dmc.ScrollArea(
+        dmc.Table(
+            [header, body],
+            striped=True,
+            highlightOnHover=True,
+            withColumnBorders=False,
+            horizontalSpacing="sm",
+            verticalSpacing="xs",
+        ),
+        h=500,
+        type="auto",
+    )
+
+    # Wrap in CheckboxGroup so the 'Selected' row is one multi-select control
+    return dmc.CheckboxGroup(
+        id="emissions-checkbox-group",
+        value=list(active_ids),
+        children=table,
     )
 
 
-def set_shortrun_weighting():
-    return html.Div(
-        [
-            dbc.Label("Short-Run Weighting"),
-            # html.P(
-            #     "Set the short-run weighting factor to adjust the importance of short-run marginal emission rates in the analysis."
-            # ),
-            dcc.Slider(
-                id="shortrun-weighting-input",
-                min=0.0,
-                max=1.0,
-                step=0.1,
-                value=0.0,
-                marks={0: "0", 0.5: "0.5", 1: "1"},
-                # marks={i / 10: str(i / 10) for i in range(0, 11)},
-                tooltip={"placement": "bottom", "always_visible": True},
-            ),
-        ]
+def add_emission_modal():
+    return dmc.Modal(
+        id="emissions-add-modal",
+        opened=False,  # controlled via callback
+        title="Add emission scenario",
+        children=dmc.Stack(
+            [
+                dmc.Select(
+                    id="add-em-base-scenario-select",
+                    label="Base scenario",
+                    placeholder="Choose scenario to copy",
+                    data=[],  # filled from metadata-store
+                    searchable=True,
+                    nothingFoundMessage="No scenarios",
+                    withScrollArea=True,
+                ),
+                dmc.TextInput(
+                    id="add-em-scenario-id-input",
+                    label="New scenario ID",
+                    placeholder="e.g. em_scenario_4",
+                ),
+                dmc.Text(
+                    id="add-em-scenario-error",
+                    size="xs",
+                    c="red",
+                ),
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "Cancel",
+                            id="add-em-scenario-cancel-btn",
+                            variant="outline",
+                        ),
+                        dmc.Button(
+                            "Save",
+                            id="add-em-scenario-save-btn",
+                        ),
+                    ],
+                    justify="flex-end",
+                    mt="sm",
+                ),
+            ]
+        ),
     )
 
 
-def set_static_emissions(unit_mode="SI"):
+def edit_emission_modal():
+    # helper to turn a list of values into Mantine Select data
+    def _options(values):
+        return [{"value": str(v), "label": str(v)} for v in values]
 
-    conversion = unit_map["gas_emission_factor"][unit_mode]
-    gas_emission_factor_placeholder = conversion["default_value"]
-
-    return html.Div(
-        [
-            dbc.Label("Static Emission Factors", style={"fontWeight": "bold"}),
-            html.P("Annual Refrigerant Leakage."),
-            html.Div(
-                children=[
-                    dcc.Input(
-                        id="refrigerant-leakage-input",
-                        type="number",
-                        value=5,
-                        style={"width": "40%"},
-                        step=1,
-                    ),
-                    html.Div("%", style={"marginLeft": "8px"}),
-                ],
-                style={"display": "flex", "alignItems": "center"},
-            ),
-            html.Br(),
-            html.P("Natural Gas Emission Factor"),
-            html.Div(
-                children=[
-                    dcc.Input(
-                        id="ng-emission-factor-input",
-                        type="number",
-                        value=gas_emission_factor_placeholder,
-                        style={"width": "40%"},
-                        step=1,
-                        readOnly=True,
-                        disabled=True,
-                    ),
-                    html.Div(
-                        "gCO₂e/kWh",
-                        style={"marginLeft": "8px"},
-                        id="ng-emission-factor-unit",
-                    ),  # fixed unit
-                ],
-                style={"display": "flex", "alignItems": "center"},
-            ),
-        ]
-    )
-
-
-def select_gea_grid_region():
-    options = [
-        {
-            "label": region,
-            "value": region,
-        }
-        for region in METADATA_INDEX["emissions"]["gea_grid_region"]
-    ]
-    return html.Div(
-        [
-            dbc.Label(
-                "GEA Grid Region",
-                style={"fontWeight": "bold", "marginBottom": "10px"},
-            ),
-            html.P("Select the GEA grid region to use for the analysis."),
-            dcc.Dropdown(
-                id="gea-grid-region-input",
-                options=options,
-                value="CAISO",
-            ),
-        ]
-    )
-
-
-def equipment_scenario_saving_buttons():
-    return html.Div(
-        [
-            html.P("Save my current equipment settings as:"),
-            dbc.ButtonGroup(
-                [
-                    dbc.Button(
-                        "Scenario 1",
-                        id="update-eq-scen-1",
-                        outline=True,
-                        color="secondary",
-                    ),
-                    dbc.Button(
-                        "Scenario 2",
-                        id="update-eq-scen-2",
-                        outline=True,
-                        color="secondary",
-                    ),
-                    dbc.Button(
-                        "Scenario 3",
-                        id="update-eq-scen-3",
-                        outline=True,
-                        color="secondary",
-                    ),
-                    dbc.Button(
-                        "Scenario 4",
-                        id="update-eq-scen-4",
-                        outline=True,
-                        color="secondary",
-                    ),
-                    dbc.Button(
-                        "Scenario 5",
-                        id="update-eq-scen-5",
-                        outline=True,
-                        color="secondary",
-                    ),
-                ],
-                size="md",
-                vertical=False,
-            ),
-            # Store to remember which button was clicked
-            dcc.Store(id="scenario-trigger-store"),
-            # Modal for name input
-            dbc.Modal(
-                [
-                    dbc.ModalHeader(dbc.ModalTitle("Save Scenario")),
-                    dbc.ModalBody(
-                        dbc.Input(
-                            id="scenario-name-input",
-                            placeholder="Enter scenario name...",
-                            type="text",
-                        )
-                    ),
-                    dbc.ModalFooter(
-                        dbc.Button(
-                            "Confirm", id="confirm-scenario-name", color="primary"
-                        )
-                    ),
-                ],
-                id="scenario-name-modal",
-                is_open=False,
-                backdrop="static",
-                keyboard=False,
-                centered=True,
-            ),
-            html.Hr(),
-        ],
-    )
-
-
-def emission_scenario_saving_buttons():
-    return html.Div(
-        [
-            html.P("Save my current settings as:"),
-            dbc.ButtonGroup(
-                [
-                    dbc.Button(
-                        "Scenario A",
-                        id="update-scen-A",
-                        outline=True,
-                        color="secondary",
-                        n_clicks=0,
-                    ),
-                    # html.Span(" "),  # spacer
-                    dbc.Button(
-                        "Scenario B",
-                        id="update-scen-B",
-                        outline=True,
-                        color="secondary",
-                        n_clicks=0,
-                    ),
-                    # html.Span(" "),  # spacer
-                    dbc.Button(
-                        "Scenario C",
-                        id="update-scen-C",
-                        outline=True,
-                        color="secondary",
-                        n_clicks=0,
-                    ),
-                ],
-                size="md",
-                vertical=False,
-            ),
-        ],
-    )
-
-
-def emission_rate_dropdown():
-    return html.Div(
-        [
-            html.Small(
-                "Emission Rate",
-                className="text-muted",
-            ),
-            html.Br(),
-            dbc.Select(
-                options=[
-                    {"label": "LRMER", "value": "lrmer"},
-                    {"label": "SRMER", "value": "srmer"},
-                    {"label": "Total Emissions", "value": "total"},
-                ],
-                value="srmer",
-            ),
-        ]
-    )
-
-
-def emission_period_slider():
-    return html.Div(
-        [
-            html.Small("Emission Year", className="text-muted"),
-            html.Br(),
-            dcc.Slider(
-                id="year-slider",
-                min=0,  # placeholder
-                max=0,  # placeholder
-                step=None,
-                marks={},
-                value=0,
-                tooltip={"placement": "bottom", "always_visible": True},
-            ),
-        ]
-    )
-
-
-def results_utility_bar():
-    return html.Div(
-        [
-            dbc.Button(
-                DashIconify(icon="mdi:filter-variant", width=24),
-                id="open-filter",
-                color="secondary",
-            ),
-            dbc.Button(
-                DashIconify(icon="mdi:cog-outline", width=24),
-                id="open-settings",
-                color="secondary",
-            ),
-        ],
-        className="d-flex justify-content-end p-2",
-    )
-
-
-# Sidebar panels
-def filter_sidebar():
-    return dbc.Offcanvas(
-        [
-            html.H5("Scenarios", className="mb-3"),
-            dbc.Checklist(
-                options=[
-                    {"label": "Scenario A", "value": "A"},
-                    {"label": "Scenario B", "value": "B"},
-                ],
-                value=["A"],
-                id="filter-checklist",
-            ),
-            html.Hr(),
-            html.H5("Emissions", className="mb-3"),
-            emission_period_slider(),  # no metadata passed in
-            html.Hr(),
-            emission_rate_dropdown(),
-        ],
-        id="filter-sidebar",
-        placement="start",
-        is_open=False,
-    )
-
-
-def settings_sidebar():
-    return dbc.Offcanvas(
-        [
-            html.H5("Settings", className="mb-3"),
-            dbc.Switch(id="dark-mode", label="Enable Dark Mode", value=False),
-        ],
-        id="settings-sidebar",
-        title="Settings",
-        placement="end",
-        is_open=False,
+    return dmc.Modal(
+        id="emissions-edit-modal",
+        opened=False,
+        title="Edit emission scenario",
+        size="lg",
+        children=dmc.Stack(
+            [
+                dmc.Group(
+                    [
+                        dmc.TextInput(
+                            id="edit-em-scenario-id-input",
+                            label="Scenario ID",
+                            disabled=True,
+                            style={"flex": 1},
+                        ),
+                    ],
+                    grow=True,
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
+                            id="edit-em-grid-scenario",
+                            label="Grid scenario",
+                            placeholder="Select grid scenario",
+                            data=_options(EMISSIONS_INDEX["emission_scenario"]),
+                            searchable=True,
+                            clearable=False,
+                        ),
+                        dmc.Select(
+                            id="edit-em-gea-grid-region",
+                            label="GEA grid region",
+                            placeholder="Select grid region",
+                            data=_options(EMISSIONS_INDEX["gea_grid_region"]),
+                            searchable=True,
+                            clearable=False,
+                        ),
+                    ],
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.TextInput(
+                            id="edit-em-time-zone",
+                            label="Time zone",
+                            placeholder="e.g. America/Los_Angeles",
+                            disabled=True,
+                        ),
+                        dmc.Select(
+                            id="edit-em-emission-type",
+                            label="Emission type",
+                            placeholder="Select emission type",
+                            data=_options(EMISSIONS_INDEX["emission_type"]),
+                            searchable=False,
+                            clearable=False,
+                        ),
+                    ],
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.NumberInput(
+                            id="edit-em-shortrun-weighting",
+                            label="Short-run weighting",
+                            min=0,
+                            max=1,
+                            step=0.1,
+                        ),
+                        dmc.Select(
+                            id="edit-em-year",
+                            label="Year",
+                            placeholder="Select year",
+                            data=_options(EMISSIONS_INDEX["year"]),
+                            searchable=False,
+                            clearable=False,
+                        ),
+                    ],
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.NumberInput(
+                            id="edit-em-refrig-leakage",
+                            label="Annual refrigerant leakage (fraction)",
+                            min=0,
+                            max=1,
+                            step=0.01,
+                        ),
+                        dmc.NumberInput(
+                            id="edit-em-ng-leakage",
+                            label="Annual NG leakage (g/kWh)",
+                            min=0,
+                            step=1,
+                        ),
+                    ],
+                ),
+                dmc.Text(
+                    id="edit-em-scenario-error",
+                    size="xs",
+                    c="red",
+                ),
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "Cancel",
+                            id="edit-em-scenario-cancel-btn",
+                            variant="outline",
+                        ),
+                        dmc.Button(
+                            "Save",
+                            id="edit-em-scenario-save-btn",
+                        ),
+                    ],
+                    justify="flex-end",
+                    mt="sm",
+                ),
+            ]
+        ),
     )

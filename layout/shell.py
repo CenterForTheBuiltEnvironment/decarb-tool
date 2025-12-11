@@ -34,6 +34,7 @@ def build_shell(page_content):
         dcc.Store(id="equipment-initial-store", data=equipment_library),
         dcc.Store(id="equipment-store", data=equipment_library),
         dcc.Store(id="selected-equipment-store", storage_type="session"),
+        dcc.Store(id="selected-emissions-store", storage_type="session"),
         dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
         dcc.Store(id="selected-building-store", storage_type="session"),
         dcc.Store(id="load-summary-store", storage_type="session", data=None),

@@ -628,9 +628,6 @@ def _build_equipment_options(
     return options
 
 
-# 10. Update AWHP sizing value constraints and snap value on mode change
-
-
 @callback(
     Output("edit-awhp-sizing-value", "step"),
     Output("edit-awhp-sizing-value", "precision"),

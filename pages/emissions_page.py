@@ -1,6 +1,18 @@
+import json
+
 import dash
-from dash import dcc, html, Input, Output, State, callback, ctx
-import dash_bootstrap_components as dbc
+from dash import (
+    dcc,
+    html,
+    Input,
+    Output,
+    State,
+    callback,
+    callback_context,
+    no_update,
+    ALL,
+)
+import dash_mantine_components as dmc
 
 import pandas as pd
 from pathlib import Path
@@ -13,306 +25,533 @@ from utils.units import unit_map
 
 from src.metadata import Metadata
 
-from layout.input import (
-    emission_scenario_saving_buttons,
-    select_gea_grid_region,
-    select_grid_scenario,
-    set_emission_type,
-    set_grid_year,
-    set_shortrun_weighting,
-    set_static_emissions,
-)
-
 from src.equipment import EquipmentLibrary
 
 from src.loads import get_load_data
 
 from src.energy import loads_to_site_energy, site_to_source
 
-from layout.output import summary_emissions_selection
+from layout.input import build_emissions_table, add_emission_modal, edit_emission_modal
+
 
 dash.register_page(__name__, name="Emissions", path=URLS.EMISSIONS.value, order=2)
 
 
 def layout():
-    return dbc.Container(
-        children=[
+    return dmc.Container(
+        [
             dcc.Store(id="active-emissions-tab"),
             dcc.Store(id="site-energy-store"),
-            dbc.Spinner(
-                html.Div(id="source-energy-store"),
-                color="primary",
-                fullscreen=True,
-                fullscreen_style={"backgroundColor": "rgba(255,255,255,0.6)"},
-                show_initially=False,
-            ),
-            dbc.Row(
+            dmc.Group(
                 [
-                    dbc.Col(
-                        [
-                            html.H5("Emission Scenario"),
-                            html.Hr(),
-                            set_grid_year(),
-                            html.Hr(),
-                            select_grid_scenario(),
-                            html.Hr(),
-                            set_emission_type(),
-                            html.Hr(),
-                            set_shortrun_weighting(),
-                            html.Hr(),
-                        ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Hr(),
-                            set_static_emissions(),
-                            html.Hr(),
-                            select_gea_grid_region(),
-                            html.Hr(),
-                            emission_scenario_saving_buttons(),
-                        ],
-                        width=4,
-                    ),
-                    dbc.Col(
-                        [
-                            html.H5("Overview"),
-                            html.Hr(),
-                            html.Div(
-                                id="summary-emissions-info",
-                            ),
-                            dbc.Button(
-                                [
-                                    "Calculate Source Emissions ",
-                                    DashIconify(
-                                        icon="ic:baseline-autorenew",
-                                        width=20,
-                                    ),
-                                ],
-                                id="button-calculate",
-                                n_clicks=0,
-                                color="primary",
-                                style={"float": "right"},
-                            ),
-                            html.Div(
-                                id="calc-status-toast"
-                            ),  #! for debugging: remove later
-                        ],
-                        width=5,
-                    ),
-                ]
+                    dmc.Text("Specify Emission Scenarios", fw=500, size="lg"),
+                    # Later we’ll put “Add” / “Reset” buttons etc. here
+                ],
+                justify="space-between",
+                mt="md",
+                mb="sm",
             ),
-        ]
+            dmc.Divider(),
+            html.Div(
+                id="emissions-table",
+                style={
+                    "minHeight": "500px",
+                    "marginTop": "16px",
+                },
+            ),
+            dmc.Divider(mt="md"),
+            add_emission_modal(),
+            edit_emission_modal(),
+            # We’ll reintroduce “calculate” controls and toasts later;
+            # for now we keep the page focused on the table.
+        ],
+        fluid=True,
     )
 
 
-# Overwrite EmissionScenario in metadata based on user inputs
 @callback(
-    Output("metadata-store", "data", allow_duplicate=True),
-    Input("update-scen-A", "n_clicks"),
-    Input("update-scen-B", "n_clicks"),
-    Input("update-scen-C", "n_clicks"),
-    State("grid-year-input", "value"),
-    State("grid-scenario-input", "value"),
-    State("emission-type-input", "value"),
-    State("shortrun-weighting-input", "value"),
-    State("refrigerant-leakage-input", "value"),
-    State("gea-grid-region-input", "value"),
-    State("metadata-store", "data"),
-    State("session-store", "data"),
-    prevent_initial_call=True,
+    Output("emissions-table", "children"),
+    Input("metadata-store", "data"),
+    Input("selected-emissions-store", "data"),
 )
-def update_metadata(
-    n_a,
-    n_b,
-    n_c,
-    selected_grid_year,
-    selected_grid_scenario,
-    selected_emission_type,
-    selected_shortrun_weighting,
-    ref_leakage,
-    gea_grid_region,
-    metadata_data,
-    session_data,
-):
-
-    if not session_data:
-        raise dash.exceptions.PreventUpdate
-
-    session_id = session_data["session_id"]
-
-    print(f"Updating Metadata for Session ID: {session_id}")
-
-    trigger = ctx.triggered_id
-    trigger_val = ctx.triggered[0]["value"] if ctx.triggered else None
-
-    # prevent firing on first page load
-    if not trigger or trigger_val in (None, 0):
-        raise dash.exceptions.PreventUpdate
+def update_emissions_table(metadata_data, selected_emissions):
+    if not metadata_data:
+        return dmc.Text("No emission scenarios defined yet.")
 
     metadata = Metadata(**metadata_data)
 
-    # Map button IDs to scenario IDs
-    mapping = {
-        "update-scen-A": "em_scenario_a",
-        "update-scen-B": "em_scenario_b",
-        "update-scen-C": "em_scenario_c",
+    if not metadata.emission_settings:
+        return dmc.Text("No emission scenarios defined yet.")
+
+    scenarios = [s.model_dump() for s in metadata.emission_settings]
+    active_ids = selected_emissions or []
+
+    return build_emissions_table(scenarios, active_ids=active_ids)
+
+
+@callback(
+    Output("selected-emissions-store", "data"),
+    Output("emissions-checkbox-group", "value"),
+    Input("emissions-checkbox-group", "value"),
+    prevent_initial_call=True,
+)
+def sync_active_emissions(selected_values):
+    """
+    Keep selected-emissions-store in sync with the CheckboxGroup.
+    For now, no cap on number of active emission scenarios.
+    """
+    selected = selected_values or []
+    return selected, selected
+
+
+def _build_emission_base_options(metadata_json):
+    """
+    Build options for 'Base scenario' select in Add modal.
+    """
+    if not metadata_json or "emission_settings" not in metadata_json:
+        return []
+
+    return [
+        {
+            "label": s.get("em_scen_id", f"scenario_{i}"),
+            "value": s.get("em_scen_id"),
+        }
+        for i, s in enumerate(metadata_json["emission_settings"])
+        if s.get("em_scen_id")
+    ]
+
+
+def _next_emission_scen_id(metadata_json):
+    """
+    Generate next em_scen_id like em_scenario_4, em_scenario_5, ...
+    """
+    if not metadata_json or "emission_settings" not in metadata_json:
+        return "em_scenario_1"
+
+    nums = []
+    for scen in metadata_json["emission_settings"]:
+        sid = scen.get("em_scen_id", "")
+        if isinstance(sid, str) and sid.startswith("em_scenario_"):
+            try:
+                nums.append(int(sid.split("_")[-1]))
+            except ValueError:
+                pass
+    n = max(nums) + 1 if nums else 1
+    return f"em_scenario_{n}"
+
+
+@callback(
+    Output("emissions-add-modal", "opened"),
+    Output("add-em-base-scenario-select", "data"),
+    Output("add-em-scenario-id-input", "value"),
+    Output("add-em-scenario-error", "children"),
+    Input("button-add-emission", "n_clicks"),
+    Input("add-em-scenario-cancel-btn", "n_clicks"),
+    Input("add-em-scenario-save-btn", "n_clicks"),
+    State("metadata-store", "data"),
+)
+def emissions_add_modal(add_clicks, cancel_clicks, save_clicks, metadata_data):
+    ctx = callback_context
+
+    base_options = _build_emission_base_options(metadata_data)
+
+    # initial load
+    if not ctx.triggered:
+        return False, base_options, "", ""
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    # Open modal
+    if trigger_id == "button-add-emission":
+        auto_id = _next_emission_scen_id(metadata_data)
+        return True, base_options, auto_id, ""
+
+    # Cancel -> close
+    if trigger_id == "add-em-scenario-cancel-btn":
+        return False, base_options, "", ""
+
+    # Save -> close (store update in separate callback)
+    if trigger_id == "add-em-scenario-save-btn":
+        return False, base_options, "", ""
+
+    return no_update, no_update, no_update, no_update
+
+
+@callback(
+    Output("metadata-store", "data", allow_duplicate=True),
+    Input("add-em-scenario-save-btn", "n_clicks"),
+    State("metadata-store", "data"),
+    State("add-em-base-scenario-select", "value"),
+    State("add-em-scenario-id-input", "value"),
+    prevent_initial_call=True,
+)
+def add_emission_scenario_to_metadata(
+    save_clicks,
+    metadata_data,
+    base_id,
+    new_id,
+):
+    if not save_clicks:
+        return no_update
+
+    if not metadata_data or "emission_settings" not in metadata_data:
+        return no_update
+
+    scenarios = metadata_data.get("emission_settings", [])
+    if not base_id:
+        # could also push error into add-em-scenario-error if you want
+        return no_update
+
+    if not new_id or not new_id.strip():
+        new_id = _next_emission_scen_id(metadata_data)
+    new_id = new_id.strip()
+
+    existing_ids = {s.get("em_scen_id") for s in scenarios}
+    if new_id in existing_ids:
+        # ID already exists; you might set error text instead
+        return no_update
+
+    base_scen = next(
+        (s for s in scenarios if s.get("em_scen_id") == base_id),
+        None,
+    )
+    if base_scen is None:
+        return no_update
+
+    new_scenario = {**base_scen, "em_scen_id": new_id}
+    new_scenarios = scenarios + [new_scenario]
+
+    updated_metadata = {
+        **metadata_data,
+        "emission_settings": new_scenarios,
     }
 
-    scen_id = mapping.get(trigger)
-
-    scenario = metadata.get_emission_scenario(scen_id)
-
-    # Update with new values if provided
-    if selected_grid_year is not None:
-        scenario.year = selected_grid_year
-    if selected_grid_scenario is not None:
-        scenario.grid_scenario = selected_grid_scenario
-    if selected_emission_type is not None:
-        scenario.emission_type = selected_emission_type
-    if selected_shortrun_weighting is not None:
-        scenario.shortrun_weighting = selected_shortrun_weighting
-    if ref_leakage is not None:
-        scenario.annual_refrig_leakage_percent = (
-            ref_leakage / 100
-        )  # convert % to fraction
-    if gea_grid_region is not None:
-        scenario.gea_grid_region = gea_grid_region
-
-    # print(f"Updated scenario: {scenario}")
-    # Save back into metadata
-    if trigger in ["update-scen-A", "update-scen-B", "update-scen-C"]:
-        metadata.add_emission_scenario(scenario, overwrite=True)
-
-    return metadata.model_dump()
+    return updated_metadata
 
 
 @callback(
-    Output("summary-emissions-info", "children"),
-    Input("metadata-store", "data"),
-    State("active-emissions-tab", "data"),
-)
-def show_emissions_scenarios(data, active_tab):
-    if not data:
-        return "No emissions data available."
-
-    metadata = Metadata(**data)
-    return summary_emissions_selection(metadata, active_tab)
-
-
-@callback(
-    [
-        Output("ng-emission-factor-unit", "children"),
-        Output("ng-emission-factor-unit", "placeholder"),
-        Output("ng-emission-factor-input", "value"),
-    ],
-    [
-        Input("unit-toggle", "value"),  # "SI" or "IP"
-        State("ng-emission-factor-input", "value"),
-    ],
-)
-def update_static_emission_fields(unit_mode, ref_value):
-    conversion = unit_map["gas_emission_factor"][unit_mode]
-
-    unit = conversion["label"]
-    gas_emission_factor_placeholder = conversion["default_value"]
-
-    # Convert existing user inputs to SI if they exist
-    gas_value_si = conversion["func"](ref_value) if ref_value is not None else None
-
-    return unit, gas_emission_factor_placeholder, gas_value_si
-
-
-@callback(
-    Output("active-emissions-tab", "data"),
-    Input("emission-scenario-tabs", "value"),
-    prevent_initial_call=True,
-)
-def store_active_emissions_tab(active_tab):
-    return active_tab
-
-
-@callback(
-    Output("site-energy-store", "data"),
-    Input("button-calculate", "n_clicks"),
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("selected-emissions-store", "data", allow_duplicate=True),
+    Input({"type": "emission-remove-btn", "em_scen_id": ALL}, "n_clicks"),
     State("metadata-store", "data"),
-    State("equipment-store", "data"),
-    State("selected-equipment-store", "data"),
-    State("session-store", "data"),
+    State("selected-emissions-store", "data"),
     prevent_initial_call=True,
 )
-def run_loads_to_site(
+def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
+    if not any(remove_clicks or []):
+        return no_update, no_update
+
+    if not metadata_data or "emission_settings" not in metadata_data:
+        return no_update, no_update
+
+    triggered = callback_context.triggered
+    if not triggered:
+        return no_update, no_update
+
+    prop_id = triggered[0]["prop_id"]
+    id_str = prop_id.split(".")[0]
+
+    try:
+        btn_id = json.loads(id_str)
+    except json.JSONDecodeError:
+        return no_update, no_update
+
+    em_scen_id = btn_id.get("em_scen_id")
+    if not em_scen_id:
+        return no_update, no_update
+
+    scenarios = metadata_data.get("emission_settings", [])
+    new_scenarios = [s for s in scenarios if s.get("em_scen_id") != em_scen_id]
+
+    if len(new_scenarios) == len(scenarios):
+        return no_update, no_update
+
+    updated_metadata = metadata_data.copy()
+    updated_metadata["emission_settings"] = new_scenarios
+
+    selected_em_ids = selected_em_ids or []
+    new_selected = [sid for sid in selected_em_ids if sid != em_scen_id]
+
+    return updated_metadata, new_selected
+
+
+@callback(
+    Output("emissions-edit-modal", "opened"),
+    Output("edit-em-scenario-id-input", "value"),
+    Output("edit-em-grid-scenario", "value"),
+    Output("edit-em-gea-grid-region", "value"),
+    Output("edit-em-time-zone", "value"),
+    Output("edit-em-emission-type", "value"),
+    Output("edit-em-shortrun-weighting", "value"),
+    Output("edit-em-year", "value"),
+    Output("edit-em-refrig-leakage", "value"),
+    Output("edit-em-ng-leakage", "value"),
+    Output("edit-em-scenario-error", "children"),
+    Input({"type": "emission-edit-btn", "em_scen_id": ALL}, "n_clicks"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True,
+)
+def open_edit_emission_modal(edit_clicks, metadata_data):
+    if not any(edit_clicks or []):
+        return (no_update,) * 11
+
+    if not metadata_data or "emission_settings" not in metadata_data:
+        return (
+            False,
+            "",
+            "",
+            "",
+            "",
+            "",
+            None,
+            None,
+            None,
+            None,
+            "No emission data.",
+        )
+
+    scenarios = metadata_data.get("emission_settings", [])
+
+    triggered = callback_context.triggered
+    if not triggered:
+        return (no_update,) * 11
+
+    prop_id = triggered[0]["prop_id"]
+    id_str = prop_id.split(".")[0]
+
+    try:
+        btn_id = json.loads(id_str)
+    except json.JSONDecodeError:
+        return (
+            False,
+            "",
+            "",
+            "",
+            "",
+            "",
+            None,
+            None,
+            None,
+            None,
+            "Failed to parse button id.",
+        )
+
+    em_scen_id = btn_id.get("em_scen_id")
+    scen = next((s for s in scenarios if s.get("em_scen_id") == em_scen_id), None)
+
+    if scen is None:
+        return (
+            False,
+            "",
+            "",
+            "",
+            "",
+            "",
+            None,
+            None,
+            None,
+            None,
+            f"Scenario {em_scen_id!r} not found.",
+        )
+
+    return (
+        True,
+        scen.get("em_scen_id"),
+        scen.get("grid_scenario", ""),
+        scen.get("gea_grid_region", ""),
+        scen.get("time_zone", ""),
+        scen.get("emission_type", ""),
+        scen.get("shortrun_weighting"),
+        str(scen.get("year")) if scen.get("year") is not None else "",
+        scen.get("annual_refrig_leakage_percent"),
+        scen.get("annual_ng_leakage_g_per_kWh"),
+        "",
+    )
+
+
+@callback(
+    Output("emissions-edit-modal", "opened", allow_duplicate=True),
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("edit-em-scenario-error", "children", allow_duplicate=True),
+    Input("edit-em-scenario-save-btn", "n_clicks"),
+    State("edit-em-scenario-id-input", "value"),
+    State("edit-em-grid-scenario", "value"),
+    State("edit-em-gea-grid-region", "value"),
+    State("edit-em-time-zone", "value"),
+    State("edit-em-emission-type", "value"),
+    State("edit-em-shortrun-weighting", "value"),
+    State("edit-em-year", "value"),
+    State("edit-em-refrig-leakage", "value"),
+    State("edit-em-ng-leakage", "value"),
+    State("metadata-store", "data"),
+    prevent_initial_call=True,
+)
+def save_edit_emission(
     n_clicks,
-    metadata_json,
-    equipment_json,
-    selected_scenarios,
-    session_data,
+    scen_id,
+    grid_scenario,
+    gea_grid_region,
+    time_zone,
+    emission_type,
+    shortrun_weighting,
+    year,
+    refrig_leakage,
+    ng_leakage,
+    metadata_data,
 ):
-    if not n_clicks or not metadata_json or not equipment_json:
-        raise dash.exceptions.PreventUpdate
+    if not n_clicks:
+        return no_update, no_update, no_update
 
-    if not selected_scenarios:
-        raise dash.exceptions.PreventUpdate
+    if not metadata_data or "emission_settings" not in metadata_data:
+        return False, no_update, "No emission data to edit."
 
-    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
-    folder.mkdir(parents=True, exist_ok=True)
+    if not scen_id:
+        return True, no_update, "Scenario ID is missing."
 
-    metadata = Metadata(**metadata_json)
-    equipment = EquipmentLibrary(**equipment_json)
+    # basic type cleaning
+    try:
+        shortrun_weighting = (
+            float(shortrun_weighting) if shortrun_weighting is not None else 0.0
+        )
+    except (TypeError, ValueError):
+        shortrun_weighting = 0.0
 
-    load_data = get_load_data(metadata)
+    try:
+        year = int(year) if year is not None and year != "" else 2025
+    except (TypeError, ValueError):
+        year = 2025
 
-    site_energy = loads_to_site_energy(
-        load_data,
-        equipment,
-        scenario_ids=selected_scenarios,
-        detail=True,
-    )
+    try:
+        refrig_leakage = float(refrig_leakage) if refrig_leakage is not None else 0.0
+    except (TypeError, ValueError):
+        refrig_leakage = 0.0
 
-    site_path = folder / "site_energy.pkl"
-    site_energy.to_pickle(site_path)
-    print(f"Saving Site Energy to: {site_path}")
+    try:
+        ng_leakage = float(ng_leakage) if ng_leakage is not None else 0.0
+    except (TypeError, ValueError):
+        ng_leakage = 0.0
 
-    return str(site_path)
+    scenarios = metadata_data.get("emission_settings", [])
+    updated = False
+    new_scenarios = []
+
+    for scen in scenarios:
+        if scen.get("em_scen_id") == scen_id:
+            new_scen = scen.copy()
+            new_scen["grid_scenario"] = grid_scenario
+            new_scen["gea_grid_region"] = gea_grid_region
+            new_scen["time_zone"] = time_zone
+            new_scen["emission_type"] = emission_type
+            new_scen["shortrun_weighting"] = shortrun_weighting
+            new_scen["year"] = year
+            new_scen["annual_refrig_leakage_percent"] = refrig_leakage
+            new_scen["annual_ng_leakage_g_per_kWh"] = ng_leakage
+            new_scenarios.append(new_scen)
+            updated = True
+        else:
+            new_scenarios.append(scen)
+
+    if not updated:
+        return True, no_update, f"Scenario {scen_id!r} not found."
+
+    updated_metadata = metadata_data.copy()
+    updated_metadata["emission_settings"] = new_scenarios
+
+    return False, updated_metadata, ""
 
 
 @callback(
-    Output("source-energy-store", "children"),
-    Output("calc-status-toast", "children"),
-    Input("site-energy-store", "data"),
-    State("metadata-store", "data"),
-    State("session-store", "data"),
+    Output("emissions-edit-modal", "opened", allow_duplicate=True),
+    Input("edit-em-scenario-cancel-btn", "n_clicks"),
     prevent_initial_call=True,
 )
-def run_site_to_source(site_energy_path, metadata_json, session_data):
+def cancel_edit_emission_modal(n_clicks):
+    if not n_clicks:
+        return no_update
+    return False
 
-    if not site_energy_path:
-        raise dash.exceptions.PreventUpdate
 
-    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
-    folder.mkdir(parents=True, exist_ok=True)
+# @callback(
+#     Output("site-energy-store", "data"),
+#     Input("button-calculate", "n_clicks"),
+#     State("metadata-store", "data"),
+#     State("equipment-store", "data"),
+#     State("selected-equipment-store", "data"),
+#     State("session-store", "data"),
+#     prevent_initial_call=True,
+# )
+# def run_loads_to_site(
+#     n_clicks,
+#     metadata_json,
+#     equipment_json,
+#     selected_scenarios,
+#     session_data,
+# ):
+#     if not n_clicks or not metadata_json or not equipment_json:
+#         raise dash.exceptions.PreventUpdate
 
-    site_energy = pd.read_pickle(site_energy_path)
-    metadata = Metadata(**metadata_json)
+#     if not selected_scenarios:
+#         raise dash.exceptions.PreventUpdate
 
-    source_energy = site_to_source(site_energy, metadata=metadata)
+#     folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
+#     folder.mkdir(parents=True, exist_ok=True)
 
-    source_path = folder / "source_energy.pkl"
-    source_energy.to_pickle(source_path)
-    print(f"Saving Source Energy for to: {source_path}")
+#     metadata = Metadata(**metadata_json)
+#     equipment = EquipmentLibrary(**equipment_json)
 
-    toast = dbc.Toast(
-        "Calculation finished!",
-        duration=3000,
-        is_open=True,
-        style={
-            "position": "fixed",
-            "top": 66,
-            "right": 50,
-            "width": 250,
-            "zIndex": 9999,
-        },
-        header=[DashIconify(icon="ei:check", width=20), "Success"],
-    )
+#     load_data = get_load_data(metadata)
 
-    return dcc.Store(id="source-energy-store", data=str(source_path)), toast
+#     site_energy = loads_to_site_energy(
+#         load_data,
+#         equipment,
+#         scenario_ids=selected_scenarios,
+#         detail=True,
+#     )
+
+#     site_path = folder / "site_energy.pkl"
+#     site_energy.to_pickle(site_path)
+#     print(f"Saving Site Energy to: {site_path}")
+
+#     return str(site_path)
+
+
+# @callback(
+#     Output("source-energy-store", "children"),
+#     Output("calc-status-toast", "children"),
+#     Input("site-energy-store", "data"),
+#     State("metadata-store", "data"),
+#     State("session-store", "data"),
+#     prevent_initial_call=True,
+# )
+# def run_site_to_source(site_energy_path, metadata_json, session_data):
+
+#     if not site_energy_path:
+#         raise dash.exceptions.PreventUpdate
+
+#     folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
+#     folder.mkdir(parents=True, exist_ok=True)
+
+#     site_energy = pd.read_pickle(site_energy_path)
+#     metadata = Metadata(**metadata_json)
+
+#     source_energy = site_to_source(site_energy, metadata=metadata)
+
+#     source_path = folder / "source_energy.pkl"
+#     source_energy.to_pickle(source_path)
+#     print(f"Saving Source Energy for to: {source_path}")
+
+#     toast = dbc.Toast(
+#         "Calculation finished!",
+#         duration=3000,
+#         is_open=True,
+#         style={
+#             "position": "fixed",
+#             "top": 66,
+#             "right": 50,
+#             "width": 250,
+#             "zIndex": 9999,
+#         },
+#         header=[DashIconify(icon="ei:check", width=20), "Success"],
+#     )
+
+#     return dcc.Store(id="source-energy-store", data=str(source_path)), toast
