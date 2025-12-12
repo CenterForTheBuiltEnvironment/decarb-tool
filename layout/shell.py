@@ -62,6 +62,9 @@ def build_shell(page_content):
         dmc.Stack(
             [
                 dcc.Location(id="url", refresh=False),
+                dmc.NotificationContainer(
+                    id="notification-container", position="top-right"
+                ),
                 *global_state,
                 html.Div(page_content),
             ],

@@ -233,9 +233,6 @@ def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name
     return updated_equipment
 
 
-# 4. Sync selected-equipment-store with checkbox group
-
-
 @callback(
     Output("selected-equipment-store", "data"),
     Output("equipment-checkbox-group", "value"),
@@ -259,9 +256,6 @@ def sync_active_equipment(selected_values):
     # - store only the first 5
     # - set the CheckboxGroup value back to those 5, auto-unchecking extras
     return capped_selected, capped_selected
-
-
-# ` 5. Remove scenario when trash icon clicked`
 
 
 @callback(
@@ -317,9 +311,6 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
     return updated_equipment, new_selected
 
 
-# 6. Reset equipment to initial library
-
-
 @callback(
     Output("equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
@@ -339,9 +330,6 @@ def reset_equipment(n_clicks, initial_data):
         return no_update, no_update
 
     return initial_data, []
-
-
-# 7. Edit scenario modal + store update
 
 
 @callback(
@@ -501,9 +489,6 @@ def open_edit_modal(edit_clicks, equipment_data):
         chiller_val,
         "",
     )
-
-
-# 8. Separate callback to save edits from modal open
 
 
 @callback(

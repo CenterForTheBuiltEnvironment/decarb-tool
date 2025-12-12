@@ -42,10 +42,40 @@ def layout():
         [
             dcc.Store(id="active-emissions-tab"),
             dcc.Store(id="site-energy-store"),
+            html.Div(id="source-energy-store"),
+            html.Div(id="calc-status-toast"),
             dmc.Group(
                 [
                     dmc.Text("Specify Emission Scenarios", fw=500, size="lg"),
-                    # Later we’ll put “Add” / “Reset” buttons etc. here
+                    dmc.Group(
+                        [
+                            dmc.Button(
+                                "Add",
+                                id="button-add-emission",
+                                variant="outline",
+                            ),
+                            dmc.Button(
+                                "Reset",
+                                id="button-reset-emission",
+                                variant="outline",
+                                color="gray",
+                                disabled=True,  # <- disabled for now
+                            ),
+                            dmc.Button(
+                                [
+                                    "Calculate Source Emissions",
+                                    DashIconify(
+                                        icon="ic:baseline-autorenew",
+                                        width=20,
+                                        style={"marginLeft": 8},
+                                    ),
+                                ],
+                                id="button-calculate",
+                                variant="filled",
+                                color="blue",
+                            ),
+                        ],
+                    ),
                 ],
                 justify="space-between",
                 mt="md",
@@ -199,7 +229,7 @@ def add_emission_scenario_to_metadata(
 
     scenarios = metadata_data.get("emission_settings", [])
     if not base_id:
-        # could also push error into add-em-scenario-error if you want
+        # could also push error into add-em-scenario-error
         return no_update
 
     if not new_id or not new_id.strip():
@@ -208,7 +238,7 @@ def add_emission_scenario_to_metadata(
 
     existing_ids = {s.get("em_scen_id") for s in scenarios}
     if new_id in existing_ids:
-        # ID already exists; you might set error text instead
+        # ID already exists; might set error text instead
         return no_update
 
     base_scen = next(
@@ -471,87 +501,135 @@ def cancel_edit_emission_modal(n_clicks):
     return False
 
 
-# @callback(
-#     Output("site-energy-store", "data"),
-#     Input("button-calculate", "n_clicks"),
-#     State("metadata-store", "data"),
-#     State("equipment-store", "data"),
-#     State("selected-equipment-store", "data"),
-#     State("session-store", "data"),
-#     prevent_initial_call=True,
-# )
-# def run_loads_to_site(
-#     n_clicks,
-#     metadata_json,
-#     equipment_json,
-#     selected_scenarios,
-#     session_data,
-# ):
-#     if not n_clicks or not metadata_json or not equipment_json:
-#         raise dash.exceptions.PreventUpdate
+@callback(
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("button-calculate", "n_clicks"),
+    prevent_initial_call=True,
+)
+def show_loading_notification(n_clicks):
+    if not n_clicks:
+        return no_update
 
-#     if not selected_scenarios:
-#         raise dash.exceptions.PreventUpdate
-
-#     folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
-#     folder.mkdir(parents=True, exist_ok=True)
-
-#     metadata = Metadata(**metadata_json)
-#     equipment = EquipmentLibrary(**equipment_json)
-
-#     load_data = get_load_data(metadata)
-
-#     site_energy = loads_to_site_energy(
-#         load_data,
-#         equipment,
-#         scenario_ids=selected_scenarios,
-#         detail=True,
-#     )
-
-#     site_path = folder / "site_energy.pkl"
-#     site_energy.to_pickle(site_path)
-#     print(f"Saving Site Energy to: {site_path}")
-
-#     return str(site_path)
+    return [
+        dict(
+            id="emission-calc",
+            title="Calculating emissions",
+            message="Running loads_to_site and site_to_source...",
+            loading=True,
+            color="blue",
+            action="show",
+            autoClose=False,
+        )
+    ]
 
 
-# @callback(
-#     Output("source-energy-store", "children"),
-#     Output("calc-status-toast", "children"),
-#     Input("site-energy-store", "data"),
-#     State("metadata-store", "data"),
-#     State("session-store", "data"),
-#     prevent_initial_call=True,
-# )
-# def run_site_to_source(site_energy_path, metadata_json, session_data):
+@callback(
+    Output("site-energy-store", "data"),
+    Input("button-calculate", "n_clicks"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    State("session-store", "data"),
+    prevent_initial_call=True,
+)
+def run_loads_to_site(
+    n_clicks,
+    metadata_json,
+    equipment_json,
+    selected_scenarios,
+    session_data,
+):
+    if not n_clicks or not metadata_json or not equipment_json:
+        raise dash.exceptions.PreventUpdate
 
-#     if not site_energy_path:
-#         raise dash.exceptions.PreventUpdate
+    if not selected_scenarios:
+        # no equipment scenarios selected -> nothing to compute
+        raise dash.exceptions.PreventUpdate
 
-#     folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
-#     folder.mkdir(parents=True, exist_ok=True)
+    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
+    folder.mkdir(parents=True, exist_ok=True)
 
-#     site_energy = pd.read_pickle(site_energy_path)
-#     metadata = Metadata(**metadata_json)
+    metadata = Metadata(**metadata_json)
+    equipment = EquipmentLibrary(**equipment_json)
 
-#     source_energy = site_to_source(site_energy, metadata=metadata)
+    load_data = get_load_data(metadata)
 
-#     source_path = folder / "source_energy.pkl"
-#     source_energy.to_pickle(source_path)
-#     print(f"Saving Source Energy for to: {source_path}")
+    site_energy = loads_to_site_energy(
+        load_data,
+        equipment,
+        scenario_ids=selected_scenarios,
+        detail=True,
+    )
 
-#     toast = dbc.Toast(
-#         "Calculation finished!",
-#         duration=3000,
-#         is_open=True,
-#         style={
-#             "position": "fixed",
-#             "top": 66,
-#             "right": 50,
-#             "width": 250,
-#             "zIndex": 9999,
-#         },
-#         header=[DashIconify(icon="ei:check", width=20), "Success"],
-#     )
+    site_path = folder / "site_energy.pkl"
+    site_energy.to_pickle(site_path)
+    print(f"Saving Site Energy to: {site_path}")
 
-#     return dcc.Store(id="source-energy-store", data=str(source_path)), toast
+    return str(site_path)
+
+
+@callback(
+    Output("source-energy-store", "children"),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("site-energy-store", "data"),
+    State("metadata-store", "data"),
+    State("selected-emissions-store", "data"),
+    State("session-store", "data"),
+    prevent_initial_call=True,
+)
+def run_site_to_source(
+    site_energy_path, metadata_json, selected_emission_ids, session_data
+):
+    if not site_energy_path:
+        raise dash.exceptions.PreventUpdate
+
+    folder = Path(f"/tmp/{session_data['session_id']}")
+    folder.mkdir(parents=True, exist_ok=True)
+
+    site_energy = pd.read_pickle(site_energy_path)
+    metadata = Metadata(**metadata_json)
+
+    # filter emission scenarios
+    selected_emission_ids = selected_emission_ids or []
+    if selected_emission_ids:
+        metadata.emission_settings = [
+            scen
+            for scen in metadata.emission_settings
+            if scen.em_scen_id in selected_emission_ids
+        ]
+    else:
+        error_notif = [
+            dict(
+                id="emission-calc",
+                title="No emission scenarios selected",
+                message="Please select at least one emission scenario before calculating.",
+                color="red",
+                loading=False,
+                action="update",  # update the loading notif into an error
+                autoClose=4000,
+            )
+        ]
+        return dash.no_update, error_notif
+
+    # Now site_to_source will see ONLY the selected emission scenarios
+    source_energy = site_to_source(site_energy, metadata=metadata)
+
+    source_path = folder / "source_energy.pkl"
+    source_energy.to_pickle(source_path)
+    print(f"Saving Source Energy to: {source_path}")
+
+    # Update the existing loading notification to 'success'
+    notif = [
+        dict(
+            id="emission-calc",
+            title="Emissions calculated",
+            message="Source energy and emissions have been computed.",
+            color="green",
+            loading=False,
+            action="update",
+            autoClose=3000,
+            icon=DashIconify(icon="akar-icons:circle-check"),
+        )
+    ]
+
+    return dcc.Store(id="source-energy-store", data=str(source_path)), notif

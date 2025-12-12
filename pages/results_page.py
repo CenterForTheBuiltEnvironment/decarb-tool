@@ -330,3 +330,128 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
         scatter_options,
         scatter_value,
     )
+
+
+@callback(
+    # emission-scen-dropdown (for meter timeseries)
+    Output("emission-scen-dropdown", "options"),
+    Output("emission-scen-dropdown", "value"),
+    # total-emission-scen-dropdown (for total energy/emissions plot)
+    Output("total-emission-scen-dropdown", "options"),
+    Output("total-emission-scen-dropdown", "value"),
+    # emission-em-scen-dropdown (for grouped bar)
+    Output("emission-em-scen-dropdown", "options"),
+    Output("emission-em-scen-dropdown", "value"),
+    # heatmap-emission-scen-dropdown (for heatmap)
+    Output("heatmap-emission-scen-dropdown", "options"),
+    Output("heatmap-emission-scen-dropdown", "value"),
+    # scatter-emission-scen-dropdown (for scatter)
+    Output("scatter-emission-scen-dropdown", "options"),
+    Output("scatter-emission-scen-dropdown", "value"),
+    Input("session-store", "data"),
+    State("selected-emissions-store", "data"),  # preserves user ordering
+    # previous values to infer single vs multi & keep user choices where possible
+    State("emission-scen-dropdown", "value"),
+    State("total-emission-scen-dropdown", "value"),
+    State("emission-em-scen-dropdown", "value"),
+    State("heatmap-emission-scen-dropdown", "value"),
+    State("scatter-emission-scen-dropdown", "value"),
+)
+def populate_emission_dropdowns(
+    session_data,
+    selected_emission_ids,
+    prev_emission_scen,
+    prev_total_em,
+    prev_em_em,
+    prev_heatmap_em,
+    prev_scatter_em,
+):
+    """
+    Populate all emission scenario dropdowns with only the scenarios
+    that were actually computed for this session.
+
+    We:
+      - read em_scen_id from source_energy
+      - intersect with selected-emissions-store (to preserve user order / choices)
+      - infer single vs multi from previous value type (str vs list).
+    """
+    df = load_source_energy(session_data)
+    if df is None or "em_scen_id" not in df.columns:
+        # No data yet: return empty dropdowns
+        empty_opts, none_val = [], None
+        return (
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+        )
+
+    df_ids = df["em_scen_id"].unique().tolist()
+
+    # If we have user-selected emissions, intersect in that order.
+    if selected_emission_ids:
+        em_ids = [sid for sid in selected_emission_ids if sid in df_ids]
+    else:
+        em_ids = df_ids
+
+    if not em_ids:
+        empty_opts, none_val = [], None
+        return (
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+            empty_opts,
+            none_val,
+        )
+
+    # Build options
+    options = [{"label": scen_id, "value": scen_id} for scen_id in em_ids]
+
+    # Helper: choose new value based on previous value type (single vs multi)
+    def pick_value(prev_val):
+        if not em_ids:
+            return None
+
+        # If dropdown is multi-select, its value is a list
+        if isinstance(prev_val, list):
+            # Keep only those still available; if none left, select all
+            filtered = [v for v in prev_val if v in em_ids]
+            return filtered or em_ids[:]  # list
+
+        # If dropdown is single-select, its value is a string (or None)
+        if isinstance(prev_val, str):
+            return prev_val if prev_val in em_ids else em_ids[0]
+
+        # Fallback: first scenario
+        return em_ids[0]
+
+    # Decide values for each dropdown
+    emission_scen_value = pick_value(prev_emission_scen)
+    total_emission_value = pick_value(prev_total_em)
+    emission_em_value = pick_value(prev_em_em)
+    heatmap_em_value = pick_value(prev_heatmap_em)
+    scatter_em_value = pick_value(prev_scatter_em)
+
+    return (
+        options,
+        emission_scen_value,
+        options,
+        total_emission_value,
+        options,
+        emission_em_value,
+        options,
+        heatmap_em_value,
+        options,
+        scatter_em_value,
+    )
