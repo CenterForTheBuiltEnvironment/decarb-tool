@@ -8,6 +8,8 @@ from pathlib import Path
 
 from utils.units import unit_map
 
+from layout.table_config import TABLE_STYLE, format_table_value, value_deemphasis_style
+
 META_INDEX_PATH = Path("data/input/metadata_index.json")
 with META_INDEX_PATH.open("r") as f:
     METADATA_INDEX = json.load(f)
@@ -17,14 +19,19 @@ EMISSIONS_INDEX = METADATA_INDEX["emissions"]
 
 
 def unit_toggle():
-    return dbc.RadioItems(
-        id="unit-toggle",
-        options=[
+    return dmc.SegmentedControl(
+        id="unit-toggle",  # keep your existing id if you already use it
+        value="SI",  # or "IP"
+        data=[
             {"label": "SI", "value": "SI"},
             {"label": "IP", "value": "IP"},
         ],
-        value="SI",
-        inline=True,
+        color="blue",
+        size="xs",
+        radius="md",
+        w=120,
+        transitionDuration=500,
+        transitionTimingFunction="linear",
     )
 
 
@@ -342,93 +349,159 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 
 def build_equipment_table(equipment_data, active_ids=None):
     """
-    Build an equipment scenarios table from a DataFrame or list of dicts.
-    Multi-select via checkboxes. selected_ids is a list of eq_scen_id strings
-    that are considered *active* (for calc) and will be highlighted.
+    Transposed equipment scenarios table:
+    - Columns = equipment scenarios (eq_scen_id)
+    - Rows    = properties (awhp, chiller, sizing, etc.)
+
+    Layout (body rows, after header):
+    1) Selected (checkbox + EDIT / REMOVE)
+    2) Scenario ID (eq_scen_id)
+    3+) Other properties
     """
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
     else:
         equipment_df = equipment_data
 
-    column_config = [
+    if equipment_df is None or equipment_df.empty:
+        return dmc.Text("No equipment scenarios defined yet.")
+
+    # Ensure IDs exist
+    if "eq_scen_id" not in equipment_df.columns:
+        equipment_df["eq_scen_id"] = [f"eq_scen_{i}" for i in range(len(equipment_df))]
+
+    # Sort for stable column order
+    equipment_df = equipment_df.sort_values("eq_scen_id").reset_index(drop=True)
+
+    # Rows to display (property name, label)
+    row_config = [
         ("eq_scen_id", "Scenario ID"),
         ("eq_scen_name", "Scenario Name"),
-        ("hr_wwhp", "HR WWHP"),
-        ("awhp", "AWHP"),
-        ("awhp_sizing_mode", "Sizing Mode"),
-        ("awhp_sizing_value", "Sizing Value"),
-        ("awhp_redundancy", "Redundancy"),
-        ("awhp_use_cooling", "Use Cooling"),
+        ("hr_wwhp", "HR WWHP Model"),
+        ("awhp", "AWHP Model"),
+        ("awhp_sizing_mode", "AWHP Sizing Mode"),
+        ("awhp_sizing_value", "AWHP Sizing Value"),
+        ("awhp_redundancy", "AWHP Redundancy"),
+        ("awhp_use_cooling", "AWHP Use Cooling"),
         ("backup_heating", "Backup Heating"),
-        ("chiller", "Chiller"),
+        ("chiller", "Backup Cooling"),
     ]
 
-    available_columns = [
-        (col, label) for col, label in column_config if col in equipment_df.columns
+    available_rows = [
+        (field, label) for field, label in row_config if field in equipment_df.columns
     ]
 
     active_ids = set(active_ids or [])
-    body_rows = []
-    for idx, row in equipment_df.iterrows():
-        scen_id = row.get("eq_scen_id", idx)
-        scen_id_str = str(scen_id)
-        is_active = scen_id_str in active_ids
 
-        # Selection checkbox (active for calc)
-        checkbox_cell = dmc.TableTd(dmc.Checkbox(value=scen_id_str))
+    active_col_style = TABLE_STYLE.active_col_style
+    inactive_col_style = TABLE_STYLE.inactive_col_style
 
-        # Actions: EDIT + REMOVE (trash you already wired up)
-        actions_cell = dmc.TableTd(
-            dmc.Group(
-                [
-                    dmc.ActionIcon(
-                        DashIconify(icon="mdi:pencil-outline"),
-                        id={"type": "equipment-edit-btn", "eq_scen_id": scen_id_str},
-                        variant="subtle",
-                        size="sm",
-                    ),
-                    dmc.ActionIcon(
-                        DashIconify(icon="mdi:trash-can-outline"),
-                        id={"type": "equipment-remove-btn", "eq_scen_id": scen_id_str},
-                        variant="subtle",
-                        color="red",
-                        size="sm",
-                    ),
-                ],
-                gap="xs",
-            )
-        )
-
-        data_cells = []
-        for col, _ in available_columns:
-            value = row.get(col, "")
-            if isinstance(value, bool):
-                value = "Yes" if value else "No"
-            data_cells.append(dmc.TableTd(str(value)))
-
-        row_style = {}
-        if is_active:
-            row_style = {
-                "backgroundColor": "var(--mantine-color-blue-0)",
-                "fontWeight": 500,
+    # ----- Styles -----
+    prop_th_style = {
+        "minWidth": TABLE_STYLE.property_col_width,
+        "whiteSpace": "nowrap",
+    }
+    if TABLE_STYLE.sticky_property_col:
+        prop_th_style.update(
+            {
+                "position": "sticky",
+                "left": 0,
+                "zIndex": 2,
+                "background": "var(--mantine-color-body)",
+                "textTransform": "none",
+                "fontSize": "var(--mantine-font-size-sm)",
+                "fontWeight": 400,
             }
-
-        body_rows.append(
-            dmc.TableTr(
-                [checkbox_cell, actions_cell, *data_cells],
-                style=row_style,
-            )
         )
 
-    header_cells = [
-        dmc.TableTh(""),
-        dmc.TableTh("Actions"),
-    ]
-    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    scen_cell_style_base = {
+        "minWidth": TABLE_STYLE.scenario_col_width,
+        # "whiteSpace": "nowrap",
+    }
+
+    # ---------- Header row ----------
+    header_cells = [dmc.TableTh("Property", style=prop_th_style)]
+    scen_ids = []
+
+    for _, row in equipment_df.iterrows():
+        scen_id = str(row.get("eq_scen_id", ""))
+        scen_ids.append(scen_id)
+
+        cell_style = {
+            **scen_cell_style_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
+        header_cells.append(dmc.TableTh(scen_id, style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
+
+    body_rows = []
+
+    # ---------- Row 1: Selected (checkbox + actions) ----------
+    selected_cells = [dmc.TableTh("Selected", style=prop_th_style)]
+    for scen_id in scen_ids:
+        cell_style = {
+            **scen_cell_style_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
+        selected_cells.append(
+            dmc.TableTd(
+                dmc.Group(
+                    [
+                        dmc.Checkbox(value=scen_id, checked=scen_id in active_ids),
+                        dmc.ActionIcon(
+                            DashIconify(icon="mdi:pencil-outline"),
+                            id={"type": "equipment-edit-btn", "eq_scen_id": scen_id},
+                            variant="subtle",
+                            size="sm",
+                        ),
+                        dmc.ActionIcon(
+                            DashIconify(icon="mdi:trash-can-outline"),
+                            id={"type": "equipment-remove-btn", "eq_scen_id": scen_id},
+                            variant="subtle",
+                            color="red",
+                            size="sm",
+                        ),
+                    ],
+                    gap="sm",
+                    justify="flex-start",
+                    wrap="nowrap",
+                ),
+                style=cell_style,
+            )
+        )
+    body_rows.append(dmc.TableTr(selected_cells))
+
+    # ---------- Property rows ----------
+    for field, label in available_rows:
+        row_cells = [dmc.TableTh(label, style=prop_th_style)]
+
+        for idx, scen_id in enumerate(scen_ids):
+            cell_style = {
+                **scen_cell_style_base,
+                **(active_col_style if scen_id in active_ids else inactive_col_style),
+            }
+            raw_value = equipment_df.iloc[idx].get(field, "")
+
+            display_value = format_table_value(raw_value)
+
+            cell_style = {
+                **scen_cell_style_base,
+                **(active_col_style if scen_id in active_ids else inactive_col_style),
+                **value_deemphasis_style(raw_value),
+            }
+
+            row_cells.append(dmc.TableTd(display_value, style=cell_style))
+
+        body_rows.append(dmc.TableTr(row_cells))
+
     body = dmc.TableTbody(body_rows)
+
+    # Force horizontal scrolling
+    table_min_width = (
+        TABLE_STYLE.property_col_width
+        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    )
 
     table = dmc.ScrollArea(
         dmc.Table(
@@ -436,11 +509,12 @@ def build_equipment_table(equipment_data, active_ids=None):
             striped=True,
             highlightOnHover=True,
             withColumnBorders=False,
-            horizontalSpacing="sm",
-            verticalSpacing="xs",
+            horizontalSpacing=TABLE_STYLE.horizontal_spacing,
+            verticalSpacing=TABLE_STYLE.vertical_spacing,
+            style={"minWidth": table_min_width},
         ),
-        h=400,
         type="auto",
+        scrollbarSize=TABLE_STYLE.scrollbar_size,
     )
 
     return dmc.CheckboxGroup(
@@ -653,12 +727,12 @@ def edit_equipment_modal():
 
 def build_emissions_table(emission_data, active_ids=None):
     """
-    Build an emissions scenarios table where:
+    Transposed emissions scenarios table:
       - Columns = emission scenarios (em_scen_id)
       - Rows    = properties (year, region, etc.)
 
     Layout (body rows, after header):
-      1) Selected (checkboxes + EDIT / REMOVE)
+      1) Selected (checkbox + EDIT / REMOVE)
       2) Scenario ID (em_scen_id)
       3+) Other properties
     """
@@ -667,22 +741,21 @@ def build_emissions_table(emission_data, active_ids=None):
     else:
         emission_df = emission_data
 
-    if emission_df.empty:
+    if emission_df is None or emission_df.empty:
         return dmc.Text("No emission scenarios defined yet.")
 
-    # Ensure an ID for each scenario
+    # Ensure IDs exist
     if "em_scen_id" not in emission_df.columns:
         emission_df["em_scen_id"] = [f"em_scen_{i}" for i in range(len(emission_df))]
 
-    # Order scenarios by em_scen_id
+    # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Fields we want to show as rows (properties)
+    # Rows to display
     row_config = [
         ("em_scen_id", "Scenario ID"),
         ("grid_scenario", "Grid Scenario"),
         ("gea_grid_region", "GEA Grid Region"),
-        ("time_zone", "Time Zone"),
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
@@ -696,41 +769,62 @@ def build_emissions_table(emission_data, active_ids=None):
 
     active_ids = set(active_ids or [])
 
-    # Style for active vs inactive columns
-    active_col_style = {
-        "backgroundColor": "var(--mantine-color-blue-0)",
-        "fontWeight": 500,
-    }
-    inactive_col_style = {}
+    active_col_style = TABLE_STYLE.active_col_style
+    inactive_col_style = TABLE_STYLE.inactive_col_style
 
-    # ---------- Header row ----------
-    header_cells = [dmc.TableTh("Property")]
+    # ----- Styles -----
+    prop_th_style = {
+        "minWidth": TABLE_STYLE.property_col_width,
+        "whiteSpace": "nowrap",
+    }
+    if TABLE_STYLE.sticky_property_col:
+        prop_th_style.update(
+            {
+                "position": "sticky",
+                "left": 0,
+                "zIndex": 2,
+                "background": "var(--mantine-color-body)",
+                "textTransform": "none",
+                "fontSize": "var(--mantine-font-size-sm)",
+                "fontWeight": 400,
+            }
+        )
+
+    scen_cell_base = {
+        "minWidth": TABLE_STYLE.scenario_col_width,
+        "whiteSpace": "nowrap",
+    }
+
+    # ---------- Header ----------
+    header_cells = [dmc.TableTh("Property", style=prop_th_style)]
     scen_ids = []
 
-    for _, scen_row in emission_df.iterrows():
-        scen_id = str(scen_row.get("em_scen_id", ""))
+    for _, row in emission_df.iterrows():
+        scen_id = str(row.get("em_scen_id", ""))
         scen_ids.append(scen_id)
 
-        cell_style = active_col_style if scen_id in active_ids else inactive_col_style
+        cell_style = {
+            **scen_cell_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
         header_cells.append(dmc.TableTh(scen_id, style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body_rows = []
 
-    # ---------- Row 1: Selected (checkboxes + actions) ----------
-    selected_cells = [dmc.TableTh("Selected")]
+    # ---------- Row 1: Selected ----------
+    selected_cells = [dmc.TableTh("Selected", style=prop_th_style)]
     for scen_id in scen_ids:
-        cell_style = active_col_style if scen_id in active_ids else inactive_col_style
+        cell_style = {
+            **scen_cell_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
         selected_cells.append(
             dmc.TableTd(
                 dmc.Group(
                     [
-                        dmc.Checkbox(
-                            value=scen_id,
-                            checked=scen_id in active_ids,
-                        ),
-                        dmc.Space("  |  "),  # spacer
+                        dmc.Checkbox(value=scen_id, checked=scen_id in active_ids),
                         dmc.ActionIcon(
                             DashIconify(icon="mdi:pencil-outline"),
                             id={"type": "emission-edit-btn", "em_scen_id": scen_id},
@@ -746,28 +840,38 @@ def build_emissions_table(emission_data, active_ids=None):
                         ),
                     ],
                     gap="xs",
-                    justify="center",
-                    align="start",
+                    wrap="nowrap",
+                    justify="flex-start",
                 ),
                 style=cell_style,
             )
         )
     body_rows.append(dmc.TableTr(selected_cells))
 
-    # ---------- Remaining rows: properties ----------
+    # ---------- Property rows ----------
     for field, label in available_rows:
-        row_cells = [dmc.TableTh(label)]
+        row_cells = [dmc.TableTh(label, style=prop_th_style)]
+
         for idx, scen_id in enumerate(scen_ids):
-            cell_style = (
-                active_col_style if scen_id in active_ids else inactive_col_style
-            )
+            cell_style = {
+                **scen_cell_base,
+                **(active_col_style if scen_id in active_ids else inactive_col_style),
+            }
             value = emission_df.iloc[idx].get(field, "")
             if isinstance(value, float):
                 value = f"{value:.4g}"
+
             row_cells.append(dmc.TableTd(str(value), style=cell_style))
+
         body_rows.append(dmc.TableTr(row_cells))
 
     body = dmc.TableTbody(body_rows)
+
+    # Force horizontal scrolling
+    table_min_width = (
+        TABLE_STYLE.property_col_width
+        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    )
 
     table = dmc.ScrollArea(
         dmc.Table(
@@ -775,14 +879,17 @@ def build_emissions_table(emission_data, active_ids=None):
             striped=True,
             highlightOnHover=True,
             withColumnBorders=False,
-            horizontalSpacing="sm",
-            verticalSpacing="xs",
+            horizontalSpacing=TABLE_STYLE.horizontal_spacing,
+            verticalSpacing=TABLE_STYLE.vertical_spacing,
+            style={
+                "minWidth": table_min_width,
+            },
         ),
-        h=500,
         type="auto",
+        scrollbarSize=TABLE_STYLE.scrollbar_size,
+        offsetScrollbars=True,
     )
 
-    # Wrap in CheckboxGroup so the 'Selected' row is one multi-select control
     return dmc.CheckboxGroup(
         id="emissions-checkbox-group",
         value=list(active_ids),

@@ -14,6 +14,8 @@ from dash import (
 )
 import dash_mantine_components as dmc
 
+from dash_iconify import DashIconify
+
 from src.config import URLS
 
 from layout.input import (
@@ -37,7 +39,17 @@ def layout():
             dcc.Store(id="active-equipment-tab"),
             dmc.Group(
                 [
-                    dmc.Text("Specify Equipment", fw=500, size="lg"),
+                    dmc.Stack(
+                        [
+                            html.H5("Equipment"),
+                            dmc.Text(
+                                "Specify and select equipment scenarios to include in the analysis.",
+                                size="sm",
+                                c="dimmed",
+                            ),
+                        ],
+                        gap=3,
+                    ),
                     dmc.Group(
                         [
                             dmc.Button(
@@ -58,26 +70,34 @@ def layout():
                 mt="md",
                 mb="sm",
             ),
-            dmc.Divider(),
-            html.Div(
-                id="equipment-table",
-                style={
-                    "minHeight": "300px",  # just to make the area visible while empty
-                    "marginTop": "16px",
-                },
+            dmc.Paper(
+                html.Div(
+                    id="equipment-table",
+                    style={
+                        "marginTop": "16px",
+                    },
+                ),
+                withBorder=False,
+                shadow="xs",
+                radius="md",
+                p="md",
             ),
-            dmc.Divider(mt="md"),
-            dmc.Group(
+            dmc.Space(h=20),
+            dcc.Link(
                 [
                     dmc.Button(
-                        "Confirm",
-                        id="button-confirm-equipment",
+                        "Specify Emissions ",
+                        rightSection=DashIconify(
+                            icon="tabler:arrow-narrow-right-dashed"
+                        ),
                         variant="filled",
-                    )
+                        color="blue",
+                        id="button-specify-emissions",
+                        n_clicks=0,
+                        style={"float": "right"},
+                    ),
                 ],
-                justify="flex-end",
-                mt="md",
-                mb="md",
+                href="/emissions",
             ),
             add_equipment_modal(),
             edit_equipment_modal(),

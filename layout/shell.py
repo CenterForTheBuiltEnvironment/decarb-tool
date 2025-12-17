@@ -158,7 +158,7 @@ def set_active_navlinks(pathname, link_ids):
     Output("appshell", "navbar"),
     Input("burger", "opened"),
     State("appshell", "navbar"),
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def toggle_navbar(opened, navbar):
     # Defensive copy

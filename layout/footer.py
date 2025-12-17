@@ -9,12 +9,16 @@ def shell_footer():
             dmc.Image(
                 src="../assets/img/CBE-logo-2019-white.png",
                 alt="CBE Logo",
-                h=50,
+                h=60,
+                fit="contain",
+                style={"display": "block"},
             ),
             dmc.Image(
                 src="../assets/img/UCB-logo-white-transparent.png",
                 alt="UC Berkeley Logo",
-                h=50,
+                h=60,
+                fit="contain",
+                style={"display": "block"},
             ),
         ],
         # gap="md",
@@ -23,7 +27,7 @@ def shell_footer():
         p=0,
     )
 
-    nav_links = dmc.Group(
+    nav_links = dmc.Stack(
         [
             dmc.Anchor(
                 "Contact Us",
@@ -46,7 +50,7 @@ def shell_footer():
                 c="white",
             ),
         ],
-        gap="xl",
+        gap="md",
         align="center",
     )
 
@@ -57,6 +61,8 @@ def shell_footer():
                     src="../assets/img/github-white-transparent.png",
                     alt="GitHub",
                     h=40,
+                    fit="contain",
+                    style={"display": "block"},
                 ),
                 href="#",
             ),
@@ -65,11 +71,14 @@ def shell_footer():
                     src="../assets/img/linkedin-white-transparent.png",
                     alt="LinkedIn",
                     h=40,
+                    fit="contain",
+                    style={"display": "block"},
                 ),
                 href="#",
             ),
         ],
-        gap="lg",
+        gap="xl",
+        justify="center",
     )
 
     citation = dmc.Stack(

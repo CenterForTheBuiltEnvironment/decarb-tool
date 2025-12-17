@@ -1,6 +1,7 @@
 import dash
 from dash import html, dcc, Input, Output, State, callback
-import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
 
 import datetime
 import pandas as pd
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from src.config import URLS
 
-from layout.output import summary_project_info, summary_scenario_results
+from layout.output import summary_project_info, empty_state
 
 from layout.charts import chart_tabs
 
@@ -26,32 +27,36 @@ dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
 
 
 def layout():
-    return dbc.Container(
-        children=[
-            dbc.Row(
+    return dmc.Container(
+        [
+            dmc.Grid(
                 [
-                    dbc.Col(
+                    dmc.GridCol(
                         [
-                            html.Div(id="summary-project-info"),
-                            html.Hr(),
-                            dbc.Button(
-                                "Download Results",
-                                color="primary",
-                                id="download-button",
-                                n_clicks=0,
-                                active=False,
+                            dmc.Paper(
+                                [
+                                    chart_tabs(),
+                                ],
+                                p="md",
+                                radius="md",
                             ),
                         ],
-                        width=3,
+                        span=12,
                     ),
-                    dbc.Col(
-                        [
-                            chart_tabs(),
-                            html.Hr(),
-                        ],
-                        width=9,
-                    ),
-                ]
+                ],
+                gutter="md",
+            ),
+            dmc.Button(
+                "Download data ",
+                rightSection=DashIconify(
+                    icon="material-symbols-light:download", width=20
+                ),
+                variant="outline",
+                color="blue",
+                id="download-button",
+                n_clicks=0,
+                style={"float": "right"},
+                mr="md",
             ),
             dcc.Download(id="download-data"),
         ],
@@ -264,16 +269,16 @@ def download_results(n_clicks, session_data):
 
 @callback(
     # total-equipment-scen-dropdown (multi)
-    Output("total-equipment-scen-dropdown", "options"),
+    Output("total-equipment-scen-dropdown", "data"),
     Output("total-equipment-scen-dropdown", "value"),
     # equipment-scen-dropdown (single)
-    Output("equipment-scen-dropdown", "options"),
+    Output("equipment-scen-dropdown", "data"),
     Output("equipment-scen-dropdown", "value"),
     # heatmap-equipment-scen-dropdown (single)
-    Output("heatmap-equipment-scen-dropdown", "options"),
+    Output("heatmap-equipment-scen-dropdown", "data"),
     Output("heatmap-equipment-scen-dropdown", "value"),
     # scatter-equipment-scen-dropdown (multi)
-    Output("scatter-equipment-scen-dropdown", "options"),
+    Output("scatter-equipment-scen-dropdown", "data"),
     Output("scatter-equipment-scen-dropdown", "value"),
     Input("session-store", "data"),
     State("selected-equipment-store", "data"),  # optional, keeps user ordering
@@ -334,19 +339,19 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
 
 @callback(
     # emission-scen-dropdown (for meter timeseries)
-    Output("emission-scen-dropdown", "options"),
+    Output("emission-scen-dropdown", "data"),
     Output("emission-scen-dropdown", "value"),
     # total-emission-scen-dropdown (for total energy/emissions plot)
-    Output("total-emission-scen-dropdown", "options"),
+    Output("total-emission-scen-dropdown", "data"),
     Output("total-emission-scen-dropdown", "value"),
     # emission-em-scen-dropdown (for grouped bar)
-    Output("emission-em-scen-dropdown", "options"),
+    Output("emission-em-scen-dropdown", "data"),
     Output("emission-em-scen-dropdown", "value"),
     # heatmap-emission-scen-dropdown (for heatmap)
-    Output("heatmap-emission-scen-dropdown", "options"),
+    Output("heatmap-emission-scen-dropdown", "data"),
     Output("heatmap-emission-scen-dropdown", "value"),
     # scatter-emission-scen-dropdown (for scatter)
-    Output("scatter-emission-scen-dropdown", "options"),
+    Output("scatter-emission-scen-dropdown", "data"),
     Output("scatter-emission-scen-dropdown", "value"),
     Input("session-store", "data"),
     State("selected-emissions-store", "data"),  # preserves user ordering

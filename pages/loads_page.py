@@ -89,7 +89,7 @@ def layout():
                     withBorder=False,
                     p="md",
                 ),
-                span=3,
+                span=4,
             ),
             dmc.GridCol(
                 dmc.Paper(
@@ -115,10 +115,8 @@ def layout():
                                     rightSection=DashIconify(
                                         icon="tabler:arrow-narrow-right-dashed"
                                     ),
-                                    size="md",
-                                    radius="md",
-                                    variant="gradient",
-                                    gradient={"from": "indigo", "to": "cyan"},
+                                    variant="filled",
+                                    color="blue",
                                     id="button-specify-equipment",
                                     n_clicks=0,
                                     style={"float": "right"},
@@ -132,7 +130,7 @@ def layout():
                     withBorder=False,
                     p="md",
                 ),
-                span=6,
+                span=5,
             ),
         ],
         gutter="xl",

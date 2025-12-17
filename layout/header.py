@@ -5,7 +5,7 @@ def shell_header():
     burger = dmc.Burger(
         id="burger",
         size="sm",
-        opened=False,
+        opened=True,
     )
 
     # ---- alpha badge ----
@@ -20,7 +20,7 @@ def shell_header():
     logo = dmc.Image(
         src="../assets/img/logo-preliminary.png",
         alt="tool-logo",
-        h=100,  # you can tune this down later if needed
+        h=80,
         fit="contain",
         style={"display": "block"},
     )

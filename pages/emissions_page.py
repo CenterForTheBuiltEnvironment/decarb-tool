@@ -46,7 +46,17 @@ def layout():
             html.Div(id="calc-status-toast"),
             dmc.Group(
                 [
-                    dmc.Text("Specify Emission Scenarios", fw=500, size="lg"),
+                    dmc.Stack(
+                        [
+                            html.H5("Emissions"),
+                            dmc.Text(
+                                "Specify and select emission scenarios to include in the analysis.",
+                                size="sm",
+                                c="dimmed",
+                            ),
+                        ],
+                        gap=3,
+                    ),
                     dmc.Group(
                         [
                             dmc.Button(
@@ -61,19 +71,6 @@ def layout():
                                 color="gray",
                                 disabled=True,  # <- disabled for now
                             ),
-                            dmc.Button(
-                                [
-                                    "Calculate Source Emissions",
-                                    DashIconify(
-                                        icon="ic:baseline-autorenew",
-                                        width=20,
-                                        style={"marginLeft": 8},
-                                    ),
-                                ],
-                                id="button-calculate",
-                                variant="filled",
-                                color="blue",
-                            ),
                         ],
                     ),
                 ],
@@ -81,19 +78,41 @@ def layout():
                 mt="md",
                 mb="sm",
             ),
-            dmc.Divider(),
-            html.Div(
-                id="emissions-table",
-                style={
-                    "minHeight": "500px",
-                    "marginTop": "16px",
-                },
+            dmc.Paper(
+                html.Div(
+                    id="emissions-table",
+                    style={
+                        "minHeight": "500px",
+                        "marginTop": "16px",
+                    },
+                ),
+                withBorder=False,
+                shadow="xs",
+                radius="md",
+                p="md",
             ),
-            dmc.Divider(mt="md"),
+            dmc.Group(
+                [
+                    dmc.Button(
+                        [
+                            "Calculate Source Emissions",
+                            DashIconify(
+                                icon="ic:baseline-autorenew",
+                                width=20,
+                                style={"marginLeft": 8},
+                            ),
+                        ],
+                        id="button-calculate",
+                        variant="filled",
+                        color="blue",
+                    ),
+                ],
+                justify="flex-end",
+                mt="md",
+                mb="md",
+            ),
             add_emission_modal(),
             edit_emission_modal(),
-            # We’ll reintroduce “calculate” controls and toasts later;
-            # for now we keep the page focused on the table.
         ],
         fluid=True,
     )

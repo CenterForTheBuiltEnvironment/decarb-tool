@@ -1,316 +1,265 @@
-from dash import html, dcc
-import dash_bootstrap_components as dbc
+from dash import dcc
+import dash_mantine_components as dmc
+
+
+def _controls_bar(children):
+    return dmc.Group(
+        children,
+        justify="flex-start",
+        align="center",
+        gap="sm",
+        wrap="wrap",
+        mb="xs",
+    )
+
+
+def _chart_block(controls, graph_id):
+    return dmc.Stack(
+        [
+            dmc.Space(h=5),
+            controls,
+            dmc.Paper(
+                dcc.Loading(
+                    type="default",
+                    children=dcc.Graph(id=graph_id),
+                ),
+                shadow="xs",
+                radius="md",
+                p="md",
+            ),
+        ],
+        gap="xs",
+    )
+
+
+def _emission_scen_seed():
+    return [
+        {
+            "label": f"Emission Scenario {chr(96 + i)}",
+            "value": f"em_scenario_{chr(96 + i)}",
+        }
+        for i in range(1, 4)
+    ]
 
 
 def emissions_bar_chart():
-    return html.Div(
+    controls = _controls_bar(
         [
-            html.Div(
-                [
-                    dcc.Dropdown(
-                        id="emission-em-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Emission Scenario {chr(96 + i)}",
-                                "value": f"em_scenario_{chr(96 + i)}",
-                            }
-                            for i in range(1, 4)
-                        ],  # to be populated dynamically
-                        multi=True,
-                        value=["em_scenario_a", "em_scenario_b", "em_scenario_c"],
-                        placeholder="Emission Scenarios",
-                        style={"width": "800px"},
-                    ),
-                ],
-                className="d-flex align-items-center justify-content-center mb-1 gap-2",
+            dmc.MultiSelect(
+                id="emission-em-scen-dropdown",
+                data=_emission_scen_seed(),  # will be overwritten dynamically
+                value=["em_scenario_a", "em_scenario_b", "em_scenario_c"],
+                placeholder="Emission Scenarios",
+                searchable=True,
+                clearable=True,
             ),
-            dcc.Graph(id="emissions-bar-plot"),
         ]
     )
+    return _chart_block(controls, "emissions-bar-plot")
 
 
 def energy_emissions_chart():
-    return html.Div(
+    controls = _controls_bar(
         [
-            html.Div(
-                [
-                    dcc.Dropdown(
-                        id="total-equipment-scen-dropdown",
-                        options=[],  # dynamic
-                        multi=True,
-                        value=[],  # dynamic
-                        placeholder="Equipment Scenarios",
-                        style={"width": "550px"},
-                    ),
-                    dcc.Dropdown(
-                        id="total-emission-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Emission Scenario {chr(96 + i)}",
-                                "value": f"em_scenario_{chr(96 + i)}",
-                            }
-                            for i in range(1, 4)
-                        ],  # to be populated dynamically
-                        multi=False,
-                        value="em_scenario_a",
-                        placeholder="Emission Scenarios",
-                        style={"width": "250px"},
-                    ),
-                ],
-                className="d-flex align-items-center justify-content-center mb-1 gap-2",
+            dmc.MultiSelect(
+                id="total-equipment-scen-dropdown",
+                data=[],  # dynamic
+                value=[],  # dynamic
+                placeholder="Equipment Scenarios",
+                searchable=True,
+                clearable=True,
             ),
-            dcc.Graph(id="energy-and-emissions-plot"),
+            dmc.Select(
+                id="total-emission-scen-dropdown",
+                data=_emission_scen_seed(),  # dynamic later
+                value="em_scenario_a",
+                placeholder="Emission Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
         ]
     )
+    return _chart_block(controls, "energy-and-emissions-plot")
 
 
 def meter_timeseries_chart():
-
-    return html.Div(
+    controls = _controls_bar(
         [
-            html.Div(
-                [
-                    dcc.Dropdown(
-                        id="equipment-scen-dropdown",
-                        options=[],  # dynamic
-                        value=None,  # dynamic
-                        placeholder="Equipment Scenarios",
-                        style={"width": "200px"},
-                    ),
-                    dcc.Dropdown(
-                        id="emission-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Em. Scenario {chr(96 + i)}",
-                                "value": f"em_scenario_{chr(96 + i)}",
-                            }
-                            for i in range(1, 4)
-                        ],  # to be populated dynamically
-                        value="em_scenario_a",
-                        placeholder="Emission Scenarios",
-                        style={"width": "200px"},
-                    ),
-                    dbc.Checklist(
-                        id="stacked-toggle",
-                        options=[{"label": "Stacked", "value": "stacked"}],
-                        value=["stacked"],  # default on
-                        inline=True,
-                    ),
-                    dbc.Checklist(
-                        id="gas-toggle",
-                        options=[{"label": "Include Gas", "value": "gas"}],
-                        value=["gas"],  # default on
-                        inline=True,
-                    ),
-                    dbc.Label("Aggregation:", style={"marginBottom": "2.5px"}),
-                    dcc.Dropdown(
-                        id="frequency-dropdown",
-                        options=[
-                            {"label": "Hourly", "value": "h"},
-                            {"label": "Daily", "value": "D"},
-                            {"label": "Weekly", "value": "W"},
-                            {"label": "Monthly", "value": "ME"},
-                        ],
-                        value="D",
-                        clearable=False,
-                        style={"width": "120px"},
-                    ),
-                ],
-                className="d-flex align-items-center justify-content-center mb-1 gap-2",
+            dmc.Select(
+                id="equipment-scen-dropdown",
+                data=[],  # dynamic
+                value=None,  # dynamic
+                placeholder="Equipment Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
             ),
-            dcc.Graph(id="meter-timeseries-plot"),
+            dmc.Select(
+                id="emission-scen-dropdown",
+                data=_emission_scen_seed(),  # dynamic later
+                value="em_scenario_a",
+                placeholder="Emission Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
+            dmc.CheckboxGroup(
+                id="stacked-toggle",
+                value=["stacked"],
+                children=[dmc.Checkbox(label="Stacked", value="stacked")],
+            ),
+            dmc.CheckboxGroup(
+                id="gas-toggle",
+                value=["gas"],
+                children=[dmc.Checkbox(label="Include Gas", value="gas")],
+            ),
+            dmc.Text("Aggregation:", size="sm", fw=500),
+            dmc.Select(
+                id="frequency-dropdown",
+                data=[
+                    {"label": "Hourly", "value": "h"},
+                    {"label": "Daily", "value": "D"},
+                    {"label": "Weekly", "value": "W"},
+                    {"label": "Monthly", "value": "ME"},
+                ],
+                value="D",
+                clearable=False,
+                allowDeselect=False,
+            ),
         ]
     )
+    return _chart_block(controls, "meter-timeseries-plot")
 
 
 def emissions_heatmap_chart():
-    return html.Div(
+    controls = _controls_bar(
         [
-            html.Div(
-                [
-                    dcc.Dropdown(
-                        id="heatmap-equipment-scen-dropdown",
-                        options=[],  # dynamic
-                        value=None,  # dynamic
-                        placeholder="Equipment Scenarios",
-                        style={"width": "300px"},
-                    ),
-                    dcc.Dropdown(
-                        id="heatmap-emission-scen-dropdown",
-                        options=[
-                            {
-                                "label": f"Emission Scenario {chr(96 + i)}",
-                                "value": f"em_scenario_{chr(96 + i)}",
-                            }
-                            for i in range(1, 4)
-                        ],  # to be populated dynamically
-                        value="em_scenario_a",
-                        placeholder="Emission Scenarios",
-                        style={"width": "300px"},
-                    ),
-                    dcc.Dropdown(
-                        id="heatmap-emission-type-dropdown",
-                        options=[
-                            {"label": "Electricity", "value": "elec_emissions"},
-                            {"label": "Gas", "value": "gas_emissions"},
-                            {
-                                "label": "Total (inc. Refrig.)",
-                                "value": "total_emissions",
-                            },
-                        ],
-                        value="elec_emissions",
-                        placeholder="Category",
-                        style={"width": "200px"},
-                    ),
-                ],
-                className="d-flex align-items-center justify-content-center mb-1 gap-2",
+            dmc.Select(
+                id="heatmap-equipment-scen-dropdown",
+                data=[],  # dynamic
+                value=None,  # dynamic
+                placeholder="Equipment Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
             ),
-            dcc.Graph(id="emissions-heatmap-plot"),
+            dmc.Select(
+                id="heatmap-emission-scen-dropdown",
+                data=_emission_scen_seed(),  # dynamic later
+                value="em_scenario_a",
+                placeholder="Emission Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
+            dmc.Select(
+                id="heatmap-emission-type-dropdown",
+                data=[
+                    {"label": "Electricity", "value": "elec_emissions"},
+                    {"label": "Gas", "value": "gas_emissions"},
+                    {"label": "Total (inc. Refrig.)", "value": "total_emissions"},
+                ],
+                value="elec_emissions",
+                placeholder="Category",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
         ]
     )
+    return _chart_block(controls, "emissions-heatmap-plot")
 
 
 def scatter_chart():
-    return html.Div(
+    controls = dmc.Group(
         [
-            html.Div(
+            dmc.MultiSelect(
+                id="scatter-equipment-scen-dropdown",
+                data=[],  # dynamic
+                value=[],  # dynamic
+                placeholder="Equipment Scenarios",
+                searchable=True,
+                clearable=False,
+            ),
+            dmc.Select(
+                id="scatter-emission-scen-dropdown",
+                data=_emission_scen_seed(),  # dynamic later
+                value="em_scenario_a",
+                placeholder="Emission Scenarios",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
+            dmc.Select(
+                id="scatter-yvar-dropdown",
+                data=[
+                    {
+                        "label": "Electricity Emissions",
+                        "value": "elec_emissions",
+                    },
+                    {
+                        "label": "Gas Emissions",
+                        "value": "gas_emissions",
+                    },
+                    {
+                        "label": "Total Emissions (inc. Refrig.)",
+                        "value": "total_emissions",
+                    },
+                    {"label": "Electricity Use", "value": "elec_Wh"},
+                    {"label": "Gas Use", "value": "gas_Wh"},
+                ],
+                value="total_emissions",
+                placeholder="Y Variable",
+                searchable=True,
+                clearable=False,
+                allowDeselect=False,
+            ),
+            dmc.Group(
                 [
-                    dcc.Dropdown(
-                        id="scatter-equipment-scen-dropdown",
-                        options=[],  # dynamic
-                        multi=True,
-                        value=[],  # dynamic
-                        placeholder="Equipment Scenarios",
-                        clearable=False,
-                        style={"width": "500px"},
-                    ),
-                    html.Div(
-                        [
-                            dcc.Dropdown(
-                                id="scatter-emission-scen-dropdown",
-                                options=[
-                                    {
-                                        "label": f"Emission Scenario {chr(96 + i)}",
-                                        "value": f"em_scenario_{chr(96 + i)}",
-                                    }
-                                    for i in range(1, 4)
-                                ],  # to be populated dynamically
-                                value="em_scenario_a",
-                                placeholder="Emission Scenarios",
-                                clearable=False,
-                                style={"width": "300px"},
-                            ),
-                            dcc.Dropdown(
-                                id="scatter-yvar-dropdown",
-                                options=[
-                                    {
-                                        "label": "Electricity Emissions",
-                                        "value": "elec_emissions",
-                                    },
-                                    {
-                                        "label": "Gas Emissions",
-                                        "value": "gas_emissions",
-                                    },
-                                    {
-                                        "label": "Total Emissions (inc. Refrig.)",
-                                        "value": "total_emissions",
-                                    },
-                                    {"label": "Electricity Use", "value": "elec_Wh"},
-                                    {"label": "Gas Use", "value": "gas_Wh"},
-                                ],
-                                value="total_emissions",
-                                placeholder="Y Variable",
-                                clearable=False,
-                                style={"width": "300px"},
-                            ),
-                            html.Div(
-                                [
-                                    dbc.Label("Aggregation:"),
-                                    dcc.Dropdown(
-                                        id="scatter-frequency-dropdown",
-                                        options=[
-                                            {"label": "Weekly", "value": "W"},
-                                            {"label": "Daily", "value": "D"},
-                                        ],
-                                        value="D",
-                                        clearable=False,
-                                        style={"width": "120px"},
-                                    ),
-                                ],
-                                style={
-                                    "display": "flex",
-                                    "gap": "10px",
-                                    "justifyContent": "center",
-                                    "alignItems": "center",
-                                },
-                            ),
+                    dmc.Text("Aggregation:", size="sm", fw=500),
+                    dmc.Select(
+                        id="scatter-frequency-dropdown",
+                        data=[
+                            {"label": "Weekly", "value": "W"},
+                            {"label": "Daily", "value": "D"},
                         ],
-                        style={
-                            "display": "flex",
-                            "flex-direction": "column",
-                            "gap": "5px",
-                        },
+                        value="D",
+                        clearable=False,
+                        allowDeselect=False,
                     ),
                 ],
-                className="d-flex align-items-top justify-content-center mb-1 gap-2",
+                gap="sm",
             ),
-            dcc.Graph(id="scatter-plot"),
-        ]
+        ],
+        justify="flex-start",
+        align="center",
+        gap="sm",
+        wrap="wrap",
+        mb="xs",
     )
+    return _chart_block(controls, "scatter-plot")
 
 
 def chart_tabs():
-
-    active_label_style = {"color": "#EF4692", "fontWeight": "bold"}
-
-    return dbc.Tabs(
+    return dmc.Tabs(
         [
-            dbc.Tab(
-                dcc.Loading(
-                    id="loading-icon",
-                    type="default",
-                    children=emissions_bar_chart(),
-                ),
-                label="Emissions",
-                active_label_style=active_label_style,
+            dmc.TabsList(
+                [
+                    dmc.TabsTab("Emissions", value="emissions"),
+                    dmc.TabsTab("Energy + Emissions", value="energy"),
+                    dmc.TabsTab("Timeseries", value="timeseries"),
+                    dmc.TabsTab("Heatmap", value="heatmap"),
+                    dmc.TabsTab("Scatter", value="scatter"),
+                ]
             ),
-            dbc.Tab(
-                dcc.Loading(
-                    id="loading-icon",
-                    type="default",
-                    children=energy_emissions_chart(),
-                ),
-                label="Energy + Emissions",
-                active_label_style=active_label_style,
-            ),
-            dbc.Tab(
-                dcc.Loading(
-                    id="loading-icon",
-                    type="default",
-                    children=meter_timeseries_chart(),
-                ),
-                label="Timeseries",
-                active_label_style=active_label_style,
-            ),
-            dbc.Tab(
-                dcc.Loading(
-                    id="loading-icon",
-                    type="default",
-                    children=emissions_heatmap_chart(),
-                ),
-                label="Heatmap",
-                active_label_style=active_label_style,
-            ),
-            dbc.Tab(
-                dcc.Loading(
-                    id="loading-icon",
-                    type="default",
-                    children=scatter_chart(),
-                ),
-                label="Scatter",
-                active_label_style=active_label_style,
-            ),
+            dmc.TabsPanel(emissions_bar_chart(), value="emissions"),
+            dmc.TabsPanel(energy_emissions_chart(), value="energy"),
+            dmc.TabsPanel(meter_timeseries_chart(), value="timeseries"),
+            dmc.TabsPanel(emissions_heatmap_chart(), value="heatmap"),
+            dmc.TabsPanel(scatter_chart(), value="scatter"),
         ],
-        className="mb-3",
         id="chart-tabs",
+        value="emissions",
+        mt="sm",
     )
