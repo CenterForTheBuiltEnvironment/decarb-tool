@@ -21,19 +21,22 @@ from dash_iconify import DashIconify
 
 from src.config import URLS
 
-from utils.units import unit_map
-
 from src.metadata import Metadata
-
-from src.equipment import EquipmentLibrary
-
 from src.loads import get_load_data
-
+from src.equipment import EquipmentLibrary
 from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import build_emissions_table, add_emission_modal, edit_emission_modal
 
 from utils.logging_config import get_logger
+from utils.error_handling import (
+    create_error_notification,
+    create_warning_notification,
+    create_success_notification,
+    DataNotFoundError,
+    ValidationError,
+    CalculationError,
+)
 
 logger = get_logger(__name__)
 
@@ -525,29 +528,8 @@ def cancel_edit_emission_modal(n_clicks):
 
 
 @callback(
-    Output("notification-container", "sendNotifications", allow_duplicate=True),
-    Input("button-calculate", "n_clicks"),
-    prevent_initial_call=True,
-)
-def show_loading_notification(n_clicks):
-    if not n_clicks:
-        return no_update
-
-    return [
-        dict(
-            id="emission-calc",
-            title="Calculating emissions",
-            message="Running loads_to_site and site_to_source...",
-            loading=True,
-            color="blue",
-            action="show",
-            autoClose=False,
-        )
-    ]
-
-
-@callback(
     Output("site-energy-store", "data"),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
     Input("button-calculate", "n_clicks"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
@@ -562,33 +544,82 @@ def run_loads_to_site(
     selected_scenarios,
     session_data,
 ):
-    if not n_clicks or not metadata_json or not equipment_json:
+    # --- Guard clauses (no notification needed, just prevent update) ---
+    if not n_clicks:
         raise dash.exceptions.PreventUpdate
+
+    # --- Validation with user feedback ---
+    if not metadata_json:
+        logger.warning("Calculation attempted without load selection")
+        notification = create_warning_notification(
+            "Missing Selection", "Please select a load dataset on the Loads page first."
+        )
+        return no_update, [notification]
+
+    if not equipment_json:
+        logger.warning("Calculation attempted without equipment data")
+        notification = create_error_notification(
+            "Missing Data",
+            "No equipment library data available. Please refresh the page.",
+        )
+        return no_update, [notification]
 
     if not selected_scenarios:
-        # no equipment scenarios selected -> nothing to compute
-        raise dash.exceptions.PreventUpdate
+        logger.warning("Calculation attempted without equipment scenarios")
+        notification = create_warning_notification(
+            "No Scenarios Selected", "Please select at least one equipment scenario."
+        )
+        return no_update, [notification]
 
-    folder = Path(f"/tmp/{session_data['session_id']}")  # isolated, ephemeral
-    folder.mkdir(parents=True, exist_ok=True)
+    # --- Main calculation with error handling ---
+    try:
+        logger.info(
+            f"Starting site energy calculation for following eq scenarios {selected_scenarios}"
+        )
 
-    metadata = Metadata(**metadata_json)
-    equipment = EquipmentLibrary(**equipment_json)
+        folder = Path(f"/tmp/{session_data['session_id']}")
+        folder.mkdir(parents=True, exist_ok=True)
 
-    load_data = get_load_data(metadata)
+        metadata = Metadata(**metadata_json)
+        equipment = EquipmentLibrary(**equipment_json)
 
-    site_energy = loads_to_site_energy(
-        load_data,
-        equipment,
-        scenario_ids=selected_scenarios,
-        detail=True,
-    )
+        load_data = get_load_data(metadata)
 
-    site_path = folder / "site_energy.pkl"
-    site_energy.to_pickle(site_path)
-    logger.info(f"Saving Site Energy to: {site_path}")
+        site_energy = loads_to_site_energy(
+            load_data,
+            equipment,
+            scenario_ids=selected_scenarios,
+            detail=True,
+        )
 
-    return str(site_path)
+        site_path = folder / "site_energy.pkl"
+        site_energy.to_pickle(site_path)
+        logger.info(f"Saved site energy to: {site_path}")
+
+        return str(site_path), no_update
+
+    except ValueError as e:
+        logger.error(f"Calculation validation error: {e}")
+        notification = create_error_notification(
+            "Calculation Error", str(e)  # ValueError messages from energy.py
+        )
+        return no_update, [notification]
+
+    except FileNotFoundError as e:
+        logger.error(f"Load data file not found: {e}")
+        notification = create_error_notification(
+            "Data Not Found",
+            "Could not find load data for this building. Please re-select on Loads page.",
+        )
+        return no_update, [notification]
+
+    except Exception as e:
+        logger.exception(f"Unexpected calculation error: {e}")
+        notification = create_error_notification(
+            "Unexpected Error",
+            "Calculation failed. Please make sure have a selected a load dataset and at least one equipment and emission scenario.",
+        )
+        return no_update, [notification]
 
 
 @callback(
@@ -606,53 +637,54 @@ def run_site_to_source(
     if not site_energy_path:
         raise dash.exceptions.PreventUpdate
 
-    folder = Path(f"/tmp/{session_data['session_id']}")
-    folder.mkdir(parents=True, exist_ok=True)
-
-    site_energy = pd.read_pickle(site_energy_path)
-    metadata = Metadata(**metadata_json)
-
-    # filter emission scenarios
-    selected_emission_ids = selected_emission_ids or []
-    if selected_emission_ids:
-        metadata.emission_settings = [
-            scen
-            for scen in metadata.emission_settings
-            if scen.em_scen_id in selected_emission_ids
-        ]
-    else:
-        error_notif = [
-            dict(
-                id="emission-calc",
-                title="No emission scenarios selected",
-                message="Please select at least one emission scenario before calculating.",
-                color="red",
-                loading=False,
-                action="update",  # update the loading notif into an error
-                autoClose=4000,
-            )
-        ]
-        return dash.no_update, error_notif
-
-    # Now site_to_source will see ONLY the selected emission scenarios
-    source_energy = site_to_source(site_energy, metadata=metadata)
-
-    source_path = folder / "source_energy.pkl"
-    source_energy.to_pickle(source_path)
-    logger.info(f"Saving Source Energy to: {source_path}")
-
-    # Update the existing loading notification to 'success'
-    notif = [
-        dict(
-            id="emission-calc",
-            title="Emissions calculated",
-            message="Source energy and emissions have been computed.",
-            color="green",
-            loading=False,
-            action="update",
-            autoClose=3000,
-            icon=DashIconify(icon="akar-icons:circle-check"),
+    if not selected_emission_ids:
+        notification = create_warning_notification(
+            "No Emission Scenarios", "Please select at least one emission scenario."
         )
-    ]
+        return no_update, [notification]
 
-    return dcc.Store(id="source-energy-store", data=str(source_path)), notif
+    try:
+        logger.info(
+            f"Converting from site energy to source emissions for following em_scenarios: {selected_emission_ids}"
+        )
+
+        folder = Path(f"/tmp/{session_data['session_id']}")
+        folder.mkdir(parents=True, exist_ok=True)
+
+        site_energy = pd.read_pickle(site_energy_path)
+        metadata = Metadata(**metadata_json)
+
+        # filter emission scenarios
+        selected_emission_ids = selected_emission_ids or []
+        if selected_emission_ids:
+            metadata.emission_settings = [
+                scen
+                for scen in metadata.emission_settings
+                if scen.em_scen_id in selected_emission_ids
+            ]
+
+        source_energy = site_to_source(site_energy, metadata=metadata)
+
+        source_path = folder / "source_energy.pkl"
+        source_energy.to_pickle(source_path)
+
+        logger.info(f"Saved source energy to: {source_path}")
+
+        success = create_success_notification(
+            "Calculation Complete",
+            "Source emissions calculation finished successfully.",
+        )
+
+        return dcc.Store(id="source-energy-store", data=str(source_path)), [success]
+
+    except ValueError as e:
+        logger.error(f"Emissions calculation error: {e}")
+        notification = create_error_notification("Calculation Error", str(e))
+        return no_update, [notification]
+
+    except Exception as e:
+        logger.exception(f"Unexpected emissions error: {e}")
+        notification = create_error_notification(
+            "Unexpected Error", "Emissions calculation failed."
+        )
+        return no_update, [notification]

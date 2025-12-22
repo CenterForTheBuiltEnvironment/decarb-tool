@@ -391,7 +391,7 @@ def loads_to_site_energy(
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
 
-            logger.info(
+            logger.debug(
                 f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
                 f"units={awhp_num_h}, with {redundancy} redundant = {awhp_num_h_r} total"
             )
