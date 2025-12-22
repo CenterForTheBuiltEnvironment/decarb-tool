@@ -25,6 +25,7 @@ from layout.input import (
 )
 
 from utils.logging_config import get_logger
+from utils.tooltips import with_tooltip
 
 logger = get_logger(__name__)
 
@@ -56,16 +57,22 @@ def layout():
                     ),
                     dmc.Group(
                         [
-                            dmc.Button(
-                                "Add",
-                                id="button-add-equipment",
-                                variant="outline",
+                            with_tooltip(
+                                dmc.Button(
+                                    "Add",
+                                    id="button-add-equipment",
+                                    variant="outline",
+                                ),
+                                "equipment.add_eq_scenario",
                             ),
-                            dmc.Button(
-                                "Reset",
-                                id="button-reset-equipment",
-                                variant="outline",
-                                color="gray",
+                            with_tooltip(
+                                dmc.Button(
+                                    "Reset",
+                                    id="button-reset-equipment",
+                                    variant="outline",
+                                    color="gray",
+                                ),
+                                "equipment.reset_eq_scenario",
                             ),
                         ],
                     ),

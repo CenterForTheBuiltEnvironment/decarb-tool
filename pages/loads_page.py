@@ -31,7 +31,7 @@ from layout.output import (
 )
 
 from src.loads import StandardLoad, STANDARD_COLUMNS, get_load_data
-
+from utils.tooltips import with_tooltip, TOOLTIPS
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -111,17 +111,20 @@ def layout():
                         dmc.Space(h=20),
                         dcc.Link(
                             [
-                                dmc.Button(
-                                    "Specify Equipment ",
-                                    rightSection=DashIconify(
-                                        icon="tabler:arrow-narrow-right-dashed"
+                                with_tooltip(
+                                    dmc.Button(
+                                        "Specify Equipment ",
+                                        rightSection=DashIconify(
+                                            icon="tabler:arrow-narrow-right-dashed"
+                                        ),
+                                        variant="filled",
+                                        color="blue",
+                                        id="button-specify-equipment",
+                                        n_clicks=0,
+                                        style={"float": "right"},
                                     ),
-                                    variant="filled",
-                                    color="blue",
-                                    id="button-specify-equipment",
-                                    n_clicks=0,
-                                    style={"float": "right"},
-                                ),
+                                    TOOLTIPS["loads"]["specify_equipment_button"],
+                                )
                             ],
                             href="/equipment",
                         ),
