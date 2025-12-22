@@ -32,20 +32,21 @@ from layout.output import (
 
 from src.loads import StandardLoad, STANDARD_COLUMNS, get_load_data
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 dash.register_page(__name__, name="Loads", path=URLS.HOME.value, order=0)
 
-# Preprocess once at the top of the file
+# Preprocess once at the top of the file and split space-separated zips into rows
 locations_df = pd.read_csv("data/input/locations.csv")
-
-# Split space-separated zips into rows
 locations_df = (
     locations_df.assign(zip=locations_df["zips"].str.split())
     .explode("zip")
     .drop(columns=["zips"])
 )
 locations_df["zip"] = locations_df["zip"].astype(str)
-
 
 # Load building metadata from CSV
 buildings_df = pd.read_csv("data/input/building_metadata.csv")
@@ -186,6 +187,10 @@ def update_metadata(
         metadata.ashrae_climate_zone = row["ASHRAE"]
         metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
 
+        logger.info(
+            f"Updated metadata location to {metadata.location}, ASHRAE Climate Zone {metadata.ashrae_climate_zone}, based on zip {selected_zip}"
+        )
+
     return metadata.model_dump()
 
 
@@ -298,7 +303,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
 
         # 5) store path as string
         load_data_path = str(path)
-        print(f"Saved load data for building {metadata.building_id} to {path}")
+        logger.info(
+            f"Using load dataset with ID {metadata.building_id}, saved to {path}"
+        )
 
         # -------------------------
         # Build summary for charts
@@ -367,7 +374,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         }
 
     except Exception as e:
-        print(
+        logger.error(
             f"Error loading/saving/summarizing load data for building {metadata.building_id}: {e}"
         )
         # leave load_data_path and summary_payload as None
@@ -804,7 +811,7 @@ def update_load_visualization(summary_data, pathname):
         )
 
     except Exception as e:
-        print(f"Error building load charts from summary data: {e}")
+        logger.error(f"Error building load charts from summary data: {e}")
         return [
             empty_state(
                 title="Unable to show load preview",

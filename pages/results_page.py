@@ -23,6 +23,11 @@ from src.visuals import (
     plot_scatter_temp_vs_variable,
 )
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
 dash.register_page(__name__, name="Results", path=URLS.RESULTS.value, order=3)
 
 
@@ -80,7 +85,7 @@ def load_source_energy(session_data):
     try:
         return pd.read_pickle(filepath)
     except Exception as e:
-        print(f"[ERROR] Failed to load source_energy.pkl for session {session_id}: {e}")
+        logger.error(f"Failed to load source_energy.pkl for session {session_id}: {e}")
         return None
 
 

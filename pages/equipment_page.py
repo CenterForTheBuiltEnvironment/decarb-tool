@@ -23,7 +23,11 @@ from layout.input import (
     build_equipment_table,
     edit_equipment_modal,
 )
-from src.equipment import EquipmentLibrary, EquipmentScenario
+
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 dash.register_page(
     __name__,
@@ -326,7 +330,7 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
     # ----- 2) Update selected-equipment-store (prune removed id) -----
     selected_equipment_ids = selected_equipment_ids or []
     new_selected = [sid for sid in selected_equipment_ids if sid != eq_scen_id]
-    print("Updated selected equipment IDs:", new_selected)
+    logger.info("Updated selected equipment IDs: %s", new_selected)
 
     return updated_equipment, new_selected
 

@@ -11,6 +11,10 @@ from src.config import Columns as Col
 from utils.units import cop_h_to_cop_c
 from utils.interp import interp_vector
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
@@ -18,7 +22,9 @@ def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
         cap = e.performance_heating.plr_curve.capacity_W
         cop = e.performance_heating.plr_curve.cop
         return pd.DataFrame({"cap": cap, "cop": cop})
-    raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
+    else:
+        logger.error(f"Equipment '{e.eq_id}' has no plr_curve.")
+        raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
 
 
 def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
@@ -32,6 +38,9 @@ def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     else:
+        logger.error(
+            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+        )
         raise ValueError(
             f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
         )
@@ -64,6 +73,9 @@ def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
     elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_c = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     else:
+        logger.error(
+            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+        )
         raise ValueError(
             f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
         )
@@ -129,9 +141,16 @@ def loads_to_site_energy(
     if isinstance(scenario_ids, str):
         scenario_ids = [scenario_ids]
 
+    logger.info(
+        f"Starting loads_to_site_energy: {len(scenario_ids)} scenarios, "
+        f"{len(load.df)} hours, detail={detail}"
+    )
+
     results = []
 
     for scenario_id in scenario_ids:
+
+        logger.info(f"Processing scenario: {scenario_id}")
 
         # ---- pull inputs ----
         df = load.df.copy()  # index = timestamp
@@ -190,6 +209,7 @@ def loads_to_site_energy(
         # Phase 1 – HR WWHP (optional)
         # =========================
         if scen.hr_wwhp:
+            logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
             plr_curve = _heat_recovery_plr_curve(hr_wwhp)
@@ -277,10 +297,20 @@ def loads_to_site_energy(
             df[Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value] = hr_wwhp_refrigerant_weight_kg
             df[Col.HR_WWHP_REFRIGERANT_GWP.value] = hr_wwhp_refrigerant_gwp_kg
 
+            hr_coverage = (
+                (hr_hhw.sum() / df[Col.HHW_W.value].sum()) * 100
+                if df[Col.HHW_W.value].sum() > 0
+                else 0
+            )
+            logger.debug(
+                f"Phase 1 complete: HR WWHP covers {hr_coverage:.1f}% of heating load"
+            )
+
         # =========================
         # Phase 2 – AWHP Heating
         # =========================
         if scen.awhp:
+            logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
             awhp_h = library.get_equipment(scen.awhp)
             awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps)
             awhp_cop_h = _per_unit_heating_cop(awhp_h, temps)
@@ -361,6 +391,11 @@ def loads_to_site_energy(
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
 
+            logger.info(
+                f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
+                f"units={awhp_num_h}, with {redundancy} redundant = {awhp_num_h_r} total"
+            )
+
             cap_total_h_W = (
                 awhp_cap_h * awhp_num_h
             )  # capacity calculations use the original sizing number
@@ -396,12 +431,24 @@ def loads_to_site_energy(
             df[Col.AWHP_REFRIGERANT_WEIGHT_KG.value] = total_awhp_refrigerant_weight_kg
             df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
 
+            awhp_h_coverage = (
+                (served_h_W.sum() / df[Col.HHW_W.value].sum()) * 100
+                if df[Col.HHW_W.value].sum() > 0
+                else 0
+            )
+            logger.debug(
+                f"Phase 2 complete: AWHP covers {awhp_h_coverage:.1f}% of heating load"
+            )
+
         # =========================
         # Phase 3 – Boiler (optional)
         # =========================
         backup_heating = library.get_equipment(scen.backup_heating)
         if backup_heating.fuel == "natural_gas":
             eff = _constant_heating_efficiency(backup_heating)
+            logger.debug(
+                f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}"
+            )
             if eff is None or eff <= 0:
                 raise ValueError(
                     f"Boiler '{backup_heating.eq_id}' requires a positive 'efficiency'."
@@ -416,12 +463,28 @@ def loads_to_site_energy(
             df[Col.GAS_WH.value] += gas_Wh
             df[Col.HHW_REM_W.value] = 0.0
 
+            boiler_coverage = (
+                (boiler_served_W.sum() / df[Col.HHW_W.value].sum()) * 100
+                if df[Col.HHW_W.value].sum() > 0
+                else 0
+            )
+            logger.debug(
+                f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load"
+            )
+
         # =========================
         # Phase 4 – Electric resistance (if heating remains)
         # =========================
         remaining_h_W = df[Col.HHW_REM_W.value].to_numpy()
         if np.any(remaining_h_W > 1e-9):
             elec_res_Wh = remaining_h_W  # COP = 1
+
+            # log warning if any heating remains
+            remaining_kWh = remaining_h_W.sum() / 1000
+            logger.warning(
+                f"Phase 4: Electric resistance backup required - "
+                f"{remaining_kWh:.1f} kWh unmet by HR/AWHP/Boiler"
+            )
             df[Col.RES_HHW_W.value] = remaining_h_W
             df[Col.ELEC_RES_WH.value] = elec_res_Wh
             df[Col.ELEC_WH.value] += elec_res_Wh
@@ -438,6 +501,8 @@ def loads_to_site_energy(
                 raise ValueError(f"AWHP cooling '{awhp_c.eq_id}' lacks a COP curve.")
 
             awhp_num_c = awhp_num_h  # use same number of units as heating
+
+            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c} units")
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
 
@@ -459,18 +524,34 @@ def loads_to_site_energy(
             df[Col.CHW_REM_W.value] -= served_c_W
             df[Col.AWHP_NUM_C] = float(awhp_num_c)
 
+            awhp_c_coverage = (
+                (served_c_W.sum() / df[Col.CHW_W.value].sum()) * 100
+                if df[Col.CHW_W.value].sum() > 0
+                else 0
+            )
+            logger.debug(
+                f"Phase 5 complete: AWHP covers {awhp_c_coverage:.1f}% of cooling load"
+            )
+
         # =========================
         # Phase 6 – Electric chiller fallback
         # =========================
         if df[Col.CHW_REM_W.value].sum() > 1e-9:
+            remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
             chiller_cop = 5.0  # default <- why fix here?
             if scen.chiller:
+                logger.debug(
+                    f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
+                )
                 chl = library.get_equipment(scen.chiller)
                 # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
                 eff = _constant_cooling_efficiency(chl)
                 if eff and eff > 0:
                     chiller_cop = eff
                 else:
+                    logger.warning(
+                        f"Phase 6: Using default chiller COP={chiller_cop} for {remaining_c_kWh:.1f} kWh - no chiller specified"
+                    )
                     cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
                     if not np.isnan(cop_curve).all():
                         # if a curve exists, use the hourly values
@@ -523,6 +604,9 @@ def loads_to_site_energy(
         df = df[cols]
         df[Col.EQ_SCEN_ID.value] = scenario_id  # tag scenario
         df[Col.EQ_SCEN_NAME.value] = library.get_scenario(scenario_id).eq_scen_name
+
+        logger.info(f"Completed loads_to_site for {scenario_id}")
+
         results.append(df)
 
     return pd.concat(results, axis=0, ignore_index=False)
@@ -594,11 +678,20 @@ def site_to_source(
     using StandardEmissions data and user EmissionsScenario settings.
     """
 
+    logger.info(
+        f"Starting site_to_source: {len(df_loads)} rows of site energy data, "
+        f"{len(metadata.list_emission_scenarios())} emission scenarios"
+    )
+
     results = []
 
     for em_scen_id in metadata.list_emission_scenarios():
+        logger.debug(
+            f"Processing emission scenario: {em_scen_id}, year={metadata[em_scen_id].year}"
+        )
 
         emissions_data = get_emissions_data(metadata[em_scen_id])
+        logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
 
         em_scen = metadata[em_scen_id]
 
@@ -659,6 +752,13 @@ def site_to_source(
 
         # expand loads with this year's emissions
         merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
+
+        nan_count = merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH].isna().sum()
+        if nan_count > 0:
+            logger.warning(
+                f"Merge produced {nan_count} rows with missing emission rates"
+            )
+
         merged[Col.YEAR.value] = em_scen.year
 
         # electricity emissions
@@ -727,5 +827,13 @@ def site_to_source(
         merged[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
 
         results.append(merged)
+
+        total_emissions_kg = sum(
+            r[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum() for r in results
+        )
+        logger.info(
+            f"Completed site_to_source for {em_scen_id}, "
+            f"total emissions={total_emissions_kg:.0f} kg CO2e"
+        )
 
     return pd.concat(results, axis=0, ignore_index=False)

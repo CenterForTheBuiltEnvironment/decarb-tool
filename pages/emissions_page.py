@@ -33,6 +33,10 @@ from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import build_emissions_table, add_emission_modal, edit_emission_modal
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 dash.register_page(__name__, name="Emissions", path=URLS.EMISSIONS.value, order=2)
 
@@ -582,7 +586,7 @@ def run_loads_to_site(
 
     site_path = folder / "site_energy.pkl"
     site_energy.to_pickle(site_path)
-    print(f"Saving Site Energy to: {site_path}")
+    logger.info(f"Saving Site Energy to: {site_path}")
 
     return str(site_path)
 
@@ -635,7 +639,7 @@ def run_site_to_source(
 
     source_path = folder / "source_energy.pkl"
     source_energy.to_pickle(source_path)
-    print(f"Saving Source Energy to: {source_path}")
+    logger.info(f"Saving Source Energy to: {source_path}")
 
     # Update the existing loading notification to 'success'
     notif = [
