@@ -64,7 +64,7 @@ def building_characteristics_card(metadata: Metadata):
         ("location", "Location"),
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
-        ("ashrae_climate_zone", "Climate Region"),
+        ("climate_zone_output", "Climate Region"),
         ("base_gea_grid_region", "GEA Grid Region"),
         ("area_sqm", "Building Area (m²)"),
     ]
@@ -250,7 +250,7 @@ def summary_project_info(metadata: Metadata):
 
     overview_fields = [
         ("location", "Location"),
-        ("ashrae_climate_zone", "Climate Region"),
+        ("climate_zone_output", "Climate Region"),
         ("building_type", "Building Type"),
         ("area_sqm", "Building Area (m²)"),
         # Load-side fields (from LoadData)
