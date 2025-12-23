@@ -28,6 +28,7 @@ from src.energy import loads_to_site_energy, site_to_source
 
 from layout.input import build_emissions_table, add_emission_modal, edit_emission_modal
 
+from utils.tooltips import with_tooltip, with_icon
 from utils.logging_config import get_logger
 from utils.error_handling import (
     create_error_notification,
@@ -55,7 +56,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            html.H5("Emissions"),
+                            with_icon(
+                                text="Emissions",
+                                order=5,
+                                icon="basil:book-open-outline",
+                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                            ),
                             dmc.Text(
                                 "Specify and select emission scenarios to include in the analysis.",
                                 size="sm",

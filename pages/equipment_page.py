@@ -25,7 +25,7 @@ from layout.input import (
 )
 
 from utils.logging_config import get_logger
-from utils.tooltips import with_tooltip
+from utils.tooltips import with_tooltip, with_icon
 
 logger = get_logger(__name__)
 
@@ -46,7 +46,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            html.H5("Equipment"),
+                            with_icon(
+                                text="Equipment",
+                                order=5,
+                                icon="basil:book-open-outline",
+                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                            ),
                             dmc.Text(
                                 "Specify and select equipment scenarios to include in the analysis.",
                                 size="sm",

@@ -1,4 +1,5 @@
 import dash_mantine_components as dmc
+from dash_iconify import DashIconify
 
 # --- Global settings ---
 TOOLTIP_DEFAULTS = {
@@ -60,3 +61,48 @@ def with_tooltip(component, text: str, text_props: dict = None, **overrides):
     props = {**TOOLTIP_DEFAULTS, **overrides}
 
     return dmc.Tooltip(children=component, label=styled_label, **props)
+
+
+def with_icon(
+    text: str,
+    icon: str,
+    icon_color: str = "grey",
+    href: str | None = None,
+    order: int = 5,
+    icon_size: int = 18,
+    gap: int = 6,
+    target: str = "_blank",
+):
+    """Create a title with an icon, optionally wrapped in a link.
+    Args:
+        text (str): Title text.
+        icon (str): Icon identifier for DashIconify.
+        icon_color (str, optional): Color of the icon. Defaults to "grey".
+        href (str | None, optional): URL to link the icon to. Defaults to None.
+        order (int, optional): Title order (1-6). Defaults to 5.
+        icon_size (int, optional): Size of the icon. Defaults to 18.
+        gap (int, optional): Gap between title and icon. Defaults to 6.
+        target (str, optional): Link target attribute. Defaults to "_blank".
+    Returns:
+        dmc.Group: Group containing the title and icon.
+    """
+
+    icon_component = DashIconify(icon=icon, width=icon_size, color=icon_color)
+
+    if href:
+        icon_component = dmc.Anchor(
+            icon_component,
+            href=href,
+            target=target,
+            underline="never",
+        )
+
+    return dmc.Group(
+        [
+            dmc.Title(text, order=order),
+            icon_component,
+        ],
+        gap=gap,
+        align="center",
+        wrap="nowrap",
+    )

@@ -31,7 +31,7 @@ from layout.output import (
 )
 
 from src.loads import StandardLoad, STANDARD_COLUMNS, get_load_data
-from utils.tooltips import with_tooltip, TOOLTIPS
+from utils.tooltips import with_icon, with_tooltip, TOOLTIPS
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -59,7 +59,12 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Loads"),
+                        with_icon(
+                            text="Loads",
+                            order=5,
+                            icon="basil:book-open-outline",
+                            href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                        ),
                         html.Hr(),
                         select_location(locations_df=locations_df),
                         html.Hr(),
@@ -77,7 +82,7 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Summary"),
+                        dmc.Title("Summary", order=6),
                         html.Div(
                             id="summary-selection-info",
                         ),
@@ -95,7 +100,7 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Load visualization"),
+                        dmc.Title("Load visualization", order=6),
                         html.Div(
                             id="load-visualization-panel",
                             children=[
