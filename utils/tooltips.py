@@ -59,8 +59,7 @@ def with_tooltip(component, text: str, text_props: dict = None, **overrides):
     styled_label = dmc.Text(resolved_text, **final_text_props)
 
     props = {**TOOLTIP_DEFAULTS, **overrides}
-
-    return dmc.Tooltip(children=component, label=styled_label, **props)
+    return dmc.Tooltip(children=component, label=styled_label, inline=True, **props)
 
 
 def with_icon(

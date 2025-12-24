@@ -126,12 +126,12 @@ def layout():
                                         color="blue",
                                         id="button-specify-equipment",
                                         n_clicks=0,
-                                        style={"float": "right"},
                                     ),
                                     TOOLTIPS["loads"]["specify_equipment_button"],
                                 )
                             ],
                             href="/equipment",
+                            style={"float": "right"},
                         ),
                     ],
                     bg="white",
@@ -194,7 +194,9 @@ def update_metadata(
         metadata.location = row["city"]
         metadata.ashrae_climate_zone = row["ASHRAE"]
         if row["state_id"] == "CA":
-            metadata.climate_zone_output = metadata.ashrae_climate_zone + f" (CA Region {row["ca_climate"]:.0f})"
+            metadata.climate_zone_output = (
+                metadata.ashrae_climate_zone + f" (CA Region {row["ca_climate"]:.0f})"
+            )
         else:
             metadata.climate_zone_output = metadata.ashrae_climate_zone
         metadata.set_gea_grid_region_for_all(row["gea_grid_region"])

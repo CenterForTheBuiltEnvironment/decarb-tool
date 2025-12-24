@@ -14,6 +14,17 @@ class LINKS(Enum):
     )
 
 
+class DEFAULT_SELECTIONS(Enum):
+    EQUIPMENT_SCENARIO: list = [
+        "eq_scenario_1",
+        "eq_scenario_2",
+        "eq_scenario_3",
+        "eq_scenario_4",
+        "eq_scenario_5",
+    ]
+    EMISSIONS_SCENARIO: list = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
+
+
 class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"
