@@ -55,6 +55,7 @@ class Metadata(BaseModel):
     building_type: Optional[str] = None
     vintage: Optional[int] = None
     ashrae_climate_zone: Optional[str] = None
+    climate_zone_output: Optional[str] = None
     area_sqm: Optional[float]
     load_data: LoadData
     equipment_scenarios: Union[str, List[str]]
