@@ -193,10 +193,14 @@ def update_metadata(
         row = locations_df.loc[locations_df["zip"] == selected_zip].iloc[0]
         metadata.location = row["city"]
         metadata.ashrae_climate_zone = row["ASHRAE"]
+        if row["state_id"] == "CA":
+            metadata.climate_zone_output = metadata.ashrae_climate_zone + f" (CA Region {row["ca_climate"]:.0f})"
+        else:
+            metadata.climate_zone_output = metadata.ashrae_climate_zone
         metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
 
         logger.info(
-            f"Updated metadata location to {metadata.location}, ASHRAE Climate Zone {metadata.ashrae_climate_zone}, based on zip {selected_zip}"
+            f"Updated metadata location to {metadata.location}, ASHRAE Climate Zone {metadata.climate_zone_output}, based on zip {selected_zip}"
         )
 
     return metadata.model_dump()
