@@ -5,6 +5,10 @@ import numpy as np
 
 from src.metadata import Metadata
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 STANDARD_COLUMNS = ["t_out_C", "heating_W", "cooling_W"]
 
 default_year = 2025  # for data without datetime info
@@ -68,15 +72,15 @@ class StandardLoad:
         # Check hourly frequency
         freq = pd.infer_freq(df.index)
         if freq not in ("H", "h"):
-            print(f"⚠️ Warning: inferred frequency = {freq}, expected hourly")
+            logger.warning(f"Inferred frequency = {freq}, expected hourly")
 
         # Enforce numeric columns, but allow NaNs
         for col in ["t_out_C", "heating_W", "cooling_W"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             bad_count = df[col].isnull().sum()
             if bad_count > 0:
-                print(
-                    f"⚠️ Warning: {bad_count} invalid values in column {col}, set to NaN"
+                logger.warning(
+                    f"{bad_count} invalid values in column {col}, set to NaN"
                 )
 
         return df

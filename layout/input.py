@@ -6,6 +6,7 @@ import pandas as pd
 import json
 from pathlib import Path
 
+from utils.tooltips import with_tooltip
 from utils.units import unit_map
 
 from layout.table_config import TABLE_STYLE, format_table_value, value_deemphasis_style
@@ -448,19 +449,34 @@ def build_equipment_table(equipment_data, active_ids=None):
             dmc.TableTd(
                 dmc.Group(
                     [
-                        dmc.Checkbox(value=scen_id, checked=scen_id in active_ids),
-                        dmc.ActionIcon(
-                            DashIconify(icon="mdi:pencil-outline"),
-                            id={"type": "equipment-edit-btn", "eq_scen_id": scen_id},
-                            variant="subtle",
-                            size="sm",
+                        with_tooltip(
+                            dmc.Checkbox(value=scen_id, checked=scen_id in active_ids),
+                            "equipment.select_eq_scenario",
                         ),
-                        dmc.ActionIcon(
-                            DashIconify(icon="mdi:trash-can-outline"),
-                            id={"type": "equipment-remove-btn", "eq_scen_id": scen_id},
-                            variant="subtle",
-                            color="red",
-                            size="sm",
+                        with_tooltip(
+                            dmc.ActionIcon(
+                                DashIconify(icon="mdi:pencil-outline"),
+                                id={
+                                    "type": "equipment-edit-btn",
+                                    "eq_scen_id": scen_id,
+                                },
+                                variant="subtle",
+                                size="sm",
+                            ),
+                            "equipment.edit_eq_scenario",
+                        ),
+                        with_tooltip(
+                            dmc.ActionIcon(
+                                DashIconify(icon="mdi:trash-can-outline"),
+                                id={
+                                    "type": "equipment-remove-btn",
+                                    "eq_scen_id": scen_id,
+                                },
+                                variant="subtle",
+                                color="red",
+                                size="sm",
+                            ),
+                            "equipment.delete_eq_scenario",
                         ),
                     ],
                     gap="sm",
@@ -728,13 +744,13 @@ def edit_equipment_modal():
 def build_emissions_table(emission_data, active_ids=None):
     """
     Transposed emissions scenarios table:
-      - Columns = emission scenarios (em_scen_id)
-      - Rows    = properties (year, region, etc.)
+    - Columns = emission scenarios (em_scen_id)
+    - Rows    = properties (year, region, etc.)
 
     Layout (body rows, after header):
-      1) Selected (checkbox + EDIT / REMOVE)
-      2) Scenario ID (em_scen_id)
-      3+) Other properties
+    1) Selected (checkbox + EDIT / REMOVE)
+    2) Scenario ID (em_scen_id)
+    3+) Other properties
     """
     if isinstance(emission_data, list):
         emission_df = pd.DataFrame(emission_data)

@@ -23,7 +23,12 @@ from layout.input import (
     build_equipment_table,
     edit_equipment_modal,
 )
-from src.equipment import EquipmentLibrary, EquipmentScenario
+
+from utils.logging_config import get_logger
+from utils.tooltips import with_tooltip, with_icon
+
+logger = get_logger(__name__)
+
 
 dash.register_page(
     __name__,
@@ -41,7 +46,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            html.H5("Equipment"),
+                            with_icon(
+                                text="Equipment",
+                                order=5,
+                                icon="basil:book-open-outline",
+                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                            ),
                             dmc.Text(
                                 "Specify and select equipment scenarios to include in the analysis.",
                                 size="sm",
@@ -52,16 +62,22 @@ def layout():
                     ),
                     dmc.Group(
                         [
-                            dmc.Button(
-                                "Add",
-                                id="button-add-equipment",
-                                variant="outline",
+                            with_tooltip(
+                                dmc.Button(
+                                    "Add",
+                                    id="button-add-equipment",
+                                    variant="outline",
+                                ),
+                                "equipment.add_eq_scenario",
                             ),
-                            dmc.Button(
-                                "Reset",
-                                id="button-reset-equipment",
-                                variant="outline",
-                                color="gray",
+                            with_tooltip(
+                                dmc.Button(
+                                    "Reset",
+                                    id="button-reset-equipment",
+                                    variant="outline",
+                                    color="gray",
+                                ),
+                                "equipment.reset_eq_scenario",
                             ),
                         ],
                     ),
@@ -326,7 +342,7 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
     # ----- 2) Update selected-equipment-store (prune removed id) -----
     selected_equipment_ids = selected_equipment_ids or []
     new_selected = [sid for sid in selected_equipment_ids if sid != eq_scen_id]
-    print("Updated selected equipment IDs:", new_selected)
+    logger.info("Updated selected equipment IDs: %s", new_selected)
 
     return updated_equipment, new_selected
 

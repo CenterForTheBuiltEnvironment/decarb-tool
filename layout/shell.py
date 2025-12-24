@@ -9,7 +9,7 @@ from layout.header import shell_header
 from layout.footer import shell_footer
 from layout.input import unit_toggle
 
-from src.config import LINKS
+from src.config import LINKS, DEFAULT_SELECTIONS
 
 from src.equipment import load_library  # adjust if path differs
 
@@ -33,8 +33,16 @@ def build_shell(page_content):
         ),
         dcc.Store(id="equipment-initial-store", data=equipment_library),
         dcc.Store(id="equipment-store", data=equipment_library),
-        dcc.Store(id="selected-equipment-store", storage_type="session"),
-        dcc.Store(id="selected-emissions-store", storage_type="session"),
+        dcc.Store(
+            id="selected-equipment-store",
+            storage_type="session",
+            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+        ),
+        dcc.Store(
+            id="selected-emissions-store",
+            storage_type="session",
+            data=DEFAULT_SELECTIONS.EMISSIONS_SCENARIO.value,
+        ),
         dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
         dcc.Store(id="selected-building-store", storage_type="session"),
         dcc.Store(id="load-summary-store", storage_type="session", data=None),

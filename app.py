@@ -1,10 +1,23 @@
+import os
+import logging
+
 import dash
 from dash import Dash, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 
+from utils.logging_config import setup_logging, get_logger
 from layout.shell import build_shell
-
 from utils.plotly_theme import *
+
+# Read level from environment variable (or default to INFO)
+log_level_name = os.environ.get("LOG_LEVEL", "INFO")
+log_level = getattr(logging, log_level_name.upper(), logging.INFO)
+setup_logging(level=log_level)
+
+# Get a logger for this module
+logger = get_logger(__name__)
+logger.info("Starting Decarb Tool application")
+
 
 app = Dash(
     __name__,
@@ -30,8 +43,8 @@ app.layout = serve_layout
     Input("session-store", "data"),
     prevent_initial_call=True,
 )
-def print_session_id(session_data):
-    print(f"[DEBUG] Session ID: {session_data['session_id']}")
+def log_session_id(session_data):
+    logger.debug(f"Session initialized: {session_data['session_id']}")
     return session_data
 
 

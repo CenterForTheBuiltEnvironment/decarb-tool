@@ -31,21 +31,22 @@ from layout.output import (
 )
 
 from src.loads import StandardLoad, STANDARD_COLUMNS, get_load_data
+from utils.tooltips import with_icon, with_tooltip, TOOLTIPS
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 dash.register_page(__name__, name="Loads", path=URLS.HOME.value, order=0)
 
-# Preprocess once at the top of the file
+# Preprocess once at the top of the file and split space-separated zips into rows
 locations_df = pd.read_csv("data/input/locations.csv")
-
-# Split space-separated zips into rows
 locations_df = (
     locations_df.assign(zip=locations_df["zips"].str.split())
     .explode("zip")
     .drop(columns=["zips"])
 )
 locations_df["zip"] = locations_df["zip"].astype(str)
-
 
 # Load building metadata from CSV
 buildings_df = pd.read_csv("data/input/building_metadata.csv")
@@ -58,7 +59,12 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Loads"),
+                        with_icon(
+                            text="Loads",
+                            order=5,
+                            icon="basil:book-open-outline",
+                            href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                        ),
                         html.Hr(),
                         select_location(locations_df=locations_df),
                         html.Hr(),
@@ -76,7 +82,7 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Summary"),
+                        dmc.Title("Summary", order=6),
                         html.Div(
                             id="summary-selection-info",
                         ),
@@ -94,7 +100,7 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        html.H5("Load visualization"),
+                        dmc.Title("Load visualization", order=6),
                         html.Div(
                             id="load-visualization-panel",
                             children=[
@@ -110,19 +116,22 @@ def layout():
                         dmc.Space(h=20),
                         dcc.Link(
                             [
-                                dmc.Button(
-                                    "Specify Equipment ",
-                                    rightSection=DashIconify(
-                                        icon="tabler:arrow-narrow-right-dashed"
+                                with_tooltip(
+                                    dmc.Button(
+                                        "Specify Equipment ",
+                                        rightSection=DashIconify(
+                                            icon="tabler:arrow-narrow-right-dashed"
+                                        ),
+                                        variant="filled",
+                                        color="blue",
+                                        id="button-specify-equipment",
+                                        n_clicks=0,
                                     ),
-                                    variant="filled",
-                                    color="blue",
-                                    id="button-specify-equipment",
-                                    n_clicks=0,
-                                    style={"float": "right"},
-                                ),
+                                    TOOLTIPS["loads"]["specify_equipment_button"],
+                                )
                             ],
                             href="/equipment",
+                            style={"float": "right"},
                         ),
                     ],
                     bg="white",
@@ -184,7 +193,17 @@ def update_metadata(
         row = locations_df.loc[locations_df["zip"] == selected_zip].iloc[0]
         metadata.location = row["city"]
         metadata.ashrae_climate_zone = row["ASHRAE"]
+        if row["state_id"] == "CA":
+            metadata.climate_zone_output = (
+                metadata.ashrae_climate_zone + f" (CA Region {row["ca_climate"]:.0f})"
+            )
+        else:
+            metadata.climate_zone_output = metadata.ashrae_climate_zone
         metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
+
+        logger.info(
+            f"Updated metadata location to {metadata.location}, ASHRAE Climate Zone {metadata.climate_zone_output}, based on zip {selected_zip}"
+        )
 
     return metadata.model_dump()
 
@@ -298,7 +317,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
 
         # 5) store path as string
         load_data_path = str(path)
-        print(f"Saved load data for building {metadata.building_id} to {path}")
+        logger.info(
+            f"Using load dataset with ID {metadata.building_id}, saved to {path}"
+        )
 
         # -------------------------
         # Build summary for charts
@@ -367,7 +388,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         }
 
     except Exception as e:
-        print(
+        logger.error(
             f"Error loading/saving/summarizing load data for building {metadata.building_id}: {e}"
         )
         # leave load_data_path and summary_payload as None
@@ -804,7 +825,7 @@ def update_load_visualization(summary_data, pathname):
         )
 
     except Exception as e:
-        print(f"Error building load charts from summary data: {e}")
+        logger.error(f"Error building load charts from summary data: {e}")
         return [
             empty_state(
                 title="Unable to show load preview",
