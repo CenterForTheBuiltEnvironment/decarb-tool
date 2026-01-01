@@ -50,6 +50,7 @@ class Equipment(BaseModel):
     eq_subtype: Optional[str] = None
     eq_manufacturer: Optional[str] = None
     model: str
+    nominal_tons: Optional[int] = None
     fuel: str
     refrigerant: Optional[str] = None
     refrigerant_weight_g: Optional[float] = None
