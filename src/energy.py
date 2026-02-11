@@ -292,6 +292,12 @@ def loads_to_site_energy(
                 else 0.0
             )
 
+            if hr_wwhp_refrigerant_gwp_kg == 0:
+                if hr_wwhp_refrigerant_weight_kg == 0:
+                    logger.warning("HR WWHP refrigerant charge is 0.")
+                else:
+                    logger.warning("HR WWHP refrigerant GWP is 0.")
+
             # Apply results
             df[Col.MAX_CAP_H_HR_W.value] = max_cap_h  #! remove
             df[Col.MIN_CAP_H_HR_W.value] = min_cap_h  #! remove
@@ -434,6 +440,12 @@ def loads_to_site_energy(
                 if awhp_h.refrigerant_gwp
                 else 0.0
             )
+
+            if total_awhp_refrigerant_gwp_kg == 0:
+                if total_awhp_refrigerant_weight_kg == 0:
+                    logger.warning("AWHP refrigerant charge is 0.")
+                else:
+                    logger.warning("AWHP refrigerant GWP is 0.")
 
             df[Col.AWHP_HHW_W.value] = served_h_W
             df[Col.AWHP_CAP_H_W.value] = cap_total_h_W
@@ -609,6 +621,12 @@ def loads_to_site_energy(
                 if chl.refrigerant_gwp
                 else 0.0
             )
+
+            if chiller_refrigerant_gwp_kg == 0:
+                if chiller_refrigerant_weight_kg == 0:
+                    logger.warning("Chiller refrigerant charge is 0.")
+                else:
+                    logger.warning("Chiller refrigerant GWP is 0.")
 
             if detail:
                 df[Col.CHILLER_CHW_W.value] = served_W
