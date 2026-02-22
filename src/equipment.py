@@ -8,34 +8,46 @@ from utils.interp import interp_vector
 
 
 # --- Models ---
-class COPCurve(BaseModel):
-    t_out_C: List[float]
-    cop: List[float]
+# class COPCurve(BaseModel):
+#     t_out_C: List[float]
+#     cop: List[float]
 
-    def get_cop(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.cop, temp))
-
-
-class CapCurve(BaseModel):
-    t_out_C: List[float]
-    capacity_W: List[float]
-
-    def get_capacity(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.capacity_W, temp))
+#     def get_cop(self, temp: float) -> float:
+#         return float(interp_vector(self.t_out_C, self.cop, temp))
 
 
-class plrCurve(BaseModel):
-    capacity_W: List[float]
-    cop: List[float]
+# class CapCurve(BaseModel):
+#     t_out_C: List[float]
+#     capacity_W: List[float]
 
-    def get_cop(self, cap: float) -> float:
-        return float(interp_vector(self.capacity_W, self.cop, cap))
+#     def get_capacity(self, temp: float) -> float:
+#         return float(interp_vector(self.t_out_C, self.capacity_W, temp))
 
+
+# class plrCurve(BaseModel):
+#     capacity_W: List[float]
+#     cop: List[float]
+
+#     def get_cop(self, cap: float) -> float:
+#         return float(interp_vector(self.capacity_W, self.cop, cap))
+    
+class PerformanceCurves(BaseModel):
+    cop: Optional[List[float]] = None
+    capacity_W: Optional[List[float]] = None
+    constraints: Optional[Dict[str, float]] = None
+
+# class Performance(BaseModel):
+#     cop_curve: Optional[COPCurve] = None
+#     cap_curve: Optional[CapCurve] = None
+#     plr_curve: Optional[plrCurve] = None
+#     efficiency: Optional[float] = None
+#     constraints: Optional[Dict[str, float]] = None
 
 class Performance(BaseModel):
-    cop_curve: Optional[COPCurve] = None
-    cap_curve: Optional[CapCurve] = None
-    plr_curve: Optional[plrCurve] = None
+    t_out_C: Optional[List[float]] = None
+    capacity_W: Optional[List[float]] = None # this will go away, move all to inside
+    leaving_supply_t: Optional[Dict[str, PerformanceCurves]] = None
+    # plr_curve: Optional[plrCurve] = None
     efficiency: Optional[float] = None
     constraints: Optional[Dict[str, float]] = None
 
