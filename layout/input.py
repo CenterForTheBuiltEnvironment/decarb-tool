@@ -348,7 +348,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 # --------------------------------
 
 
-def build_equipment_table(equipment_data, active_ids=None):
+def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
     """
     Transposed equipment scenarios table:
     - Columns = equipment scenarios (eq_scen_id)
@@ -371,8 +371,17 @@ def build_equipment_table(equipment_data, active_ids=None):
     if "eq_scen_id" not in equipment_df.columns:
         equipment_df["eq_scen_id"] = [f"eq_scen_{i}" for i in range(len(equipment_df))]
 
-    # Sort for stable column order
-    equipment_df = equipment_df.sort_values("eq_scen_id").reset_index(drop=True)
+    # Filter to displayed scenarios that actually exist in the data
+    available_ids = set(equipment_df["eq_scen_id"].tolist())
+    valid_displayed_ids = [sid for sid in displayed_ids if sid in available_ids]
+
+    if not valid_displayed_ids:
+        return dmc.Text("No equipment scenarios to display.")
+
+    equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
+    equipment_df = (
+        equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
+    )
 
     # Rows to display (property name, label)
     row_config = [
@@ -437,6 +446,38 @@ def build_equipment_table(equipment_data, active_ids=None):
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body_rows = []
+
+    # ---------- Row 0: Scenario selector dropdowns ----------
+    # Build options from ALL scenarios in the library (not just displayed)
+    all_scenario_options = [
+        {
+            "label": row.get("eq_scen_name", row.get("eq_scen_id", "")),
+            "value": row.get("eq_scen_id"),
+        }
+        for _, row in pd.DataFrame(equipment_data).iterrows()
+        if row.get("eq_scen_id")
+    ]
+
+    dropdown_cells = [dmc.TableTh("Scenario", style=prop_th_style)]
+    for idx, scen_id in enumerate(scen_ids):
+        cell_style = {
+            **scen_cell_style_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
+        dropdown_cells.append(
+            dmc.TableTd(
+                dmc.Select(
+                    id={"type": "equipment-column-dropdown", "column": idx},
+                    data=all_scenario_options,
+                    value=scen_id,
+                    size="xs",
+                    allowDeselect=False,
+                    style={"minWidth": "120px"},
+                ),
+                style=cell_style,
+            )
+        )
+    body_rows.append(dmc.TableTr(dropdown_cells))
 
     # ---------- Row 1: Selected (checkbox + actions) ----------
     selected_cells = [dmc.TableTh("Selected", style=prop_th_style)]

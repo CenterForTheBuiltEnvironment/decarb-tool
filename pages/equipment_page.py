@@ -132,8 +132,11 @@ def layout():
     Input("url", "pathname"),
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
+    Input("displayed-equipment-store", "data"),
 )
-def update_equipment_table(pathname, equipment_store_data, selected_equipment_data):
+def update_equipment_table(
+    pathname, equipment_store_data, selected_equipment_data, displayed_equipment_data
+):
     if pathname != URLS.EQUIPMENT.value:
         return no_update
 
@@ -145,8 +148,11 @@ def update_equipment_table(pathname, equipment_store_data, selected_equipment_da
         return dmc.Text("No equipment scenarios defined yet.")
 
     selected_ids = selected_equipment_data or []
+    displayed_ids = displayed_equipment_data or []
 
-    return build_equipment_table(scenarios, active_ids=selected_ids)
+    return build_equipment_table(
+        scenarios, displayed_ids=displayed_ids, active_ids=selected_ids
+    )
 
 
 # 2. Add equipment scenario modal + store update
@@ -292,6 +298,106 @@ def sync_active_equipment(selected_values):
     # - store only the first 5
     # - set the CheckboxGroup value back to those 5, auto-unchecking extras
     return capped_selected, capped_selected
+
+
+@callback(
+    Output("displayed-equipment-store", "data"),
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Input({"type": "equipment-column-dropdown", "column": ALL}, "value"),
+    State("displayed-equipment-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_column_dropdown_change(
+    dropdown_values, displayed_ids, equipment_data, selected_ids
+):
+    """
+    Handle scenario selection from column dropdowns.
+    If selected scenario is already displayed elsewhere, create a copy.
+    """
+    if not dropdown_values or not displayed_ids or not equipment_data:
+        return no_update, no_update, no_update, no_update
+
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update, no_update, no_update, no_update
+
+    # Find which dropdown triggered the callback
+    triggered = ctx.triggered[0]
+    prop_id = triggered["prop_id"]
+
+    # Parse the pattern-matching ID
+    try:
+        id_str = prop_id.split(".")[0]
+        btn_id = json.loads(id_str)
+        column_idx = btn_id.get("column")
+    except (json.JSONDecodeError, AttributeError):
+        return no_update, no_update, no_update, no_update
+
+    if column_idx is None:
+        return no_update, no_update, no_update, no_update
+
+    # Get the newly selected scenario ID
+    new_scen_id = dropdown_values[column_idx]
+
+    if not new_scen_id:
+        return no_update, no_update, no_update, no_update
+
+    # Check if this scenario is already displayed in another column
+    new_displayed = list(displayed_ids)
+    updated_equipment = equipment_data
+
+    other_columns = [i for i in range(len(new_displayed)) if i != column_idx]
+    already_displayed = new_scen_id in [new_displayed[i] for i in other_columns]
+
+    if already_displayed:
+        # Create a copy of the scenario with a new ID
+        scenarios = equipment_data.get("equipment_scenarios", [])
+        base_scenario = next(
+            (s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None
+        )
+
+        if base_scenario is None:
+            return no_update, no_update, no_update, no_update
+
+        # Generate new ID
+        copy_id = _next_scenario_id(equipment_data)
+        copy_name = f"{base_scenario.get('eq_scen_name', new_scen_id)} (copy)"
+
+        # Create the copy
+        new_scenario = {
+            **base_scenario,
+            "eq_scen_id": copy_id,
+            "eq_scen_name": copy_name,
+        }
+
+        # Add to equipment store
+        updated_equipment = {
+            **equipment_data,
+            "equipment_scenarios": scenarios + [new_scenario],
+        }
+
+        # Use the copy's ID in the displayed list
+        new_displayed[column_idx] = copy_id
+    else:
+        # No duplicate - just update the displayed list
+        new_displayed[column_idx] = new_scen_id
+
+    # Update selected-equipment-store: swap old scenario for new one
+    new_selected = list(selected_ids) if selected_ids else []
+    old_scen_id = displayed_ids[
+        column_idx
+    ]  # The scenario that was in this column before
+
+    if old_scen_id in new_selected:
+        # Replace old with new in selection
+        old_index = new_selected.index(old_scen_id)
+        new_selected[old_index] = new_displayed[column_idx]
+
+    return new_displayed, updated_equipment, new_selected, new_selected
 
 
 @callback(
