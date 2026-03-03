@@ -90,18 +90,40 @@ def layout():
                 [
                     dmc.Group(
                         [
-                            dmc.Text("Scenario Group:", size="sm", fw=500),
-                            dmc.Select(
-                                id="scenario-group-select",
-                                data=[],  # Will be populated by callback
-                                value=None,
-                                placeholder="Select a scenario group",
-                                size="sm",
-                                style={"width": "250px"},
-                                allowDeselect=True,
+                            dmc.Group(
+                                [
+                                    dmc.Text("Scenario Group:", size="sm", fw=500),
+                                    dmc.Select(
+                                        id="scenario-group-select",
+                                        data=[],  # Will be populated by callback
+                                        value=None,
+                                        placeholder="Select a scenario group",
+                                        size="sm",
+                                        style={"width": "250px"},
+                                        allowDeselect=True,
+                                        comboboxProps={"withinPortal": True, "zIndex": 1000},
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                            dmc.Group(
+                                [
+                                    dmc.Text("View:", size="sm", fw=500),
+                                    dmc.SegmentedControl(
+                                        id="equipment-view-mode",
+                                        data=[
+                                            {"label": "Simple", "value": "simple"},
+                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Differences", "value": "differences"},
+                                        ],
+                                        value="advanced",
+                                        size="sm",
+                                    ),
+                                ],
+                                gap="sm",
                             ),
                         ],
-                        gap="sm",
+                        justify="space-between",
                         mb="md",
                     ),
                     html.Div(
@@ -151,9 +173,14 @@ def layout():
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
     Input("displayed-equipment-store", "data"),
+    Input("equipment-view-mode", "value"),
 )
 def update_equipment_table(
-    pathname, equipment_store_data, selected_equipment_data, displayed_equipment_data
+    pathname,
+    equipment_store_data,
+    selected_equipment_data,
+    displayed_equipment_data,
+    view_mode,
 ):
     if pathname != URLS.EQUIPMENT.value:
         return no_update
@@ -169,16 +196,23 @@ def update_equipment_table(
     displayed_ids = displayed_equipment_data or []
 
     return build_equipment_table(
-        scenarios, displayed_ids=displayed_ids, active_ids=selected_ids
+        scenarios,
+        displayed_ids=displayed_ids,
+        active_ids=selected_ids,
+        view_mode=view_mode or "advanced",
     )
 
 
 @callback(
     Output("scenario-group-select", "data"),
+    Input("url", "pathname"),
     Input("equipment-store", "data"),
 )
-def populate_group_dropdown(equipment_data):
+def populate_group_dropdown(pathname, equipment_data):
     """Populate the scenario group dropdown with available groups."""
+    if pathname != URLS.EQUIPMENT.value:
+        return no_update
+
     if not equipment_data:
         return []
 

@@ -9,7 +9,13 @@ from pathlib import Path
 from utils.tooltips import with_tooltip
 from utils.units import unit_map
 
-from layout.table_config import TABLE_STYLE, format_table_value, value_deemphasis_style
+from layout.table_config import (
+    TABLE_STYLE,
+    format_table_value,
+    value_deemphasis_style,
+    get_diff_fields,
+)
+from src.config import EquipmentTableRows
 
 META_INDEX_PATH = Path("data/input/metadata_index.json")
 with META_INDEX_PATH.open("r") as f:
@@ -348,7 +354,9 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 # --------------------------------
 
 
-def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
+def build_equipment_table(
+    equipment_data, displayed_ids, active_ids=None, view_mode="advanced"
+):
     """
     Transposed equipment scenarios table:
     - Columns = equipment scenarios (eq_scen_id)
@@ -358,6 +366,12 @@ def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
     1) Selected (checkbox + EDIT / REMOVE)
     2) Scenario ID (eq_scen_id)
     3+) Other properties
+
+    Args:
+        equipment_data: Equipment scenarios data (list or DataFrame)
+        displayed_ids: List of scenario IDs to display as columns
+        active_ids: Set of scenario IDs that are selected/active
+        view_mode: One of "simple", "advanced", or "differences"
     """
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
@@ -365,7 +379,11 @@ def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
         equipment_df = equipment_data
 
     if equipment_df is None or equipment_df.empty:
-        return dmc.Text("No equipment scenarios defined yet.")
+        return dmc.CheckboxGroup(
+            id="equipment-checkbox-group",
+            value=[],
+            children=dmc.Text("No equipment scenarios defined yet."),
+        )
 
     # Ensure IDs exist
     if "eq_scen_id" not in equipment_df.columns:
@@ -376,7 +394,11 @@ def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
     valid_displayed_ids = [sid for sid in displayed_ids if sid in available_ids]
 
     if not valid_displayed_ids:
-        return dmc.Text("No equipment scenarios to display.")
+        return dmc.CheckboxGroup(
+            id="equipment-checkbox-group",
+            value=[],
+            children=dmc.Text("No equipment scenarios to display."),
+        )
 
     equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
     equipment_df = (
@@ -397,9 +419,41 @@ def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
         ("chiller", "Backup Cooling"),
     ]
 
-    available_rows = [
-        (field, label) for field, label in row_config if field in equipment_df.columns
-    ]
+    # Pre-compute which fields have differences across scenarios
+    all_fields = [field for field, _ in row_config if field in equipment_df.columns]
+    diff_fields = get_diff_fields(equipment_df, all_fields)
+
+    # Filter rows based on view mode
+    if view_mode == "simple":
+        simple_fields = set(EquipmentTableRows.SIMPLE.value)
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in equipment_df.columns and field in simple_fields
+        ]
+    elif view_mode == "differences":
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in equipment_df.columns and field in diff_fields
+        ]
+        # Handle case where no differences exist
+        if not available_rows:
+            return dmc.CheckboxGroup(
+                id="equipment-checkbox-group",
+                value=list(active_ids) if active_ids else [],
+                children=dmc.Text(
+                    "All scenarios have identical values for the displayed properties.",
+                    c="dimmed",
+                    fs="italic",
+                ),
+            )
+    else:  # "advanced" or default
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in equipment_df.columns
+        ]
 
     active_ids = set(active_ids or [])
 
@@ -530,23 +584,33 @@ def build_equipment_table(equipment_data, displayed_ids, active_ids=None):
     body_rows.append(dmc.TableTr(selected_cells))
 
     # ---------- Property rows ----------
+    diff_row_style = TABLE_STYLE.diff_row_style
+
     for field, label in available_rows:
-        row_cells = [dmc.TableTh(label, style=prop_th_style)]
+        is_diff_row = field in diff_fields
+
+        # Apply diff styling to the property label cell if row has differences
+        prop_label_style = {**prop_th_style}
+        if is_diff_row:
+            prop_label_style.update(diff_row_style)
+
+        row_cells = [dmc.TableTh(label, style=prop_label_style)]
 
         for idx, scen_id in enumerate(scen_ids):
-            cell_style = {
-                **scen_cell_style_base,
-                **(active_col_style if scen_id in active_ids else inactive_col_style),
-            }
             raw_value = equipment_df.iloc[idx].get(field, "")
-
             display_value = format_table_value(raw_value)
 
+            # Build cell style: base + active/inactive + deemphasis + diff highlighting
             cell_style = {
                 **scen_cell_style_base,
                 **(active_col_style if scen_id in active_ids else inactive_col_style),
                 **value_deemphasis_style(raw_value),
             }
+
+            # Apply bold text only for data cells in rows with differences
+            # (left border is only on the property label cell)
+            if is_diff_row:
+                cell_style["fontWeight"] = 900  # ? Is this still required?
 
             row_cells.append(dmc.TableTd(display_value, style=cell_style))
 

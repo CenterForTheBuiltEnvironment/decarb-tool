@@ -25,6 +25,24 @@ class DEFAULT_SELECTIONS(Enum):
     EMISSIONS_SCENARIO: list = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
 
 
+class EquipmentTableRows(Enum):
+    """Row configurations for equipment table view modes."""
+
+    SIMPLE: list = ["hr_wwhp", "awhp", "backup_heating", "chiller"]
+    ADVANCED: list = [
+        "eq_scen_id",
+        "eq_scen_name",
+        "hr_wwhp",
+        "awhp",
+        "awhp_sizing_mode",
+        "awhp_sizing_value",
+        "awhp_redundancy",
+        "awhp_use_cooling",
+        "backup_heating",
+        "chiller",
+    ]
+
+
 class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"
