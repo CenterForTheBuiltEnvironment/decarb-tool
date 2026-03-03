@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Optional, Union
 
 from src.loads import StandardLoad
-from src.equipment import EquipmentLibrary, Equipment
+from src.equipment import EquipmentLibrary, Equipment, PerformanceCurves
 from src.emissions import StandardEmissions, get_emissions_data, EmissionScenario
 from src.metadata import Metadata
 from src.config import Columns as Col
@@ -33,9 +33,33 @@ def _heat_recovery_plr_curve(e: Equipment, supply_t: str) -> pd.DataFrame:
 
 def _heating_supply_temp(e: Equipment) -> str:
     supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
-    # condenser_supply_temps = np.array(condenser_supply_temps_str, dtype="float")
-    design_supply_temp = supply_temps_str[1]
+    # supply_temps = np.array(supply_temps_str, dtype="float")
+    design_supply_temp = supply_temps_str[-1]
+    print(supply_temps_str)
     return(design_supply_temp)
+
+def _heating_supply_temp_performance(e: Equipment, supply_t: str) -> PerformanceCurves:
+    result = {}
+    
+    equip_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
+    equip_supply_temps = np.array(equip_supply_temps_str, dtype="float")
+    # equip_supply_temps_performance = {t:e.performance_heating.leaving_supply_t[str(t)] for t in equip_supply_temps}
+    # print(equip_supply_temps_performance)
+    cops = [e.performance_heating.leaving_supply_t[t].cop for t in equip_supply_temps_str]
+    caps = [e.performance_heating.leaving_supply_t[t].capacity_W for t in equip_supply_temps_str]
+    constraints = {"min": [e.performance_heating.leaving_supply_t[t].constraints["min_temp_C"] for t in equip_supply_temps_str],
+                   "max": [e.performance_heating.leaving_supply_t[t].constraints["max_temp_C"] for t in equip_supply_temps_str]}
+    
+    result["constraints"] = {"min_temp_C": np.interp(supply_t, equip_supply_temps, constraints["min"]),
+                              "max_temp_C": np.interp(supply_t, equip_supply_temps, constraints["max"])}
+
+    for perf in ["cop", "capacity_W"]:
+        result[perf]
+
+    result["cop"] = [np.interp(supply_t, equip_supply_temps, x) for x in zip(*cops)]
+    result["capacity_W"] = [np.interp(supply_t, equip_supply_temps, x) for x in zip(*caps)]
+
+    print(result)
 
 def clean_curve_constraints(temp: list, performance: list) -> tuple:
     temp = np.asarray(temp)
@@ -54,6 +78,7 @@ def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str)
                 e.performance_heating.t_out_C, 
                 e.performance_heating.leaving_supply_t[supply_t].capacity_W
             )
+            print(f"cap curve is {perf_cap}"); print(f"temp curve is {perf_temp}")
             cap_h = interp_vector(perf_temp, perf_cap, t_out)
         else:
             raise ValueError(
@@ -255,7 +280,7 @@ def loads_to_site_energy(
         if scen.hr_wwhp:
             logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
-            hr_wwhp_supply_t = _heating_supply_temp(hr_wwhp)
+            hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t # _heating_supply_temp(hr_wwhp)
 
             plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_supply_t)
             if plr_curve.empty:
@@ -356,8 +381,9 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp:
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
-            awhp_h = library.get_equipment(scen.awhp)
-            awhp_h_supply_t = _heating_supply_temp(awhp_h)
+            awhp_h = library.get_equipment(scen.awhp); print(f"awhp is {awhp_h.eq_id}")
+            awhp_h_supply_t = scen.awhp_h_supply_t; print(f"supply temp is {awhp_h_supply_t} C") # scen.awhp_h_supply_t # _heating_supply_temp(awhp_h);
+            awhp_h_performance = _heating_supply_temp_performance(awhp_h, awhp_h_supply_t)
             awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps, awhp_h_supply_t)
             awhp_cop_h = _per_unit_heating_cop(awhp_h, temps, awhp_h_supply_t)
             if np.isnan(awhp_cop_h).all():
@@ -377,9 +403,13 @@ def loads_to_site_energy(
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
 
             if awhp_h.performance and awhp_h.performance_heating.leaving_supply_t[awhp_h_supply_t].capacity_W: # getattr(awhp_h.performance_heating, "cap_curve", None):
+                perf_temp, perf_cap = clean_curve_constraints(
+                    awhp_h.performance_heating.t_out_C, 
+                    awhp_h.performance_heating.leaving_supply_t[awhp_h_supply_t].capacity_W
+                )
                 cap_ref = interp_vector(
-                    awhp_h.performance_heating.t_out_C,
-                    awhp_h.performance_heating.leaving_supply_t[awhp_h_supply_t].capacity_W,
+                    perf_temp,
+                    perf_cap,
                     np.array([ref_temp_C]),
                 )[0]
             elif getattr(awhp_h, "capacity_W", None):

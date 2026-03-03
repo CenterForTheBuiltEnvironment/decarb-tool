@@ -127,7 +127,9 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
     fields = [
         ("eq_scen_name", "Scenario"),
         ("hr_wwhp", "HR WWHP"),
+        ("hr_wwhp_h_supply_t", "HR WWHP Heating Supply Temperature"),
         ("awhp", "AWHP"),
+        ("awhp_h_supply_t", "AWHP Heating Supply Temperature"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),

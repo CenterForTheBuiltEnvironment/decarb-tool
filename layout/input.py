@@ -379,7 +379,9 @@ def build_equipment_table(equipment_data, active_ids=None):
         ("eq_scen_id", "Scenario ID"),
         ("eq_scen_name", "Scenario Name"),
         ("hr_wwhp", "HR WWHP Model"),
+        ("hr_wwhp_h_supply_t", "HR WWHP Heating Supply Temperature"),
         ("awhp", "AWHP Model"),
+        ("awhp_h_supply_t", "AWHP Heating Supply Temperature"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
@@ -633,6 +635,22 @@ def edit_equipment_modal():
                             label="Air-to-water Heat Pump",
                             placeholder="None",
                             data=[],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-wwhp-h-supply-t-select",
+                            label="Heating supply temperature",
+                            placeholder="None",
+                            data=["32.2", "48.9", "60", "73.9"],  # update to be filled by callback
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-h-supply-t-select",
+                            label="Heating supply temperature",
+                            placeholder="None",
+                            data=["35", "38", "38.9", "43.3", "45", "48.9", "50", "52", "54.4", "60"], # update to be filled by callback
                             clearable=True,
                             searchable=True,
                         ),

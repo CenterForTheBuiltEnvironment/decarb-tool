@@ -158,15 +158,15 @@
               "cop": [2.15, 2.33, 2.46, 2.69, 3.10, 3.63, 3.86, 4.03, 4.22],
               "capacity_W": [123600, 145200, 154700, 171100, 200200, 235700, 243100, 257500, 274800],
               "constraints": {
-                "min_temp_C": -13,
+                "min_temp_C": -15,
                 "max_temp_C": 35
               }
             },
             "52": {
-              "cop": [-99, 2.01, 1.97, 2.12, 2.42, 2.84, 2.88, 3.04, 3.2],
-              "capacity_W": [-99, 157700, 155500, 169600, 196300, 229500, 232400, 248500, 268900],
+              "cop": [-99, -99, 1.97, 2.12, 2.42, 2.84, 2.88, 3.04, 3.2],
+              "capacity_W": [-99, -99, 155500, 169600, 196300, 229500, 232400, 248500, 268900],
               "constraints": {
-                "min_temp_C": -2,
+                "min_temp_C": -10,
                 "max_temp_C": 35
               }
             }
@@ -689,10 +689,12 @@
       "eq_scen_id": "eq_scenario_1",
       "eq_scen_name": "Gas Boiler+AC Chiller",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": null,
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": false,
       "backup_heating": "bo02",
       "chiller": "ch03"
@@ -701,10 +703,12 @@
       "eq_scen_id": "eq_scenario_2",
       "eq_scen_name": "Elec Boiler+AC Chiller",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": null,
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": false,
       "backup_heating": "res01",
       "chiller": "ch03"
@@ -713,10 +717,12 @@
       "eq_scen_id": "eq_scenario_3",
       "eq_scen_name": "20% AWHP (H+C)+Gas Backup",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 0.2,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "bo02",
       "chiller": "ch03"
@@ -725,10 +731,12 @@
       "eq_scen_id": "eq_scenario_4",
       "eq_scen_name": "100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "res01",
       "chiller": "ch03"
@@ -737,10 +745,12 @@
       "eq_scen_id": "eq_scenario_5",
       "eq_scen_name": "HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr01",
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "res01",
       "chiller": "ch03"
