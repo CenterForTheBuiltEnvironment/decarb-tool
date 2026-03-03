@@ -36,19 +36,11 @@ class PerformanceCurves(BaseModel):
     capacity_W: Optional[List[float]] = None
     constraints: Optional[Dict[str, float]] = None
 
-# class Performance(BaseModel):
-#     cop_curve: Optional[COPCurve] = None
-#     cap_curve: Optional[CapCurve] = None
-#     plr_curve: Optional[plrCurve] = None
-#     efficiency: Optional[float] = None
-#     constraints: Optional[Dict[str, float]] = None
-
 class Performance(BaseModel):
-    t_out_C: Optional[List[float]] = None
-    capacity_W: Optional[List[float]] = None # this will go away, move all to inside
+    t_out_C: Optional[List[float]] = None # for AWHPs
+    capacity_W: Optional[List[float]] = None # for WWHPs
     leaving_supply_t: Optional[Dict[str, PerformanceCurves]] = None
-    # plr_curve: Optional[plrCurve] = None
-    efficiency: Optional[float] = None
+    efficiency: Optional[float] = None # for boilers/chillers
     constraints: Optional[Dict[str, float]] = None
 
 
