@@ -374,11 +374,11 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
-    # Output("edit-hr-wwhp-h-supply-t-select", "data"),
+    # Output("edit-hr-wwhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
     Output("edit-hr-wwhp-h-supply-t-select", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
-    # Output("edit-awhp-h-supply-t-select", "data"),
+    # Output("edit-awhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
     Output("edit-awhp-h-supply-t-select", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
@@ -505,8 +505,9 @@ def open_edit_modal(edit_clicks, equipment_data):
     if hr_wwhp_val is None:
         hr_wwhp_val = "None"
 
-    # hr_hp_supply_t_options = _build_heating_supply_temp_options( #add: blank out/default if none
-    #     equipment_list, hr_wwhp_val.get("eq_id"), include_none=True
+    # added for autofill callback, not implemented
+    # hr_hp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, hr_wwhp_val.get("eq_id")
     # )
 
     hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
@@ -517,8 +518,9 @@ def open_edit_modal(edit_clicks, equipment_data):
     if awhp_val is None:
         awhp_val = "None"
 
-    # awhp_supply_t_options = _build_heating_supply_temp_options( #add: blank out/default if none
-    #     equipment_list, awhp_val.get("eq_id"), include_none=True
+    # added for autofill callback, not implemented
+    # awhp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, awhp_val.get("eq_id")
     # )
         
     awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
@@ -687,19 +689,18 @@ def _build_equipment_options(
         options = [{"label": none_label, "value": "None"}] + options
     return options
 
-def _build_heating_supply_temp_options(
-        equipment_list, eq_id, include_none=False, none_label="None"
-):
-    for eq in (equipment_list or []):
-        if eq.get("eq_id") == eq_id:
-            perf = eq.get("performance")
-            heating = perf.get("heating")
-            temps_perf = heating.get("leaving_supply_t")
-            options = [{"label": f"{i}°C", "value": i} for i in list(temps_perf.keys())]
-    options.extend([{"label": "lowest", "value": "lowest"}, {"label": "highest", "value": "highest"}])
-    if include_none:
-        options = [{"label": none_label, "value": "None"}] + options
-    return options
+# added for autofill callback, not implemented
+# def _build_heating_supply_temp_options(
+#         equipment_list, eq_id, include_none=True, none_label="None"
+# ):
+#     eq = equipment_list.get(eq_id)
+#     perf = eq.get("performance")
+#     heating = perf.get("heating")
+#     temps_perf = heating.get("leaving_supply_t")
+#     options = [{"label": f"{i}°C", "value": i} for i in list(temps_perf.keys())]
+#     if include_none:
+#         options = [{"label": none_label, "value": "None"}] + options
+#     return options
 
 @callback(
     Output("edit-awhp-sizing-value", "step"),

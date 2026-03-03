@@ -642,7 +642,7 @@ def edit_equipment_modal():
                             id="edit-hr-wwhp-h-supply-t-select",
                             label="Heating supply temperature",
                             placeholder="None",
-                            data=["32.2", "48.9", "60", "73.9"],  # update to be filled by callback
+                            data=["32.2", "48.9", "60", "73.9"],  # update to be filled by callback based on currently selected HP
                             clearable=True,
                             searchable=True,
                         ),
@@ -650,7 +650,7 @@ def edit_equipment_modal():
                             id="edit-awhp-h-supply-t-select",
                             label="Heating supply temperature",
                             placeholder="None",
-                            data=["35", "38", "38.9", "43.3", "45", "48.9", "50", "52", "54.4", "60"], # update to be filled by callback
+                            data=["35", "38", "38.9", "43.3", "45", "48.9", "50", "52", "54.4", "60"], # update to be filled by callback based on currently selected HP
                             clearable=True,
                             searchable=True,
                         ),
