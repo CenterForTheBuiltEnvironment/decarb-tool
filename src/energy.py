@@ -27,8 +27,8 @@ def _heat_recovery_plr_curve(e: Equipment, supply_t: str) -> pd.DataFrame:
             logger.error(f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths.") 
             raise ValueError(f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths.")
     else:
-        logger.error(f"Equipment '{e.eq_id}' has no plr_curve.") 
-        raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
+        logger.error(f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve).") 
+        raise ValueError(f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve).")
 
 # function for interpolating performance based on HHWST, not implemented
 # def _heating_supply_temp_performance(e: Equipment, supply_t: str) -> PerformanceCurves:
@@ -51,7 +51,7 @@ def _heat_recovery_plr_curve(e: Equipment, supply_t: str) -> pd.DataFrame:
     
 def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance_heating.leaving_supply_t[supply_t].capacity_W:
+    if e.performance and e.performance_heating.t_out_C and e.performance_heating.leaving_supply_t[supply_t].capacity_W:
         if len(e.performance_heating.t_out_C) == len(e.performance_heating.leaving_supply_t[supply_t].capacity_W):
             cap_h = interp_vector(
                 e.performance_heating.t_out_C, 
@@ -65,10 +65,10 @@ def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str)
         cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     else:
         logger.error(
-            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
         )
         raise ValueError(
-            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
         )
     cap_h = _capacity_constraints(e, t_out, cap_h, True, supply_t)
     return cap_h
@@ -77,7 +77,7 @@ def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str)
 def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
     # If the device has a COP curve, use it
-    if e.performance and e.performance_heating.leaving_supply_t[supply_t].cop:
+    if e.performance and e.performance_heating.t_out_C and e.performance_heating.leaving_supply_t[supply_t].cop:
         if len(e.performance_heating.t_out_C) == len(e.performance_heating.leaving_supply_t[supply_t].cop):
             return interp_vector(
                 e.performance_heating.t_out_C,
@@ -93,7 +93,7 @@ def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.
 
 def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance_cooling.leaving_supply_t[supply_t].capacity_W:
+    if e.performance and e.performance_cooling.t_out_C and e.performance_cooling.leaving_supply_t[supply_t].capacity_W:
         if len(e.performance_cooling.t_out_C) == len(e.performance_cooling.leaving_supply_t[supply_t].capacity_W):
             cap_c = interp_vector(
                 e.performance_cooling.t_out_C,
@@ -109,10 +109,10 @@ def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str)
     
     else:
         logger.error(
-            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no cooling capacity info (fixed value or t_out-based curve for capacity_W)."
         )
         raise ValueError(
-            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no cooling capacity info (fixed value or t_out-based curve for capacity_W)."
         )
     cap_c = _capacity_constraints(e, t_out, cap_c, False, supply_t)
     return cap_c
@@ -121,7 +121,7 @@ def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str)
 def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
     # If the device has a COP curve, use it
-    if e.performance and e.performance_cooling.leaving_supply_t[supply_t].cop:
+    if e.performance and e.performance_cooling.t_out_C and e.performance_cooling.leaving_supply_t[supply_t].cop:
         if len(e.performance_cooling.t_out_C) == len(e.performance_cooling.leaving_supply_t[supply_t].cop):
             return interp_vector(
                 e.performance_cooling.t_out_C,
