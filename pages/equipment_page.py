@@ -116,7 +116,7 @@ def layout():
                                             {"label": "Advanced", "value": "advanced"},
                                             {"label": "Differences", "value": "differences"},
                                         ],
-                                        value="advanced",
+                                        value="simple",
                                         size="sm",
                                     ),
                                 ],
@@ -199,7 +199,7 @@ def update_equipment_table(
         scenarios,
         displayed_ids=displayed_ids,
         active_ids=selected_ids,
-        view_mode=view_mode or "advanced",
+        view_mode=view_mode or "simple",
     )
 
 

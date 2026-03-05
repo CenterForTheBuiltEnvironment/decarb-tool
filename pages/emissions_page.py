@@ -92,13 +92,36 @@ def layout():
                 mb="sm",
             ),
             dmc.Paper(
-                html.Div(
-                    id="emissions-table",
-                    style={
-                        "minHeight": "500px",
-                        "marginTop": "16px",
-                    },
-                ),
+                [
+                    dmc.Group(
+                        [
+                            dmc.Group(
+                                [
+                                    dmc.Text("View:", size="sm", fw=500),
+                                    dmc.SegmentedControl(
+                                        id="emissions-view-mode",
+                                        data=[
+                                            {"label": "Simple", "value": "simple"},
+                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Differences", "value": "differences"},
+                                        ],
+                                        value="simple",
+                                        size="sm",
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                        ],
+                        justify="flex-end",
+                        mb="md",
+                    ),
+                    html.Div(
+                        id="emissions-table",
+                        style={
+                            "marginTop": "16px",
+                        },
+                    ),
+                ],
                 withBorder=False,
                 shadow="xs",
                 radius="md",
@@ -135,8 +158,9 @@ def layout():
     Output("emissions-table", "children"),
     Input("metadata-store", "data"),
     Input("selected-emissions-store", "data"),
+    Input("emissions-view-mode", "value"),
 )
-def update_emissions_table(metadata_data, selected_emissions):
+def update_emissions_table(metadata_data, selected_emissions, view_mode):
     if not metadata_data:
         return dmc.Text("No emission scenarios defined yet.")
 
@@ -148,7 +172,11 @@ def update_emissions_table(metadata_data, selected_emissions):
     scenarios = [s.model_dump() for s in metadata.emission_settings]
     active_ids = selected_emissions or []
 
-    return build_emissions_table(scenarios, active_ids=active_ids)
+    return build_emissions_table(
+        scenarios,
+        active_ids=active_ids,
+        view_mode=view_mode or "simple",
+    )
 
 
 @callback(

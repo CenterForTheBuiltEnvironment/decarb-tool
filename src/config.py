@@ -30,8 +30,6 @@ class EquipmentTableRows(Enum):
 
     SIMPLE: list = ["hr_wwhp", "awhp", "backup_heating", "chiller"]
     ADVANCED: list = [
-        "eq_scen_id",
-        "eq_scen_name",
         "hr_wwhp",
         "awhp",
         "awhp_sizing_mode",
@@ -40,6 +38,21 @@ class EquipmentTableRows(Enum):
         "awhp_use_cooling",
         "backup_heating",
         "chiller",
+    ]
+
+
+class EmissionTableRows(Enum):
+    """Row configurations for emission table view modes."""
+
+    SIMPLE: list = ["grid_scenario", "gea_grid_region", "emission_type", "year"]
+    ADVANCED: list = [
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
+        "shortrun_weighting",
+        "annual_refrig_leakage_percent",
+        "annual_ng_leakage_g_per_kWh",
+        "year",
     ]
 
 
