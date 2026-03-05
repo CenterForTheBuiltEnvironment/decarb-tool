@@ -39,6 +39,11 @@ def build_shell(page_content):
             data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
         ),
         dcc.Store(
+            id="displayed-equipment-store",
+            storage_type="session",
+            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+        ),
+        dcc.Store(
             id="selected-emissions-store",
             storage_type="session",
             data=DEFAULT_SELECTIONS.EMISSIONS_SCENARIO.value,

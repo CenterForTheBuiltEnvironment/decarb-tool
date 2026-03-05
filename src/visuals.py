@@ -41,6 +41,15 @@ def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
     return fig
 
 
+def shorten_scenario_name(scen_name, max_length=15):
+    """Shorten scenario name while preserving (copy) suffix."""
+    if len(scen_name) <= max_length:
+        return scen_name
+    if scen_name.endswith("(copy)"):
+        return scen_name[:6] + "…(copy)"
+    return scen_name[:12] + "…"
+
+
 def plot_energy_and_emissions(
     df, equipment_scenarios, emission_scenarios, unit_mode="SI"
 ):
@@ -107,7 +116,7 @@ def plot_energy_and_emissions(
         df_s = df[df["eq_scen_id"] == scen]
 
         scen_name = name_map.get(scen, scen)
-        scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
+        scen_name_short = shorten_scenario_name(scen_name)
 
         elec_total = (
             df_s[
@@ -168,7 +177,7 @@ def plot_energy_and_emissions(
     for i, scen in enumerate(scenarios):
         df_s = df[df["eq_scen_id"] == scen]
         scen_name = name_map.get(scen, scen)
-        scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
+        scen_name_short = shorten_scenario_name(scen_name)
 
         elec_em = df_s["elec_emissions"].sum().sum()
         gas_em = df_s["gas_emissions"].sum().sum()
@@ -311,7 +320,7 @@ def plot_emission_scenarios_grouped(
                 continue
 
             scen_name = df_s["eq_scen_name"].iloc[0]  # for hover template
-            scen_name_short = scen_name[:12] + "…" if len(scen_name) > 15 else scen_name
+            scen_name_short = shorten_scenario_name(scen_name)
 
             elec_em = df_s["elec_emissions"].sum()
             gas_em = df_s["gas_emissions"].sum()

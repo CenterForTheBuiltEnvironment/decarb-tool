@@ -74,7 +74,11 @@ class EquipmentScenario(BaseModel):
     eq_scen_name: str
     hr_wwhp: Optional[str]
     awhp: Optional[str]
-    awhp_sizing_mode: Optional[Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"]] = None
+    awhp_sizing_mode: Optional[
+        Literal[
+            "integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"
+        ]
+    ] = None
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
@@ -101,6 +105,12 @@ class EquipmentScenario(BaseModel):
             if curr is None:
                 return None
         return curr
+
+
+class ScenarioGroup(BaseModel):
+    group_id: str
+    group_name: str
+    scenario_ids: List[str]
 
 
 # --- Dot-accessible wrapper with dynamic updates ---
@@ -144,6 +154,7 @@ class DotDict:
 class EquipmentLibrary(BaseModel):
     equipment: List[Equipment]
     equipment_scenarios: List[EquipmentScenario]
+    scenario_groups: List[ScenarioGroup] = []
 
     # Private (non-validated) attributes
     _equipment_dict: DotDict = PrivateAttr()

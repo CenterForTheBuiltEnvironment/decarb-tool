@@ -87,12 +87,52 @@ def layout():
                 mb="sm",
             ),
             dmc.Paper(
-                html.Div(
-                    id="equipment-table",
-                    style={
-                        "marginTop": "16px",
-                    },
-                ),
+                [
+                    dmc.Group(
+                        [
+                            dmc.Group(
+                                [
+                                    dmc.Text("Scenario Group:", size="sm", fw=500),
+                                    dmc.Select(
+                                        id="scenario-group-select",
+                                        data=[],  # Will be populated by callback
+                                        value=None,
+                                        placeholder="Select a scenario group",
+                                        size="sm",
+                                        style={"width": "250px"},
+                                        allowDeselect=True,
+                                        comboboxProps={"withinPortal": True, "zIndex": 1000},
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                            dmc.Group(
+                                [
+                                    dmc.Text("View:", size="sm", fw=500),
+                                    dmc.SegmentedControl(
+                                        id="equipment-view-mode",
+                                        data=[
+                                            {"label": "Simple", "value": "simple"},
+                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Differences", "value": "differences"},
+                                        ],
+                                        value="simple",
+                                        size="sm",
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                        ],
+                        justify="space-between",
+                        mb="md",
+                    ),
+                    html.Div(
+                        id="equipment-table",
+                        style={
+                            "marginTop": "16px",
+                        },
+                    ),
+                ],
                 withBorder=False,
                 shadow="xs",
                 radius="md",
@@ -132,8 +172,16 @@ def layout():
     Input("url", "pathname"),
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
+    Input("displayed-equipment-store", "data"),
+    Input("equipment-view-mode", "value"),
 )
-def update_equipment_table(pathname, equipment_store_data, selected_equipment_data):
+def update_equipment_table(
+    pathname,
+    equipment_store_data,
+    selected_equipment_data,
+    displayed_equipment_data,
+    view_mode,
+):
     if pathname != URLS.EQUIPMENT.value:
         return no_update
 
@@ -145,8 +193,61 @@ def update_equipment_table(pathname, equipment_store_data, selected_equipment_da
         return dmc.Text("No equipment scenarios defined yet.")
 
     selected_ids = selected_equipment_data or []
+    displayed_ids = displayed_equipment_data or []
 
-    return build_equipment_table(scenarios, active_ids=selected_ids)
+    return build_equipment_table(
+        scenarios,
+        displayed_ids=displayed_ids,
+        active_ids=selected_ids,
+        view_mode=view_mode or "simple",
+    )
+
+
+@callback(
+    Output("scenario-group-select", "data"),
+    Input("url", "pathname"),
+    Input("equipment-store", "data"),
+)
+def populate_group_dropdown(pathname, equipment_data):
+    """Populate the scenario group dropdown with available groups."""
+    if pathname != URLS.EQUIPMENT.value:
+        return no_update
+
+    if not equipment_data:
+        return []
+
+    groups = equipment_data.get("scenario_groups", [])
+    return [
+        {"label": g.get("group_name", g.get("group_id")), "value": g.get("group_id")}
+        for g in groups
+    ]
+
+
+@callback(
+    Output("displayed-equipment-store", "data", allow_duplicate=True),
+    Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Input("scenario-group-select", "value"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_group_selection(group_id, equipment_data):
+    """
+    When a scenario group is selected, update displayed and selected scenarios.
+    """
+    if not group_id or not equipment_data:
+        return no_update, no_update, no_update
+
+    groups = equipment_data.get("scenario_groups", [])
+    selected_group = next((g for g in groups if g.get("group_id") == group_id), None)
+
+    if not selected_group:
+        return no_update, no_update, no_update
+
+    scenario_ids = selected_group.get("scenario_ids", [])
+
+    # Update displayed, selected, and checkbox group with the group's scenarios
+    return scenario_ids, scenario_ids, scenario_ids
 
 
 # 2. Add equipment scenario modal + store update
@@ -292,6 +393,111 @@ def sync_active_equipment(selected_values):
     # - store only the first 5
     # - set the CheckboxGroup value back to those 5, auto-unchecking extras
     return capped_selected, capped_selected
+
+
+@callback(
+    Output("displayed-equipment-store", "data"),
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Input({"type": "equipment-column-dropdown", "column": ALL}, "value"),
+    State("displayed-equipment-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_column_dropdown_change(
+    dropdown_values, displayed_ids, equipment_data, selected_ids
+):
+    """
+    Handle scenario selection from column dropdowns.
+    If selected scenario is already displayed elsewhere, create a copy.
+    """
+    if not dropdown_values or not displayed_ids or not equipment_data:
+        return no_update, no_update, no_update, no_update
+
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update, no_update, no_update, no_update
+
+    # Find which dropdown triggered the callback
+    triggered = ctx.triggered[0]
+    prop_id = triggered["prop_id"]
+
+    # Parse the pattern-matching ID
+    try:
+        id_str = prop_id.split(".")[0]
+        btn_id = json.loads(id_str)
+        column_idx = btn_id.get("column")
+    except (json.JSONDecodeError, AttributeError):
+        return no_update, no_update, no_update, no_update
+
+    if column_idx is None:
+        return no_update, no_update, no_update, no_update
+
+    # Get the newly selected scenario ID
+    new_scen_id = dropdown_values[column_idx]
+
+    if not new_scen_id:
+        return no_update, no_update, no_update, no_update
+
+    # Exit early if the selection hasn't actually changed
+    old_scen_id = displayed_ids[column_idx] if column_idx < len(displayed_ids) else None
+    if new_scen_id == old_scen_id:
+        return no_update, no_update, no_update, no_update
+
+    # Check if this scenario is already displayed in another column
+    new_displayed = list(displayed_ids)
+    updated_equipment = equipment_data
+
+    other_columns = [i for i in range(len(new_displayed)) if i != column_idx]
+    already_displayed = new_scen_id in [new_displayed[i] for i in other_columns]
+
+    if already_displayed:
+        # Create a copy of the scenario with a new ID
+        scenarios = equipment_data.get("equipment_scenarios", [])
+        base_scenario = next(
+            (s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None
+        )
+
+        if base_scenario is None:
+            return no_update, no_update, no_update, no_update
+
+        # Generate new ID
+        copy_id = _next_scenario_id(equipment_data)
+        copy_name = f"{base_scenario.get('eq_scen_name', new_scen_id)} (copy)"
+
+        # Create the copy
+        new_scenario = {
+            **base_scenario,
+            "eq_scen_id": copy_id,
+            "eq_scen_name": copy_name,
+        }
+
+        # Add to equipment store
+        updated_equipment = {
+            **equipment_data,
+            "equipment_scenarios": scenarios + [new_scenario],
+        }
+
+        # Use the copy's ID in the displayed list
+        new_displayed[column_idx] = copy_id
+    else:
+        # No duplicate - just update the displayed list
+        new_displayed[column_idx] = new_scen_id
+
+    # Update selected-equipment-store: swap old scenario for new one
+    new_selected = list(selected_ids) if selected_ids else []
+    old_scen_id = displayed_ids[
+        column_idx
+    ]  # The scenario that was in this column before
+
+    if old_scen_id in new_selected:
+        # Replace old with new in selection
+        old_index = new_selected.index(old_scen_id)
+        new_selected[old_index] = new_displayed[column_idx]
+
+    return new_displayed, updated_equipment, new_selected, new_selected
 
 
 @callback(
