@@ -56,6 +56,14 @@ class EmissionTableRows(Enum):
     ]
 
 
+class EmissionScenarioDefaults(Enum):
+    """Default values for emission scenario parameters."""
+
+    YEAR: int = 2025
+    REFRIGERANT_LEAKAGE: float = 0.02
+    EMISSION_TYPE: str = "Includes pre-combustion"
+
+
 class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"

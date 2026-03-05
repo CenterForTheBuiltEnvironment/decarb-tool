@@ -19,7 +19,7 @@ from pathlib import Path
 
 from dash_iconify import DashIconify
 
-from src.config import URLS
+from src.config import URLS, EmissionScenarioDefaults
 
 from src.metadata import Metadata
 from src.loads import get_load_data
@@ -97,6 +97,27 @@ def layout():
                         [
                             dmc.Group(
                                 [
+                                    dmc.Text("Scenario Group:", size="sm", fw=500),
+                                    dmc.Select(
+                                        id="emission-scenario-group-select",
+                                        data=[
+                                            {"label": "Year (2025, 2035, 2045)", "value": "year"},
+                                            {"label": "Refrigerant leakage (1%, 5%, 10%)", "value": "refrigerant_leakage"},
+                                            {"label": "Including pre-combustion", "value": "precombustion"},
+                                            {"label": "Combustion only", "value": "combustion_only"},
+                                        ],
+                                        value="year",
+                                        placeholder="Select a scenario group",
+                                        size="sm",
+                                        style={"width": "280px"},
+                                        allowDeselect=False,
+                                        comboboxProps={"withinPortal": True, "zIndex": 1000},
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                            dmc.Group(
+                                [
                                     dmc.Text("View:", size="sm", fw=500),
                                     dmc.SegmentedControl(
                                         id="emissions-view-mode",
@@ -112,7 +133,7 @@ def layout():
                                 gap="sm",
                             ),
                         ],
-                        justify="flex-end",
+                        justify="space-between",
                         mb="md",
                     ),
                     html.Div(
@@ -192,6 +213,93 @@ def sync_active_emissions(selected_values):
     """
     selected = selected_values or []
     return selected, selected
+
+
+@callback(
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("selected-emissions-store", "data", allow_duplicate=True),
+    Input("emission-scenario-group-select", "value"),
+    State("metadata-store", "data"),
+    State("selected-emissions-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_emission_group_selection(group_id, metadata_data, selected_ids):
+    """
+    When an emission scenario group is selected, modify the displayed scenarios.
+
+    The selected group parameter varies across scenarios, while all other
+    parameters are reset to their defaults.
+
+    Groups:
+    - year: Varies years (2025, 2035, 2045), others reset to defaults
+    - refrigerant_leakage: Varies leakage (0.01, 0.05, 0.1), others reset to defaults
+    - precombustion: Sets all to "Includes pre-combustion", others reset to defaults
+    - combustion_only: Sets all to "Combustion only", others reset to defaults
+    """
+    if not group_id or not metadata_data:
+        return no_update, no_update
+
+    if "emission_settings" not in metadata_data:
+        return no_update, no_update
+
+    scenarios = metadata_data["emission_settings"]
+    selected_ids = selected_ids or []
+
+    # Get the scenarios we want to modify (selected ones, or all if none selected)
+    # Sort to ensure consistent ordering when applying variation values
+    target_ids = selected_ids if selected_ids else [s["em_scen_id"] for s in scenarios]
+    target_ids = sorted(target_ids)
+
+    if not target_ids:
+        return no_update, no_update
+
+    # Define the variation values
+    year_values = [2025, 2035, 2045]
+    leakage_values = [0.01, 0.05, 0.1]
+
+    # Get defaults
+    default_year = EmissionScenarioDefaults.YEAR.value
+    default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
+    default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
+
+    # Modify the scenarios
+    updated_scenarios = []
+    for i, scen in enumerate(scenarios):
+        scen_copy = scen.copy()
+
+        if scen["em_scen_id"] in target_ids:
+            target_idx = target_ids.index(scen["em_scen_id"])
+
+            if group_id == "year":
+                # Vary year, reset others to defaults
+                scen_copy["year"] = year_values[target_idx % len(year_values)]
+                scen_copy["annual_refrig_leakage_percent"] = default_leakage
+                scen_copy["emission_type"] = default_emission_type
+            elif group_id == "refrigerant_leakage":
+                # Vary leakage, reset others to defaults
+                scen_copy["annual_refrig_leakage_percent"] = leakage_values[
+                    target_idx % len(leakage_values)
+                ]
+                scen_copy["year"] = default_year
+                scen_copy["emission_type"] = default_emission_type
+            elif group_id == "precombustion":
+                # Set emission type, reset others to defaults
+                scen_copy["emission_type"] = "Includes pre-combustion"
+                scen_copy["year"] = default_year
+                scen_copy["annual_refrig_leakage_percent"] = default_leakage
+            elif group_id == "combustion_only":
+                # Set emission type, reset others to defaults
+                scen_copy["emission_type"] = "Combustion only"
+                scen_copy["year"] = default_year
+                scen_copy["annual_refrig_leakage_percent"] = default_leakage
+
+        updated_scenarios.append(scen_copy)
+
+    # Update metadata
+    updated_metadata = metadata_data.copy()
+    updated_metadata["emission_settings"] = updated_scenarios
+
+    return updated_metadata, selected_ids
 
 
 def _build_emission_base_options(metadata_json):
