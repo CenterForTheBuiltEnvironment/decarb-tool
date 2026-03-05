@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from utils.units import unit_map, get_unit_converter, get_hover_unit
+from utils.display_registry import format_emission_scenario_id, format_meter_name
 
 
 # colors
@@ -300,7 +301,9 @@ def plot_emission_scenarios_grouped(
     fig = make_subplots(
         rows=1,
         cols=n_em_scen,
-        subplot_titles=[f"{em_scen}" for em_scen in emission_scenarios],
+        subplot_titles=[
+            format_emission_scenario_id(em_scen) for em_scen in emission_scenarios
+        ],
         horizontal_spacing=0.12,
         shared_yaxes=True,
     )
@@ -470,6 +473,9 @@ def plot_meter_timeseries(
         df_resampled = df_resampled[
             [col for col in df_resampled.columns if "gas" not in col.lower()]
         ]
+
+    # Rename columns to user-friendly display names
+    df_resampled = df_resampled.rename(columns=format_meter_name)
 
     if not stacked:
 

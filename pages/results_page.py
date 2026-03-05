@@ -24,6 +24,10 @@ from src.visuals import (
 )
 
 from utils.logging_config import get_logger
+from utils.display_registry import (
+    format_equipment_scenario_id,
+    format_emission_scenario_id,
+)
 
 logger = get_logger(__name__)
 
@@ -308,12 +312,26 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
     else:
         eq_ids = df_ids
 
+    # Sort equipment scenarios by their numeric suffix (eq_scenario_1 < eq_scenario_2 < ...)
+    def eq_sort_key(scen_id):
+        if scen_id.startswith("eq_scenario_"):
+            try:
+                return int(scen_id[len("eq_scenario_") :])
+            except ValueError:
+                pass
+        return scen_id
+
+    eq_ids = sorted(eq_ids, key=eq_sort_key)
+
     if not eq_ids:
         # Fallback: nothing computed
         return [], [], [], None, [], None, [], []
 
-    # Build options list
-    options = [{"label": scen_id, "value": scen_id} for scen_id in eq_ids]
+    # Build options list with user-friendly labels
+    options = [
+        {"label": format_equipment_scenario_id(scen_id), "value": scen_id}
+        for scen_id in eq_ids
+    ]
 
     # Defaults:
     # - For multi-select dropdowns: select all by default
@@ -410,6 +428,14 @@ def populate_emission_dropdowns(
     else:
         em_ids = df_ids
 
+    # Sort emission scenarios by their letter suffix (em_scenario_a < em_scenario_b < ...)
+    def em_sort_key(scen_id):
+        if scen_id.startswith("em_scenario_"):
+            return scen_id[len("em_scenario_") :]
+        return scen_id
+
+    em_ids = sorted(em_ids, key=em_sort_key)
+
     if not em_ids:
         empty_opts, none_val = [], None
         return (
@@ -425,8 +451,11 @@ def populate_emission_dropdowns(
             none_val,
         )
 
-    # Build options
-    options = [{"label": scen_id, "value": scen_id} for scen_id in em_ids]
+    # Build options with user-friendly labels
+    options = [
+        {"label": format_emission_scenario_id(scen_id), "value": scen_id}
+        for scen_id in em_ids
+    ]
 
     # Helper: choose new value based on previous value type (single vs multi)
     def pick_value(prev_val):

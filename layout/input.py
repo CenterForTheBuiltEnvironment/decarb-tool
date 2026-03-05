@@ -598,7 +598,7 @@ def build_equipment_table(
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value)
+            display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis + diff highlighting
             cell_style = {
@@ -1027,7 +1027,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value)
+            display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis
             cell_style = {
