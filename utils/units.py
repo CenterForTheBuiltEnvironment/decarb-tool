@@ -83,6 +83,26 @@ def cop_hc_to_cop_h(cop_hc):
     return ((cop_hc - 1) / 2) + 1
 
 
+### UNIT CONVERSIONS FOR DISPLAY ###
+def W_to_kW(W):
+    return W / 1000
+
+
+def W_to_tons(W):
+    """Convert Watts to refrigeration tons."""
+    return W * W_to_ton
+
+
+def kW_to_tons(kW):
+    """Convert kilowatts to refrigeration tons."""
+    return kW * W_to_ton * 1000
+
+
+def sqm_to_sqft(sqm):
+    """Convert square meters to square feet."""
+    return sqm * 10.7639
+
+
 ### MAPPING FOR CHARTS ###
 unit_map = {
     "energy": {
@@ -133,6 +153,65 @@ unit_map = {
             "default_value": 0.15455 / (g_to_lb / Wh_to_BTU),  #! use function
         },
     },
+    "power": {
+        "SI": {
+            "func": W_to_kW,
+            "label": "Power (kW)",
+            "hover_unit": "kW",
+            "short": "kW",
+        },
+        "IP": {
+            "func": W_to_tons,
+            "label": "Power (tons)",
+            "hover_unit": "tons",
+            "short": "tons",
+        },
+    },
+    "area": {
+        "SI": {
+            "func": lambda x: x,
+            "label": "Area (m²)",
+            "hover_unit": "m²",
+            "short": "m²",
+        },
+        "IP": {
+            "func": sqm_to_sqft,
+            "label": "Area (ft²)",
+            "hover_unit": "ft²",
+            "short": "ft²",
+        },
+    },
+    "power_kw": {
+        # For data already in kW (e.g., load summaries)
+        "SI": {
+            "func": lambda x: x,
+            "label": "Power (kW)",
+            "hover_unit": "kW",
+            "short": "kW",
+        },
+        "IP": {
+            "func": kW_to_tons,
+            "label": "Power (tons)",
+            "hover_unit": "tons",
+            "short": "tons",
+        },
+    },
+    "ng_leakage_rate": {
+        # For NG leakage rate (stored in g/kWh)
+        "SI": {
+            "func": lambda x: x,
+            "label": "NG leakage (g/kWh)",
+            "hover_unit": "g/kWh",
+            "short": "g/kWh",
+        },
+        "IP": {
+            # Convert g/kWh to lb/kBTU: divide by 454 (g→lb), divide by 3.412 (kWh→kBTU)
+            "func": lambda x: x * g_to_lb / Wh_to_BTU,
+            "label": "NG leakage (lb/kBTU)",
+            "hover_unit": "lb/kBTU",
+            "short": "lb/kBTU",
+        },
+    },
 }
 
 
@@ -144,3 +223,42 @@ def get_unit_converter(var_type: str, unit_mode: str):
 def get_hover_unit(var_type: str, unit_mode: str) -> str:
     """Return the short unit string for hovers."""
     return unit_map[var_type][unit_mode]["hover_unit"]
+
+
+def get_unit_label(var_type: str, unit_mode: str) -> str:
+    """Return the short unit label (e.g., 'kW', 'm²')."""
+    config = unit_map[var_type][unit_mode]
+    # Prefer 'short' if available, otherwise use 'hover_unit'
+    return config.get("short", config.get("hover_unit", ""))
+
+
+def format_with_units(
+    value, var_type: str, unit_mode: str, decimals: int = 1, include_unit: bool = True
+) -> str:
+    """Format a value with appropriate unit conversion and label.
+
+    Args:
+        value: The raw value to format (in SI units)
+        var_type: Type of variable (e.g., "power", "area", "temperature")
+        unit_mode: "SI" or "IP"
+        decimals: Number of decimal places (default: 1)
+        include_unit: Whether to append the unit label (default: True)
+
+    Returns:
+        Formatted string with converted value and optional unit label
+    """
+    if value is None:
+        return "—"
+
+    try:
+        converter = get_unit_converter(var_type, unit_mode)
+        converted = converter(value)
+        formatted = f"{converted:,.{decimals}f}"
+
+        if include_unit:
+            unit_label = get_unit_label(var_type, unit_mode)
+            return f"{formatted} {unit_label}"
+        return formatted
+    except (KeyError, TypeError):
+        # Fallback if var_type not in unit_map or conversion fails
+        return str(value)

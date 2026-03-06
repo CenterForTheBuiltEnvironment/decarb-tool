@@ -96,13 +96,15 @@ def load_source_energy(session_data):
 @callback(
     Output("summary-project-info", "children"),
     Input("metadata-store", "data"),
+    Input("unit-toggle", "value"),
 )
-def show_project_summary(metadata_json):
+def show_project_summary(metadata_json, unit_mode):
     if not metadata_json:
         return "No project metadata available."
 
+    unit_mode = unit_mode or "SI"
     metadata = Metadata(**metadata_json)
-    return summary_project_info(metadata)
+    return summary_project_info(metadata, unit_mode=unit_mode)
 
 
 @callback(

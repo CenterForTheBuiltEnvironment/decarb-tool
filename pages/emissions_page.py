@@ -180,8 +180,9 @@ def layout():
     Input("metadata-store", "data"),
     Input("selected-emissions-store", "data"),
     Input("emissions-view-mode", "value"),
+    Input("unit-toggle", "value"),
 )
-def update_emissions_table(metadata_data, selected_emissions, view_mode):
+def update_emissions_table(metadata_data, selected_emissions, view_mode, unit_mode):
     if not metadata_data:
         return dmc.Text("No emission scenarios defined yet.")
 
@@ -197,6 +198,7 @@ def update_emissions_table(metadata_data, selected_emissions, view_mode):
         scenarios,
         active_ids=active_ids,
         view_mode=view_mode or "simple",
+        unit_mode=unit_mode or "SI",
     )
 
 

@@ -52,6 +52,35 @@ def get_equipment_display_name(eq_id: str) -> str:
 # Fields that contain equipment IDs and should be mapped to model names
 EQUIPMENT_ID_FIELDS = frozenset({"hr_wwhp", "awhp", "backup_heating", "chiller"})
 
+# AWHP sizing mode value mappings
+AWHP_SIZING_MODE_DISPLAY = {
+    "integer_sizing_peak_load": "Integer sizing (peak load)",
+    "fractional_sizing_peak_load": "Fractional sizing (peak load)",
+    "fixed_num_units": "Fixed number of units",
+}
+
+# Fields that have enumerated values needing display mapping
+ENUM_VALUE_FIELDS = frozenset({"awhp_sizing_mode"})
+
+
+def format_enum_value(value: str, field_name: str) -> str:
+    """Format enumerated field values for display.
+
+    Args:
+        value: The raw enum value
+        field_name: The field name to determine which mapping to use
+
+    Returns:
+        User-friendly display name
+    """
+    if value is None:
+        return None
+
+    if field_name == "awhp_sizing_mode":
+        return AWHP_SIZING_MODE_DISPLAY.get(value, value)
+
+    return value
+
 
 def format_equipment_scenario_id(eq_scen_id: str) -> str:
     """Format equipment scenario ID for display.

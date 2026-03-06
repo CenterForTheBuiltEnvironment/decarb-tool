@@ -846,7 +846,7 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
+def build_emissions_table(emission_data, active_ids=None, view_mode="simple", unit_mode="SI"):
     """
     Transposed emissions scenarios table:
     - Columns = emission scenarios (em_scen_id)
@@ -861,7 +861,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
         emission_data: Emission scenarios data (list or DataFrame)
         active_ids: Set of scenario IDs that are selected/active
         view_mode: One of "simple", "advanced", or "differences"
+        unit_mode: "SI" or "IP" for unit conversion
     """
+    from utils.units import get_unit_label, get_unit_converter
+
     if isinstance(emission_data, list):
         emission_df = pd.DataFrame(emission_data)
     else:
@@ -881,7 +884,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Rows to display
+    # Get unit label for NG leakage (dynamic based on unit_mode)
+    ng_leakage_unit = get_unit_label("ng_leakage_rate", unit_mode)
+
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
@@ -890,7 +895,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("annual_ng_leakage_g_per_kWh", "NG leakage (g/kWh)"),
+        ("annual_ng_leakage_g_per_kWh", f"NG leakage ({ng_leakage_unit})"),
         ("year", "Year"),
     ]
 
@@ -1015,6 +1020,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
+    # Get converter for NG leakage values
+    ng_leakage_converter = get_unit_converter("ng_leakage_rate", unit_mode)
+
     for field, label in available_rows:
         is_diff_row = field in diff_fields
 
@@ -1027,7 +1035,16 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value, field_name=field)
+
+            # Apply unit conversion for NG leakage
+            if field == "annual_ng_leakage_g_per_kWh" and raw_value is not None:
+                try:
+                    converted = ng_leakage_converter(float(raw_value))
+                    display_value = f"{converted:.2f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            else:
+                display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis
             cell_style = {

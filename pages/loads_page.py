@@ -408,17 +408,22 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     )
 
 
-@callback(Output("summary-selection-info", "children"), Input("metadata-store", "data"))
-def show_metadata(data):
+@callback(
+    Output("summary-selection-info", "children"),
+    Input("metadata-store", "data"),
+    Input("unit-toggle", "value"),
+)
+def show_metadata(data, unit_mode):
     if not data:
         return "No metadata yet"
 
+    unit_mode = unit_mode or "SI"
     metadata = Metadata(**data)
 
     return (
-        building_characteristics_card(metadata),
+        building_characteristics_card(metadata, unit_mode=unit_mode),
         dmc.Space(h=10),
-        load_characteristics_card(metadata),
+        load_characteristics_card(metadata, unit_mode=unit_mode),
     )
 
 
@@ -733,10 +738,11 @@ def update_selected_text(current_choice):
     [
         Input("load-summary-store", "data"),
         Input("url", "pathname"),
+        Input("unit-toggle", "value"),
     ],
     prevent_initial_call=False,
 )
-def update_load_visualization(summary_data, pathname):
+def update_load_visualization(summary_data, pathname, unit_mode):
 
     # Only draw when we are on the Loads page
     if pathname != URLS.HOME.value:
@@ -746,18 +752,27 @@ def update_load_visualization(summary_data, pathname):
     if not summary_data:
         raise dash.exceptions.PreventUpdate
 
+    unit_mode = unit_mode or "SI"
+
+    # Import unit conversion helpers
+    from utils.units import get_unit_converter, get_unit_label, C_to_F
+
+    power_converter = get_unit_converter("power_kw", unit_mode)
+    power_unit = get_unit_label("power_kw", unit_mode)
+    temp_unit = get_unit_label("temperature", unit_mode)
+
     try:
         monthly_summary = summary_data.get("monthly_peaks", []) or []
         temp_summary = summary_data.get("temp_bins", []) or []
 
         # ------------------------------------------------------------------
-        # Chart 1: Monthly peak HHW & CHW (kW) from summary
+        # Chart 1: Monthly peak HHW & CHW from summary
         # ------------------------------------------------------------------
         monthly_data = [
             {
                 "month": calendar.month_abbr[item["month"]],
-                "HHW": round(item["HHW_kW"], 0),
-                "CHW": round(item["CHW_kW"], 0),
+                "HHW": round(power_converter(item["HHW_kW"]), 0),
+                "CHW": round(power_converter(item["CHW_kW"]), 0),
             }
             for item in monthly_summary
         ]
@@ -768,7 +783,7 @@ def update_load_visualization(summary_data, pathname):
             dataKey="month",
             withLegend=True,
             xAxisLabel="Month",
-            yAxisLabel="Peak load (kW)",
+            yAxisLabel=f"Peak load ({power_unit})",
             curveType="linear",
             tooltipAnimationDuration=200,
             series=[
@@ -778,32 +793,41 @@ def update_load_visualization(summary_data, pathname):
         )
 
         # ------------------------------------------------------------------
-        # Chart 2: HHW & CHW vs 5°C T_out bins from summary
+        # Chart 2: HHW & CHW vs temperature bins from summary
         # ------------------------------------------------------------------
-        bin_data = [
-            {
-                "bin": (
-                    f"{int(item['center'])} °C" if item["center"] is not None else "N/A"
-                ),
-                "HHW": round(item["HHW_kW"], 0),
-                "CHW": round(item["CHW_kW"], 0),
-            }
-            for item in temp_summary
-        ]
+        bin_data = []
+        for item in temp_summary:
+            if item["center"] is not None:
+                if unit_mode == "IP":
+                    # Convert to °F and round to nearest 10 for cleaner labels
+                    temp_val = round(C_to_F(item["center"]) / 10) * 10
+                else:
+                    temp_val = item["center"]
+                bin_label = f"{int(temp_val)} {temp_unit}"
+            else:
+                bin_label = "N/A"
+            bin_data.append({
+                "bin": bin_label,
+                "HHW": round(power_converter(item["HHW_kW"]), 0),
+                "CHW": round(power_converter(item["CHW_kW"]), 0),
+            })
 
         temp_chart = dmc.CompositeChart(
             h=260,
             data=bin_data,
             dataKey="bin",
             withLegend=True,
-            xAxisLabel="Outdoor temperature (°C)",
-            yAxisLabel="Avg load (kW)",
+            xAxisLabel=f"Outdoor temperature ({temp_unit})",
+            yAxisLabel=f"Avg load ({power_unit})",
             tooltipAnimationDuration=200,
             series=[
                 {"name": "HHW", "type": "bar", "color": "red.6", "yAxisId": "left"},
                 {"name": "CHW", "type": "bar", "color": "blue.6", "yAxisId": "left"},
             ],
         )
+
+        # Dynamic bin size description
+        bin_size_desc = "~10°F" if unit_mode == "IP" else "5°C"
 
         return dmc.Stack(
             [
@@ -815,7 +839,7 @@ def update_load_visualization(summary_data, pathname):
                 monthly_chart,
                 dmc.Divider(my="sm"),
                 dmc.Text(
-                    "Average heating and cooling vs outdoor temperature bins (5°C)",
+                    f"Average heating and cooling vs outdoor temperature bins ({bin_size_desc})",
                     size="sm",
                     c="dimmed",
                 ),
