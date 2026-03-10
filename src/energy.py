@@ -155,11 +155,23 @@ def _capacity_constraints(
     """Per-unit thermal capacity [W] vs outdoor temperature, limited by OAT constraints."""
     temps = np.asarray(t_out, dtype=float)
     if heating:
-        high_t = np.nonzero(temps > e.performance_heating.leaving_supply_t[supply_t].constraints["max_temp_C"])
-        low_t = np.nonzero(temps < e.performance_heating.leaving_supply_t[supply_t].constraints["min_temp_C"])
+        high_t = np.nonzero(temps > e.performance_heating.constraints["max_temp_C"])
+        low_t = np.nonzero(temps < e.performance_heating.constraints["min_temp_C"])
+
+        logger.debug(
+        f"{len(high_t[0])} hours above AWHP heating operating limit; "
+        f"{len(low_t[0])} hours below AWHP heating operating limit "
+        )
+        
     else:
-        high_t = np.nonzero(temps > e.performance_cooling.leaving_supply_t[supply_t].constraints["max_temp_C"])
-        low_t = np.nonzero(temps < e.performance_cooling.leaving_supply_t[supply_t].constraints["min_temp_C"])
+        high_t = np.nonzero(temps > e.performance_cooling.constraints["max_temp_C"])
+        low_t = np.nonzero(temps < e.performance_cooling.constraints["min_temp_C"])
+
+        logger.debug(
+        f"{len(high_t[0])} hours above AWHP cooling operating limit; "
+        f"{len(low_t[0])} hours below AWHP cooling operating limit "
+        )
+
     np.put(cap, high_t[0], [0])  # replace capacities where temps are outside the HP's operating bounds with 0
     np.put(cap, low_t[0], [0])
     return cap
@@ -321,6 +333,12 @@ def loads_to_site_energy(
                 else 0.0
             )
 
+            if hr_wwhp_refrigerant_gwp_kg == 0:
+                if hr_wwhp_refrigerant_weight_kg == 0:
+                    logger.warning("HR WWHP refrigerant charge is 0.")
+                else:
+                    logger.warning("HR WWHP refrigerant GWP is 0.")
+
             # Apply results
             df[Col.MAX_CAP_H_HR_W.value] = max_cap_h  #! remove
             df[Col.MIN_CAP_H_HR_W.value] = min_cap_h  #! remove
@@ -336,13 +354,19 @@ def loads_to_site_energy(
             df[Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value] = hr_wwhp_refrigerant_weight_kg
             df[Col.HR_WWHP_REFRIGERANT_GWP.value] = hr_wwhp_refrigerant_gwp_kg
 
-            hr_coverage = (
-                (hr_hhw.sum() / df[Col.HHW_W.value].sum()) * 100
-                if df[Col.HHW_W.value].sum() > 0
+            hr_coverage_heating = (
+                (np.nansum(hr_hhw) / np.nansum(df[Col.HHW_W.value])) * 100
+                if np.nansum(df[Col.HHW_W.value]) > 0
+                else 0
+            )
+            hr_coverage_cooling = (
+                (np.nansum(hr_chw) / np.nansum(df[Col.CHW_W.value])) * 100
+                if np.nansum(df[Col.CHW_W.value]) > 0
                 else 0
             )
             logger.debug(
-                f"Phase 1 complete: HR WWHP covers {hr_coverage:.1f}% of heating load"
+                f"Phase 1 complete: HR WWHP covers {hr_coverage_heating:.1f}% of heating load"
+                f" and {hr_coverage_cooling:.1f}% of cooling load"
             )
 
         # =========================
@@ -460,6 +484,12 @@ def loads_to_site_energy(
                 else 0.0
             )
 
+            if total_awhp_refrigerant_gwp_kg == 0:
+                if total_awhp_refrigerant_weight_kg == 0:
+                    logger.warning("AWHP refrigerant charge is 0.")
+                else:
+                    logger.warning("AWHP refrigerant GWP is 0.")
+
             df[Col.AWHP_HHW_W.value] = served_h_W
             df[Col.AWHP_CAP_H_W.value] = cap_total_h_W
             df[Col.AWHP_COP_H.value] = awhp_cop_h
@@ -473,8 +503,8 @@ def loads_to_site_energy(
             df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
 
             awhp_h_coverage = (
-                (served_h_W.sum() / df[Col.HHW_W.value].sum()) * 100
-                if df[Col.HHW_W.value].sum() > 0
+                (np.nansum(served_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                if np.nansum(df[Col.HHW_W.value]) > 0
                 else 0
             )
             logger.debug(
@@ -505,8 +535,8 @@ def loads_to_site_energy(
             df[Col.HHW_REM_W.value] = 0.0
 
             boiler_coverage = (
-                (boiler_served_W.sum() / df[Col.HHW_W.value].sum()) * 100
-                if df[Col.HHW_W.value].sum() > 0
+                (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                if np.nansum(df[Col.HHW_W.value]) > 0
                 else 0
             )
             logger.debug(
@@ -521,11 +551,20 @@ def loads_to_site_energy(
             elec_res_Wh = remaining_h_W  # COP = 1
 
             # log warning if any heating remains
-            remaining_kWh = remaining_h_W.sum() / 1000
+            remaining_kWh = np.nansum(remaining_h_W) / 1000
+            elec_res_coverage = (
+                (np.nansum(remaining_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                if np.nansum(df[Col.HHW_W.value]) > 0
+                else 0
+            )
             logger.warning(
                 f"Phase 4: Electric resistance backup required - "
-                f"{remaining_kWh:.1f} kWh unmet by HR/AWHP/Boiler"
+                f"{remaining_kWh:.1f} kWh ({elec_res_coverage:.1f}% of heating load) unmet by HR/AWHP/Boiler"
             )
+            if np.nansum(df[Col.GAS_BOILER_WH.value]) != 0:
+                logger.warning(
+                    f"Both gas and electric backup heating equipment are being used."
+                )
             df[Col.RES_HHW_W.value] = remaining_h_W
             df[Col.ELEC_RES_WH.value] = elec_res_Wh
             df[Col.ELEC_WH.value] += elec_res_Wh
@@ -571,8 +610,8 @@ def loads_to_site_energy(
             df[Col.AWHP_NUM_C] = float(awhp_num_c)
 
             awhp_c_coverage = (
-                (served_c_W.sum() / df[Col.CHW_W.value].sum()) * 100
-                if df[Col.CHW_W.value].sum() > 0
+                (np.nansum(served_c_W) / np.nansum(df[Col.CHW_W.value])) * 100
+                if np.nansum(df[Col.CHW_W.value]) > 0
                 else 0
             )
             logger.debug(
@@ -630,6 +669,12 @@ def loads_to_site_energy(
                 if chl.refrigerant_gwp
                 else 0.0
             )
+
+            if chiller_refrigerant_gwp_kg == 0:
+                if chiller_refrigerant_weight_kg == 0:
+                    logger.warning("Chiller refrigerant charge is 0.")
+                else:
+                    logger.warning("Chiller refrigerant GWP is 0.")
 
             if detail:
                 df[Col.CHILLER_CHW_W.value] = served_W
