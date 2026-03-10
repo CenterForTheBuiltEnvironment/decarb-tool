@@ -745,17 +745,33 @@ def edit_equipment_modal():
                         ),
                         dmc.Select(
                             id="edit-hr-wwhp-h-supply-t-select",
-                            label="Heating supply temperature",
+                            label="HR HP Heating supply temperature",
                             placeholder="None",
-                            data=["32.2", "48.9", "60", "73.9"],  # update to be filled by callback based on currently selected HP
+                            data=[
+                                "32.2",
+                                "48.9",
+                                "60",
+                                "73.9",
+                            ],  # update to be filled by callback based on currently selected HP
                             clearable=True,
                             searchable=True,
                         ),
                         dmc.Select(
                             id="edit-awhp-h-supply-t-select",
-                            label="Heating supply temperature",
+                            label="AWHP Heating supply temperature",
                             placeholder="None",
-                            data=["35", "38", "38.9", "43.3", "45", "48.9", "50", "52", "54.4", "60"], # update to be filled by callback based on currently selected HP
+                            data=[
+                                "35",
+                                "38",
+                                "38.9",
+                                "43.3",
+                                "45",
+                                "48.9",
+                                "50",
+                                "52",
+                                "54.4",
+                                "60",
+                            ],  # update to be filled by callback based on currently selected HP
                             clearable=True,
                             searchable=True,
                         ),

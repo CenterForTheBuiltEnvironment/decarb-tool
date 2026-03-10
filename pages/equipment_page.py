@@ -605,7 +605,7 @@ def open_edit_modal(edit_clicks, equipment_data):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 16
+        return (no_update,) * 18
 
     if not equipment_data:
         return (
@@ -634,7 +634,7 @@ def open_edit_modal(edit_clicks, equipment_data):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 16
+        return (no_update,) * 18
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
