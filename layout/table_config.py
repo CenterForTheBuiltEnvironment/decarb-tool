@@ -19,6 +19,7 @@ class ScenarioTableStyle:
     # Styles
     active_col_style: dict = None
     inactive_col_style: dict = None
+    diff_row_style: dict = None
 
     def __post_init__(self):
         object.__setattr__(
@@ -27,6 +28,14 @@ class ScenarioTableStyle:
             {"backgroundColor": "var(--mantine-color-blue-0)", "fontWeight": 500},
         )
         object.__setattr__(self, "inactive_col_style", {})
+        object.__setattr__(
+            self,
+            "diff_row_style",
+            {
+                "fontWeight": 2000,
+                "borderLeft": "5px solid var(--mantine-color-pink-7)",
+            },
+        )
 
 
 TABLE_STYLE = ScenarioTableStyle()
@@ -69,3 +78,25 @@ def value_deemphasis_style(raw_value):
         }
 
     return {}
+
+
+def get_diff_fields(df, fields):
+    """
+    Identify which fields have differing values across rows in the DataFrame.
+
+    Args:
+        df: DataFrame with scenarios as rows
+        fields: List of field names to check
+
+    Returns:
+        Set of field names that have more than one unique value
+    """
+    diff_fields = set()
+    for field in fields:
+        if field not in df.columns:
+            continue
+        # Count unique non-null values
+        unique_values = df[field].dropna().unique()
+        if len(unique_values) > 1:
+            diff_fields.add(field)
+    return diff_fields

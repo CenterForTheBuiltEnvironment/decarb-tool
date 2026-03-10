@@ -755,5 +755,12 @@
       "backup_heating": "res01",
       "chiller": "ch03"
     }
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "default",
+      "group_name": "Default",
+      "scenario_ids": ["eq_scenario_1", "eq_scenario_2", "eq_scenario_3", "eq_scenario_4", "eq_scenario_5"]
+    }
   ]
 }

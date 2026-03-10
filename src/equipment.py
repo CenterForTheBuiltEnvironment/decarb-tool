@@ -110,6 +110,12 @@ class EquipmentScenario(BaseModel):
         return curr
 
 
+class ScenarioGroup(BaseModel):
+    group_id: str
+    group_name: str
+    scenario_ids: List[str]
+
+
 # --- Dot-accessible wrapper with dynamic updates ---
 class DotDict:
     def __init__(self, items: List[BaseModel], id_attr: str):
@@ -151,6 +157,7 @@ class DotDict:
 class EquipmentLibrary(BaseModel):
     equipment: List[Equipment]
     equipment_scenarios: List[EquipmentScenario]
+    scenario_groups: List[ScenarioGroup] = []
 
     # Private (non-validated) attributes
     _equipment_dict: DotDict = PrivateAttr()

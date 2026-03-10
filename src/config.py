@@ -25,6 +25,45 @@ class DEFAULT_SELECTIONS(Enum):
     EMISSIONS_SCENARIO: list = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
 
 
+class EquipmentTableRows(Enum):
+    """Row configurations for equipment table view modes."""
+
+    SIMPLE: list = ["hr_wwhp", "awhp", "backup_heating", "chiller"]
+    ADVANCED: list = [
+        "hr_wwhp",
+        "awhp",
+        "awhp_sizing_mode",
+        "awhp_sizing_value",
+        "awhp_redundancy",
+        "awhp_use_cooling",
+        "backup_heating",
+        "chiller",
+    ]
+
+
+class EmissionTableRows(Enum):
+    """Row configurations for emission table view modes."""
+
+    SIMPLE: list = ["grid_scenario", "gea_grid_region", "emission_type", "year"]
+    ADVANCED: list = [
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
+        "shortrun_weighting",
+        "annual_refrig_leakage_percent",
+        "annual_ng_leakage_g_per_kWh",
+        "year",
+    ]
+
+
+class EmissionScenarioDefaults(Enum):
+    """Default values for emission scenario parameters."""
+
+    YEAR: int = 2025
+    REFRIGERANT_LEAKAGE: float = 0.02
+    EMISSION_TYPE: str = "Includes pre-combustion"
+
+
 class Columns(str, Enum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"
