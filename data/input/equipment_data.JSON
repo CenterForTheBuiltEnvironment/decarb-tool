@@ -5,15 +5,21 @@
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water",
       "model": "GenericHR_WWHP",
+      "nominal_tons": 300,
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 200000,
       "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "plr_curve": {
-            "capacity_W": [323600, 647300, 704300, 818800, 933300, 1048100],
-            "cop": [2.28, 2.28, 2.3, 2.33, 2.35, 2.37]
+          "capacity_W": [323600, 647300, 704300, 818800, 933300, 1048100],
+          "leaving_supply_t": {
+            "73.9": {
+              "cop": [2.28, 2.28, 2.3, 2.33, 2.35, 2.37]
+            },
+            "32.2": {
+              "cop": [6.7, 5.8, 5.9, 5.94, 5.97, 6.0]
+            }
           },
           "constraints": {
             "min_temp_C": -5,
@@ -26,176 +32,112 @@
       "eq_id": "hr02",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "IMC-WWHP-30Ton-120HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 30,
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 17700,
       "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "plr_curve": {
-            "capacity_W": [50000, 105500],
-            "cop": [4.2, 3.68]
+          "capacity_W": [50000, 105500],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [4.2, 3.68]
+            },
+            "60": {
+              "cop": [3.3, 2.68]
+            }
           },
           "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }   
+        }     
       }
     },
     {
       "eq_id": "hr03",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "IMC-WWHP-30Ton-140HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 60,
       "fuel": "electricity",
       "refrigerant": "R-454B",
-      "refrigerant_weight_g": 17700,
+      "refrigerant_weight_g": 29000,
       "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "plr_curve": {
-            "capacity_W": [50000, 105500],
-            "cop": [3.3, 2.68]
+          "capacity_W": [70000, 140000, 211000],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [4.2, 4.0, 3.68]
+            },
+            "60": {
+              "cop": [3.3, 3.1, 2.68]
+            }
           },
           "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }   
+        }     
       }
     },
     {
       "eq_id": "hr04",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "IMC-WWHP-60Ton-120HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 250,
       "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 29000,
-      "refrigerant_gwp": 466,
+      "refrigerant": "R-515B",
+      "refrigerant_weight_g": 300800,
+      "refrigerant_gwp": 292,
       "performance": {
         "heating": {
-          "plr_curve": {
-            "capacity_W": [70000, 140000, 211000],
-            "cop": [4.2, 4.0, 3.68]            
+          "capacity_W": [175000, 300000, 500000, 700000, 879250],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [4.6, 4.5, 4.3, 3.9, 3.68]
+            },
+            "60": {
+              "cop": [3.6, 3.5, 3.3, 2.9, 2.68]
+            }
           },
           "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }   
+        }     
       }
     },
     {
       "eq_id": "hr05",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "IMC-WWHP-60Ton-140HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 29000,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "plr_curve": {
-            "capacity_W": [70000, 140000, 211000],
-            "cop": [3.3, 3.1, 2.68]            
-          },
-          "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
-      }
-    },
-    {
-      "eq_id": "hr06",
-      "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_centrifugal",
-      "model": "IMC-WWHP-250Ton-120HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-515B",
-      "refrigerant_weight_g": 300800,
-      "refrigerant_gwp": 299,
-      "performance": {
-        "heating": {
-          "plr_curve": {
-            "capacity_W": [175000, 300000, 500000, 700000, 879250],
-            "cop": [4.6, 4.5, 4.3, 3.9, 3.68]            
-          },
-          "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
-      }
-    },
-    {
-      "eq_id": "hr07",
-      "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_centrifugal",
-      "model": "IMC-WWHP-250Ton-140HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-515B",
-      "refrigerant_weight_g": 300800,
-      "refrigerant_gwp": 299,
-      "performance": {
-        "heating": {
-          "plr_curve": {
-            "capacity_W": [175000, 300000, 500000, 700000, 879250],
-            "cop": [3.6, 3.5, 3.3, 2.9, 2.68]            
-          },
-          "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
-      }
-    },
-    {
-      "eq_id": "hr08",
-      "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_centrifugal",
-      "model": "IMC-WWHP-500Ton-120HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 500,
       "fuel": "electricity",
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 453600,
-      "refrigerant_gwp": 299,
+      "refrigerant_gwp": 292,
       "performance": {
         "heating": {
-          "plr_curve": {
-            "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
-            "cop": [5.0, 4.8, 4.6, 4.2, 3.96]            
+          "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [5.0, 4.8, 4.6, 4.2, 3.96] 
+            },
+            "60": {
+              "cop": [4.0, 3.8, 3.6, 3.2, 2.97] 
+            }
           },
           "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
-      }
-    },
-    {
-      "eq_id": "hr09",
-      "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_centrifugal",
-      "model": "IMC-WWHP-500Ton-140HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-515B",
-      "refrigerant_weight_g": 453600,
-      "refrigerant_gwp": 299,
-      "performance": {
-        "heating": {
-          "plr_curve": {
-            "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
-            "cop": [4.0, 3.8, 3.6, 3.2, 2.97]            
-          },
-          "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 55
-          }
-        }        
+            "min_temp_C": -5,
+            "max_temp_C": 55
+          }   
+        }     
       }
     },
     {
@@ -203,46 +145,62 @@
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
       "model": "GenericAWHP",
+      "nominal_tons": 60,
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 54000,
       "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
-            "cop": [1.98, 2.06, 2.32, 2.70, 3.00, 3.20, 3.50]
-          },
-          "cap_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10, 20, 30],
-            "capacity_W": [132000, 154200, 168600, 195500, 229200, 254000, 272000]
+          "t_out_C": [-15, -12.2, -6.7, -1.1, 4.4, 10, 15, 20, 30],
+          "leaving_supply_t": {
+            "38": {
+              "cop": [2.15, 2.33, 2.46, 2.69, 3.10, 3.63, 3.86, 4.03, 4.22],
+              "capacity_W": [123600, 145200, 154700, 171100, 200200, 235700, 243100, 257500, 274800],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 35
+              }
+            },
+            "52": {
+              "cop": [1.97, 1.97, 1.97, 2.12, 2.42, 2.84, 2.88, 3.04, 3.2],
+              "capacity_W": [155500, 155500, 155500, 169600, 196300, 229500, 232400, 248500, 268900],
+              "constraints": {
+                "min_temp_C": -10,
+                "max_temp_C": 35
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -13,
-              "max_temp_C": 35
+            "min_temp_C": 38,
+            "max_temp_C": 52
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [15, 25, 35, 45],
-            "cop": [4.4, 4.0, 2.97, 2.65]
-          },
-          "cap_curve": {
-            "t_out_C": [15, 25, 35, 45],
-            "capacity_W": [250000, 220000, 201200, 183000]            
+          "t_out_C": [15, 25, 35, 45],
+          "leaving_supply_t": {
+            "6.7": {
+              "cop": [4.4, 4.0, 2.97, 2.65],
+              "capacity_W": [250000, 220000, 201200, 183000],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 45
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": 5,
-              "max_temp_C": 45
+            "min_temp_C": 6.7,
+            "max_temp_C": 6.7
           }
-        } 
+        }
       }
     },
     {
       "eq_id": "hp02",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "IMC-AWHP-30Ton-120HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 30,
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 40000,
@@ -250,23 +208,42 @@
       "capacity_W": 105500,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-8, 8],
-            "cop": [1.78, 2.77]            
+          "t_out_C": [-8, 8],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [1.78, 2.77],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 35
+              }
+            },
+            "60": {
+              "cop": [1.48, 2.31],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 35
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -15,
-              "max_temp_C": 35
+            "min_temp_C": 48.9,
+            "max_temp_C": 60
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 35],
-            "cop": [3.2, 2.81]            
+          "t_out_C": [10, 35],
+          "leaving_supply_t": {
+            "6.7": {
+              "cop": [3.2, 2.81],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 45
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": 5,
-              "max_temp_C": 45
+            "min_temp_C": 6.7,
+            "max_temp_C": 6.7
           }
         }
       }
@@ -275,31 +252,51 @@
       "eq_id": "hp03",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "IMC-AWHP-30Ton-140HHWST",
+      "model": "GenericIMC",
+      "nominal_tons": 60,
       "fuel": "electricity",
       "refrigerant": "R-454B",
-      "refrigerant_weight_g": 40000,
+      "refrigerant_weight_g": 80000,
       "refrigerant_gwp": 466,
-      "capacity_W": 105500,
+      "capacity_W": 211000,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-8, 8],
-            "cop": [1.48, 2.31]            
+          "t_out_C": [-8, 8],
+          "leaving_supply_t": {
+            "48.9": {
+              "cop": [1.78, 2.77],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 35
+              }
+            },
+            "60": {
+              "cop": [1.48, 2.31],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 35
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -15,
-              "max_temp_C": 35
+            "min_temp_C": 48.9,
+            "max_temp_C": 60
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 35],
-            "cop": [3.2, 2.81]            
+          "t_out_C": [10, 35],
+          "leaving_supply_t": {
+            "6.7": {
+              "cop": [3.2, 2.81],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 45
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": 5,
-              "max_temp_C": 45
+            "min_temp_C": 6.7,
+            "max_temp_C": 6.7
           }
         }
       }
@@ -308,31 +305,62 @@
       "eq_id": "hp04",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "IMC-AWHP-60Ton-120HHWST",
+      "eq_manufacturer": "Aermec",
+      "model": "NRBHA800",
+      "nominal_tons": 60,
       "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 80000,
-      "refrigerant_gwp": 466,
-      "capacity_W": 211000,
+      "refrigerant": "R-410A",
+      "refrigerant_weight_g": 29030,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-8, 8],
-            "cop": [1.78, 2.77]            
+          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+          "leaving_supply_t": {
+            "50": {
+              "cop": [1.76, 1.76, 1.76, 1.84, 2.19, 2.41, 2.66, 2.88, 3.04, 3.13, 3.20],
+              "capacity_W": [136831, 136831, 136831, 142105, 170526, 188985, 210667, 232349, 248464, 260184, 268974],
+              "constraints": {
+                "min_temp_C": -5,
+                "max_temp_C": 30
+              }
+            },
+            "45": {
+              "cop": [1.89, 1.89,	1.94,	2.04,	2.44,	2.69,	2.95,	3.19,	3.35,	3.45,	3.51],
+              "capacity_W": [137196, 137196, 137196, 143820, 173745, 192880, 214823, 236025, 251542, 262725, 270929],
+              "constraints": {
+                "min_temp_C": -10,
+                "max_temp_C": 30
+              }
+            },
+            "35": {
+              "cop": [1.98,	2.29,	2.35,	2.50,	3.00,	3.29,	3.59,	3.86,	4.03,	4.15,	4.22],
+              "capacity_W": [118948,	135599,	139544,	148258,	180562,	200729,	222975,	243083,	257523,	267647,	274811],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 30
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -15,
-              "max_temp_C": 35
+            "min_temp_C": 35,
+            "max_temp_C": 50
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 35],
-            "cop": [3.2, 2.81]            
+          "t_out_C": [10, 20, 30, 35, 40],
+          "leaving_supply_t": {
+            "7": {
+              "cop": [5.53,	4.43,	3.49,	3.05,	2.66],
+              "capacity_W": [253568, 232467, 209959, 198353, 187099],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 40
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": 5,
-              "max_temp_C": 45
+            "min_temp_C": 7,
+            "max_temp_C": 7
           }
         }
       }
@@ -341,31 +369,62 @@
       "eq_id": "hp05",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "IMC-AWHP-60Ton-140HHWST",
+      "eq_manufacturer": "Aermec",
+      "model": "NRBHA1600",
+      "nominal_tons": 120,
       "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_gwp": 466,
-      "refrigerant_weight_g": 80000,
-      "capacity_W": 211000,
+      "refrigerant": "R-410A",
+      "refrigerant_weight_g": 55792,
+      "refrigerant_gwp": 2088,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-8, 8],
-            "cop": [1.48, 2.31]            
+          "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
+          "leaving_supply_t": {
+            "50": {
+              "cop": [1.86, 1.86, 1.86,	1.95,	2.32,	2.55,	2.81,	3.05,	3.21,	3.31,	3.38],
+              "capacity_W": [292510, 292510, 292510,	303938,	364857,	404450,	450327,	496807,	531115,	556145,	574787],
+              "constraints": {
+                "min_temp_C": -5,
+                "max_temp_C": 30
+              }
+            },
+            "45": {
+              "cop": [2.00, 2.00,	2.05,	2.16,	2.58,	2.84,	3.12,	3.37,	3.54,	3.64,	3.71],
+              "capacity_W": [289504, 289504,	293226,	307384,	371343,	412239,	459137,	504452,	537616,	561518,	579053],
+              "constraints": {
+                "min_temp_C": -10,
+                "max_temp_C": 30
+              }
+            },
+            "35": {
+              "cop": [2.10,	2.42,	2.49,	2.65,	3.17,	3.48,	3.80,	4.08,	4.27,	4.38,	4.46],
+              "capacity_W": [254226, 289812, 298244, 316868, 385913, 429016, 476561, 519537, 550399, 572038, 587348],
+              "constraints": {
+                "min_temp_C": -15,
+                "max_temp_C": 30
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -15,
-              "max_temp_C": 35
+            "min_temp_C": 35,
+            "max_temp_C": 50
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 35],
-            "cop": [3.2, 2.81]            
+          "t_out_C": [10, 20, 30, 35, 40],
+          "leaving_supply_t": {
+            "7": {
+              "cop": [5.49,	4.40,	3.46,	3.03,	2.64],
+              "capacity_W": [540547, 495179, 447349, 423083, 398816],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 40
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": 5,
-              "max_temp_C": 45
+            "min_temp_C": 7,
+            "max_temp_C": 7
           }
         }
       }
@@ -374,39 +433,70 @@
       "eq_id": "hp06",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA800-60Ton-122HHWST",
+      "eq_manufacturer": "Trane",
+      "model": "AXM",
+      "nominal_tons": 60,
       "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 29030,
-      "refrigerant_gwp": 2088,
+      "refrigerant": "R-454B",
+      "refrigerant_weight_g": 78018,
+      "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [1.76, 1.84, 2.19, 2.41, 2.66, 2.88, 3.04, 3.13, 3.20]
-          },
-          "cap_curve": {
-            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [136831, 142105, 170526, 188985, 210667, 232349, 248464, 260184, 268974]            
+          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+          "leaving_supply_t": {
+            "43.3": {
+              "cop": [2.09, 2.32, 2.37, 2.57, 2.87, 3.19, 3.67],
+              "capacity_W": [113070, 128224, 154712, 169923, 193875, 219918, 248389],
+              "constraints": {
+                "min_temp_C": -27,
+                "max_temp_C": 35
+              }
+            },
+            "48.9": {
+              "cop": [1.92, 2.12, 2.18, 2.35, 2.62, 2.90, 3.31],
+              "capacity_W": [116085, 131012, 155846, 171631, 195106, 220565, 247700],
+              "constraints": {
+                "min_temp_C": -27,
+                "max_temp_C": 35
+              }
+            },
+            "54.4": {
+              "cop": [1.95, 1.95, 2.01, 2.17, 2.40, 2.65, 3.01],
+              "capacity_W": [134227, 134227, 157746, 174225, 196994, 221969, 248331],
+              "constraints": {
+                "min_temp_C": -18,
+                "max_temp_C": 35
+              }
+            },
+            "60": {
+              "cop": [1.86, 1.86, 1.86, 2.02, 2.23, 2.45, 2.77],
+              "capacity_W": [160190, 160190, 160190, 177478, 200209, 224551, 250291],
+              "constraints": {
+                "min_temp_C": -13,
+                "max_temp_C": 35
+              }
+            }
           },
           "constraints": {
-              "min_temp_C": -5,
-              "max_temp_C": 30
+            "min_temp_C": 43.3,
+            "max_temp_C": 60
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.53,	4.43,	3.49,	3.05,	2.66]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [253568, 232467, 209959, 198353, 187099]
+          "t_out_C": [25, 35, 45],
+          "leaving_supply_t": {
+            "6.7": {
+              "cop": [4.0,	2.89,	2.65],
+              "capacity_W": [250000, 203980, 185000],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 40
+              }
+            }
           },
           "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
+            "min_temp_C": 6.7,
+            "max_temp_C": 6.7
           }
         }
       }
@@ -415,531 +505,70 @@
       "eq_id": "hp07",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA800-60Ton-113HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 29030,
-      "refrigerant_gwp": 2088,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [1.89,	1.94,	2.04,	2.44,	2.69,	2.95,	3.19,	3.35,	3.45,	3.51]
-          },
-          "cap_curve": {
-            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [137196, 137196, 143820, 173745, 192880, 214823, 236025, 251542, 262725, 270929]
-          },
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.53,	4.43,	3.49,	3.05,	2.66]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [253568, 232467, 209959, 198353, 187099]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp08",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA800-60Ton-95HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 29030,
-      "refrigerant_gwp": 2088,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [1.98,	2.29,	2.35,	2.50,	3.00,	3.29,	3.59,	3.86,	4.03,	4.15,	4.22]
-          },
-          "cap_curve": {
-            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [118948,	135599,	139544,	148258,	180562,	200729,	222975,	243083,	257523,	267647,	274811]
-          },
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.53,	4.43,	3.49,	3.05,	2.66]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [253568, 232467, 209959, 198353, 187099]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp09",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA1600-120Ton-122HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 55792,
-      "refrigerant_gwp": 2088,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [1.86,	1.95,	2.32,	2.55,	2.81,	3.05,	3.21,	3.31,	3.38]
-          },
-          "cap_curve": {
-            "t_out_C": [-5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [292510,	303938,	364857,	404450,	450327,	496807,	531115,	556145,	574787]
-          },
-          "constraints": {
-            "min_temp_C": -5,
-            "max_temp_C": 30
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.49,	4.40,	3.46,	3.03,	2.64]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [540547, 495179, 447349, 423083, 398816]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp10",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA1600-120Ton-113HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 55792,
-      "refrigerant_gwp": 2088,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [2.00,	2.05,	2.16,	2.58,	2.84,	3.12,	3.37,	3.54,	3.64,	3.71]
-          },
-          "cap_curve": {
-            "t_out_C": [-10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [289504,	293226,	307384,	371343,	412239,	459137,	504452,	537616,	561518,	579053]
-          },
-          "constraints": {
-            "min_temp_C": -10,
-            "max_temp_C": 30
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.49,	4.40,	3.46,	3.03,	2.64]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [540547, 495179, 447349, 423083, 398816]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp11",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Aermec",
-      "model": "Aermec-NRBHA1600-120Ton-95HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 55792,
-      "refrigerant_gwp": 2088,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "cop": [2.10,	2.42,	2.49,	2.65,	3.17,	3.48,	3.80,	4.08,	4.27,	4.38,	4.46]
-          },
-          "cap_curve": {
-            "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
-            "capacity_W": [254226,	289812,	298244,	316868,	385913,	429016,	476561,	519537,	550399,	572038,	587348]
-          },
-          "constraints": {
-            "min_temp_C": -15,
-            "max_temp_C": 30
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "cop": [5.49,	4.40,	3.46,	3.03,	2.64]
-          },
-          "cap_curve": {
-            "t_out_C": [10, 20, 30, 35, 40],
-            "capacity_W": [540547, 495179, 447349, 423083, 398816]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 40
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp12",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
       "eq_manufacturer": "Trane",
-      "model": "Trane-AXM-60Ton-110HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 78018,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [2.09, 2.32, 2.37, 2.57, 2.87, 3.19, 3.67]
-          },
-          "cap_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [113070, 128224, 154712, 169923, 193875, 219918, 248389]
-          },
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.0,	2.89,	2.65]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [250000, 203980, 185000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp13",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-AXM-60Ton-120HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 78018,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.92, 2.12, 2.18, 2.35, 2.62, 2.90, 3.31]
-          },
-          "cap_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [116085, 131012, 155846, 171631, 195106, 220565, 247700]
-          },
-          "constraints": {
-            "min_temp_C": -27,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.0,	2.89,	2.65]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [250000, 203980, 185000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp14",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-AXM-60Ton-130HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 78018,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.95, 2.01, 2.17, 2.40, 2.65, 3.01]
-          },
-          "cap_curve": {
-            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [134227, 157746, 174225, 196994, 221969, 248331]
-          },
-          "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.0,	2.89,	2.65]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [250000, 203980, 185000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp15",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-AXM-60Ton-140HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 78018,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.86, 2.02, 2.23, 2.45, 2.77]
-          },
-          "cap_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [160190, 177478, 200209, 224551, 250291]
-          },
-          "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.0,	2.89,	2.65]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [250000, 203980, 185000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp16",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-ACX-120Ton-110HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 104326,
-      "refrigerant_gwp": 299,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.767, 1.996, 2.348, 2.507, 2.822, 3.147, 3.504]
-          },
-          "cap_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [217957, 248261, 302156, 326774, 376010, 429642, 488843]
-          },
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.15,	2.97,	2.74]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [520000, 436790, 380000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp17",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-ACX-120Ton-120HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 104326,
-      "refrigerant_gwp": 299,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.636, 1.843, 2.136, 2.292, 2.557, 2.843, 3.152]
-          },
-          "cap_curve": {
-            "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [225987, 254562, 302742, 328240, 375424, 427298, 485326]
-          },
-          "constraints": {
-            "min_temp_C": -26,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.15,	2.97,	2.74]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [520000, 436790, 380000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp18",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-ACX-120Ton-130HHWST",
+      "model": "ACX",
+      "nominal_tons": 120,
       "fuel": "electricity",
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
       "refrigerant_gwp": 466,
       "performance": {
         "heating": {
-          "cop_curve": {
-            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.698, 1.974, 2.111, 2.323, 2.569, 2.837]
-          },
-          "cap_curve": {
-            "t_out_C": [-17.7, -12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [261918, 305087, 330291, 375424, 242660, 480637]
+          "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
+          "leaving_supply_t": {
+            "43.3": {
+              "cop": [1.767, 1.996, 2.348, 2.507, 2.822, 3.147, 3.504],
+              "capacity_W": [217957, 248261, 302156, 326774, 376010, 429642, 488843],
+              "constraints": {
+                "min_temp_C": -26,
+                "max_temp_C": 35
+              }
+            },
+            "48.9": {
+              "cop": [1.636, 1.843, 2.136, 2.292, 2.557, 2.843, 3.152],
+              "capacity_W": [225987, 254562, 302742, 328240, 375424, 427298, 485326],
+              "constraints": {
+                "min_temp_C": -26,
+                "max_temp_C": 35
+              }
+            },
+            "54.4": {
+              "cop": [1.698, 1.698, 1.974, 2.111, 2.323, 2.569, 2.837],
+              "capacity_W": [261918, 261918, 305087, 330291, 375424, 242660, 480637],
+              "constraints": {
+                "min_temp_C": -18,
+                "max_temp_C": 35
+              }
+            },
+            "60": {
+              "cop": [1.767, 1.767, 1.767, 1.906, 2.130, 2.317, 2.552],
+              "capacity_W": [307432, 307432, 307432, 334101, 375707, 422022, 475068],
+              "constraints": {
+                "min_temp_C": -13,
+                "max_temp_C": 35
+              }
+            }
           },
           "constraints": {
-            "min_temp_C": -18,
-            "max_temp_C": 35
+            "min_temp_C": 43.3,
+            "max_temp_C": 60
           }
         },
         "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.15,	2.97,	2.74]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [520000, 436790, 380000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
-          }
-        }
-      }
-    },
-    {
-      "eq_id": "hp19",
-      "eq_type": "heat_pump",
-      "eq_subtype": "air_to_water",
-      "eq_manufacturer": "Trane",
-      "model": "Trane-ACX-120Ton-140HHWST",
-      "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 104326,
-      "refrigerant_gwp": 466,
-      "performance": {
-        "heating": {
-          "cop_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-            "cop": [1.767, 1.906, 2.130, 2.317, 2.552]
-          },
-          "cap_curve": {
-            "t_out_C": [-12.2, -6.7, -1.1, 4.4, 10],
-            "capacity_W": [307432, 334101, 375707, 422022, 475068]
+          "t_out_C": [25, 35, 45],
+          "leaving_supply_t": {
+            "6.7": {
+              "cop": [4.15,	2.97,	2.74],
+              "capacity_W": [520000, 436790, 380000],
+              "constraints": {
+                "min_temp_C": 5,
+                "max_temp_C": 45
+              }
+            }
           },
           "constraints": {
-            "min_temp_C": -13,
-            "max_temp_C": 35
-          }
-        },
-        "cooling": {
-          "cop_curve": {
-            "t_out_C": [25, 35, 45],
-            "cop": [4.15,	2.97,	2.74]
-          },
-          "cap_curve": {
-            "t_out_C": [25, 35, 45],
-            "capacity_W": [520000, 436790, 380000]
-          },
-          "constraints": {
-            "min_temp_C": 5,
-            "max_temp_C": 45
+            "min_temp_C": 6.7,
+            "max_temp_C": 6.7
           }
         }
       }
@@ -1060,10 +689,12 @@
       "eq_scen_id": "eq_scenario_1",
       "eq_scen_name": "Gas Boiler+AC Chiller",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": null,
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": false,
       "backup_heating": "bo02",
       "chiller": "ch03"
@@ -1072,10 +703,12 @@
       "eq_scen_id": "eq_scenario_2",
       "eq_scen_name": "Elec Boiler+AC Chiller",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": null,
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": false,
       "backup_heating": "res01",
       "chiller": "ch03"
@@ -1084,10 +717,12 @@
       "eq_scen_id": "eq_scenario_3",
       "eq_scen_name": "20% AWHP (H+C)+Gas Backup",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 0.2,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "bo02",
       "chiller": "ch03"
@@ -1096,10 +731,12 @@
       "eq_scen_id": "eq_scenario_4",
       "eq_scen_name": "100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "res01",
       "chiller": "ch03"
@@ -1108,10 +745,12 @@
       "eq_scen_id": "eq_scenario_5",
       "eq_scen_name": "HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr01",
+      "hr_wwhp_h_supply_t": "32.2",
       "awhp": "hp01",
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
+      "awhp_h_supply_t": "38",
       "awhp_use_cooling": true,
       "backup_heating": "res01",
       "chiller": "ch03"

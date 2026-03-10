@@ -580,8 +580,12 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
+    # Output("edit-hr-wwhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
+    Output("edit-hr-wwhp-h-supply-t-select", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
+    # Output("edit-awhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
+    Output("edit-awhp-h-supply-t-select", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
     Output("edit-awhp-redundancy", "value"),
@@ -610,7 +614,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -642,7 +648,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -667,7 +675,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -701,9 +711,27 @@ def open_edit_modal(edit_clicks, equipment_data):
     if hr_wwhp_val is None:
         hr_wwhp_val = "None"
 
+    # added for autofill callback, not implemented
+    # hr_hp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, hr_wwhp_val.get("eq_id")
+    # )
+
+    hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
+    if hr_wwhp_h_supply_t_val is None:
+        hr_wwhp_h_supply_t_val = "None"
+
     awhp_val = scenario.get("awhp")
     if awhp_val is None:
         awhp_val = "None"
+
+    # added for autofill callback, not implemented
+    # awhp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, awhp_val.get("eq_id")
+    # )
+        
+    awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
+    if awhp_h_supply_t_val is None:
+        awhp_h_supply_t_val = "None"
 
     sizing_mode = scenario.get("awhp_sizing_mode") or "integer_sizing_peak_load"
     sizing_value = scenario.get("awhp_sizing_value", 1.0)
@@ -719,8 +747,10 @@ def open_edit_modal(edit_clicks, equipment_data):
         scen_name,
         hr_hp_options,
         hr_wwhp_val,
+        hr_wwhp_h_supply_t_val,
         awhp_options,
         awhp_val,
+        awhp_h_supply_t_val,
         sizing_mode,
         sizing_value,
         redundancy,
@@ -741,7 +771,9 @@ def open_edit_modal(edit_clicks, equipment_data):
     State("edit-scenario-id-input", "value"),
     State("edit-scenario-name-input", "value"),
     State("edit-hr-wwhp-select", "value"),
+    State("edit-hr-wwhp-h-supply-t-select", "value"),
     State("edit-awhp-select", "value"),
+    State("edit-awhp-h-supply-t-select", "value"),
     State("edit-awhp-sizing-mode", "value"),
     State("edit-awhp-sizing-value", "value"),
     State("edit-awhp-redundancy", "value"),
@@ -756,7 +788,9 @@ def save_edit_scenario(
     scen_id,
     new_name,
     hr_wwhp_val,
+    hr_wwhp_h_supply_t_val,
     awhp_val,
+    awhp_h_supply_t_val,
     sizing_mode,
     sizing_value,
     redundancy,
@@ -780,6 +814,11 @@ def save_edit_scenario(
     if awhp_val == "None":
         awhp_val = None
 
+    if hr_wwhp_h_supply_t_val == "None":
+        hr_wwhp_h_supply_t_val = None
+    if awhp_h_supply_t_val == "None":
+        awhp_h_supply_t_val = None
+
     try:
         sizing_value = float(sizing_value) if sizing_value is not None else 1.0
     except (TypeError, ValueError):
@@ -801,7 +840,9 @@ def save_edit_scenario(
             new_scen = scen.copy()
             new_scen["eq_scen_name"] = new_name
             new_scen["hr_wwhp"] = hr_wwhp_val
+            new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
             new_scen["awhp"] = awhp_val
+            new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
             new_scen["awhp_sizing_mode"] = sizing_mode
             new_scen["awhp_sizing_value"] = sizing_value
             new_scen["awhp_redundancy"] = redundancy
@@ -854,6 +895,18 @@ def _build_equipment_options(
         options = [{"label": none_label, "value": "None"}] + options
     return options
 
+# added for autofill callback, not implemented
+# def _build_heating_supply_temp_options(
+#         equipment_list, eq_id, include_none=True, none_label="None"
+# ):
+#     eq = equipment_list.get(eq_id)
+#     perf = eq.get("performance")
+#     heating = perf.get("heating")
+#     temps_perf = heating.get("leaving_supply_t")
+#     options = [{"label": f"{i}°C", "value": i} for i in list(temps_perf.keys())]
+#     if include_none:
+#         options = [{"label": none_label, "value": "None"}] + options
+#     return options
 
 @callback(
     Output("edit-awhp-sizing-value", "step"),
