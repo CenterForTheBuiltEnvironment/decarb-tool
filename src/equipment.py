@@ -8,35 +8,39 @@ from utils.interp import interp_vector
 
 
 # --- Models ---
-class COPCurve(BaseModel):
-    t_out_C: List[float]
-    cop: List[float]
+# class COPCurve(BaseModel):
+#     t_out_C: List[float]
+#     cop: List[float]
 
-    def get_cop(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.cop, temp))
-
-
-class CapCurve(BaseModel):
-    t_out_C: List[float]
-    capacity_W: List[float]
-
-    def get_capacity(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.capacity_W, temp))
+#     def get_cop(self, temp: float) -> float:
+#         return float(interp_vector(self.t_out_C, self.cop, temp))
 
 
-class plrCurve(BaseModel):
-    capacity_W: List[float]
-    cop: List[float]
+# class CapCurve(BaseModel):
+#     t_out_C: List[float]
+#     capacity_W: List[float]
 
-    def get_cop(self, cap: float) -> float:
-        return float(interp_vector(self.capacity_W, self.cop, cap))
+#     def get_capacity(self, temp: float) -> float:
+#         return float(interp_vector(self.t_out_C, self.capacity_W, temp))
 
+
+# class plrCurve(BaseModel):
+#     capacity_W: List[float]
+#     cop: List[float]
+
+#     def get_cop(self, cap: float) -> float:
+#         return float(interp_vector(self.capacity_W, self.cop, cap))
+    
+class PerformanceCurves(BaseModel):
+    cop: Optional[List[float]] = None
+    capacity_W: Optional[List[float]] = None
+    constraints: Optional[Dict[str, float]] = None
 
 class Performance(BaseModel):
-    cop_curve: Optional[COPCurve] = None
-    cap_curve: Optional[CapCurve] = None
-    plr_curve: Optional[plrCurve] = None
-    efficiency: Optional[float] = None
+    t_out_C: Optional[List[float]] = None # for AWHPs
+    capacity_W: Optional[List[float]] = None # for WWHPs
+    leaving_supply_t: Optional[Dict[str, PerformanceCurves]] = None
+    efficiency: Optional[float] = None # for boilers/chillers
     constraints: Optional[Dict[str, float]] = None
 
 
@@ -50,6 +54,7 @@ class Equipment(BaseModel):
     eq_subtype: Optional[str] = None
     eq_manufacturer: Optional[str] = None
     model: str
+    nominal_tons: Optional[int] = None
     fuel: str
     refrigerant: Optional[str] = None
     refrigerant_weight_g: Optional[float] = None
@@ -73,7 +78,9 @@ class EquipmentScenario(BaseModel):
     eq_scen_id: str
     eq_scen_name: str
     hr_wwhp: Optional[str]
+    hr_wwhp_h_supply_t: Optional[str]
     awhp: Optional[str]
+    awhp_h_supply_t: Optional[str]
     awhp_sizing_mode: Optional[Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"]] = None
     awhp_sizing_value: float
     awhp_redundancy: int
@@ -101,6 +108,12 @@ class EquipmentScenario(BaseModel):
             if curr is None:
                 return None
         return curr
+
+
+class ScenarioGroup(BaseModel):
+    group_id: str
+    group_name: str
+    scenario_ids: List[str]
 
 
 # --- Dot-accessible wrapper with dynamic updates ---
@@ -144,6 +157,7 @@ class DotDict:
 class EquipmentLibrary(BaseModel):
     equipment: List[Equipment]
     equipment_scenarios: List[EquipmentScenario]
+    scenario_groups: List[ScenarioGroup] = []
 
     # Private (non-validated) attributes
     _equipment_dict: DotDict = PrivateAttr()

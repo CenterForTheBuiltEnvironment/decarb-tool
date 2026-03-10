@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Optional, Union
 
 from src.loads import StandardLoad
-from src.equipment import EquipmentLibrary, Equipment
+from src.equipment import EquipmentLibrary, Equipment, PerformanceCurves
 from src.emissions import StandardEmissions, get_emissions_data, EmissionScenario
 from src.metadata import Metadata
 from src.config import Columns as Col
@@ -16,82 +16,122 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _heat_recovery_plr_curve(e: Equipment) -> pd.DataFrame:
+def _heat_recovery_plr_curve(e: Equipment, supply_t: str) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
-    if e.performance and e.performance_heating.plr_curve:
-        cap = e.performance_heating.plr_curve.capacity_W
-        cop = e.performance_heating.plr_curve.cop
-        return pd.DataFrame({"cap": cap, "cop": cop})
+    if e.performance and e.performance_heating.capacity_W and e.performance_heating.leaving_supply_t[supply_t].cop:
+        if len(e.performance_heating.capacity_W) == len(e.performance_heating.leaving_supply_t[supply_t].cop):
+            cap = e.performance_heating.capacity_W
+            cop = e.performance_heating.leaving_supply_t[supply_t].cop
+            return pd.DataFrame({"cap": cap, "cop": cop})
+        else:
+            logger.error(f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths.") 
+            raise ValueError(f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths.")
     else:
-        logger.error(f"Equipment '{e.eq_id}' has no plr_curve.")
-        raise ValueError(f"Equipment '{e.eq_id}' has no plr_curve.")
+        logger.error(f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve).") 
+        raise ValueError(f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve).")
 
+# function for interpolating performance based on HHWST, not implemented
+# def _heating_supply_temp_performance(e: Equipment, supply_t: str) -> PerformanceCurves:
+    # result = {}
+    
+    # equip_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
+    # equip_supply_temps = np.array(equip_supply_temps_str, dtype="float")
+    # cops = [e.performance_heating.leaving_supply_t[t].cop for t in equip_supply_temps_str]
+    # caps = [e.performance_heating.leaving_supply_t[t].capacity_W for t in equip_supply_temps_str]
+    # constraints = {"min": [e.performance_heating.leaving_supply_t[t].constraints["min_temp_C"] for t in equip_supply_temps_str],
+    #                "max": [e.performance_heating.leaving_supply_t[t].constraints["max_temp_C"] for t in equip_supply_temps_str]}
+    
+    # add a logging error for input temp outside range of equipment data
+    # result["constraints"] = {"min_temp_C": np.interp(supply_t, equip_supply_temps, constraints["min"]),
+    #                           "max_temp_C": np.interp(supply_t, equip_supply_temps, constraints["max"])}
+    # result["cop"] = [np.interp(supply_t, equip_supply_temps, x) for x in zip(*cops)]
+    # result["capacity_W"] = [np.interp(supply_t, equip_supply_temps, x) for x in zip(*caps)]
 
-def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+    # print(result)
+    
+def _per_unit_heating_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance_heating.cap_curve:
-        cap_h = interp_vector(
-            e.performance_heating.cap_curve.t_out_C,
-            e.performance_heating.cap_curve.capacity_W,
-            t_out,
-        )
+    if e.performance and e.performance_heating.t_out_C and e.performance_heating.leaving_supply_t[supply_t].capacity_W:
+        if len(e.performance_heating.t_out_C) == len(e.performance_heating.leaving_supply_t[supply_t].capacity_W):
+            cap_h = interp_vector(
+                e.performance_heating.t_out_C, 
+                e.performance_heating.leaving_supply_t[supply_t].capacity_W, 
+                t_out
+            )
+        else:
+            logger.error(f"Equipment '{e.eq_id}' heating OAT and capacity curves are of different lengths.") 
+            raise ValueError(f"Equipment '{e.eq_id}' heating OAT and capacity curves are of different lengths.")
     elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
     else:
         logger.error(
-            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
         )
         raise ValueError(
-            f"Equipment '{e.eq_id}' has no heating capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
         )
-    cap_h = _capacity_constraints(e, t_out, cap_h, True)
+    cap_h = _capacity_constraints(e, t_out, cap_h, True, supply_t)
     return cap_h
 
 
-def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+def _per_unit_heating_cop(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
     # If the device has a COP curve, use it
-    if e.performance and e.performance_heating.cop_curve:
-        return interp_vector(
-            e.performance_heating.cop_curve.t_out_C,
-            e.performance_heating.cop_curve.cop,
-            t_out,
-        )
+    if e.performance and e.performance_heating.t_out_C and e.performance_heating.leaving_supply_t[supply_t].cop:
+        if len(e.performance_heating.t_out_C) == len(e.performance_heating.leaving_supply_t[supply_t].cop):
+            return interp_vector(
+                e.performance_heating.t_out_C,
+                e.performance_heating.leaving_supply_t[supply_t].cop,
+                t_out
+            )
+        else:
+            logger.error(f"Equipment '{e.eq_id}' heating OAT and COP curves are of different lengths.")
+            raise ValueError(f"Equipment '{e.eq_id}' heating OAT and COP curves are of different lengths.")
     # Some devices (boiler/resistance) use efficiency instead (not COP).
     # We'll not use COP for them here.
     return np.full_like(t_out, fill_value=np.nan, dtype=float)
 
-
-def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+def _per_unit_cooling_capacity_W(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance_cooling.cap_curve:
-        cap_c = interp_vector(
-            e.performance_cooling.cap_curve.t_out_C,
-            e.performance_cooling.cap_curve.capacity_W,
-            t_out,
-        )
+    if e.performance and e.performance_cooling.t_out_C and e.performance_cooling.leaving_supply_t[supply_t].capacity_W:
+        if len(e.performance_cooling.t_out_C) == len(e.performance_cooling.leaving_supply_t[supply_t].capacity_W):
+            cap_c = interp_vector(
+                e.performance_cooling.t_out_C,
+                e.performance_cooling.leaving_supply_t[supply_t].capacity_W,
+                t_out
+            )
+        else:
+            logger.error(f"Equipment '{e.eq_id}' cooling OAT and capacity curves are of different lengths.")
+            raise ValueError(f"Equipment '{e.eq_id}' cooling OAT and capacity curves are of different lengths.")
+    
     elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_c = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
+    
     else:
         logger.error(
-            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no cooling capacity info (fixed value or t_out-based curve for capacity_W)."
         )
         raise ValueError(
-            f"Equipment '{e.eq_id}' has no cooling capacity info (cap_curve or capacity_W)."
+            f"Equipment '{e.eq_id}' has no cooling capacity info (fixed value or t_out-based curve for capacity_W)."
         )
-    cap_c = _capacity_constraints(e, t_out, cap_c, False)
+    cap_c = _capacity_constraints(e, t_out, cap_c, False, supply_t)
     return cap_c
 
 
-def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray) -> np.ndarray:
+def _per_unit_cooling_cop(e: Equipment, t_out: np.ndarray, supply_t: str) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
     # If the device has a COP curve, use it
-    if e.performance and e.performance_cooling.cop_curve:
-        return interp_vector(
-            e.performance_cooling.cop_curve.t_out_C,
-            e.performance_cooling.cop_curve.cop,
-            t_out,
-        )
+    if e.performance and e.performance_cooling.t_out_C and e.performance_cooling.leaving_supply_t[supply_t].cop:
+        if len(e.performance_cooling.t_out_C) == len(e.performance_cooling.leaving_supply_t[supply_t].cop):
+            return interp_vector(
+                e.performance_cooling.t_out_C,
+                e.performance_cooling.leaving_supply_t[supply_t].cop,
+                t_out
+            )
+        else:
+            logger.error(f"Equipment '{e.eq_id}' cooling OAT and COP curves are of different lengths.")
+            raise ValueError(f"Equipment '{e.eq_id}' cooling OAT and COP curves are of different lengths.")
+    
     # Some devices (boiler/resistance) use efficiency instead (not COP).
     # We'll not use COP for them here.
     return np.full_like(t_out, fill_value=np.nan, dtype=float)
@@ -110,7 +150,7 @@ def _constant_cooling_efficiency(e: Equipment) -> Optional[float]:
 
 
 def _capacity_constraints(
-    e: Equipment, t_out: np.ndarray, cap: np.ndarray, heating: bool
+    e: Equipment, t_out: np.ndarray, cap: np.ndarray, heating: bool, supply_t: str
 ) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature, limited by OAT constraints."""
     temps = np.asarray(t_out, dtype=float)
@@ -221,8 +261,9 @@ def loads_to_site_energy(
         if scen.hr_wwhp:
             logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
+            hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t
 
-            plr_curve = _heat_recovery_plr_curve(hr_wwhp)
+            plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_supply_t)
             if plr_curve.empty:
                 raise ValueError(f"HR WWHP '{hr_wwhp.eq_id}' lacks a PLR curve.")
 
@@ -243,10 +284,10 @@ def loads_to_site_energy(
             least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
             max_cap_h = (
                 num_units * plr_curve["cap"].max()
-            )  # max heating capacity required in timeframe <- allowed by unit, timeframe not relevant
+            )  # max heating capacity allowed by unit
             min_cap_h = plr_curve[
                 "cap"
-            ].min()  # min heating capacity required in timeframe <- allowed by unit, timeframe not relevant
+            ].min()  # min heating capacity allowed by unit
 
             # Simultaneous load potential (using least-waste-heat factor)
             simult_h = np.minimum(
@@ -334,8 +375,12 @@ def loads_to_site_energy(
         if scen.awhp:
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
             awhp_h = library.get_equipment(scen.awhp)
-            awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps)
-            awhp_cop_h = _per_unit_heating_cop(awhp_h, temps)
+
+            awhp_h_supply_t = scen.awhp_h_supply_t
+            logger.debug(f"AWHP heating water supply temperature: {awhp_h_supply_t}°C")
+
+            awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps, awhp_h_supply_t)
+            awhp_cop_h = _per_unit_heating_cop(awhp_h, temps, awhp_h_supply_t)
             if np.isnan(awhp_cop_h).all():
                 raise ValueError(f"AWHP heating '{awhp_h.eq_id}' lacks a COP curve.")
 
@@ -352,12 +397,10 @@ def loads_to_site_energy(
 
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
 
-            if awhp_h.performance and getattr(
-                awhp_h.performance_heating, "cap_curve", None
-            ):
+            if awhp_h.performance and awhp_h.performance_heating.leaving_supply_t[awhp_h_supply_t].capacity_W:
                 cap_ref = interp_vector(
-                    awhp_h.performance_heating.cap_curve.t_out_C,
-                    awhp_h.performance_heating.cap_curve.capacity_W,
+                    awhp_h.performance_heating.t_out_C,
+                    awhp_h.performance_heating.leaving_supply_t[awhp_h_supply_t].capacity_W,
                     np.array([ref_temp_C]),
                 )[0]
             elif getattr(awhp_h, "capacity_W", None):
@@ -532,8 +575,13 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp and scen.awhp_use_cooling:
             awhp_c = library.get_equipment(scen.awhp)
-            awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps)
-            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps)
+
+            # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+            awhp_c_supply_t = list(awhp_c.performance_cooling.leaving_supply_t.keys())[0] # extract first value
+            # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+
+            awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_supply_t)
+            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_supply_t)
             if np.isnan(awhp_cop_c).all():
                 raise ValueError(f"AWHP cooling '{awhp_c.eq_id}' lacks a COP curve.")
 

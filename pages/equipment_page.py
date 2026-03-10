@@ -87,12 +87,52 @@ def layout():
                 mb="sm",
             ),
             dmc.Paper(
-                html.Div(
-                    id="equipment-table",
-                    style={
-                        "marginTop": "16px",
-                    },
-                ),
+                [
+                    dmc.Group(
+                        [
+                            dmc.Group(
+                                [
+                                    dmc.Text("Scenario Group:", size="sm", fw=500),
+                                    dmc.Select(
+                                        id="scenario-group-select",
+                                        data=[],  # Will be populated by callback
+                                        value=None,
+                                        placeholder="Select a scenario group",
+                                        size="sm",
+                                        style={"width": "250px"},
+                                        allowDeselect=True,
+                                        comboboxProps={"withinPortal": True, "zIndex": 1000},
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                            dmc.Group(
+                                [
+                                    dmc.Text("View:", size="sm", fw=500),
+                                    dmc.SegmentedControl(
+                                        id="equipment-view-mode",
+                                        data=[
+                                            {"label": "Simple", "value": "simple"},
+                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Differences", "value": "differences"},
+                                        ],
+                                        value="simple",
+                                        size="sm",
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                        ],
+                        justify="space-between",
+                        mb="md",
+                    ),
+                    html.Div(
+                        id="equipment-table",
+                        style={
+                            "marginTop": "16px",
+                        },
+                    ),
+                ],
                 withBorder=False,
                 shadow="xs",
                 radius="md",
@@ -132,8 +172,16 @@ def layout():
     Input("url", "pathname"),
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
+    Input("displayed-equipment-store", "data"),
+    Input("equipment-view-mode", "value"),
 )
-def update_equipment_table(pathname, equipment_store_data, selected_equipment_data):
+def update_equipment_table(
+    pathname,
+    equipment_store_data,
+    selected_equipment_data,
+    displayed_equipment_data,
+    view_mode,
+):
     if pathname != URLS.EQUIPMENT.value:
         return no_update
 
@@ -145,8 +193,61 @@ def update_equipment_table(pathname, equipment_store_data, selected_equipment_da
         return dmc.Text("No equipment scenarios defined yet.")
 
     selected_ids = selected_equipment_data or []
+    displayed_ids = displayed_equipment_data or []
 
-    return build_equipment_table(scenarios, active_ids=selected_ids)
+    return build_equipment_table(
+        scenarios,
+        displayed_ids=displayed_ids,
+        active_ids=selected_ids,
+        view_mode=view_mode or "simple",
+    )
+
+
+@callback(
+    Output("scenario-group-select", "data"),
+    Input("url", "pathname"),
+    Input("equipment-store", "data"),
+)
+def populate_group_dropdown(pathname, equipment_data):
+    """Populate the scenario group dropdown with available groups."""
+    if pathname != URLS.EQUIPMENT.value:
+        return no_update
+
+    if not equipment_data:
+        return []
+
+    groups = equipment_data.get("scenario_groups", [])
+    return [
+        {"label": g.get("group_name", g.get("group_id")), "value": g.get("group_id")}
+        for g in groups
+    ]
+
+
+@callback(
+    Output("displayed-equipment-store", "data", allow_duplicate=True),
+    Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Input("scenario-group-select", "value"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_group_selection(group_id, equipment_data):
+    """
+    When a scenario group is selected, update displayed and selected scenarios.
+    """
+    if not group_id or not equipment_data:
+        return no_update, no_update, no_update
+
+    groups = equipment_data.get("scenario_groups", [])
+    selected_group = next((g for g in groups if g.get("group_id") == group_id), None)
+
+    if not selected_group:
+        return no_update, no_update, no_update
+
+    scenario_ids = selected_group.get("scenario_ids", [])
+
+    # Update displayed, selected, and checkbox group with the group's scenarios
+    return scenario_ids, scenario_ids, scenario_ids
 
 
 # 2. Add equipment scenario modal + store update
@@ -295,6 +396,111 @@ def sync_active_equipment(selected_values):
 
 
 @callback(
+    Output("displayed-equipment-store", "data"),
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Input({"type": "equipment-column-dropdown", "column": ALL}, "value"),
+    State("displayed-equipment-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_column_dropdown_change(
+    dropdown_values, displayed_ids, equipment_data, selected_ids
+):
+    """
+    Handle scenario selection from column dropdowns.
+    If selected scenario is already displayed elsewhere, create a copy.
+    """
+    if not dropdown_values or not displayed_ids or not equipment_data:
+        return no_update, no_update, no_update, no_update
+
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update, no_update, no_update, no_update
+
+    # Find which dropdown triggered the callback
+    triggered = ctx.triggered[0]
+    prop_id = triggered["prop_id"]
+
+    # Parse the pattern-matching ID
+    try:
+        id_str = prop_id.split(".")[0]
+        btn_id = json.loads(id_str)
+        column_idx = btn_id.get("column")
+    except (json.JSONDecodeError, AttributeError):
+        return no_update, no_update, no_update, no_update
+
+    if column_idx is None:
+        return no_update, no_update, no_update, no_update
+
+    # Get the newly selected scenario ID
+    new_scen_id = dropdown_values[column_idx]
+
+    if not new_scen_id:
+        return no_update, no_update, no_update, no_update
+
+    # Exit early if the selection hasn't actually changed
+    old_scen_id = displayed_ids[column_idx] if column_idx < len(displayed_ids) else None
+    if new_scen_id == old_scen_id:
+        return no_update, no_update, no_update, no_update
+
+    # Check if this scenario is already displayed in another column
+    new_displayed = list(displayed_ids)
+    updated_equipment = equipment_data
+
+    other_columns = [i for i in range(len(new_displayed)) if i != column_idx]
+    already_displayed = new_scen_id in [new_displayed[i] for i in other_columns]
+
+    if already_displayed:
+        # Create a copy of the scenario with a new ID
+        scenarios = equipment_data.get("equipment_scenarios", [])
+        base_scenario = next(
+            (s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None
+        )
+
+        if base_scenario is None:
+            return no_update, no_update, no_update, no_update
+
+        # Generate new ID
+        copy_id = _next_scenario_id(equipment_data)
+        copy_name = f"{base_scenario.get('eq_scen_name', new_scen_id)} (copy)"
+
+        # Create the copy
+        new_scenario = {
+            **base_scenario,
+            "eq_scen_id": copy_id,
+            "eq_scen_name": copy_name,
+        }
+
+        # Add to equipment store
+        updated_equipment = {
+            **equipment_data,
+            "equipment_scenarios": scenarios + [new_scenario],
+        }
+
+        # Use the copy's ID in the displayed list
+        new_displayed[column_idx] = copy_id
+    else:
+        # No duplicate - just update the displayed list
+        new_displayed[column_idx] = new_scen_id
+
+    # Update selected-equipment-store: swap old scenario for new one
+    new_selected = list(selected_ids) if selected_ids else []
+    old_scen_id = displayed_ids[
+        column_idx
+    ]  # The scenario that was in this column before
+
+    if old_scen_id in new_selected:
+        # Replace old with new in selection
+        old_index = new_selected.index(old_scen_id)
+        new_selected[old_index] = new_displayed[column_idx]
+
+    return new_displayed, updated_equipment, new_selected, new_selected
+
+
+@callback(
     Output("equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Input({"type": "equipment-remove-btn", "eq_scen_id": ALL}, "n_clicks"),
@@ -374,8 +580,12 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
+    # Output("edit-hr-wwhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
+    Output("edit-hr-wwhp-h-supply-t-select", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
+    # Output("edit-awhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
+    Output("edit-awhp-h-supply-t-select", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
     Output("edit-awhp-redundancy", "value"),
@@ -404,7 +614,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -436,7 +648,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -461,7 +675,9 @@ def open_edit_modal(edit_clicks, equipment_data):
             "",
             [],
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -495,9 +711,27 @@ def open_edit_modal(edit_clicks, equipment_data):
     if hr_wwhp_val is None:
         hr_wwhp_val = "None"
 
+    # added for autofill callback, not implemented
+    # hr_hp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, hr_wwhp_val.get("eq_id")
+    # )
+
+    hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
+    if hr_wwhp_h_supply_t_val is None:
+        hr_wwhp_h_supply_t_val = "None"
+
     awhp_val = scenario.get("awhp")
     if awhp_val is None:
         awhp_val = "None"
+
+    # added for autofill callback, not implemented
+    # awhp_supply_t_options = _build_heating_supply_temp_options(
+    #     equipment_list, awhp_val.get("eq_id")
+    # )
+        
+    awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
+    if awhp_h_supply_t_val is None:
+        awhp_h_supply_t_val = "None"
 
     sizing_mode = scenario.get("awhp_sizing_mode") or "integer_sizing_peak_load"
     sizing_value = scenario.get("awhp_sizing_value", 1.0)
@@ -513,8 +747,10 @@ def open_edit_modal(edit_clicks, equipment_data):
         scen_name,
         hr_hp_options,
         hr_wwhp_val,
+        hr_wwhp_h_supply_t_val,
         awhp_options,
         awhp_val,
+        awhp_h_supply_t_val,
         sizing_mode,
         sizing_value,
         redundancy,
@@ -535,7 +771,9 @@ def open_edit_modal(edit_clicks, equipment_data):
     State("edit-scenario-id-input", "value"),
     State("edit-scenario-name-input", "value"),
     State("edit-hr-wwhp-select", "value"),
+    State("edit-hr-wwhp-h-supply-t-select", "value"),
     State("edit-awhp-select", "value"),
+    State("edit-awhp-h-supply-t-select", "value"),
     State("edit-awhp-sizing-mode", "value"),
     State("edit-awhp-sizing-value", "value"),
     State("edit-awhp-redundancy", "value"),
@@ -550,7 +788,9 @@ def save_edit_scenario(
     scen_id,
     new_name,
     hr_wwhp_val,
+    hr_wwhp_h_supply_t_val,
     awhp_val,
+    awhp_h_supply_t_val,
     sizing_mode,
     sizing_value,
     redundancy,
@@ -574,6 +814,11 @@ def save_edit_scenario(
     if awhp_val == "None":
         awhp_val = None
 
+    if hr_wwhp_h_supply_t_val == "None":
+        hr_wwhp_h_supply_t_val = None
+    if awhp_h_supply_t_val == "None":
+        awhp_h_supply_t_val = None
+
     try:
         sizing_value = float(sizing_value) if sizing_value is not None else 1.0
     except (TypeError, ValueError):
@@ -595,7 +840,9 @@ def save_edit_scenario(
             new_scen = scen.copy()
             new_scen["eq_scen_name"] = new_name
             new_scen["hr_wwhp"] = hr_wwhp_val
+            new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
             new_scen["awhp"] = awhp_val
+            new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
             new_scen["awhp_sizing_mode"] = sizing_mode
             new_scen["awhp_sizing_value"] = sizing_value
             new_scen["awhp_redundancy"] = redundancy
@@ -648,6 +895,18 @@ def _build_equipment_options(
         options = [{"label": none_label, "value": "None"}] + options
     return options
 
+# added for autofill callback, not implemented
+# def _build_heating_supply_temp_options(
+#         equipment_list, eq_id, include_none=True, none_label="None"
+# ):
+#     eq = equipment_list.get(eq_id)
+#     perf = eq.get("performance")
+#     heating = perf.get("heating")
+#     temps_perf = heating.get("leaving_supply_t")
+#     options = [{"label": f"{i}°C", "value": i} for i in list(temps_perf.keys())]
+#     if include_none:
+#         options = [{"label": none_label, "value": "None"}] + options
+#     return options
 
 @callback(
     Output("edit-awhp-sizing-value", "step"),
