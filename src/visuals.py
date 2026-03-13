@@ -4,7 +4,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from utils.units import unit_map, get_unit_converter, get_hover_unit
+from utils.units import (
+    convert_dataframe,
+    get_display_unit,
+    get_auto_scale,
+    get_converter,
+    format_large_number,
+    # Legacy import for backward compatibility (axis labels with HTML)
+    unit_map,
+)
+from utils.display_registry import format_emission_scenario_id, format_meter_name
 
 
 # colors
@@ -53,21 +62,6 @@ def shorten_scenario_name(scen_name, max_length=15):
 def plot_energy_and_emissions(
     df, equipment_scenarios, emission_scenarios, unit_mode="SI"
 ):
-
-    col_to_type = {
-        # Energy
-        "elec_hr_Wh": "energy",
-        "elec_awhp_h_Wh": "energy",
-        "elec_awhp_c_Wh": "energy",
-        "elec_res_Wh": "energy",
-        "elec_chiller_Wh": "energy",
-        "gas_boiler_Wh": "energy",
-        # Emissions
-        "elec_emissions": "emissions",
-        "gas_emissions": "emissions",
-        "total_refrig_emissions": "emissions",
-    }
-
     # --- Filter scenarios ---
     df = df[
         (df["eq_scen_id"].isin(equipment_scenarios))
@@ -80,20 +74,35 @@ def plot_energy_and_emissions(
     n_scen = len(scenarios)
     opacities = np.linspace(1, 1, n_scen)  # fade scenarios slightly, ignore for now
 
-    # --- Convert all columns according to unit mode ---
-    for col in df.columns:
-        if col in col_to_type:
-            var_type = col_to_type[col]
-            conv = get_unit_converter(var_type, unit_mode)
-            df.loc[:, col] = df[col].apply(conv)
+    # NOTE: Don't use convert_dataframe - we use auto-scaling directly from base units
 
-    # --- Axis labels ---
-    yaxis_title_energy = unit_map["energy"][unit_mode]["label"]
-    yaxis_title_emissions = unit_map["emissions"][unit_mode]["label"]
+    # --- Pre-calculate totals in BASE units to determine auto-scaling ---
+    energy_totals = []
+    emissions_totals = []
+    for scen in scenarios:
+        df_s = df[df["eq_scen_id"] == scen]
+        # Energy columns are in Wh (base unit)
+        elec = df_s[["elec_hr_Wh", "elec_awhp_h_Wh", "elec_awhp_c_Wh", "elec_res_Wh", "elec_chiller_Wh"]].sum().sum()
+        gas = df_s["gas_boiler_Wh"].sum()
+        energy_totals.extend([elec, gas])
 
-    # --- Hover units ---
-    energy_hover_unit = get_hover_unit("energy", unit_mode)
-    emissions_hover_unit = get_hover_unit("emissions", unit_mode)
+        # Emissions columns are in kg CO₂e (base unit)
+        elec_em = df_s["elec_emissions"].sum()
+        gas_em = df_s["gas_emissions"].sum()
+        refrig_em = df_s["total_refrig_emissions"].sum()
+        emissions_totals.extend([elec_em, gas_em, refrig_em])
+
+    # --- Determine auto-scaling (from base units directly) ---
+    energy_scale, energy_unit = get_auto_scale(energy_totals, "energy", unit_mode)
+    emissions_scale, emissions_unit = get_auto_scale(emissions_totals, "emissions", unit_mode)
+
+    # --- Axis labels with auto-scaled units ---
+    yaxis_title_energy = f'Energy <span style="font-weight:200">| {energy_unit}</span>'
+    yaxis_title_emissions = f'Emissions <span style="font-weight:200">| {emissions_unit}</span>'
+
+    # --- Hover units (use scaled units) ---
+    energy_hover_unit = energy_unit
+    emissions_hover_unit = emissions_unit
 
     # --- Colors ---
     color_map_energy = {"Electricity": berkeley_blue, "Gas": berkeley_gold}
@@ -133,18 +142,22 @@ def plot_energy_and_emissions(
         )
         gas_total = df_s["gas_boiler_Wh"].sum()
 
+        # Apply auto-scaling
+        elec_scaled = elec_total / energy_scale
+        gas_scaled = gas_total / energy_scale
+
         # Electricity
         fig.add_trace(
             go.Bar(
                 x=[scen_name_short],
-                y=[elec_total],
+                y=[elec_scaled],
                 name="Electricity",
                 marker=dict(
                     color=color_map_energy["Electricity"], opacity=opacities[i]
                 ),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
-                    f"Electricity: {elec_total:.0f} {energy_hover_unit}"
+                    f"Electricity: {elec_scaled:,.1f} {energy_hover_unit}"
                     "<extra></extra>"
                 ),
                 showlegend=False,
@@ -157,12 +170,12 @@ def plot_energy_and_emissions(
         fig.add_trace(
             go.Bar(
                 x=[scen_name_short],
-                y=[gas_total],
+                y=[gas_scaled],
                 name="Gas",
                 marker=dict(color=color_map_energy["Gas"], opacity=opacities[i]),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
-                    f"Gas: {gas_total:.0f} {energy_hover_unit}"
+                    f"Gas: {gas_scaled:,.1f} {energy_hover_unit}"
                     "<extra></extra>"
                 ),
                 showlegend=False,
@@ -183,18 +196,23 @@ def plot_energy_and_emissions(
         gas_em = df_s["gas_emissions"].sum().sum()
         refrig_em = df_s["total_refrig_emissions"].sum().sum()
 
+        # Apply auto-scaling
+        elec_em_scaled = elec_em / emissions_scale
+        gas_em_scaled = gas_em / emissions_scale
+        refrig_em_scaled = refrig_em / emissions_scale
+
         show_legend = "Electricity" not in added_legends
         fig.add_trace(
             go.Bar(
                 x=[scen_name_short],
-                y=[elec_em],
+                y=[elec_em_scaled],
                 name="Electricity",
                 marker=dict(
                     color=color_map_emissions["Electricity"], opacity=opacities[i]
                 ),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
-                    f"Electricity: {elec_em:.1f} {emissions_hover_unit}"
+                    f"Electricity: {elec_em_scaled:,.1f} {emissions_hover_unit}"
                     "<extra></extra>"
                 ),
                 showlegend=show_legend,
@@ -208,12 +226,12 @@ def plot_energy_and_emissions(
         fig.add_trace(
             go.Bar(
                 x=[scen_name_short],
-                y=[gas_em],
+                y=[gas_em_scaled],
                 name="Gas",
                 marker=dict(color=color_map_emissions["Gas"], opacity=opacities[i]),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
-                    f"Gas: {gas_em:.1f} {emissions_hover_unit}"
+                    f"Gas: {gas_em_scaled:,.1f} {emissions_hover_unit}"
                     "<extra></extra>"
                 ),
                 showlegend=show_legend,
@@ -227,14 +245,14 @@ def plot_energy_and_emissions(
         fig.add_trace(
             go.Bar(
                 x=[scen_name_short],
-                y=[refrig_em],
+                y=[refrig_em_scaled],
                 name="Refrigerant",
                 marker=dict(
                     color=color_map_emissions["Refrigerant"], opacity=opacities[i]
                 ),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
-                    f"Refrigerant: {refrig_em:.1f} {emissions_hover_unit}"
+                    f"Refrigerant: {refrig_em_scaled:,.1f} {emissions_hover_unit}"
                     "<extra></extra>"
                 ),
                 showlegend=show_legend,
@@ -263,30 +281,34 @@ def plot_emission_scenarios_grouped(
     emission_scenarios,
     unit_mode="SI",
 ):
-    col_to_type = {
-        "elec_emissions": "emissions",
-        "gas_emissions": "emissions",
-        "total_refrig_emissions": "emissions",
-    }
-
     # --- Filter scenarios ---
     df = df[
         (df["eq_scen_id"].isin(equipment_scenarios))
         & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
-    # --- Unit conversion ---
-    for col in df.columns:
-        if col in col_to_type:
-            var_type = col_to_type[col]
-            conv = get_unit_converter(var_type, unit_mode)  # <- our helper
-            df.loc[:, col] = df[col].apply(conv)
+    # NOTE: Don't use convert_dataframe - we use auto-scaling directly from base units
 
-    # --- Axis label ---
-    yaxis_title_emissions = unit_map["emissions"][unit_mode]["label"]
+    # --- Pre-calculate all emissions totals in BASE units for auto-scaling ---
+    emissions_totals = []
+    for em_scen in emission_scenarios:
+        df_e = df[df["em_scen_id"] == em_scen]
+        for scen in equipment_scenarios:
+            df_s = df_e[df_e["eq_scen_id"] == scen]
+            if not df_s.empty:
+                # Emissions columns are in kg CO₂e (base unit)
+                emissions_totals.append(df_s["elec_emissions"].sum())
+                emissions_totals.append(df_s["gas_emissions"].sum())
+                emissions_totals.append(df_s["total_refrig_emissions"].sum())
 
-    # --- Hover unit ---
-    emissions_hover_unit = get_hover_unit("emissions", unit_mode)
+    # --- Determine auto-scaling (from base units directly) ---
+    emissions_scale, emissions_unit = get_auto_scale(emissions_totals, "emissions", unit_mode)
+
+    # --- Axis label with auto-scaled units ---
+    yaxis_title_emissions = f'Emissions <span style="font-weight:200">| {emissions_unit}</span>'
+
+    # --- Hover unit (use scaled unit) ---
+    emissions_hover_unit = emissions_unit
 
     # --- Colors ---
     color_map_emissions = {
@@ -300,7 +322,9 @@ def plot_emission_scenarios_grouped(
     fig = make_subplots(
         rows=1,
         cols=n_em_scen,
-        subplot_titles=[f"{em_scen}" for em_scen in emission_scenarios],
+        subplot_titles=[
+            format_emission_scenario_id(em_scen) for em_scen in emission_scenarios
+        ],
         horizontal_spacing=0.12,
         shared_yaxes=True,
     )
@@ -326,17 +350,22 @@ def plot_emission_scenarios_grouped(
             gas_em = df_s["gas_emissions"].sum()
             refrig_em = df_s["total_refrig_emissions"].sum()
 
+            # Apply auto-scaling
+            elec_em_scaled = elec_em / emissions_scale
+            gas_em_scaled = gas_em / emissions_scale
+            refrig_em_scaled = refrig_em / emissions_scale
+
             # Electricity
             show_legend = "Electricity" not in added_legends
             fig.add_trace(
                 go.Bar(
                     x=[scen_name_short],  # 👈 use name instead of ID
-                    y=[elec_em],
+                    y=[elec_em_scaled],
                     name="Electricity",
                     marker=dict(color=color_map_emissions["Electricity"]),
                     hovertemplate=(
                         f"Equipment: {scen_name}<br>"
-                        f"Electricity: {elec_em:.1f} {emissions_hover_unit}"
+                        f"Electricity: {elec_em_scaled:,.1f} {emissions_hover_unit}"
                         "<extra></extra>"
                     ),
                     showlegend=show_legend,
@@ -351,12 +380,12 @@ def plot_emission_scenarios_grouped(
             fig.add_trace(
                 go.Bar(
                     x=[scen_name_short],
-                    y=[gas_em],
+                    y=[gas_em_scaled],
                     name="Gas",
                     marker=dict(color=color_map_emissions["Gas"]),
                     hovertemplate=(
                         f"Equipment: {scen_name}<br>"
-                        f"Gas: {gas_em:.1f} {emissions_hover_unit}"
+                        f"Gas: {gas_em_scaled:,.1f} {emissions_hover_unit}"
                         "<extra></extra>"
                     ),
                     showlegend=show_legend,
@@ -371,12 +400,12 @@ def plot_emission_scenarios_grouped(
             fig.add_trace(
                 go.Bar(
                     x=[scen_name_short],
-                    y=[refrig_em],
+                    y=[refrig_em_scaled],
                     name="Refrigerant",
                     marker=dict(color=color_map_emissions["Refrigerant"]),
                     hovertemplate=(
                         f"Equipment: {scen_name}<br>"
-                        f"Refrigerant: {refrig_em:.1f} {emissions_hover_unit}"
+                        f"Refrigerant: {refrig_em_scaled:,.1f} {emissions_hover_unit}"
                         "<extra></extra>"
                     ),
                     showlegend=show_legend,
@@ -416,12 +445,9 @@ def plot_meter_timeseries(
     Plot time series data for meters (electricity, gas) with flexible aggregation.
     """
 
-    # Setting up unit conversion
-    variable_type = "energy"
-
     metadata_cols = ["eq_scen_id", "em_scen_id"]
 
-    convert_cols = [
+    energy_cols = [
         "elec_hr_Wh",
         "elec_awhp_h_Wh",
         "elec_chiller_Wh",
@@ -435,17 +461,10 @@ def plot_meter_timeseries(
         & (df["em_scen_id"] == emission_scenario)
     ].copy()
 
-    all_cols = metadata_cols + convert_cols
+    all_cols = metadata_cols + energy_cols
     df = filtered[[c for c in all_cols if c in df.columns]]
 
-    conv = get_unit_converter(variable_type, unit_mode)
-    hover_unit = get_hover_unit(variable_type, unit_mode)
-
-    df.loc[:, [c for c in convert_cols if c in df.columns]] = df[
-        [c for c in convert_cols if c in df.columns]
-    ].apply(conv)
-
-    yaxis_title = unit_map[variable_type][unit_mode]["label"]
+    # NOTE: Don't use convert_dataframe - we use auto-scaling directly from base units
 
     df = df.drop(columns=["eq_scen_id"], errors="ignore")
     df = df.drop(columns=["em_scen_id"], errors="ignore")
@@ -457,7 +476,7 @@ def plot_meter_timeseries(
     if aggfunc not in ["sum", "mean"]:
         raise ValueError("aggfunc must be either 'sum' or 'mean'")
 
-    # Resample data with chosen aggregation
+    # Resample data with chosen aggregation (values remain in base units Wh)
     if aggfunc == "sum":
         df_resampled = df.resample(freq).sum()
         usage_label = "Usage"
@@ -470,6 +489,21 @@ def plot_meter_timeseries(
         df_resampled = df_resampled[
             [col for col in df_resampled.columns if "gas" not in col.lower()]
         ]
+
+    # --- Auto-scaling based on resampled data (in base units Wh) ---
+    all_values = df_resampled.values.flatten()
+    all_values = [v for v in all_values if v is not None and not np.isnan(v)]
+    energy_scale, energy_unit = get_auto_scale(all_values, "energy", unit_mode)
+
+    # Apply scaling to resampled data
+    df_resampled = df_resampled / energy_scale
+
+    # Build axis title with auto-scaled unit
+    yaxis_title = f'Energy <span style="font-weight:200">| {energy_unit}</span>'
+    hover_unit = energy_unit
+
+    # Rename columns to user-friendly display names
+    df_resampled = df_resampled.rename(columns=format_meter_name)
 
     if not stacked:
 
@@ -502,7 +536,7 @@ def plot_meter_timeseries(
             tr.hovertemplate = (
                 "Time: %{x|%Y-%m-%d %H:%M}<br>"
                 "Meter: %{meta}<br>"
-                f"{usage_label}: " + f"%{{y:.2f}} {hover_unit}"
+                f"{usage_label}: " + f"%{{y:,.2f}} {hover_unit}"
                 "<extra></extra>"
             )
 
@@ -548,7 +582,7 @@ def plot_meter_timeseries(
             tr.hovertemplate = (
                 "Time: %{x|%Y-%m-%d %H:%M}<br>"
                 "Meter: %{meta}<br>"
-                f"{usage_label}: " + f"%{{y:.2f}} {hover_unit}"
+                f"{usage_label}: " + f"%{{y:,.2f}} {hover_unit}"
                 "<extra></extra>"
             )
 
@@ -566,19 +600,16 @@ def plot_emissions_heatmap(
     Plot a heatmap of electricity emissions (elec_emissions) by hour and day of the year.
     """
 
-    # Setting up unit conversion
-    variable_type = "emissions"
-
     metadata_cols = ["eq_scen_id", "em_scen_id"]
 
-    convert_cols = [
+    emission_cols = [
         "elec_emissions",
         "gas_emissions",
         "total_refrig_emissions",
         "total_emissions",
     ]
 
-    all_cols = metadata_cols + convert_cols
+    all_cols = metadata_cols + emission_cols
 
     filtered = df[
         (df["eq_scen_id"] == equipment_scenario)
@@ -588,17 +619,11 @@ def plot_emissions_heatmap(
     # keep only what exists
     df = filtered[[c for c in all_cols if c in filtered.columns]].copy()
 
-    # --- unit conversion (to current mode) ---
-    conv = get_unit_converter(variable_type, unit_mode)
-    hover_unit = get_hover_unit(variable_type, unit_mode)
+    # --- Unit conversion (centralized) ---
+    df = convert_dataframe(df, unit_mode)
 
-    # convert only cols that are present
-    cols_to_convert = [c for c in convert_cols if c in df.columns]
-    if cols_to_convert:
-        df.loc[:, cols_to_convert] = df[cols_to_convert].apply(conv)
-
-    # colorbar / legend title from unit_map (HTML-ish like your other plots)
-    legend_title = unit_map[variable_type][unit_mode]["label"]
+    hover_unit = get_display_unit("emissions", unit_mode)
+    legend_title = unit_map["emissions"][unit_mode]["label"]
 
     # Check if the 'elec_emissions' column exists
     if emission_type not in df.columns:
@@ -644,10 +669,19 @@ def plot_emissions_heatmap(
         template="decarb-tool-theme",
     )
 
+    # Map emission type to display name
+    emission_type_labels = {
+        "elec_emissions": "Electricity Emissions",
+        "gas_emissions": "Gas Emissions",
+        "total_refrig_emissions": "Refrigerant Emissions",
+        "total_emissions": "Total Emissions",
+    }
+    emission_label = emission_type_labels.get(emission_type, emission_type)
+
     fig = apply_standard_layout(
         fig,
         y_offset=-0.3,
-        subtitle_text=f"Annual heatmap of hourly emissions for {emission_type}.",
+        subtitle_text=f"Annual heatmap of hourly {emission_label.lower()}.",
     )
 
     return fig
@@ -677,18 +711,9 @@ def plot_scatter_temp_vs_variable(
         "total_refrig_emissions",
         "total_emissions",
     ]
-    temp_cols = ["t_out_C"]
 
-    # --- Create col_to_type dict dynamically ---
-    col_to_type = {col: "energy" for col in energy_cols}
-    col_to_type.update({col: "emissions" for col in emission_cols})
-    col_to_type.update({col: "temperature" for col in temp_cols})
-
-    # --- Convert units if needed ---
-    for col, var_type in col_to_type.items():
-        if col in df.columns:
-            conv = get_unit_converter(var_type, unit_mode)
-            df[col] = df[col].apply(conv)
+    # --- Unit conversion (centralized) ---
+    df = convert_dataframe(df, unit_mode)
 
     # --- Determine y-axis type and label ---
     if y_var not in df.columns:
@@ -705,8 +730,8 @@ def plot_scatter_temp_vs_variable(
     xaxis_title_temp = unit_map["temperature"][unit_mode]["label"]
 
     # hover units (short, plain text)
-    y_hover_unit = get_hover_unit(y_var_type, unit_mode)
-    t_hover_unit = get_hover_unit("temperature", unit_mode)
+    y_hover_unit = get_display_unit(y_var_type, unit_mode)
+    t_hover_unit = get_display_unit("temperature", unit_mode)
 
     # --- Filter scenarios ---
     df = df[

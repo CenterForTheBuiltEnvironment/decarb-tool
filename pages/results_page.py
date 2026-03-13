@@ -24,6 +24,10 @@ from src.visuals import (
 )
 
 from utils.logging_config import get_logger
+from utils.display_registry import (
+    format_equipment_scenario_id,
+    format_emission_scenario_id,
+)
 
 logger = get_logger(__name__)
 
@@ -92,13 +96,15 @@ def load_source_energy(session_data):
 @callback(
     Output("summary-project-info", "children"),
     Input("metadata-store", "data"),
+    Input("unit-toggle", "value"),
 )
-def show_project_summary(metadata_json):
+def show_project_summary(metadata_json, unit_mode):
     if not metadata_json:
         return "No project metadata available."
 
+    unit_mode = unit_mode or "SI"
     metadata = Metadata(**metadata_json)
-    return summary_project_info(metadata)
+    return summary_project_info(metadata, unit_mode=unit_mode)
 
 
 @callback(
@@ -252,19 +258,94 @@ def update_scatter_plot(
     return fig
 
 
+# Immediate notification when download button is clicked
+@callback(
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("download-button", "n_clicks"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def show_download_notification(n_clicks, unit_mode):
+    """Show immediate feedback when download button is clicked."""
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
+    unit_label = "SI (metric)" if unit_mode == "SI" else "IP (imperial)"
+
+    # Notification with loading spinner
+    notification = {
+        "id": "download-notification",
+        "title": "Preparing Download",
+        "message": f"Exporting results in {unit_label} units...",
+        "color": "blue",
+        "loading": True,  # Shows spinning wheel
+        "autoClose": 6000,  # Keep visible longer (6 seconds)
+        "action": "show",
+    }
+
+    return [notification]
+
+
 # Download the full results/source energy dataframe as CSV
 @callback(
     Output("download-data", "data"),
     Input("download-button", "n_clicks"),
     State("session-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
-def download_results(n_clicks, session_data):
-    """Download the entire results dataframe as a .csv file"""
+def download_results(n_clicks, session_data, unit_mode):
+    """Download the entire results dataframe as a .csv file with unit conversion."""
+    import numpy as np
+    from utils.units import (
+        convert_dataframe,
+        get_category,
+        get_column_label,
+        COLUMN_DISPLAY_NAMES,
+    )
+
+    # Only trigger on actual button click
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
     if not session_data or "session_id" not in session_data:
         raise dash.exceptions.PreventUpdate
 
     df = load_source_energy(session_data)
+    if df is None:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
+
+    # Convert values based on unit mode
+    df = convert_dataframe(df, unit_mode)
+
+    # Round numeric values: 2 decimals normally, 3 for values < 1
+    def smart_round(val):
+        if pd.isna(val) or not isinstance(val, (int, float, np.number)):
+            return val
+        if abs(val) < 1 and val != 0:
+            return round(val, 3)
+        return round(val, 2)
+
+    for col in df.columns:
+        if df[col].dtype in [np.float64, np.float32, float]:
+            df[col] = df[col].apply(smart_round)
+
+    # Rename columns:
+    # - Columns with a category: use get_column_label (includes unit)
+    # - Columns without a category but with display name: use display name only
+    column_renames = {}
+    for col in df.columns:
+        if get_category(col) is not None:
+            # Has unit conversion - include unit in label
+            column_renames[col] = get_column_label(col, unit_mode)
+        elif col in COLUMN_DISPLAY_NAMES:
+            # No unit conversion but has display name
+            column_renames[col] = COLUMN_DISPLAY_NAMES[col]
+        # else: keep original column name
+    df = df.rename(columns=column_renames)
 
     filename = f"results_{datetime.datetime.now()}.csv"
 
@@ -308,12 +389,26 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
     else:
         eq_ids = df_ids
 
+    # Sort equipment scenarios by their numeric suffix (eq_scenario_1 < eq_scenario_2 < ...)
+    def eq_sort_key(scen_id):
+        if scen_id.startswith("eq_scenario_"):
+            try:
+                return int(scen_id[len("eq_scenario_") :])
+            except ValueError:
+                pass
+        return scen_id
+
+    eq_ids = sorted(eq_ids, key=eq_sort_key)
+
     if not eq_ids:
         # Fallback: nothing computed
         return [], [], [], None, [], None, [], []
 
-    # Build options list
-    options = [{"label": scen_id, "value": scen_id} for scen_id in eq_ids]
+    # Build options list with user-friendly labels
+    options = [
+        {"label": format_equipment_scenario_id(scen_id), "value": scen_id}
+        for scen_id in eq_ids
+    ]
 
     # Defaults:
     # - For multi-select dropdowns: select all by default
@@ -410,6 +505,14 @@ def populate_emission_dropdowns(
     else:
         em_ids = df_ids
 
+    # Sort emission scenarios by their letter suffix (em_scenario_a < em_scenario_b < ...)
+    def em_sort_key(scen_id):
+        if scen_id.startswith("em_scenario_"):
+            return scen_id[len("em_scenario_") :]
+        return scen_id
+
+    em_ids = sorted(em_ids, key=em_sort_key)
+
     if not em_ids:
         empty_opts, none_val = [], None
         return (
@@ -425,8 +528,11 @@ def populate_emission_dropdowns(
             none_val,
         )
 
-    # Build options
-    options = [{"label": scen_id, "value": scen_id} for scen_id in em_ids]
+    # Build options with user-friendly labels
+    options = [
+        {"label": format_emission_scenario_id(scen_id), "value": scen_id}
+        for scen_id in em_ids
+    ]
 
     # Helper: choose new value based on previous value type (single vs multi)
     def pick_value(prev_val):

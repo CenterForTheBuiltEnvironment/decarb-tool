@@ -132,41 +132,93 @@ def select_load_type():
     )
 
 
-def build_building_table(buildings_data, selected_id=None):
+def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"):
     """
     Build a table from a DataFrame with predefined columns.
     Only displays columns that exist in the data.
+    Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
-    # Define desired columns with their display names
+    from utils.units import (
+        get_category,
+        get_auto_scale_for_values,
+    )
+
+    # Define desired columns with their base display names (without units)
+    # Format: (column_name, display_name)
     column_config = [
         ("location", "Location"),
         ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
         ("load_type", "Source"),
-        ("area_sqm", "Area [m²]"),
-        ("hhw_max_load", "Peak HHW Load [W]"),
-        ("chw_max_load", "Peak CHW Load [W]"),
+        ("area_sqm", "Area"),
+        ("hhw_max_load", "Peak HHW Load"),
+        ("chw_max_load", "Peak CHW Load"),
         ("annual_heating_cooling_ratio", "Annual H/C Ratio"),
-        ("min_temp", "Min Temp [°C]"),
-        ("max_temp", "Max Temp [°C]"),
+        ("min_temp", "Min Temp"),
+        ("max_temp", "Max Temp"),
     ]
 
     available_columns = [
         (col, label) for col, label in column_config if col in buildings_data.columns
     ]
 
-    # Build body rows
+    # Pre-calculate auto-scaling for each column
+    # Store (scale_factor, unit_label) for each column
+    column_scales = {}
+    for col, _ in available_columns:
+        category = get_category(col)
+        if category:
+            # Get all non-null values for this column (in base units)
+            values = buildings_data[col].dropna().tolist()
+            if values:
+                scale, unit = get_auto_scale_for_values(values, category, unit_mode)
+                column_scales[col] = (scale, unit)
+
+    # Build header labels with auto-scaled units
+    def get_header_label(col_name: str, base_label: str) -> str:
+        if col_name in column_scales:
+            _, unit = column_scales[col_name]
+            return f"{base_label} [{unit}]"
+        return base_label
+
+    # Build body rows with auto-scaling (directly from base units)
     body_rows = []
     for idx, row in buildings_data.iterrows():
         cells = [
             dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
         ]  # use 'building_id' field or index
-        cells.extend([dmc.TableTd(str(row[col])) for col, _ in available_columns])
+
+        for col, _ in available_columns:
+            raw_value = row[col]
+            # Scale value if it has a registered category
+            if col in column_scales and raw_value is not None:
+                try:
+                    scale, _ = column_scales[col]
+                    # Divide base unit value by scale to get display value
+                    scaled = float(raw_value) / scale
+                    # Format based on magnitude of scaled value
+                    if abs(scaled) >= 1000:
+                        display_value = f"{scaled:,.0f}"
+                    elif abs(scaled) >= 1:
+                        display_value = f"{scaled:,.1f}"
+                    else:
+                        display_value = f"{scaled:,.2f}"
+                except (TypeError, ValueError):
+                    display_value = str(raw_value)
+            else:
+                display_value = str(raw_value) if raw_value is not None else "—"
+
+            cells.append(dmc.TableTd(display_value))
+
         body_rows.append(dmc.TableTr(cells))
 
-    # Build header
-    header_cells = [dmc.TableTh("")]  # radio column
-    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    # Build header (use normal case, not uppercase)
+    header_style = {"textTransform": "none", "fontWeight": 500}
+    header_cells = [dmc.TableTh("", style=header_style)]  # radio column
+    header_cells.extend([
+        dmc.TableTh(get_header_label(col, label), style=header_style)
+        for col, label in available_columns
+    ])
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -261,7 +313,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("Area (m²)", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="area-slider-label",
+                                        children="Area (m²)",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="area-range-slider",
                                         min=area_min,
@@ -278,7 +335,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("HHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="hhw-slider-label",
+                                        children="HHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="hhw-range-slider",
                                         min=hhw_min,
@@ -295,7 +357,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("CHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="chw-slider-label",
+                                        children="CHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="chw-range-slider",
                                         min=chw_min,
@@ -600,7 +667,7 @@ def build_equipment_table(
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value)
+            display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis + diff highlighting
             cell_style = {
@@ -880,7 +947,7 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
+def build_emissions_table(emission_data, active_ids=None, view_mode="simple", unit_mode="SI"):
     """
     Transposed emissions scenarios table:
     - Columns = emission scenarios (em_scen_id)
@@ -895,7 +962,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
         emission_data: Emission scenarios data (list or DataFrame)
         active_ids: Set of scenario IDs that are selected/active
         view_mode: One of "simple", "advanced", or "differences"
+        unit_mode: "SI" or "IP" for unit conversion
     """
+    from utils.units import get_unit_label, get_unit_converter
+
     if isinstance(emission_data, list):
         emission_df = pd.DataFrame(emission_data)
     else:
@@ -915,7 +985,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Rows to display
+    # Get unit label for NG leakage (dynamic based on unit_mode)
+    ng_leakage_unit = get_unit_label("ng_leakage_rate", unit_mode)
+
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
@@ -924,7 +996,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("annual_ng_leakage_g_per_kWh", "NG leakage (g/kWh)"),
+        ("annual_ng_leakage_g_per_kWh", f"NG leakage ({ng_leakage_unit})"),
         ("year", "Year"),
     ]
 
@@ -1004,8 +1076,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
             **scen_cell_base,
             **(active_col_style if scen_id in active_ids else inactive_col_style),
         }
-        # Display just the number in the header
-        header_cells.append(dmc.TableTh(str(idx), style=cell_style))
+        # Display capital letter in the header (A, B, C, ...)
+        letter = chr(64 + idx)  # 1 -> 'A', 2 -> 'B', etc.
+        header_cells.append(dmc.TableTh(letter, style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
@@ -1049,6 +1122,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
+    # Get converter for NG leakage values
+    ng_leakage_converter = get_unit_converter("ng_leakage_rate", unit_mode)
+
     for field, label in available_rows:
         is_diff_row = field in diff_fields
 
@@ -1061,7 +1137,16 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple"):
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value)
+
+            # Apply unit conversion for NG leakage
+            if field == "annual_ng_leakage_g_per_kWh" and raw_value is not None:
+                try:
+                    converted = ng_leakage_converter(float(raw_value))
+                    display_value = f"{converted:.2f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            else:
+                display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis
             cell_style = {
@@ -1253,11 +1338,21 @@ def edit_emission_modal():
                             max=1,
                             step=0.01,
                         ),
-                        dmc.NumberInput(
-                            id="edit-em-ng-leakage",
-                            label="Annual NG leakage (g/kWh)",
-                            min=0,
-                            step=1,
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-em-ng-leakage-label",
+                                    children="Annual NG leakage (g/kWh)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-em-ng-leakage",
+                                    min=0,
+                                    step=1,
+                                ),
+                            ],
+                            gap=4,
                         ),
                     ],
                 ),

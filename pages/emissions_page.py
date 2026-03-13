@@ -180,8 +180,9 @@ def layout():
     Input("metadata-store", "data"),
     Input("selected-emissions-store", "data"),
     Input("emissions-view-mode", "value"),
+    Input("unit-toggle", "value"),
 )
-def update_emissions_table(metadata_data, selected_emissions, view_mode):
+def update_emissions_table(metadata_data, selected_emissions, view_mode, unit_mode):
     if not metadata_data:
         return dmc.Text("No emission scenarios defined yet.")
 
@@ -197,6 +198,7 @@ def update_emissions_table(metadata_data, selected_emissions, view_mode):
         scenarios,
         active_ids=active_ids,
         view_mode=view_mode or "simple",
+        unit_mode=unit_mode or "SI",
     )
 
 
@@ -487,9 +489,10 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     Output("edit-em-scenario-error", "children"),
     Input({"type": "emission-edit-btn", "em_scen_id": ALL}, "n_clicks"),
     State("metadata-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
-def open_edit_emission_modal(edit_clicks, metadata_data):
+def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     if not any(edit_clicks or []):
         return (no_update,) * 11
 
@@ -552,6 +555,24 @@ def open_edit_emission_modal(edit_clicks, metadata_data):
             f"Scenario {em_scen_id!r} not found.",
         )
 
+    # Convert NG leakage for display based on unit mode
+    ng_leakage_base = scen.get("annual_ng_leakage_g_per_kWh")
+    if ng_leakage_base is not None and unit_mode == "IP":
+        from utils.units import get_unit_converter
+        ng_converter = get_unit_converter("ng_leakage_rate", "IP")
+        ng_leakage_display = ng_converter(float(ng_leakage_base))
+    else:
+        ng_leakage_display = ng_leakage_base
+
+    # Round refrigerant leakage to 2 decimal places for display
+    refrig_leakage = scen.get("annual_refrig_leakage_percent")
+    if refrig_leakage is not None:
+        refrig_leakage = round(float(refrig_leakage), 2)
+
+    # Round NG leakage display to 2 decimal places
+    if ng_leakage_display is not None:
+        ng_leakage_display = round(float(ng_leakage_display), 2)
+
     return (
         True,
         scen.get("em_scen_id"),
@@ -561,8 +582,8 @@ def open_edit_emission_modal(edit_clicks, metadata_data):
         scen.get("emission_type", ""),
         scen.get("shortrun_weighting"),
         str(scen.get("year")) if scen.get("year") is not None else "",
-        scen.get("annual_refrig_leakage_percent"),
-        scen.get("annual_ng_leakage_g_per_kWh"),
+        refrig_leakage,
+        ng_leakage_display,
         "",
     )
 
@@ -582,6 +603,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data):
     State("edit-em-refrig-leakage", "value"),
     State("edit-em-ng-leakage", "value"),
     State("metadata-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
 def save_edit_emission(
@@ -596,6 +618,7 @@ def save_edit_emission(
     refrig_leakage,
     ng_leakage,
     metadata_data,
+    unit_mode,
 ):
     if not n_clicks:
         return no_update, no_update, no_update
@@ -628,6 +651,14 @@ def save_edit_emission(
         ng_leakage = float(ng_leakage) if ng_leakage is not None else 0.0
     except (TypeError, ValueError):
         ng_leakage = 0.0
+
+    # Convert NG leakage back to base units (g/kWh) if in IP mode
+    unit_mode = unit_mode or "SI"
+    if unit_mode == "IP" and ng_leakage > 0:
+        from utils.units import g_to_lb, Wh_to_BTU
+        # IP unit is lb/kBTU, convert back to g/kWh
+        # g/kWh = (lb/kBTU) / (g_to_lb / Wh_to_BTU)
+        ng_leakage = ng_leakage / (g_to_lb / Wh_to_BTU)
 
     scenarios = metadata_data.get("emission_settings", [])
     updated = False
@@ -667,6 +698,18 @@ def cancel_edit_emission_modal(n_clicks):
     if not n_clicks:
         return no_update
     return False
+
+
+@callback(
+    Output("edit-em-ng-leakage-label", "children"),
+    Input("unit-toggle", "value"),
+)
+def update_ng_leakage_label(unit_mode):
+    """Update NG leakage label based on unit mode."""
+    from utils.units import get_unit_label
+    unit_mode = unit_mode or "SI"
+    ng_unit = get_unit_label("ng_leakage_rate", unit_mode)
+    return f"Annual NG leakage ({ng_unit})"
 
 
 @callback(

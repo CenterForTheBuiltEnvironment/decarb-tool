@@ -44,11 +44,13 @@ TABLE_STYLE = ScenarioTableStyle()
 # --- Helpers for table value formatting and styling ---
 
 
-def format_table_value(raw_value):
+def format_table_value(raw_value, field_name: str = None):
     """
     Normalize values for display in tables.
     - None / "None" -> em dash
     - booleans -> Yes / No
+    - Equipment IDs -> model names (when field_name is provided)
+    - Enum values -> user-friendly names (when field_name is provided)
     """
     if raw_value is None:
         return "—"
@@ -56,6 +58,22 @@ def format_table_value(raw_value):
         return "-"
     if isinstance(raw_value, bool):
         return "Yes" if raw_value else "No"
+
+    # Map equipment IDs and enum values to display names
+    if field_name is not None:
+        from utils.display_registry import (
+            EQUIPMENT_ID_FIELDS,
+            ENUM_VALUE_FIELDS,
+            get_equipment_display_name,
+            format_enum_value,
+        )
+
+        if field_name in EQUIPMENT_ID_FIELDS:
+            return get_equipment_display_name(raw_value)
+
+        if field_name in ENUM_VALUE_FIELDS:
+            return format_enum_value(raw_value, field_name)
+
     return str(raw_value)
 
 
