@@ -389,9 +389,8 @@ AUTO_SCALE_CONFIG = {
             (1e3, 1e3, "kW"),
         ],
         "IP": [
-            # 1 TR = 3517 W
-            (3517 * 1e3, 3517 * 1e3, "kTR"),  # >= 1000 TR
-            (3517, 3517, "TR"),               # >= 1 TR
+            # 1 TR = 3517 W - keep in TR only (no kTR)
+            (3517, 3517, "TR"),
         ],
     },
     "emissions": {

@@ -96,3 +96,21 @@ def create_success_notification(
         "autoClose": 3000,
         "icon": DashIconify(icon="mdi:check-circle-outline"),
     }
+
+
+def create_info_notification(
+    title: str,
+    message: str,
+    notification_id: str = "info-notification",
+) -> dict:
+    """Create a Mantine notification for informational messages (blue)."""
+    return {
+        "id": notification_id,
+        "title": title,
+        "message": message,
+        "color": "blue",
+        "loading": False,
+        "action": "show",
+        "autoClose": 3000,
+        "icon": DashIconify(icon="mdi:information-outline"),
+    }

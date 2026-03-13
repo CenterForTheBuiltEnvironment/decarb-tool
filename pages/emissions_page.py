@@ -564,6 +564,15 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     else:
         ng_leakage_display = ng_leakage_base
 
+    # Round refrigerant leakage to 2 decimal places for display
+    refrig_leakage = scen.get("annual_refrig_leakage_percent")
+    if refrig_leakage is not None:
+        refrig_leakage = round(float(refrig_leakage), 2)
+
+    # Round NG leakage display to 2 decimal places
+    if ng_leakage_display is not None:
+        ng_leakage_display = round(float(ng_leakage_display), 2)
+
     return (
         True,
         scen.get("em_scen_id"),
@@ -573,7 +582,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
         scen.get("emission_type", ""),
         scen.get("shortrun_weighting"),
         str(scen.get("year")) if scen.get("year") is not None else "",
-        scen.get("annual_refrig_leakage_percent"),
+        refrig_leakage,
         ng_leakage_display,
         "",
     )

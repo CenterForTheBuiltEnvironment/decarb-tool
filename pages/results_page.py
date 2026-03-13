@@ -258,6 +258,35 @@ def update_scatter_plot(
     return fig
 
 
+# Immediate notification when download button is clicked
+@callback(
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("download-button", "n_clicks"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def show_download_notification(n_clicks, unit_mode):
+    """Show immediate feedback when download button is clicked."""
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
+    unit_label = "SI (metric)" if unit_mode == "SI" else "IP (imperial)"
+
+    # Notification with loading spinner
+    notification = {
+        "id": "download-notification",
+        "title": "Preparing Download",
+        "message": f"Exporting results in {unit_label} units...",
+        "color": "blue",
+        "loading": True,  # Shows spinning wheel
+        "autoClose": 6000,  # Keep visible longer (6 seconds)
+        "action": "show",
+    }
+
+    return [notification]
+
+
 # Download the full results/source energy dataframe as CSV
 @callback(
     Output("download-data", "data"),
@@ -268,6 +297,7 @@ def update_scatter_plot(
 )
 def download_results(n_clicks, session_data, unit_mode):
     """Download the entire results dataframe as a .csv file with unit conversion."""
+    import numpy as np
     from utils.units import (
         convert_dataframe,
         get_category,
@@ -275,13 +305,33 @@ def download_results(n_clicks, session_data, unit_mode):
         COLUMN_DISPLAY_NAMES,
     )
 
+    # Only trigger on actual button click
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
     if not session_data or "session_id" not in session_data:
         raise dash.exceptions.PreventUpdate
 
     df = load_source_energy(session_data)
+    if df is None:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
 
     # Convert values based on unit mode
     df = convert_dataframe(df, unit_mode)
+
+    # Round numeric values: 2 decimals normally, 3 for values < 1
+    def smart_round(val):
+        if pd.isna(val) or not isinstance(val, (int, float, np.number)):
+            return val
+        if abs(val) < 1 and val != 0:
+            return round(val, 3)
+        return round(val, 2)
+
+    for col in df.columns:
+        if df[col].dtype in [np.float64, np.float32, float]:
+            df[col] = df[col].apply(smart_round)
 
     # Rename columns:
     # - Columns with a category: use get_column_label (includes unit)

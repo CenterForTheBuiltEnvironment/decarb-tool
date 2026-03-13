@@ -669,10 +669,19 @@ def plot_emissions_heatmap(
         template="decarb-tool-theme",
     )
 
+    # Map emission type to display name
+    emission_type_labels = {
+        "elec_emissions": "Electricity Emissions",
+        "gas_emissions": "Gas Emissions",
+        "total_refrig_emissions": "Refrigerant Emissions",
+        "total_emissions": "Total Emissions",
+    }
+    emission_label = emission_type_labels.get(emission_type, emission_type)
+
     fig = apply_standard_layout(
         fig,
         y_offset=-0.3,
-        subtitle_text=f"Annual heatmap of hourly emissions for {emission_type}.",
+        subtitle_text=f"Annual heatmap of hourly {emission_label.lower()}.",
     )
 
     return fig

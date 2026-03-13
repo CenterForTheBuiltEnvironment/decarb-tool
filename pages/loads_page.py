@@ -538,13 +538,13 @@ def update_table(
     unit_mode,
     current_choice,
 ):
-    from utils.units import sqm_to_sqft, W_to_BTUh
+    from utils.units import sqm_to_sqft, W_to_BTUh, ton_to_W
 
     unit_mode = unit_mode or "SI"
 
     # -----------------------------
     # Convert slider values back to base SI units for filtering
-    # Sliders show: SI mode = kW, IP mode = BTU/h (for power)
+    # Sliders show: SI mode = kW, IP mode = MMBTU/h (heating) / TR (cooling)
     # Data is stored in: W (for power), m² (for area)
     # -----------------------------
     if area_range and len(area_range) == 2:
@@ -557,16 +557,17 @@ def update_table(
 
     if hhw_range and len(hhw_range) == 2:
         if unit_mode == "IP":
-            # BTU/h → W
-            hhw_range = [h / W_to_BTUh for h in hhw_range]
+            # MMBTU/h → W (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
+            w_per_mmbtu = 1e6 / W_to_BTUh
+            hhw_range = [h * w_per_mmbtu for h in hhw_range]
         else:
             # kW → W
             hhw_range = [h * 1000 for h in hhw_range]
 
     if chw_range and len(chw_range) == 2:
         if unit_mode == "IP":
-            # BTU/h → W
-            chw_range = [c / W_to_BTUh for c in chw_range]
+            # TR → W (1 TR = 3517 W)
+            chw_range = [c * ton_to_W for c in chw_range]
         else:
             # kW → W
             chw_range = [c * 1000 for c in chw_range]
@@ -725,19 +726,17 @@ def update_table(
 )
 def update_slider_units(unit_mode):
     """Update slider labels and ranges based on unit mode (SI/IP)."""
-    from utils.units import get_display_unit, sqm_to_sqft, W_to_BTUh
+    from utils.units import get_display_unit, sqm_to_sqft, W_to_BTUh, W_to_tons
 
     unit_mode = unit_mode or "SI"
 
-    # Get base values from LOAD_INDEX (in SI units)
+    # Get base values from LOAD_INDEX (in SI units, stored as W)
     area_min_si, area_max_si = LOAD_INDEX["area_sqm"]
     hhw_min_si, hhw_max_si = LOAD_INDEX["hhw_max_load"]
     chw_min_si, chw_max_si = LOAD_INDEX["chw_max_load"]
 
     # Get display units
     area_unit = get_display_unit("area", unit_mode)
-    power_unit = get_display_unit("power", unit_mode)  # BTU/h for heating
-    power_cooling_unit = get_display_unit("power_cooling", unit_mode)  # TR for cooling
 
     if unit_mode == "IP":
         # Convert area: m² → ft²
@@ -745,15 +744,19 @@ def update_slider_units(unit_mode):
         area_max = int(sqm_to_sqft(area_max_si))
         area_step = 5000
 
-        # Convert power: W → BTU/h (for both HHW and CHW display)
-        # Using heating units for both sliders for consistency
-        hhw_min = int(hhw_min_si * W_to_BTUh)
-        hhw_max = int(hhw_max_si * W_to_BTUh)
-        hhw_step = 50000
+        # Convert HHW: W → MMBTU/h (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
+        # Using MMBTU/h to avoid excessively large numbers
+        mmbtu_per_w = W_to_BTUh / 1e6  # W to MMBTU/h
+        hhw_min = round(hhw_min_si * mmbtu_per_w, 1)
+        hhw_max = round(hhw_max_si * mmbtu_per_w, 1)
+        hhw_step = 0.5
+        hhw_label_unit = "MMBTU/h"
 
-        chw_min = int(chw_min_si * W_to_BTUh)
-        chw_max = int(chw_max_si * W_to_BTUh)
-        chw_step = 50000
+        # Convert CHW: W → TR (tons of refrigeration)
+        chw_min = round(W_to_tons(chw_min_si), 0)
+        chw_max = round(W_to_tons(chw_max_si), 0)
+        chw_step = 50
+        chw_label_unit = "TR"
     else:
         # SI mode - use kW for power
         area_min = area_min_si
@@ -764,10 +767,12 @@ def update_slider_units(unit_mode):
         hhw_min = int(hhw_min_si / 1000)
         hhw_max = int(hhw_max_si / 1000)
         hhw_step = 50
+        hhw_label_unit = "kW"
 
         chw_min = int(chw_min_si / 1000)
         chw_max = int(chw_max_si / 1000)
         chw_step = 50
+        chw_label_unit = "kW"
 
     # Format mark labels
     def format_large_number(n):
@@ -775,14 +780,11 @@ def update_slider_units(unit_mode):
             return f"{n / 1_000_000:.1f}M"
         elif abs(n) >= 1_000:
             return f"{n / 1_000:.0f}k"
-        return str(int(n))
-
-    # Build labels (use kW for SI power, BTU/h for IP power)
-    power_label_unit = "kW" if unit_mode == "SI" else "BTU/h"
+        return f"{n:.1f}" if isinstance(n, float) else str(int(n))
 
     area_label = f"Area ({area_unit})"
-    hhw_label = f"HHW Peak Load [{power_label_unit}]"
-    chw_label = f"CHW Peak Load [{power_label_unit}]"
+    hhw_label = f"HHW Peak Load [{hhw_label_unit}]"
+    chw_label = f"CHW Peak Load [{chw_label_unit}]"
 
     # Build marks
     area_marks = [

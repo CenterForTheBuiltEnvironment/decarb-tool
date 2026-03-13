@@ -212,10 +212,11 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
 
         body_rows.append(dmc.TableTr(cells))
 
-    # Build header
-    header_cells = [dmc.TableTh("")]  # radio column
+    # Build header (use normal case, not uppercase)
+    header_style = {"textTransform": "none", "fontWeight": 500}
+    header_cells = [dmc.TableTh("", style=header_style)]  # radio column
     header_cells.extend([
-        dmc.TableTh(get_header_label(col, label))
+        dmc.TableTh(get_header_label(col, label), style=header_style)
         for col, label in available_columns
     ])
     header = dmc.TableThead(dmc.TableTr(header_cells))
@@ -1041,8 +1042,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
             **scen_cell_base,
             **(active_col_style if scen_id in active_ids else inactive_col_style),
         }
-        # Display just the number in the header
-        header_cells.append(dmc.TableTh(str(idx), style=cell_style))
+        # Display capital letter in the header (A, B, C, ...)
+        letter = chr(64 + idx)  # 1 -> 'A', 2 -> 'B', etc.
+        header_cells.append(dmc.TableTh(letter, style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
