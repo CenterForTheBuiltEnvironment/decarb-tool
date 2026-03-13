@@ -7,7 +7,7 @@ from dash_iconify import DashIconify
 from src.metadata import Metadata
 
 from src.equipment import EquipmentLibrary, EquipmentScenario
-from utils.units import format_with_units, get_unit_label
+from utils.units import format_with_auto_scale
 
 
 def get_nested_value(obj, attr_path):
@@ -55,11 +55,9 @@ def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI"):
 
         # Format value and label based on variable type
         if var_type and value is not None:
-            # Apply unit conversion and formatting
-            display_value = format_with_units(value, var_type, unit_mode)
-            # Append unit to label
-            unit_label = get_unit_label(var_type, unit_mode)
-            label = f"{base_label} [{unit_label}]"
+            # Apply unit conversion with auto-scaling (includes unit in output)
+            display_value = format_with_auto_scale(value, var_type, unit_mode)
+            label = base_label
         else:
             display_value = str(value) if value is not None else "-"
             label = base_label
@@ -97,7 +95,9 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("base_gea_grid_region", "GEA Grid Region"),
         ("area_sqm", "Building Area", "area"),
     ]
-    return make_metadata_card(metadata, fields, title="Building Characteristics", unit_mode=unit_mode)
+    return make_metadata_card(
+        metadata, fields, title="Building Characteristics", unit_mode=unit_mode
+    )
 
 
 def load_characteristics_card(metadata: Metadata, unit_mode="SI"):
@@ -105,13 +105,15 @@ def load_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("load_data.load_type", "Load Type"),
         ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
         ("load_data.hhw_max_load", "Peak Heating Load", "power"),
-        ("load_data.chw_max_load", "Peak Cooling Load", "power"),
+        ("load_data.chw_max_load", "Peak Cooling Load", "power_cooling"),
         ("load_data.max_temp", "Max. Outdoor Temp.", "temperature"),
         ("load_data.median_temp", "Median Outdoor Temp.", "temperature"),
         ("load_data.min_temp", "Min. Outdoor Temp.", "temperature"),
     ]
 
-    return make_metadata_card(metadata, load_fields, title="Load Characteristics", unit_mode=unit_mode)
+    return make_metadata_card(
+        metadata, load_fields, title="Load Characteristics", unit_mode=unit_mode
+    )
 
 
 def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=None):
@@ -284,7 +286,11 @@ def summary_project_info(metadata: Metadata, unit_mode="SI"):
         ("area_sqm", "Building Area", "area"),
         # Load-side fields (from LoadData)
         ("load_data.hhw_max_load", "Peak HHW Load", "power"),
-        ("load_data.chw_max_load", "Peak CHW Load", "power"),
+        (
+            "load_data.chw_max_load",
+            "Peak CHW Load",
+            "power_cooling",
+        ),  # Uses TR in IP mode
         ("load_data.annual_heating_cooling_ratio", "Annual Heating/Cooling Ratio"),
     ]
 

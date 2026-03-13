@@ -22,6 +22,7 @@ from layout.input import (
     select_load_type,
     modal_load_data_selection,
     build_building_table,
+    LOAD_INDEX,  # slider min/max values in base SI units
 )
 
 from layout.output import (
@@ -327,7 +328,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("Expected DatetimeIndex in StandardLoad.df")
 
-        # Monthly peaks (HHW & CHW, W → kW)
+        # Monthly peaks (HHW & CHW) - keep in base units (W)
         monthly = df.copy()
         monthly["month"] = monthly.index.month
         peaks = (
@@ -339,8 +340,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         monthly_summary = [
             {
                 "month": int(row["month"]),
-                "HHW_kW": float(row["heating_W"] / 1000.0),
-                "CHW_kW": float(row["cooling_W"] / 1000.0),
+                "HHW_W": float(row["heating_W"]),
+                "CHW_W": float(row["cooling_W"]),
             }
             for _, row in peaks.iterrows()
         ]
@@ -376,8 +377,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         temp_summary = [
             {
                 "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
-                "HHW_kW": float(row["heating_W"] / 1000.0),
-                "CHW_kW": float(row["cooling_W"] / 1000.0),
+                "HHW_W": float(row["heating_W"]),
+                "CHW_W": float(row["cooling_W"]),
             }
             for _, row in bin_stats.iterrows()
         ]
@@ -521,6 +522,7 @@ def process_upload(contents, filename, metadata_data):
         Input("chw-range-slider", "value"),
         # Input("temp-range-slider", "value"),
         Input("metadata-store", "data"),  # re-sort when metadata changes
+        Input("unit-toggle", "value"),  # unit mode for table display
     ],
     State("building-radio-group", "value"),
 )
@@ -533,8 +535,42 @@ def update_table(
     chw_range,
     # temp_range,
     metadata_data,
+    unit_mode,
     current_choice,
 ):
+    from utils.units import sqm_to_sqft, W_to_BTUh
+
+    unit_mode = unit_mode or "SI"
+
+    # -----------------------------
+    # Convert slider values back to base SI units for filtering
+    # Sliders show: SI mode = kW, IP mode = BTU/h (for power)
+    # Data is stored in: W (for power), m² (for area)
+    # -----------------------------
+    if area_range and len(area_range) == 2:
+        if unit_mode == "IP":
+            # ft² → m²
+            area_range = [a / 10.7639 for a in area_range]
+        else:
+            # Already in m² (slider shows m² in SI mode)
+            pass
+
+    if hhw_range and len(hhw_range) == 2:
+        if unit_mode == "IP":
+            # BTU/h → W
+            hhw_range = [h / W_to_BTUh for h in hhw_range]
+        else:
+            # kW → W
+            hhw_range = [h * 1000 for h in hhw_range]
+
+    if chw_range and len(chw_range) == 2:
+        if unit_mode == "IP":
+            # BTU/h → W
+            chw_range = [c / W_to_BTUh for c in chw_range]
+        else:
+            # kW → W
+            chw_range = [c * 1000 for c in chw_range]
+
     # -----------------------------
     # 0) Base filter: load_type
     # -----------------------------
@@ -547,7 +583,7 @@ def update_table(
             df = buildings_df.copy()
 
     if df.empty:
-        return build_building_table(df, selected_id=None)
+        return build_building_table(df, selected_id=None, unit_mode=unit_mode)
 
     # -----------------------------
     # 1) Additional filters
@@ -567,7 +603,7 @@ def update_table(
     if building_type_filter and "building_type" in df.columns:
         df = df[df["building_type"] == building_type_filter]
 
-    # Area range filter (try area_sqm or area_m2)
+    # Area range filter (try area_sqm or area_m2) - values now in m²
     if area_range and len(area_range) == 2:
         amin, amax = area_range
         area_col = None
@@ -578,18 +614,18 @@ def update_table(
         if area_col:
             df = df[df[area_col].between(amin, amax)]
 
-    # HHW peak range filter
+    # HHW peak range filter - values now in W
     if hhw_range and len(hhw_range) == 2 and "hhw_max_load" in df.columns:
         hmin, hmax = hhw_range
         df = df[df["hhw_max_load"].between(hmin, hmax)]
 
-    # CHW peak range filter
+    # CHW peak range filter - values now in W
     if chw_range and len(chw_range) == 2 and "chw_max_load" in df.columns:
         cmin, cmax = chw_range
         df = df[df["chw_max_load"].between(cmin, cmax)]
 
     if df.empty:
-        return build_building_table(df, selected_id=None)
+        return build_building_table(df, selected_id=None, unit_mode=unit_mode)
 
     # -----------------------------
     # 2) Metadata-based priority sort (unchanged)
@@ -657,7 +693,135 @@ def update_table(
         if current_choice is not None and str(current_choice) in visible_ids:
             selected_id = current_choice
 
-    return build_building_table(df, selected_id)
+    return build_building_table(df, selected_id, unit_mode=unit_mode)
+
+
+# -------------------------------------------------------------------
+# Callback: update slider labels and properties based on unit_mode
+# -------------------------------------------------------------------
+@callback(
+    # Slider labels
+    Output("area-slider-label", "children"),
+    Output("hhw-slider-label", "children"),
+    Output("chw-slider-label", "children"),
+    # Slider properties (min, max, step, marks, value)
+    Output("area-range-slider", "min"),
+    Output("area-range-slider", "max"),
+    Output("area-range-slider", "step"),
+    Output("area-range-slider", "marks"),
+    Output("area-range-slider", "value"),
+    Output("hhw-range-slider", "min"),
+    Output("hhw-range-slider", "max"),
+    Output("hhw-range-slider", "step"),
+    Output("hhw-range-slider", "marks"),
+    Output("hhw-range-slider", "value"),
+    Output("chw-range-slider", "min"),
+    Output("chw-range-slider", "max"),
+    Output("chw-range-slider", "step"),
+    Output("chw-range-slider", "marks"),
+    Output("chw-range-slider", "value"),
+    Input("unit-toggle", "value"),
+    prevent_initial_call=False,
+)
+def update_slider_units(unit_mode):
+    """Update slider labels and ranges based on unit mode (SI/IP)."""
+    from utils.units import get_display_unit, sqm_to_sqft, W_to_BTUh
+
+    unit_mode = unit_mode or "SI"
+
+    # Get base values from LOAD_INDEX (in SI units)
+    area_min_si, area_max_si = LOAD_INDEX["area_sqm"]
+    hhw_min_si, hhw_max_si = LOAD_INDEX["hhw_max_load"]
+    chw_min_si, chw_max_si = LOAD_INDEX["chw_max_load"]
+
+    # Get display units
+    area_unit = get_display_unit("area", unit_mode)
+    power_unit = get_display_unit("power", unit_mode)  # BTU/h for heating
+    power_cooling_unit = get_display_unit("power_cooling", unit_mode)  # TR for cooling
+
+    if unit_mode == "IP":
+        # Convert area: m² → ft²
+        area_min = int(sqm_to_sqft(area_min_si))
+        area_max = int(sqm_to_sqft(area_max_si))
+        area_step = 5000
+
+        # Convert power: W → BTU/h (for both HHW and CHW display)
+        # Using heating units for both sliders for consistency
+        hhw_min = int(hhw_min_si * W_to_BTUh)
+        hhw_max = int(hhw_max_si * W_to_BTUh)
+        hhw_step = 50000
+
+        chw_min = int(chw_min_si * W_to_BTUh)
+        chw_max = int(chw_max_si * W_to_BTUh)
+        chw_step = 50000
+    else:
+        # SI mode - use kW for power
+        area_min = area_min_si
+        area_max = area_max_si
+        area_step = 500
+
+        # Convert W to kW for display
+        hhw_min = int(hhw_min_si / 1000)
+        hhw_max = int(hhw_max_si / 1000)
+        hhw_step = 50
+
+        chw_min = int(chw_min_si / 1000)
+        chw_max = int(chw_max_si / 1000)
+        chw_step = 50
+
+    # Format mark labels
+    def format_large_number(n):
+        if abs(n) >= 1_000_000:
+            return f"{n / 1_000_000:.1f}M"
+        elif abs(n) >= 1_000:
+            return f"{n / 1_000:.0f}k"
+        return str(int(n))
+
+    # Build labels (use kW for SI power, BTU/h for IP power)
+    power_label_unit = "kW" if unit_mode == "SI" else "BTU/h"
+
+    area_label = f"Area ({area_unit})"
+    hhw_label = f"HHW Peak Load [{power_label_unit}]"
+    chw_label = f"CHW Peak Load [{power_label_unit}]"
+
+    # Build marks
+    area_marks = [
+        {"value": area_min, "label": format_large_number(area_min)},
+        {"value": area_max, "label": format_large_number(area_max)},
+    ]
+    hhw_marks = [
+        {"value": hhw_min, "label": format_large_number(hhw_min)},
+        {"value": hhw_max, "label": format_large_number(hhw_max)},
+    ]
+    chw_marks = [
+        {"value": chw_min, "label": format_large_number(chw_min)},
+        {"value": chw_max, "label": format_large_number(chw_max)},
+    ]
+
+    return (
+        # Labels
+        area_label,
+        hhw_label,
+        chw_label,
+        # Area slider
+        area_min,
+        area_max,
+        area_step,
+        area_marks,
+        [area_min, area_max],
+        # HHW slider
+        hhw_min,
+        hhw_max,
+        hhw_step,
+        hhw_marks,
+        [hhw_min, hhw_max],
+        # CHW slider
+        chw_min,
+        chw_max,
+        chw_step,
+        chw_marks,
+        [chw_min, chw_max],
+    )
 
 
 # -------------------------------------------------------------------
@@ -755,10 +919,8 @@ def update_load_visualization(summary_data, pathname, unit_mode):
     unit_mode = unit_mode or "SI"
 
     # Import unit conversion helpers
-    from utils.units import get_unit_converter, get_unit_label, C_to_F
+    from utils.units import get_unit_label, C_to_F, get_auto_scale_for_values
 
-    power_converter = get_unit_converter("power_kw", unit_mode)
-    power_unit = get_unit_label("power_kw", unit_mode)
     temp_unit = get_unit_label("temperature", unit_mode)
 
     try:
@@ -766,13 +928,36 @@ def update_load_visualization(summary_data, pathname, unit_mode):
         temp_summary = summary_data.get("temp_bins", []) or []
 
         # ------------------------------------------------------------------
+        # Determine auto-scaling for power values (already in base units W)
+        # ------------------------------------------------------------------
+        all_power_w = []
+        for item in monthly_summary:
+            all_power_w.extend([item["HHW_W"], item["CHW_W"]])
+        for item in temp_summary:
+            all_power_w.extend([item["HHW_W"], item["CHW_W"]])
+
+        # Filter out None values
+        all_power_w = [w for w in all_power_w if w is not None]
+
+        # Get auto-scale (scale_factor, unit_label) - works directly with base units
+        power_scale, power_unit = get_auto_scale_for_values(
+            all_power_w, "power", unit_mode
+        )
+
+        # Helper to scale W values to display values
+        def scale_power(w):
+            if w is None:
+                return 0
+            return w / power_scale
+
+        # ------------------------------------------------------------------
         # Chart 1: Monthly peak HHW & CHW from summary
         # ------------------------------------------------------------------
         monthly_data = [
             {
                 "month": calendar.month_abbr[item["month"]],
-                "HHW": round(power_converter(item["HHW_kW"]), 0),
-                "CHW": round(power_converter(item["CHW_kW"]), 0),
+                "HHW": round(scale_power(item["HHW_W"]), 1),
+                "CHW": round(scale_power(item["CHW_W"]), 1),
             }
             for item in monthly_summary
         ]
@@ -806,11 +991,13 @@ def update_load_visualization(summary_data, pathname, unit_mode):
                 bin_label = f"{int(temp_val)} {temp_unit}"
             else:
                 bin_label = "N/A"
-            bin_data.append({
-                "bin": bin_label,
-                "HHW": round(power_converter(item["HHW_kW"]), 0),
-                "CHW": round(power_converter(item["CHW_kW"]), 0),
-            })
+            bin_data.append(
+                {
+                    "bin": bin_label,
+                    "HHW": round(scale_power(item["HHW_W"]), 1),
+                    "CHW": round(scale_power(item["CHW_W"]), 1),
+                }
+            )
 
         temp_chart = dmc.CompositeChart(
             h=260,

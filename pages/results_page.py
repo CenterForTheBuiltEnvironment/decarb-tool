@@ -263,14 +263,39 @@ def update_scatter_plot(
     Output("download-data", "data"),
     Input("download-button", "n_clicks"),
     State("session-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
-def download_results(n_clicks, session_data):
-    """Download the entire results dataframe as a .csv file"""
+def download_results(n_clicks, session_data, unit_mode):
+    """Download the entire results dataframe as a .csv file with unit conversion."""
+    from utils.units import (
+        convert_dataframe,
+        get_category,
+        get_column_label,
+        COLUMN_DISPLAY_NAMES,
+    )
+
     if not session_data or "session_id" not in session_data:
         raise dash.exceptions.PreventUpdate
 
     df = load_source_energy(session_data)
+
+    # Convert values based on unit mode
+    df = convert_dataframe(df, unit_mode)
+
+    # Rename columns:
+    # - Columns with a category: use get_column_label (includes unit)
+    # - Columns without a category but with display name: use display name only
+    column_renames = {}
+    for col in df.columns:
+        if get_category(col) is not None:
+            # Has unit conversion - include unit in label
+            column_renames[col] = get_column_label(col, unit_mode)
+        elif col in COLUMN_DISPLAY_NAMES:
+            # No unit conversion but has display name
+            column_renames[col] = COLUMN_DISPLAY_NAMES[col]
+        # else: keep original column name
+    df = df.rename(columns=column_renames)
 
     filename = f"results_{datetime.datetime.now()}.csv"
 

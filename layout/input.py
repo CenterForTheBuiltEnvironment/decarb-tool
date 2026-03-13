@@ -132,41 +132,92 @@ def select_load_type():
     )
 
 
-def build_building_table(buildings_data, selected_id=None):
+def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"):
     """
     Build a table from a DataFrame with predefined columns.
     Only displays columns that exist in the data.
+    Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
-    # Define desired columns with their display names
+    from utils.units import (
+        get_category,
+        get_auto_scale_for_values,
+    )
+
+    # Define desired columns with their base display names (without units)
+    # Format: (column_name, display_name)
     column_config = [
         ("location", "Location"),
         ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
         ("load_type", "Source"),
-        ("area_sqm", "Area [m²]"),
-        ("hhw_max_load", "Peak HHW Load [W]"),
-        ("chw_max_load", "Peak CHW Load [W]"),
+        ("area_sqm", "Area"),
+        ("hhw_max_load", "Peak HHW Load"),
+        ("chw_max_load", "Peak CHW Load"),
         ("annual_heating_cooling_ratio", "Annual H/C Ratio"),
-        ("min_temp", "Min Temp [°C]"),
-        ("max_temp", "Max Temp [°C]"),
+        ("min_temp", "Min Temp"),
+        ("max_temp", "Max Temp"),
     ]
 
     available_columns = [
         (col, label) for col, label in column_config if col in buildings_data.columns
     ]
 
-    # Build body rows
+    # Pre-calculate auto-scaling for each column
+    # Store (scale_factor, unit_label) for each column
+    column_scales = {}
+    for col, _ in available_columns:
+        category = get_category(col)
+        if category:
+            # Get all non-null values for this column (in base units)
+            values = buildings_data[col].dropna().tolist()
+            if values:
+                scale, unit = get_auto_scale_for_values(values, category, unit_mode)
+                column_scales[col] = (scale, unit)
+
+    # Build header labels with auto-scaled units
+    def get_header_label(col_name: str, base_label: str) -> str:
+        if col_name in column_scales:
+            _, unit = column_scales[col_name]
+            return f"{base_label} [{unit}]"
+        return base_label
+
+    # Build body rows with auto-scaling (directly from base units)
     body_rows = []
     for idx, row in buildings_data.iterrows():
         cells = [
             dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
         ]  # use 'building_id' field or index
-        cells.extend([dmc.TableTd(str(row[col])) for col, _ in available_columns])
+
+        for col, _ in available_columns:
+            raw_value = row[col]
+            # Scale value if it has a registered category
+            if col in column_scales and raw_value is not None:
+                try:
+                    scale, _ = column_scales[col]
+                    # Divide base unit value by scale to get display value
+                    scaled = float(raw_value) / scale
+                    # Format based on magnitude of scaled value
+                    if abs(scaled) >= 1000:
+                        display_value = f"{scaled:,.0f}"
+                    elif abs(scaled) >= 1:
+                        display_value = f"{scaled:,.1f}"
+                    else:
+                        display_value = f"{scaled:,.2f}"
+                except (TypeError, ValueError):
+                    display_value = str(raw_value)
+            else:
+                display_value = str(raw_value) if raw_value is not None else "—"
+
+            cells.append(dmc.TableTd(display_value))
+
         body_rows.append(dmc.TableTr(cells))
 
     # Build header
     header_cells = [dmc.TableTh("")]  # radio column
-    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    header_cells.extend([
+        dmc.TableTh(get_header_label(col, label))
+        for col, label in available_columns
+    ])
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -261,7 +312,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("Area (m²)", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="area-slider-label",
+                                        children="Area (m²)",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="area-range-slider",
                                         min=area_min,
@@ -278,7 +334,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("HHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="hhw-slider-label",
+                                        children="HHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="hhw-range-slider",
                                         min=hhw_min,
@@ -295,7 +356,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("CHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="chw-slider-label",
+                                        children="CHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="chw-range-slider",
                                         min=chw_min,
@@ -1236,11 +1302,21 @@ def edit_emission_modal():
                             max=1,
                             step=0.01,
                         ),
-                        dmc.NumberInput(
-                            id="edit-em-ng-leakage",
-                            label="Annual NG leakage (g/kWh)",
-                            min=0,
-                            step=1,
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-em-ng-leakage-label",
+                                    children="Annual NG leakage (g/kWh)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-em-ng-leakage",
+                                    min=0,
+                                    step=1,
+                                ),
+                            ],
+                            gap=4,
                         ),
                     ],
                 ),
