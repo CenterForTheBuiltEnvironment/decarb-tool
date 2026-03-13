@@ -11,23 +11,25 @@ This document provides a comprehensive overview of all variable types used in th
 The centralized unit conversion system is implemented in `utils/units.py` with:
 
 1. **`UNIT_MAP`**: Category-based unit definitions with `base`, `SI`, and `IP` configurations
-2. **`COLUMN_REGISTRY`**: Explicit mapping of column names to their unit categories
-3. **`COLUMN_DISPLAY_NAMES`**: Human-readable labels for columns
-4. **Helper Functions**: `convert_dataframe()`, `convert_value()`, `get_display_unit()`, etc.
+2. **`COLUMN_CONFIG`**: Unified registry mapping column names to `(category, display_name)` tuples
+3. **`AUTO_SCALE_CONFIG`**: Automatic scaling for large values (e.g., kWh → MWh → GWh)
+4. **Helper Functions**: `convert_dataframe()`, `convert_value()`, `get_auto_scale()`, etc.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    utils/units.py                                │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   UNIT_MAP      │  │ COLUMN_REGISTRY │  │  Helper Funcs   │  │
-│  │  (categories)   │  │ (col → category)│  │                 │  │
-│  │                 │  │                 │  │ convert_value() │  │
-│  │ energy:         │  │ elec_Wh: energy │  │ convert_df()    │  │
-│  │   base: Wh      │  │ chw_W: power_c  │  │ get_display_unit│  │
-│  │   SI: kWh       │  │ t_out_C: temp   │  │ format_value()  │  │
-│  │   IP: BTU       │  │ ...             │  │                 │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         utils/units.py                               │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────┐  │
+│  │   UNIT_MAP      │  │  COLUMN_CONFIG  │  │  AUTO_SCALE_CONFIG   │  │
+│  │  (categories)   │  │ (col → category │  │  (large value        │  │
+│  │                 │  │  + display name)│  │   scaling)           │  │
+│  │ energy:         │  │                 │  │                      │  │
+│  │   base: Wh      │  │ elec_Wh:        │  │ energy:              │  │
+│  │   SI: kWh       │  │  (energy,       │  │   SI: kWh→MWh→GWh    │  │
+│  │   IP: BTU       │  │   "Total Elec") │  │   IP: kBTU→MMBTU     │  │
+│  └─────────────────┘  └─────────────────┘  └──────────────────────┘  │
+│                                                                      │
+│  Derived views (backward compat): COLUMN_REGISTRY, COLUMN_DISPLAY_NAMES
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -187,73 +189,47 @@ The centralized unit conversion system is implemented in `utils/units.py` with:
 
 ```python
 UNIT_MAP = {
+    "energy":          {"base": "Wh",  "SI": "kWh",       "IP": "BTU"},
+    "power":           {"base": "W",   "SI": "kW",        "IP": "BTU/h"},
+    "power_cooling":   {"base": "W",   "SI": "kW",        "IP": "TR"},
+    "capacity":        {"base": "W",   "SI": "kW",        "IP": "BTU/h"},
+    "capacity_cooling":{"base": "W",   "SI": "kW",        "IP": "TR"},
+    "temperature":     {"base": "°C",  "SI": "°C",        "IP": "°F"},
+    "area":            {"base": "m²",  "SI": "m²",        "IP": "ft²"},
+    "emissions":       {"base": "kg",  "SI": "kg CO₂e",   "IP": "lb CO₂e"},
+    "emissions_rate":  {"base": "g/kWh", "SI": "g CO₂e/kWh", "IP": "lb CO₂e/kBTU"},
+    "ng_leakage_rate": {"base": "g/kWh", "SI": "g/kWh",   "IP": "lb/kBTU"},
+    "gas_emission_factor": {"base": "g/kWh", "SI": "g CO₂e/kWh", "IP": "lb CO₂e/kBTU"},
+    "mass":            {"base": "kg",  "SI": "kg",        "IP": "lb"},
+    "mass_g":          {"base": "g",   "SI": "kg",        "IP": "lb"},
+    "load_intensity":  {"base": "W/m²", "SI": "W/m²",     "IP": "BTU/h·ft²"},
+    "gwp":             {"base": "kg/kg", "SI": "kg CO₂e/kg", "IP": "lb CO₂e/lb"},
+}
+```
+
+## Current `AUTO_SCALE_CONFIG` in `utils/units.py`
+
+```python
+AUTO_SCALE_CONFIG = {
     "energy": {
-        "base": "Wh",
-        "SI": {"unit": "kWh", "func": Wh_to_kWh},
-        "IP": {"unit": "BTU", "func": Wh_to_BTUh},
+        "SI": [(1e9, "GWh"), (1e6, "MWh"), (1e3, "kWh")],
+        "IP": [(1e6/3.412, "MMBTU"), (1e3/3.412, "kBTU")],
     },
     "power": {
-        "base": "W",
-        "SI": {"unit": "kW", "func": W_to_kW},
-        "IP": {"unit": "BTU/h", "func": lambda x: x * W_to_BTUh},
+        "SI": [(1e6, "MW"), (1e3, "kW")],
+        "IP": [(1e6/3.412, "MMBTU/h"), (1e3/3.412, "kBTU/h")],
     },
     "power_cooling": {
-        "base": "W",
-        "SI": {"unit": "kW", "func": W_to_kW},
-        "IP": {"unit": "TR", "func": W_to_tons},
-    },
-    "capacity": {
-        "base": "W",
-        "SI": {"unit": "kW", "func": W_to_kW},
-        "IP": {"unit": "BTU/h", "func": lambda x: x * W_to_BTUh},
-    },
-    "capacity_cooling": {
-        "base": "W",
-        "SI": {"unit": "kW", "func": W_to_kW},
-        "IP": {"unit": "TR", "func": W_to_tons},
-    },
-    "temperature": {
-        "base": "°C",
-        "SI": {"unit": "°C", "func": lambda x: x},
-        "IP": {"unit": "°F", "func": C_to_F},
-    },
-    "area": {
-        "base": "m²",
-        "SI": {"unit": "m²", "func": lambda x: x},
-        "IP": {"unit": "ft²", "func": sqm_to_sqft},
+        "SI": [(1e6, "MW"), (1e3, "kW")],
+        "IP": [(3517, "TR")],  # No kTR - stays in TR
     },
     "emissions": {
-        "base": "kg CO₂e",
-        "SI": {"unit": "kg CO₂e", "func": lambda x: x},
-        "IP": {"unit": "lb CO₂e", "func": kg_to_lbs},
+        "SI": [(1e6, "kt CO₂e"), (1e3, "t CO₂e")],
+        "IP": [(1e3, "t CO₂e")],  # EPA convention: metric tons
     },
-    "emissions_rate": {
-        "base": "g CO₂e/kWh",
-        "SI": {"unit": "g CO₂e/kWh", "func": lambda x: x},
-        "IP": {"unit": "lb CO₂e/kBTU", "func": lambda x: x * g_to_lb / Wh_to_BTU},
-    },
-    "mass": {
-        "base": "kg",
-        "SI": {"unit": "kg", "func": lambda x: x},
-        "IP": {"unit": "lb", "func": kg_to_lbs},
-    },
-    "mass_g": {
-        "base": "g",
-        "SI": {"unit": "kg", "func": lambda x: x / 1000},
-        "IP": {"unit": "lb", "func": lambda x: x * g_to_lb},
-    },
-    "load_intensity": {
-        "base": "W/m²",
-        "SI": {"unit": "W/m²", "func": lambda x: x},
-        "IP": {"unit": "BTU/h·ft²", "func": lambda x: x * W_to_BTUh / 10.7639},
-    },
-    "gwp": {
-        "base": "kg CO₂e/kg",
-        "SI": {"unit": "kg CO₂e/kg", "func": lambda x: x},
-        "IP": {"unit": "lb CO₂e/lb", "func": lambda x: x},
-    },
-    # ... additional categories
 }
+# Thresholds are in BASE units (W, Wh, kg)
+# Format: (threshold, unit_label)
 ```
 
 ---
@@ -308,6 +284,52 @@ df = df.rename(columns={col: get_column_label(col, unit_mode) for col in df.colu
 
 ---
 
+## Auto-Scaling for Large Values
+
+The `AUTO_SCALE_CONFIG` automatically scales large accumulated values to appropriate display units:
+
+| Category | SI Scaling | IP Scaling |
+|----------|------------|------------|
+| Energy | Wh → kWh → MWh → GWh | Wh → kBTU → MMBTU |
+| Power (heating) | W → kW → MW | W → kBTU/h → MMBTU/h |
+| Power (cooling) | W → kW → MW | W → TR (no kTR) |
+| Emissions | kg → t CO₂e → kt CO₂e | kg → t CO₂e (metric tons, EPA convention) |
+
+### Usage
+
+```python
+from utils.units import get_auto_scale, format_with_auto_scale
+
+# Get scale factor and unit for a set of values
+scale, unit = get_auto_scale([1500000, 800000], "power", "SI")
+# Returns: (1000, "kW") - values are in the kW range
+
+# Format a single value with auto-scaling
+formatted = format_with_auto_scale(4500000, "power", "SI")
+# Returns: "4,500.0 kW"
+
+# For charts: scale values consistently
+power_scale, power_unit = get_auto_scale(all_values, "power", unit_mode)
+scaled_values = [v / power_scale for v in all_values]
+```
+
+### Load Selection Sliders (IP Mode)
+
+The load selection modal uses appropriate units for IP mode:
+- **Heating (HHW)**: MMBTU/h (avoids extremely large BTU/h values)
+- **Cooling (CHW)**: TR (tons of refrigeration)
+
+---
+
+## Download Export
+
+When exporting data via CSV download:
+- Values are converted to the selected unit mode (SI/IP)
+- Smart rounding is applied: 2 decimal places normally, 3 for values < 1
+- Column headers include units: e.g., "Total Electricity [kWh]"
+
+---
+
 ## Notes
 
 - **COP and efficiency** are dimensionless and don't require unit conversion
@@ -316,8 +338,10 @@ df = df.rename(columns={col: get_column_label(col, unit_mode) for col in df.colu
 - Internal storage always uses **base SI units** (W, Wh, °C, m², kg, g)
 - Display may use derived SI units (kW, kWh) for readability
 - **Cooling power** uses TR (tons of refrigeration) in IP mode
-- **Heating power** uses BTU/h in IP mode
+- **Heating power** uses BTU/h (or MMBTU/h for large values) in IP mode
+- **IP emissions** use metric tons (t CO₂e) per EPA convention, not pounds for large values
+- **IP energy** uses MMBTU (not MBTU) as the standard convention
 
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-13*
