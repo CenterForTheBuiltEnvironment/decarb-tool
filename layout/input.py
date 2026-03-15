@@ -810,37 +810,25 @@ def edit_equipment_modal():
                             clearable=True,
                             searchable=True,
                         ),
-                        dmc.Select(
-                            id="edit-hr-wwhp-h-supply-t-select",
+                        dmc.NumberInput(
+                            id="edit-hr-wwhp-h-supply-t-value",
                             label="HR HP Heating supply temperature",
-                            placeholder="None",
-                            data=[
-                                "32.2",
-                                "48.9",
-                                "60",
-                                "73.9",
-                            ],  # update to be filled by callback based on currently selected HP
-                            clearable=True,
-                            searchable=True,
+                            min = 32.2,
+                            max = 73.9,
+                            step = 1,
+                            # style={"flex": 1},
+                            # update to be filled by callback based on currently selected HP
+                            # currently set to values from default wwhp
                         ),
-                        dmc.Select(
-                            id="edit-awhp-h-supply-t-select",
+                        dmc.NumberInput(
+                            id="edit-awhp-h-supply-t-value",
                             label="AWHP Heating supply temperature",
-                            placeholder="None",
-                            data=[
-                                "35",
-                                "38",
-                                "38.9",
-                                "43.3",
-                                "45",
-                                "48.9",
-                                "50",
-                                "52",
-                                "54.4",
-                                "60",
-                            ],  # update to be filled by callback based on currently selected HP
-                            clearable=True,
-                            searchable=True,
+                            min = 38,
+                            max = 52,
+                            step = 1,
+                            # style={"flex": 1},
+                            # update to be filled by callback based on currently selected HP
+                            # currently set to values from default awhp
                         ),
                     ],
                 ),

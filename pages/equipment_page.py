@@ -580,12 +580,10 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
-    # Output("edit-hr-wwhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
-    Output("edit-hr-wwhp-h-supply-t-select", "value"),
+    Output("edit-hr-wwhp-h-supply-t-value", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
-    # Output("edit-awhp-h-supply-t-select", "data"), # added for autofill callback, not implemented
-    Output("edit-awhp-h-supply-t-select", "value"),
+    Output("edit-awhp-h-supply-t-value", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
     Output("edit-awhp-redundancy", "value"),
@@ -771,9 +769,9 @@ def open_edit_modal(edit_clicks, equipment_data):
     State("edit-scenario-id-input", "value"),
     State("edit-scenario-name-input", "value"),
     State("edit-hr-wwhp-select", "value"),
-    State("edit-hr-wwhp-h-supply-t-select", "value"),
+    State("edit-hr-wwhp-h-supply-t-value", "value"),
     State("edit-awhp-select", "value"),
-    State("edit-awhp-h-supply-t-select", "value"),
+    State("edit-awhp-h-supply-t-value", "value"),
     State("edit-awhp-sizing-mode", "value"),
     State("edit-awhp-sizing-value", "value"),
     State("edit-awhp-redundancy", "value"),
@@ -894,19 +892,6 @@ def _build_equipment_options(
     if include_none:
         options = [{"label": none_label, "value": "None"}] + options
     return options
-
-# added for autofill callback, not implemented
-# def _build_heating_supply_temp_options(
-#         equipment_list, eq_id, include_none=True, none_label="None"
-# ):
-#     eq = equipment_list.get(eq_id)
-#     perf = eq.get("performance")
-#     heating = perf.get("heating")
-#     temps_perf = heating.get("leaving_supply_t")
-#     options = [{"label": f"{i}°C", "value": i} for i in list(temps_perf.keys())]
-#     if include_none:
-#         options = [{"label": none_label, "value": "None"}] + options
-#     return options
 
 @callback(
     Output("edit-awhp-sizing-value", "step"),
