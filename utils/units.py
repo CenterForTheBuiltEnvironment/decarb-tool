@@ -103,6 +103,11 @@ def sqm_to_sqft(sqm):
     return sqm * 10.7639
 
 
+def sqft_to_sqm(sqft):
+    """Convert square feet to square meters."""
+    return sqft / 10.7639
+
+
 ### CENTRALIZED UNIT CONVERSION SYSTEM ###
 # This is the single source of truth for all unit conversions in the app.
 # See docs/unit-conventions.md for full documentation.
@@ -401,6 +406,18 @@ AUTO_SCALE_CONFIG = {
         "IP": [
             # EPA convention: use metric tons
             (1e3, 1e3, "t CO₂e"),  # >= 1 metric ton (in kg) → t
+        ],
+    },
+    "area": {
+        # Area: base unit is m², no auto-scaling but need conversion for IP
+        # Scale factor for IP: divide by (1/10.7639) = multiply by 10.7639
+        "SI": [
+            (1, 1, "m²"),  # Always show in m²
+        ],
+        "IP": [
+            # 1 m² = 10.7639 ft²
+            # scale = 1/10.7639 so that value/scale = value*10.7639 = sqft
+            (1, 1 / 10.7639, "ft²"),
         ],
     },
 }

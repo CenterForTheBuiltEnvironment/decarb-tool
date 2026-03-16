@@ -25,6 +25,10 @@ data/loads/
 utils/create_meta_index.py
 
 
+#test files
+test-measured-data.ipynb
+
+
 # AI assistant logs
 .claude/
 CLAUDE.md

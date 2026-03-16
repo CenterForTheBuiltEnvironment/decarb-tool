@@ -114,11 +114,9 @@ def select_load_type():
                                         ),
                                     ],
                                     color="secondary",
-                                    disabled=True,
                                 ),
                                 accept=".csv",
                                 multiple=False,
-                                disabled=True,
                             ),
                             html.Div(id="upload-data-alert", className="mt-2"),
                         ],
@@ -215,10 +213,12 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     # Build header (use normal case, not uppercase)
     header_style = {"textTransform": "none", "fontWeight": 500}
     header_cells = [dmc.TableTh("", style=header_style)]  # radio column
-    header_cells.extend([
-        dmc.TableTh(get_header_label(col, label), style=header_style)
-        for col, label in available_columns
-    ])
+    header_cells.extend(
+        [
+            dmc.TableTh(get_header_label(col, label), style=header_style)
+            for col, label in available_columns
+        ]
+    )
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -947,7 +947,9 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def build_emissions_table(emission_data, active_ids=None, view_mode="simple", unit_mode="SI"):
+def build_emissions_table(
+    emission_data, active_ids=None, view_mode="simple", unit_mode="SI"
+):
     """
     Transposed emissions scenarios table:
     - Columns = emission scenarios (em_scen_id)
@@ -1238,6 +1240,333 @@ def add_emission_modal():
                 ),
             ]
         ),
+    )
+
+
+def build_completeness_modal():
+    """
+    Modal to show data completeness summary before confirming load data selection.
+    Shows for measured library data and custom uploads (not for simulated data).
+    For custom uploads, also shows metadata input fields.
+    """
+    # Building type options from metadata index
+    building_type_options = [
+        {"value": bt, "label": bt} for bt in sorted(LOAD_INDEX["building_type"])
+    ]
+
+    return dmc.Modal(
+        title="Data Completeness Summary",
+        id="data-completeness-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            html.Div(id="completeness-summary-content"),
+            # Metadata inputs section (shown only for custom uploads)
+            html.Div(
+                id="custom-metadata-inputs",
+                style={"display": "none"},  # Hidden by default, shown via callback
+                children=[
+                    dmc.Divider(my="md"),
+                    dmc.Text("Building Metadata", fw=600, size="lg"),
+                    dmc.Text(
+                        "Please provide building information for this custom dataset.",
+                        size="sm",
+                        c="dimmed",
+                        mb="md",
+                    ),
+                    dmc.SimpleGrid(
+                        cols=2,
+                        spacing="md",
+                        children=[
+                            dmc.TextInput(
+                                id="custom-building-id",
+                                label="Building ID",
+                                placeholder="Enter a unique identifier",
+                                required=True,
+                                withAsterisk=True,
+                            ),
+                            dmc.Select(
+                                id="custom-building-type",
+                                label="Building Type",
+                                placeholder="Select building type (optional)",
+                                data=building_type_options,
+                                clearable=True,
+                                searchable=True,
+                            ),
+                            dmc.NumberInput(
+                                id="custom-vintage",
+                                label="Vintage (Year Built)",
+                                placeholder="e.g., 1990",
+                                min=1800,
+                                max=2100,
+                            ),
+                            dmc.Stack(
+                                gap=4,
+                                children=[
+                                    dmc.Group(
+                                        gap=2,
+                                        children=[
+                                            dmc.Text(
+                                                id="custom-area-label",
+                                                children="Building Area (m²)",
+                                                size="sm",
+                                                fw=500,
+                                            ),
+                                            dmc.Text("*", c="red", size="sm"),
+                                        ],
+                                    ),
+                                    dmc.NumberInput(
+                                        id="custom-area",
+                                        placeholder="Enter building area",
+                                        min=0,
+                                        required=True,
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    dmc.Text(
+                        id="custom-metadata-error",
+                        c="red",
+                        size="sm",
+                        mt="sm",
+                    ),
+                ],
+            ),
+            dmc.Group(
+                [
+                    dmc.Button(
+                        "Cancel",
+                        id="completeness-cancel-btn",
+                        variant="outline",
+                    ),
+                    dmc.Button(
+                        "Confirm Selection",
+                        id="completeness-confirm-btn",
+                        color="blue",
+                    ),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
+def build_completeness_summary(
+    data_summary: dict, source_type: str = "measured"
+) -> html.Div:
+    """
+    Build the summary content from StandardLoad.get_data_summary().
+
+    Args:
+        data_summary: Dictionary from StandardLoad.get_data_summary()
+        source_type: "measured" or "custom" for display purposes
+
+    Returns:
+        Dash component with formatted summary
+    """
+    if not data_summary:
+        return dmc.Text("No data summary available.", c="dimmed")
+
+    # Extract values
+    start_date = data_summary.get("start_date")
+    end_date = data_summary.get("end_date")
+    num_hours = data_summary.get("num_hours", 0)
+    expected_hours = data_summary.get("expected_hours", 8760)
+    is_complete = data_summary.get("is_complete", False)
+    hours_complete = data_summary.get(
+        "hours_complete", data_summary.get("is_complete", False)
+    )
+    data_complete = data_summary.get("data_complete", True)
+    has_leap_day = data_summary.get("has_leap_day", False)
+    spans_multiple_years = data_summary.get("spans_multiple_years", False)
+    missing_hours = data_summary.get("missing_hours", 0)
+    column_stats = data_summary.get("column_stats", {})
+    has_missing_values = data_summary.get("has_missing_values", False)
+    total_missing_values = data_summary.get("total_missing_values", 0)
+
+    # Format dates
+    start_str = start_date.strftime("%Y-%m-%d %H:%M") if start_date else "N/A"
+    end_str = end_date.strftime("%Y-%m-%d %H:%M") if end_date else "N/A"
+
+    # Build status display
+    if is_complete:
+        status_icon = DashIconify(icon="mdi:check-circle", color="green", width=20)
+        status_text = dmc.Text("Complete", c="green", fw=600)
+    else:
+        # Build descriptive status message
+        issues = []
+        if missing_hours > 0:
+            issues.append(f"{missing_hours} hours missing")
+        if has_missing_values:
+            issues.append(f"{total_missing_values} missing values")
+        issue_text = ", ".join(issues) if issues else "incomplete"
+        status_icon = DashIconify(icon="mdi:alert-circle", color="orange", width=20)
+        status_text = dmc.Text(f"Incomplete - {issue_text}", c="orange", fw=600)
+
+    # Build info rows
+    info_rows = [
+        dmc.Group(
+            [
+                dmc.Text("Start Date:", fw=500, w=140),
+                dmc.Text(start_str),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("End Date:", fw=500, w=140),
+                dmc.Text(end_str),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("Total Hours:", fw=500, w=140),
+                dmc.Text(f"{num_hours:,}"),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("Expected Hours:", fw=500, w=140),
+                dmc.Text(f"{expected_hours:,}"),
+            ],
+            gap="xs",
+        ),
+    ]
+
+    # Status row
+    status_row = dmc.Group(
+        [
+            dmc.Text("Status:", fw=500, w=140),
+            status_icon,
+            status_text,
+        ],
+        gap="xs",
+    )
+
+    # Build check items for time-based properties
+    check_items = [
+        dmc.Group(
+            [
+                DashIconify(
+                    icon="mdi:check-circle" if not has_leap_day else "mdi:information",
+                    color="green" if not has_leap_day else "blue",
+                    width=16,
+                ),
+                dmc.Text(
+                    f"Contains leap day (Feb 29): {'Yes' if has_leap_day else 'No'}",
+                    size="sm",
+                ),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                DashIconify(
+                    icon=(
+                        "mdi:check-circle"
+                        if not spans_multiple_years
+                        else "mdi:information"
+                    ),
+                    color="green" if not spans_multiple_years else "blue",
+                    width=16,
+                ),
+                dmc.Text(
+                    f"Spans multiple years: {'Yes' if spans_multiple_years else 'No'}",
+                    size="sm",
+                ),
+            ],
+            gap="xs",
+        ),
+    ]
+
+    # Build column quality section
+    column_labels = {
+        "t_out_C": "Outdoor Temperature",
+        "heating_W": "Heating Load",
+        "cooling_W": "Cooling Load",
+    }
+
+    column_rows = []
+    for col, label in column_labels.items():
+        stats = column_stats.get(col, {})
+        missing = stats.get("missing_count", 0)
+        completeness = stats.get("completeness_pct", 100)
+
+        if missing == 0:
+            icon = DashIconify(icon="mdi:check-circle", color="green", width=16)
+            value_text = dmc.Text("100%", c="green", size="sm")
+        else:
+            icon = DashIconify(icon="mdi:alert-circle", color="orange", width=16)
+            value_text = dmc.Text(
+                f"{completeness}% ({missing:,} missing)", c="orange", size="sm"
+            )
+
+        column_rows.append(
+            dmc.Group(
+                [
+                    icon,
+                    dmc.Text(f"{label}:", size="sm", w=140),
+                    value_text,
+                ],
+                gap="xs",
+            )
+        )
+
+    # Build warning messages
+    warnings = []
+    if missing_hours > 0:
+        warnings.append(f"Dataset is missing {missing_hours} hours of data.")
+    if has_missing_values:
+        warnings.append(
+            f"Dataset has {total_missing_values} missing values in data columns."
+        )
+    if not is_complete:
+        warnings.append(
+            "Results may be understated. Consider providing a complete dataset."
+        )
+
+    warning_alert = None
+    if warnings:
+        warning_alert = dmc.Alert(
+            dmc.Stack([dmc.Text(w, size="sm") for w in warnings], gap=4),
+            title="Data Quality Warning",
+            color="orange",
+            icon=DashIconify(icon="mdi:alert"),
+        )
+
+    # Source badge
+    source_badge = dmc.Badge(
+        source_type.capitalize(),
+        color="blue" if source_type == "measured" else "grape",
+        variant="light",
+    )
+
+    return dmc.Stack(
+        [
+            dmc.Group(
+                [
+                    dmc.Text("Dataset Overview", fw=600, size="lg"),
+                    source_badge,
+                ],
+                justify="space-between",
+            ),
+            dmc.Divider(),
+            dmc.Stack(info_rows, gap="xs"),
+            dmc.Divider(),
+            status_row,
+            dmc.Divider(),
+            dmc.Text("Data Column Quality", fw=500, size="sm"),
+            dmc.Stack(column_rows, gap="xs"),
+            dmc.Divider(),
+            dmc.Stack(check_items, gap="xs"),
+            warning_alert,
+        ],
+        gap="sm",
     )
 
 

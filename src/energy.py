@@ -393,8 +393,9 @@ def loads_to_site_energy(
             hr_wwhp_refrigerant = (
                 hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
             )
+            num_hours = len(df)  # Use actual data length (handles leap years)
             hr_wwhp_refrigerant_weight_kg = (
-                (hr_wwhp.refrigerant_weight_g * 0.001) / 8760
+                (hr_wwhp.refrigerant_weight_g * 0.001) / num_hours
                 if hr_wwhp.refrigerant_weight_g
                 else 0.0
             )
@@ -549,11 +550,12 @@ def loads_to_site_energy(
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
+            num_hours = len(df)  # Use actual data length (handles leap years)
             total_awhp_refrigerant_weight_kg = (
                 awhp_h.refrigerant_weight_g
                 * 0.001
                 * awhp_num_h_r
-                / 8760  # emissions calculations use the redundancy sizing number
+                / num_hours  # emissions calculations use the redundancy sizing number
                 if awhp_h.refrigerant_weight_g
                 else 0.0
             )
@@ -739,9 +741,10 @@ def loads_to_site_energy(
 
             # add refrigerant information
             chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
+            num_hours = len(df)  # Use actual data length (handles leap years)
 
             chiller_refrigerant_weight_kg = (
-                chl.refrigerant_weight_g * 0.001 / 8760
+                chl.refrigerant_weight_g * 0.001 / num_hours
                 if chl.refrigerant_weight_g
                 else 0.0
             )
@@ -871,8 +874,9 @@ def site_to_source(
         shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
 
-        # extract month/hour from loads
+        # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()
+        base[Col.YEAR.value] = base.index.year  # Keep original load data year
         base[Col.MONTH.value] = base.index.month
         base[Col.DAY.value] = base.index.day
         base[Col.HOUR.value] = base.index.hour
@@ -932,7 +936,10 @@ def site_to_source(
                 f"Merge produced {nan_count} rows with missing emission rates"
             )
 
-        merged[Col.YEAR.value] = em_scen.year
+        # Note: Keep original load data year (already extracted above) for timestamp
+        # reconstruction. This avoids Feb 29 errors when leap year load data is
+        # used with non-leap emission scenario years. Emissions are still correct
+        # because they're matched by month+hour pattern.
 
         # electricity emissions
         merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
