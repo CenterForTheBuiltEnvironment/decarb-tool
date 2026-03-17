@@ -174,6 +174,7 @@ def layout():
     Input("selected-equipment-store", "data"),
     Input("displayed-equipment-store", "data"),
     Input("equipment-view-mode", "value"),
+    Input("unit-toggle", "value"),
 )
 def update_equipment_table(
     pathname,
@@ -181,6 +182,7 @@ def update_equipment_table(
     selected_equipment_data,
     displayed_equipment_data,
     view_mode,
+    unit_mode,
 ):
     if pathname != URLS.EQUIPMENT.value:
         return no_update
@@ -200,6 +202,7 @@ def update_equipment_table(
         displayed_ids=displayed_ids,
         active_ids=selected_ids,
         view_mode=view_mode or "simple",
+        unit_mode=unit_mode or "SI",
     )
 
 
@@ -875,6 +878,44 @@ def cancel_edit_modal(n_clicks):
     if not n_clicks:
         return no_update
     return False
+
+
+# 10. Update temperature labels and select options based on unit mode
+@callback(
+    Output("edit-hr-wwhp-h-supply-t-label", "children"),
+    Output("edit-hr-wwhp-h-supply-t-select", "data"),
+    Output("edit-awhp-h-supply-t-label", "children"),
+    Output("edit-awhp-h-supply-t-select", "data"),
+    Input("unit-toggle", "value"),
+)
+def update_temp_labels_and_options(unit_mode):
+    """Update temperature labels and select options based on unit mode."""
+    from utils.units import get_unit_label, C_to_F
+
+    unit_mode = unit_mode or "SI"
+    temp_unit = get_unit_label("temperature", unit_mode)
+
+    hr_label = f"HR HP Heating supply temp ({temp_unit})"
+    awhp_label = f"AWHP Heating supply temp ({temp_unit})"
+
+    # Base temperatures in Celsius
+    hr_temps_c = [32.2, 48.9, 60, 73.9]
+    awhp_temps_c = [35, 38, 38.9, 43.3, 45, 48.9, 50, 52, 54.4, 60]
+
+    if unit_mode == "IP":
+        # Convert to Fahrenheit for display
+        hr_options = [
+            {"label": f"{C_to_F(t):.1f}", "value": str(t)} for t in hr_temps_c
+        ]
+        awhp_options = [
+            {"label": f"{C_to_F(t):.1f}", "value": str(t)} for t in awhp_temps_c
+        ]
+    else:
+        # Use Celsius values directly
+        hr_options = [{"label": str(t), "value": str(t)} for t in hr_temps_c]
+        awhp_options = [{"label": str(t), "value": str(t)} for t in awhp_temps_c]
+
+    return hr_label, hr_options, awhp_label, awhp_options
 
 
 # helper to build equipment options for Selects

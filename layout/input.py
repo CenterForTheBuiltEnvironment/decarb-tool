@@ -422,7 +422,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 
 
 def build_equipment_table(
-    equipment_data, displayed_ids, active_ids=None, view_mode="simple"
+    equipment_data, displayed_ids, active_ids=None, view_mode="simple", unit_mode="SI"
 ):
     """
     Transposed equipment scenarios table:
@@ -439,7 +439,9 @@ def build_equipment_table(
         displayed_ids: List of scenario IDs to display as columns
         active_ids: Set of scenario IDs that are selected/active
         view_mode: One of "simple", "advanced", or "differences"
+        unit_mode: "SI" or "IP" for unit conversion
     """
+    from utils.units import get_unit_label, get_unit_converter
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
     else:
@@ -472,13 +474,16 @@ def build_equipment_table(
         equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
     )
 
+    # Get unit label for temperature (dynamic based on unit_mode)
+    temp_unit = get_unit_label("temperature", unit_mode)
+
     # Rows to display (property name, label)
     # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
     row_config = [
         ("hr_wwhp", "HR WWHP Model"),
-        ("hr_wwhp_h_supply_t", "HR WWHP Heating Supply Temperature"),
+        ("hr_wwhp_h_supply_t", f"HR WWHP Heating Supply Temp ({temp_unit})"),
         ("awhp", "AWHP Model"),
-        ("awhp_h_supply_t", "AWHP Heating Supply Temperature"),
+        ("awhp_h_supply_t", f"AWHP Heating Supply Temp ({temp_unit})"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
@@ -655,6 +660,10 @@ def build_equipment_table(
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
+    # Get converter for temperature values
+    temp_converter = get_unit_converter("temperature", unit_mode)
+    temp_fields = {"hr_wwhp_h_supply_t", "awhp_h_supply_t"}
+
     for field, label in available_rows:
         is_diff_row = field in diff_fields
 
@@ -667,7 +676,16 @@ def build_equipment_table(
 
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
-            display_value = format_table_value(raw_value, field_name=field)
+
+            # Apply unit conversion for temperature fields
+            if field in temp_fields and raw_value is not None:
+                try:
+                    converted = temp_converter(float(raw_value))
+                    display_value = f"{converted:.1f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            else:
+                display_value = format_table_value(raw_value, field_name=field)
 
             # Build cell style: base + active/inactive + deemphasis + diff highlighting
             cell_style = {
@@ -810,37 +828,41 @@ def edit_equipment_modal():
                             clearable=True,
                             searchable=True,
                         ),
-                        dmc.Select(
-                            id="edit-hr-wwhp-h-supply-t-select",
-                            label="HR HP Heating supply temperature",
-                            placeholder="None",
-                            data=[
-                                "32.2",
-                                "48.9",
-                                "60",
-                                "73.9",
-                            ],  # update to be filled by callback based on currently selected HP
-                            clearable=True,
-                            searchable=True,
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-hr-wwhp-h-supply-t-label",
+                                    children="HR HP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.Select(
+                                    id="edit-hr-wwhp-h-supply-t-select",
+                                    placeholder="None",
+                                    data=[],  # filled by callback based on unit mode
+                                    clearable=True,
+                                    searchable=True,
+                                ),
+                            ],
                         ),
-                        dmc.Select(
-                            id="edit-awhp-h-supply-t-select",
-                            label="AWHP Heating supply temperature",
-                            placeholder="None",
-                            data=[
-                                "35",
-                                "38",
-                                "38.9",
-                                "43.3",
-                                "45",
-                                "48.9",
-                                "50",
-                                "52",
-                                "54.4",
-                                "60",
-                            ],  # update to be filled by callback based on currently selected HP
-                            clearable=True,
-                            searchable=True,
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-awhp-h-supply-t-label",
+                                    children="AWHP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.Select(
+                                    id="edit-awhp-h-supply-t-select",
+                                    placeholder="None",
+                                    data=[],  # filled by callback based on unit mode
+                                    clearable=True,
+                                    searchable=True,
+                                ),
+                            ],
                         ),
                     ],
                 ),
