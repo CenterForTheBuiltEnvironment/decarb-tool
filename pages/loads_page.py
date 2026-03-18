@@ -246,7 +246,16 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     )
     if building is None:
         # 8 outputs
-        return no_update, no_update, metadata_data, no_update, no_update, no_update, no_update, no_update
+        return (
+            no_update,
+            no_update,
+            metadata_data,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
     # --- building_id explicitly on Metadata ------------------------------------
     metadata.building_id = str(building.get("building_id"))
@@ -429,8 +438,16 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             "load_data_path": load_data_path,
             "summary_payload": summary_payload,
             "data_summary": {
-                "start_date": data_summary["start_date"].isoformat() if data_summary.get("start_date") else None,
-                "end_date": data_summary["end_date"].isoformat() if data_summary.get("end_date") else None,
+                "start_date": (
+                    data_summary["start_date"].isoformat()
+                    if data_summary.get("start_date")
+                    else None
+                ),
+                "end_date": (
+                    data_summary["end_date"].isoformat()
+                    if data_summary.get("end_date")
+                    else None
+                ),
                 "num_hours": data_summary.get("num_hours"),
                 "expected_hours": data_summary.get("expected_hours"),
                 "is_complete": data_summary.get("is_complete"),
@@ -451,7 +468,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             "start_date": data_summary.get("start_date"),
             "end_date": data_summary.get("end_date"),
         }
-        completeness_content = build_completeness_summary(display_summary, source_type="measured")
+        completeness_content = build_completeness_summary(
+            display_summary, source_type="measured"
+        )
 
         return (
             no_update,  # selected-building-store
@@ -530,8 +549,13 @@ def handle_completeness_confirm(
 
         if errors:
             return (
-                no_update, no_update, no_update, no_update, no_update,
-                no_update, no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
                 " | ".join(errors),
             )
 
@@ -794,8 +818,16 @@ def process_upload(contents, filename, metadata_data, session_data):
             "load_data_path": result["filepath"],
             "summary_payload": result.get("summary_payload"),
             "data_summary": {
-                "start_date": data_summary["start_date"].isoformat() if data_summary.get("start_date") else None,
-                "end_date": data_summary["end_date"].isoformat() if data_summary.get("end_date") else None,
+                "start_date": (
+                    data_summary["start_date"].isoformat()
+                    if data_summary.get("start_date")
+                    else None
+                ),
+                "end_date": (
+                    data_summary["end_date"].isoformat()
+                    if data_summary.get("end_date")
+                    else None
+                ),
                 "num_hours": data_summary.get("num_hours"),
                 "expected_hours": data_summary.get("expected_hours"),
                 "is_complete": data_summary.get("is_complete"),
@@ -813,7 +845,9 @@ def process_upload(contents, filename, metadata_data, session_data):
         }
 
         # Build completeness summary UI
-        completeness_content = build_completeness_summary(data_summary, source_type="custom")
+        completeness_content = build_completeness_summary(
+            data_summary, source_type="custom"
+        )
 
         # Show info alert that file was parsed
         alert = dbc.Alert(
@@ -882,7 +916,7 @@ def update_table(
 
     # -----------------------------
     # Convert slider values back to base SI units for filtering
-    # Sliders show: SI mode = kW, IP mode = MMBTU/h (heating) / TR (cooling)
+    # Sliders show: SI mode = kW, IP mode = kBTU/h (heating) / TR (cooling)
     # Data is stored in: W (for power), m² (for area)
     # -----------------------------
     if area_range and len(area_range) == 2:
@@ -895,9 +929,9 @@ def update_table(
 
     if hhw_range and len(hhw_range) == 2:
         if unit_mode == "IP":
-            # MMBTU/h → W (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
-            w_per_mmbtu = 1e6 / W_to_BTUh
-            hhw_range = [h * w_per_mmbtu for h in hhw_range]
+            # kBTU/h → W (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+            w_per_kbtu = 1e3 / W_to_BTUh
+            hhw_range = [h * w_per_kbtu for h in hhw_range]
         else:
             # kW → W
             hhw_range = [h * 1000 for h in hhw_range]
@@ -1082,13 +1116,13 @@ def update_slider_units(unit_mode):
         area_max = int(sqm_to_sqft(area_max_si))
         area_step = 5000
 
-        # Convert HHW: W → MMBTU/h (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
-        # Using MMBTU/h to avoid excessively large numbers
-        mmbtu_per_w = W_to_BTUh / 1e6  # W to MMBTU/h
-        hhw_min = round(hhw_min_si * mmbtu_per_w, 1)
-        hhw_max = round(hhw_max_si * mmbtu_per_w, 1)
+        # Convert HHW: W → kBTU/h (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+        # Using kBTU/h to avoid excessively large numbers
+        kbtu_per_w = W_to_BTUh / 1e3  # W to kBTU/h
+        hhw_min = round(hhw_min_si * kbtu_per_w, 1)
+        hhw_max = round(hhw_max_si * kbtu_per_w, 1)
         hhw_step = 0.5
-        hhw_label_unit = "MMBTU/h"
+        hhw_label_unit = "kBTU/h"
 
         # Convert CHW: W → TR (tons of refrigeration)
         chw_min = round(W_to_tons(chw_min_si), 0)

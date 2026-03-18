@@ -341,15 +341,10 @@ COLUMN_CONFIG = {
 # New code should use COLUMN_CONFIG or the helper functions.
 
 COLUMN_REGISTRY = {
-    col: config[0]
-    for col, config in COLUMN_CONFIG.items()
-    if config[0] is not None
+    col: config[0] for col, config in COLUMN_CONFIG.items() if config[0] is not None
 }
 
-COLUMN_DISPLAY_NAMES = {
-    col: config[1]
-    for col, config in COLUMN_CONFIG.items()
-}
+COLUMN_DISPLAY_NAMES = {col: config[1] for col, config in COLUMN_CONFIG.items()}
 
 
 # =============================================================================
@@ -364,27 +359,27 @@ AUTO_SCALE_CONFIG = {
     # Format: (threshold_in_base, scale_factor, unit_label)
     "energy": {
         "SI": [
-            (1e9, 1e9, "GWh"),   # >= 1 GWh (in Wh) → GWh
-            (1e6, 1e6, "MWh"),   # >= 1 MWh (in Wh) → MWh
-            (1e3, 1e3, "kWh"),   # >= 1 kWh (in Wh) → kWh
+            (1e9, 1e9, "GWh"),  # >= 1 GWh (in Wh) → GWh
+            (1e6, 1e6, "MWh"),  # >= 1 MWh (in Wh) → MWh
+            (1e3, 1e3, "kWh"),  # >= 1 kWh (in Wh) → kWh
         ],
         "IP": [
-            # 1 Wh = 3.412 BTU; MMBTU = 1e6 BTU
-            # Threshold: 1 MMBTU = 1e6 BTU = 1e6/3.412 Wh ≈ 293,083 Wh
-            # Scale: divide Wh by (1e6/3.412) to get MMBTU
-            (1e6 / 3.412, 1e6 / 3.412, "MMBTU"),
+            # 1 Wh = 3.412 BTU; kBTU = 1e3 BTU
+            # Threshold: 1 kBTU = 1e3 BTU = 1e3/3.412 Wh ≈ 293.083 Wh
+            # Scale: divide Wh by (1e3/3.412) to get kBTU
+            # (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
             (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
         ],
     },
     "power": {
         "SI": [
-            (1e6, 1e6, "MW"),    # >= 1 MW (in W) → MW
-            (1e3, 1e3, "kW"),    # >= 1 kW (in W) → kW
+            (1e6, 1e6, "MW"),  # >= 1 MW (in W) → MW
+            (1e3, 1e3, "kW"),  # >= 1 kW (in W) → kW
         ],
         "IP": [
-            # 1 W = 3.412 BTU/h; MMBTU/h = 1e6 BTU/h
-            # Threshold: 1 MMBTU/h = 1e6/3.412 W ≈ 293,083 W
-            (1e6 / 3.412, 1e6 / 3.412, "MMBTU/h"),
+            # 1 W = 3.412 BTU/h; kBTU/h = 1e3 BTU/h
+            # Threshold: 1 kBTU/h = 1e3/3.412 W ≈ 293.083 W
+            # (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
             (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
         ],
     },
@@ -401,7 +396,7 @@ AUTO_SCALE_CONFIG = {
     "emissions": {
         "SI": [
             (1e6, 1e6, "kt CO₂e"),  # >= 1 kilotonne (in kg) → kt
-            (1e3, 1e3, "t CO₂e"),   # >= 1 tonne (in kg) → t
+            (1e3, 1e3, "t CO₂e"),  # >= 1 tonne (in kg) → t
         ],
         "IP": [
             # EPA convention: use metric tons
@@ -429,6 +424,7 @@ AUTO_SCALE_CONFIG = {
 # This maintains compatibility with existing code that uses the old format.
 # New code should use UNIT_MAP and the new helper functions.
 
+
 def _build_legacy_unit_map():
     """Build backward-compatible unit_map from new UNIT_MAP structure."""
     legacy = {}
@@ -446,6 +442,7 @@ def _build_legacy_unit_map():
                 "short": display_unit,
             }
     return legacy
+
 
 unit_map = _build_legacy_unit_map()
 
@@ -643,7 +640,9 @@ def get_auto_scale(values, category: str, unit_mode: str):
 
     # Find the maximum absolute value
     try:
-        max_val = max(abs(v) for v in values if v is not None and v == v)  # v == v filters NaN
+        max_val = max(
+            abs(v) for v in values if v is not None and v == v
+        )  # v == v filters NaN
     except (ValueError, TypeError):
         # Empty or invalid values
         return 1, get_display_unit(category, unit_mode)
@@ -692,7 +691,9 @@ def auto_scale_series(values, category: str, unit_mode: str):
     return scaled, unit
 
 
-def get_scaled_axis_label(category: str, unit_mode: str, max_value: float = None) -> str:
+def get_scaled_axis_label(
+    category: str, unit_mode: str, max_value: float = None
+) -> str:
     """Get an axis label with auto-scaled unit based on data range.
 
     Args:
