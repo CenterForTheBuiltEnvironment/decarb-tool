@@ -103,6 +103,11 @@ def sqm_to_sqft(sqm):
     return sqm * 10.7639
 
 
+def sqft_to_sqm(sqft):
+    """Convert square feet to square meters."""
+    return sqft / 10.7639
+
+
 ### CENTRALIZED UNIT CONVERSION SYSTEM ###
 # This is the single source of truth for all unit conversions in the app.
 # See docs/unit-conventions.md for full documentation.
@@ -116,11 +121,17 @@ def sqm_to_sqft(sqm):
 # - IP: {unit: display label, func: base→IP conversion}
 
 UNIT_MAP = {
-    # --- Energy (heating & general) ---
+    # --- Energy (heating & general, gas) ---
     "energy": {
         "base": "Wh",
         "SI": {"unit": "kWh", "func": Wh_to_kWh},
         "IP": {"unit": "BTU", "func": Wh_to_BTUh},
+    },
+    # --- Energy (electric) - stays in kWh even in IP mode ---
+    "energy_electric": {
+        "base": "Wh",
+        "SI": {"unit": "kWh", "func": Wh_to_kWh},
+        "IP": {"unit": "kWh", "func": Wh_to_kWh},  # Electric energy stays in kWh
     },
     # --- Power (heating & general) ---
     "power": {
@@ -227,14 +238,15 @@ UNIT_MAP = {
 COLUMN_CONFIG = {
     # === Area ===
     "area_sqm": ("area", "Area"),
-    # === Energy (Wh) ===
-    "elec_Wh": ("energy", "Total Electricity"),
+    # === Energy - Electric (Wh) - stays in kWh even in IP mode ===
+    "elec_Wh": ("energy_electric", "Total Electricity"),
+    "elec_hr_Wh": ("energy_electric", "HR-WWHP Electricity"),
+    "elec_awhp_h_Wh": ("energy_electric", "AWHP Heating Electricity"),
+    "elec_awhp_c_Wh": ("energy_electric", "AWHP Cooling Electricity"),
+    "elec_res_Wh": ("energy_electric", "Resistance Heater Electricity"),
+    "elec_chiller_Wh": ("energy_electric", "Chiller Electricity"),
+    # === Energy - Gas (Wh) - converts to BTU in IP mode ===
     "gas_Wh": ("energy", "Total Gas"),
-    "elec_hr_Wh": ("energy", "HR-WWHP Electricity"),
-    "elec_awhp_h_Wh": ("energy", "AWHP Heating Electricity"),
-    "elec_awhp_c_Wh": ("energy", "AWHP Cooling Electricity"),
-    "elec_res_Wh": ("energy", "Resistance Heater Electricity"),
-    "elec_chiller_Wh": ("energy", "Chiller Electricity"),
     "gas_boiler_Wh": ("energy", "Boiler Gas"),
     # === Power - Heating (W) ===
     "heating_W": ("power", "Heating Load"),
@@ -336,15 +348,10 @@ COLUMN_CONFIG = {
 # New code should use COLUMN_CONFIG or the helper functions.
 
 COLUMN_REGISTRY = {
-    col: config[0]
-    for col, config in COLUMN_CONFIG.items()
-    if config[0] is not None
+    col: config[0] for col, config in COLUMN_CONFIG.items() if config[0] is not None
 }
 
-COLUMN_DISPLAY_NAMES = {
-    col: config[1]
-    for col, config in COLUMN_CONFIG.items()
-}
+COLUMN_DISPLAY_NAMES = {col: config[1] for col, config in COLUMN_CONFIG.items()}
 
 
 # =============================================================================
@@ -359,27 +366,41 @@ AUTO_SCALE_CONFIG = {
     # Format: (threshold_in_base, scale_factor, unit_label)
     "energy": {
         "SI": [
-            (1e9, 1e9, "GWh"),   # >= 1 GWh (in Wh) → GWh
-            (1e6, 1e6, "MWh"),   # >= 1 MWh (in Wh) → MWh
-            (1e3, 1e3, "kWh"),   # >= 1 kWh (in Wh) → kWh
+            (1e9, 1e9, "GWh"),  # >= 1 GWh (in Wh) → GWh
+            (1e6, 1e6, "MWh"),  # >= 1 MWh (in Wh) → MWh
+            (1e3, 1e3, "kWh"),  # >= 1 kWh (in Wh) → kWh
         ],
         "IP": [
-            # 1 Wh = 3.412 BTU; MMBTU = 1e6 BTU
-            # Threshold: 1 MMBTU = 1e6 BTU = 1e6/3.412 Wh ≈ 293,083 Wh
-            # Scale: divide Wh by (1e6/3.412) to get MMBTU
-            (1e6 / 3.412, 1e6 / 3.412, "MMBTU"),
+            # 1 Wh = 3.412 BTU; kBTU = 1e3 BTU
+            # Threshold: 1 kBTU = 1e3 BTU = 1e3/3.412 Wh ≈ 293.083 Wh
+            # Scale: divide Wh by (1e3/3.412) to get kBTU
+            # (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
             (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
+        ],
+    },
+    "energy_electric": {
+        # Electric energy stays in kWh even in IP mode
+        "SI": [
+            (1e9, 1e9, "GWh"),
+            (1e6, 1e6, "MWh"),
+            (1e3, 1e3, "kWh"),
+        ],
+        "IP": [
+            # Same as SI - electric energy reported in kWh
+            (1e9, 1e9, "GWh"),
+            (1e6, 1e6, "MWh"),
+            (1e3, 1e3, "kWh"),
         ],
     },
     "power": {
         "SI": [
-            (1e6, 1e6, "MW"),    # >= 1 MW (in W) → MW
-            (1e3, 1e3, "kW"),    # >= 1 kW (in W) → kW
+            (1e6, 1e6, "MW"),  # >= 1 MW (in W) → MW
+            (1e3, 1e3, "kW"),  # >= 1 kW (in W) → kW
         ],
         "IP": [
-            # 1 W = 3.412 BTU/h; MMBTU/h = 1e6 BTU/h
-            # Threshold: 1 MMBTU/h = 1e6/3.412 W ≈ 293,083 W
-            (1e6 / 3.412, 1e6 / 3.412, "MMBTU/h"),
+            # 1 W = 3.412 BTU/h; kBTU/h = 1e3 BTU/h
+            # Threshold: 1 kBTU/h = 1e3/3.412 W ≈ 293.083 W
+            # (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
             (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
         ],
     },
@@ -396,11 +417,23 @@ AUTO_SCALE_CONFIG = {
     "emissions": {
         "SI": [
             (1e6, 1e6, "kt CO₂e"),  # >= 1 kilotonne (in kg) → kt
-            (1e3, 1e3, "t CO₂e"),   # >= 1 tonne (in kg) → t
+            (1e3, 1e3, "t CO₂e"),  # >= 1 tonne (in kg) → t
         ],
         "IP": [
             # EPA convention: use metric tons
             (1e3, 1e3, "t CO₂e"),  # >= 1 metric ton (in kg) → t
+        ],
+    },
+    "area": {
+        # Area: base unit is m², no auto-scaling but need conversion for IP
+        # Scale factor for IP: divide by (1/10.7639) = multiply by 10.7639
+        "SI": [
+            (1, 1, "m²"),  # Always show in m²
+        ],
+        "IP": [
+            # 1 m² = 10.7639 ft²
+            # scale = 1/10.7639 so that value/scale = value*10.7639 = sqft
+            (1, 1 / 10.7639, "ft²"),
         ],
     },
 }
@@ -411,6 +444,7 @@ AUTO_SCALE_CONFIG = {
 # =============================================================================
 # This maintains compatibility with existing code that uses the old format.
 # New code should use UNIT_MAP and the new helper functions.
+
 
 def _build_legacy_unit_map():
     """Build backward-compatible unit_map from new UNIT_MAP structure."""
@@ -429,6 +463,7 @@ def _build_legacy_unit_map():
                 "short": display_unit,
             }
     return legacy
+
 
 unit_map = _build_legacy_unit_map()
 
@@ -626,7 +661,9 @@ def get_auto_scale(values, category: str, unit_mode: str):
 
     # Find the maximum absolute value
     try:
-        max_val = max(abs(v) for v in values if v is not None and v == v)  # v == v filters NaN
+        max_val = max(
+            abs(v) for v in values if v is not None and v == v
+        )  # v == v filters NaN
     except (ValueError, TypeError):
         # Empty or invalid values
         return 1, get_display_unit(category, unit_mode)
@@ -675,7 +712,9 @@ def auto_scale_series(values, category: str, unit_mode: str):
     return scaled, unit
 
 
-def get_scaled_axis_label(category: str, unit_mode: str, max_value: float = None) -> str:
+def get_scaled_axis_label(
+    category: str, unit_mode: str, max_value: float = None
+) -> str:
     """Get an axis label with auto-scaled unit based on data range.
 
     Args:

@@ -22,6 +22,8 @@ from layout.input import (
     select_load_type,
     modal_load_data_selection,
     build_building_table,
+    build_completeness_modal,
+    build_completeness_summary,
     LOAD_INDEX,  # slider min/max values in base SI units
 )
 
@@ -71,6 +73,7 @@ def layout():
                         html.Hr(),
                         select_load_type(),
                         modal_load_data_selection(buildings_df=buildings_df),
+                        build_completeness_modal(),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -216,6 +219,9 @@ def update_metadata(
         Output("metadata-store", "data", allow_duplicate=True),
         Output("load-data-path-store", "data"),
         Output("load-summary-store", "data"),
+        Output("data-completeness-modal", "opened"),
+        Output("completeness-summary-content", "children"),
+        Output("pending-load-data-store", "data"),
     ],
     Input("confirm-building-button", "n_clicks"),
     State("building-radio-group", "value"),
@@ -224,6 +230,11 @@ def update_metadata(
     prevent_initial_call=True,
 )
 def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
+    """
+    Handle library selection confirm.
+    - For simulated data: proceed directly (update metadata, close modal)
+    - For measured data: show completeness modal first
+    """
     if not n_clicks or current_choice is None:
         raise dash.exceptions.PreventUpdate
 
@@ -234,8 +245,17 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         None,
     )
     if building is None:
-        # 5 outputs
-        return no_update, no_update, metadata_data, no_update, no_update
+        # 8 outputs
+        return (
+            no_update,
+            no_update,
+            metadata_data,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
     # --- building_id explicitly on Metadata ------------------------------------
     metadata.building_id = str(building.get("building_id"))
@@ -298,11 +318,15 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     # ------------------------------------------------------------------
     load_data_path = None
     summary_payload = None
+    data_summary = None
 
     try:
         # 1) get StandardLoad for this selection
         load_obj = get_load_data(metadata)
         df = load_obj.df.sort_index()
+
+        # Get data completeness summary
+        data_summary = load_obj.get_data_summary()
 
         # 2) build session folder
         session_id = session_data.get("session_id") if session_data else "default"
@@ -400,13 +424,228 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         "load_type": building.get("load_type"),
     }
 
+    # ------------------------------------------------------------------
+    # Check if this is measured data - if so, show completeness modal
+    # ------------------------------------------------------------------
+    load_type = metadata.load_data.load_type
+
+    if load_type == "measured" and data_summary is not None:
+        # Store pending data and show completeness modal
+        pending_data = {
+            "source_type": "measured",
+            "selected_building": selected_building_payload,
+            "metadata": metadata.model_dump(),
+            "load_data_path": load_data_path,
+            "summary_payload": summary_payload,
+            "data_summary": {
+                "start_date": (
+                    data_summary["start_date"].isoformat()
+                    if data_summary.get("start_date")
+                    else None
+                ),
+                "end_date": (
+                    data_summary["end_date"].isoformat()
+                    if data_summary.get("end_date")
+                    else None
+                ),
+                "num_hours": data_summary.get("num_hours"),
+                "expected_hours": data_summary.get("expected_hours"),
+                "is_complete": data_summary.get("is_complete"),
+                "hours_complete": data_summary.get("hours_complete"),
+                "data_complete": data_summary.get("data_complete"),
+                "has_leap_day": data_summary.get("has_leap_day"),
+                "spans_multiple_years": data_summary.get("spans_multiple_years"),
+                "missing_hours": data_summary.get("missing_hours"),
+                "column_stats": data_summary.get("column_stats", {}),
+                "has_missing_values": data_summary.get("has_missing_values", False),
+                "total_missing_values": data_summary.get("total_missing_values", 0),
+            },
+        }
+
+        # Build completeness summary UI (need to convert dates back for display)
+        display_summary = {
+            **pending_data["data_summary"],
+            "start_date": data_summary.get("start_date"),
+            "end_date": data_summary.get("end_date"),
+        }
+        completeness_content = build_completeness_summary(
+            display_summary, source_type="measured"
+        )
+
+        return (
+            no_update,  # selected-building-store
+            no_update,  # modal-load-data opened (keep open)
+            no_update,  # metadata-store
+            no_update,  # load-data-path-store
+            no_update,  # load-summary-store
+            True,  # data-completeness-modal opened
+            completeness_content,  # completeness-summary-content
+            pending_data,  # pending-load-data-store
+        )
+
+    # For simulated data, proceed directly
     return (
         selected_building_payload,
-        False,
+        False,  # Close library modal
         metadata.model_dump(),
         load_data_path,
         summary_payload,
+        False,  # Don't open completeness modal
+        no_update,  # completeness-summary-content
+        None,  # Clear pending data
     )
+
+
+# -------------------------------------------------------------------
+# Callback: Handle completeness modal confirm
+# -------------------------------------------------------------------
+@callback(
+    [
+        Output("selected-building-store", "data", allow_duplicate=True),
+        Output("modal-load-data", "opened", allow_duplicate=True),
+        Output("metadata-store", "data", allow_duplicate=True),
+        Output("load-data-path-store", "data", allow_duplicate=True),
+        Output("load-summary-store", "data", allow_duplicate=True),
+        Output("data-completeness-modal", "opened", allow_duplicate=True),
+        Output("pending-load-data-store", "data", allow_duplicate=True),
+        Output("custom-metadata-error", "children"),
+    ],
+    Input("completeness-confirm-btn", "n_clicks"),
+    State("pending-load-data-store", "data"),
+    State("custom-building-id", "value"),
+    State("custom-building-type", "value"),
+    State("custom-vintage", "value"),
+    State("custom-area", "value"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def handle_completeness_confirm(
+    n_clicks, pending_data, building_id, building_type, vintage, area, unit_mode
+):
+    """Finalize selection after user confirms in completeness modal."""
+    from utils.units import sqft_to_sqm
+
+    if not n_clicks or not pending_data:
+        raise dash.exceptions.PreventUpdate
+
+    # Extract data from pending store
+    selected_building = pending_data.get("selected_building")
+    metadata = pending_data.get("metadata")
+    load_data_path = pending_data.get("load_data_path")
+    summary_payload = pending_data.get("summary_payload")
+    source_type = pending_data.get("source_type")
+    load_stats = pending_data.get("load_stats", {})
+
+    unit_mode = unit_mode or "SI"
+
+    # For custom uploads, validate and save metadata fields
+    if source_type == "custom":
+        # Validate required fields
+        errors = []
+        if not building_id or not building_id.strip():
+            errors.append("Building ID is required")
+        if area is None or area <= 0:
+            errors.append("Building Area is required and must be greater than 0")
+
+        if errors:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                " | ".join(errors),
+            )
+
+        # Convert area to base units (sqm) if in IP mode
+        area_sqm = sqft_to_sqm(area) if unit_mode == "IP" else area
+
+        # Update metadata with custom fields
+        if metadata:
+            metadata["building_id"] = building_id.strip()
+            metadata["building_type"] = building_type if building_type else None
+            metadata["vintage"] = int(vintage) if vintage else None
+            metadata["area_sqm"] = float(area_sqm)
+
+            # Also populate LoadData fields with computed stats
+            if load_stats:
+                load_data = metadata.get("load_data", {})
+                for key, value in load_stats.items():
+                    if value is not None:
+                        load_data[key] = value
+                metadata["load_data"] = load_data
+
+        # Log custom metadata
+        logger.info(
+            f"Custom upload metadata: building_id={building_id.strip()}, "
+            f"building_type={building_type}, vintage={vintage}, "
+            f"area_sqm={area_sqm:.1f}"
+        )
+
+        # Create selected_building payload for custom uploads
+        selected_building = {
+            "building_id": building_id.strip(),
+            "building_type": building_type,
+            "load_type": "custom",
+        }
+
+    return (
+        selected_building,  # selected-building-store
+        False,  # Close library modal
+        metadata,  # metadata-store
+        load_data_path,  # load-data-path-store
+        summary_payload,  # load-summary-store
+        False,  # Close completeness modal
+        None,  # Clear pending data
+        "",  # Clear error message
+    )
+
+
+# -------------------------------------------------------------------
+# Callback: Handle completeness modal cancel
+# -------------------------------------------------------------------
+@callback(
+    Output("data-completeness-modal", "opened", allow_duplicate=True),
+    Output("pending-load-data-store", "data", allow_duplicate=True),
+    Input("completeness-cancel-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def handle_completeness_cancel(n_clicks):
+    """Cancel completeness modal - close it and discard pending data."""
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    return False, None  # Close modal and clear pending data
+
+
+# -------------------------------------------------------------------
+# Callback: Show/hide custom metadata inputs based on source type
+# -------------------------------------------------------------------
+@callback(
+    Output("custom-metadata-inputs", "style"),
+    Output("custom-area-label", "children"),
+    Input("pending-load-data-store", "data"),
+    Input("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def toggle_custom_metadata_inputs(pending_data, unit_mode):
+    """Show metadata inputs for custom uploads, hide for measured data."""
+    from utils.units import get_display_unit
+
+    unit_mode = unit_mode or "SI"
+    area_unit = get_display_unit("area", unit_mode)
+    area_label = f"Building Area ({area_unit})"
+
+    if not pending_data:
+        return {"display": "none"}, area_label
+
+    source_type = pending_data.get("source_type")
+    if source_type == "custom":
+        return {"display": "block"}, area_label
+    else:
+        return {"display": "none"}, area_label
 
 
 @callback(
@@ -428,8 +667,11 @@ def show_metadata(data, unit_mode):
     )
 
 
-def parse_custom_load_data(contents, filename):
-    """Parse and validate uploaded CSV file contents."""
+def parse_custom_load_data(contents, filename, session_id="default"):
+    """Parse and validate uploaded CSV file contents.
+
+    Returns dict with status, filepath, data_summary, and summary_payload.
+    """
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
 
@@ -443,58 +685,188 @@ def parse_custom_load_data(contents, filename):
             raise ValueError(f"Missing required columns: {missing_cols}")
 
         # Create StandardLoad object (this runs validation)
-        load_data = StandardLoad(df)
+        load_obj = StandardLoad(df)
 
-        # Save to temporary file
-        temp_dir = Path("data/output/custom")
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_file = temp_dir / f"custom_load_{Path(filename).stem}.parquet"
-        load_data.to_parquet(temp_file)
+        # Get data completeness summary
+        data_summary = load_obj.get_data_summary()
+
+        # Log data characteristics
+        logger.info(
+            f"Loaded custom data: {load_obj.num_hours} hours, "
+            f"has_leap_day={load_obj.has_leap_day}, "
+            f"spans_multiple_years={load_obj.spans_multiple_years}, "
+            f"range={load_obj.df.index.min()} to {load_obj.df.index.max()}"
+        )
+
+        # Save to session folder
+        folder = Path(f"/tmp/{session_id}")
+        folder.mkdir(parents=True, exist_ok=True)
+        temp_file = folder / f"custom_load_{Path(filename).stem}.parquet"
+        load_obj.to_parquet(temp_file)
+
+        # Build summary payload for charts (same logic as confirm_selection)
+        df_sorted = load_obj.df.sort_index()
+
+        # Monthly peaks
+        monthly = df_sorted.copy()
+        monthly["month"] = monthly.index.month
+        peaks = (
+            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]]
+            .max()
+            .reset_index()
+        )
+        monthly_summary = [
+            {
+                "month": int(row["month"]),
+                "HHW_W": float(row["heating_W"]),
+                "CHW_W": float(row["cooling_W"]),
+            }
+            for _, row in peaks.iterrows()
+        ]
+
+        # Temp bins
+        temp_df = df_sorted.copy()
+        bin_width = 5
+        half = bin_width / 2
+        t_min = temp_df["t_out_C"].min()
+        t_max = temp_df["t_out_C"].max()
+        center_start = np.floor(t_min / bin_width) * bin_width
+        center_end = np.ceil(t_max / bin_width) * bin_width
+        centers = np.arange(center_start, center_end + bin_width, bin_width)
+        bin_edges = np.arange(
+            center_start - half, center_end + half + bin_width, bin_width
+        )
+        temp_df["t_bin"] = pd.cut(
+            temp_df["t_out_C"],
+            bins=bin_edges,
+            labels=centers,
+            include_lowest=True,
+        )
+        bin_stats = (
+            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]]
+            .mean()
+            .reset_index()
+        )
+        temp_summary = [
+            {
+                "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
+                "HHW_W": float(row["heating_W"]),
+                "CHW_W": float(row["cooling_W"]),
+            }
+            for _, row in bin_stats.iterrows()
+        ]
+
+        summary_payload = {
+            "monthly_peaks": monthly_summary,
+            "temp_bins": temp_summary,
+        }
+
+        # Compute load statistics for LoadData fields
+        load_stats = load_obj.compute_load_stats()
 
         return {
             "status": "success",
             "message": f"Successfully loaded {len(df)} rows of custom load data",
             "filepath": str(temp_file),
+            "data_summary": data_summary,
+            "summary_payload": summary_payload,
+            "load_stats": load_stats,
         }
 
     except Exception as e:
+        logger.error(f"Error parsing custom load data: {e}")
         return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 
 @callback(
     [
         Output("upload-data-alert", "children"),
-        Output("metadata-store", "data", allow_duplicate=True),
+        Output("data-completeness-modal", "opened", allow_duplicate=True),
+        Output("completeness-summary-content", "children", allow_duplicate=True),
+        Output("pending-load-data-store", "data", allow_duplicate=True),
+        Output("upload-data", "contents"),  # Reset upload to allow re-upload
     ],
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
     State("metadata-store", "data"),
+    State("session-store", "data"),
     prevent_initial_call=True,
 )
-def process_upload(contents, filename, metadata_data):
-    """Process uploaded custom load data file."""
+def process_upload(contents, filename, metadata_data, session_data):
+    """Process uploaded custom load data file and show completeness modal."""
     if not contents:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update
 
-    result = parse_custom_load_data(contents, filename)
+    session_id = session_data.get("session_id") if session_data else "default"
+    result = parse_custom_load_data(contents, filename, session_id)
 
     # Create alert component based on result
     if result["status"] == "success":
+        # Get the data summary for display
+        data_summary = result.get("data_summary", {})
+
+        # Prepare pending data for confirmation
+        metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
+        metadata.load_data.load_type = "custom"
+        metadata.custom_load_path = result["filepath"]
+
+        # Serialize dates for JSON storage
+        pending_data = {
+            "source_type": "custom",
+            "selected_building": None,  # No building for custom uploads
+            "metadata": metadata.model_dump(),
+            "load_data_path": result["filepath"],
+            "summary_payload": result.get("summary_payload"),
+            "data_summary": {
+                "start_date": (
+                    data_summary["start_date"].isoformat()
+                    if data_summary.get("start_date")
+                    else None
+                ),
+                "end_date": (
+                    data_summary["end_date"].isoformat()
+                    if data_summary.get("end_date")
+                    else None
+                ),
+                "num_hours": data_summary.get("num_hours"),
+                "expected_hours": data_summary.get("expected_hours"),
+                "is_complete": data_summary.get("is_complete"),
+                "hours_complete": data_summary.get("hours_complete"),
+                "data_complete": data_summary.get("data_complete"),
+                "has_leap_day": data_summary.get("has_leap_day"),
+                "spans_multiple_years": data_summary.get("spans_multiple_years"),
+                "missing_hours": data_summary.get("missing_hours"),
+                "column_stats": data_summary.get("column_stats", {}),
+                "has_missing_values": data_summary.get("has_missing_values", False),
+                "total_missing_values": data_summary.get("total_missing_values", 0),
+            },
+            "load_stats": result.get("load_stats", {}),
+            "filename": filename,
+        }
+
+        # Build completeness summary UI
+        completeness_content = build_completeness_summary(
+            data_summary, source_type="custom"
+        )
+
+        # Show info alert that file was parsed
         alert = dbc.Alert(
             [
-                DashIconify(icon="bi:check-circle-fill", className="me-2"),
-                result["message"],
+                DashIconify(icon="bi:info-circle-fill", className="me-2"),
+                f"Parsed '{filename}' - please review data summary and confirm.",
             ],
-            color="success",
+            color="info",
             dismissable=True,
             is_open=True,
         )
 
-        metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
-        metadata.load_data.load_type = "load_custom"
-        metadata.custom_load_path = result["filepath"]
-
-        return alert, metadata.model_dump()
+        return (
+            alert,  # upload-data-alert
+            True,  # data-completeness-modal opened
+            completeness_content,  # completeness-summary-content
+            pending_data,  # pending-load-data-store
+            None,  # Clear upload contents to allow re-upload
+        )
     else:
         alert = dbc.Alert(
             [
@@ -505,7 +877,7 @@ def process_upload(contents, filename, metadata_data):
             dismissable=True,
             is_open=True,
         )
-        return alert, no_update
+        return alert, no_update, no_update, no_update, None  # Clear upload contents
 
 
 # -------------------------------------------------------------------
@@ -544,7 +916,7 @@ def update_table(
 
     # -----------------------------
     # Convert slider values back to base SI units for filtering
-    # Sliders show: SI mode = kW, IP mode = MMBTU/h (heating) / TR (cooling)
+    # Sliders show: SI mode = kW, IP mode = kBTU/h (heating) / TR (cooling)
     # Data is stored in: W (for power), m² (for area)
     # -----------------------------
     if area_range and len(area_range) == 2:
@@ -557,9 +929,9 @@ def update_table(
 
     if hhw_range and len(hhw_range) == 2:
         if unit_mode == "IP":
-            # MMBTU/h → W (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
-            w_per_mmbtu = 1e6 / W_to_BTUh
-            hhw_range = [h * w_per_mmbtu for h in hhw_range]
+            # kBTU/h → W (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+            w_per_kbtu = 1e3 / W_to_BTUh
+            hhw_range = [h * w_per_kbtu for h in hhw_range]
         else:
             # kW → W
             hhw_range = [h * 1000 for h in hhw_range]
@@ -744,13 +1116,13 @@ def update_slider_units(unit_mode):
         area_max = int(sqm_to_sqft(area_max_si))
         area_step = 5000
 
-        # Convert HHW: W → MMBTU/h (1 MMBTU/h = 1e6 BTU/h = 1e6/3.412 W)
-        # Using MMBTU/h to avoid excessively large numbers
-        mmbtu_per_w = W_to_BTUh / 1e6  # W to MMBTU/h
-        hhw_min = round(hhw_min_si * mmbtu_per_w, 1)
-        hhw_max = round(hhw_max_si * mmbtu_per_w, 1)
+        # Convert HHW: W → kBTU/h (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+        # Using kBTU/h to avoid excessively large numbers
+        kbtu_per_w = W_to_BTUh / 1e3  # W to kBTU/h
+        hhw_min = round(hhw_min_si * kbtu_per_w, 1)
+        hhw_max = round(hhw_max_si * kbtu_per_w, 1)
         hhw_step = 0.5
-        hhw_label_unit = "MMBTU/h"
+        hhw_label_unit = "kBTU/h"
 
         # Convert CHW: W → TR (tons of refrigeration)
         chw_min = round(W_to_tons(chw_min_si), 0)
