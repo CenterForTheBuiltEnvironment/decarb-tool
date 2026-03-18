@@ -121,11 +121,17 @@ def sqft_to_sqm(sqft):
 # - IP: {unit: display label, func: base→IP conversion}
 
 UNIT_MAP = {
-    # --- Energy (heating & general) ---
+    # --- Energy (heating & general, gas) ---
     "energy": {
         "base": "Wh",
         "SI": {"unit": "kWh", "func": Wh_to_kWh},
         "IP": {"unit": "BTU", "func": Wh_to_BTUh},
+    },
+    # --- Energy (electric) - stays in kWh even in IP mode ---
+    "energy_electric": {
+        "base": "Wh",
+        "SI": {"unit": "kWh", "func": Wh_to_kWh},
+        "IP": {"unit": "kWh", "func": Wh_to_kWh},  # Electric energy stays in kWh
     },
     # --- Power (heating & general) ---
     "power": {
@@ -232,14 +238,15 @@ UNIT_MAP = {
 COLUMN_CONFIG = {
     # === Area ===
     "area_sqm": ("area", "Area"),
-    # === Energy (Wh) ===
-    "elec_Wh": ("energy", "Total Electricity"),
+    # === Energy - Electric (Wh) - stays in kWh even in IP mode ===
+    "elec_Wh": ("energy_electric", "Total Electricity"),
+    "elec_hr_Wh": ("energy_electric", "HR-WWHP Electricity"),
+    "elec_awhp_h_Wh": ("energy_electric", "AWHP Heating Electricity"),
+    "elec_awhp_c_Wh": ("energy_electric", "AWHP Cooling Electricity"),
+    "elec_res_Wh": ("energy_electric", "Resistance Heater Electricity"),
+    "elec_chiller_Wh": ("energy_electric", "Chiller Electricity"),
+    # === Energy - Gas (Wh) - converts to BTU in IP mode ===
     "gas_Wh": ("energy", "Total Gas"),
-    "elec_hr_Wh": ("energy", "HR-WWHP Electricity"),
-    "elec_awhp_h_Wh": ("energy", "AWHP Heating Electricity"),
-    "elec_awhp_c_Wh": ("energy", "AWHP Cooling Electricity"),
-    "elec_res_Wh": ("energy", "Resistance Heater Electricity"),
-    "elec_chiller_Wh": ("energy", "Chiller Electricity"),
     "gas_boiler_Wh": ("energy", "Boiler Gas"),
     # === Power - Heating (W) ===
     "heating_W": ("power", "Heating Load"),
@@ -369,6 +376,20 @@ AUTO_SCALE_CONFIG = {
             # Scale: divide Wh by (1e3/3.412) to get kBTU
             # (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
             (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
+        ],
+    },
+    "energy_electric": {
+        # Electric energy stays in kWh even in IP mode
+        "SI": [
+            (1e9, 1e9, "GWh"),
+            (1e6, 1e6, "MWh"),
+            (1e3, 1e3, "kWh"),
+        ],
+        "IP": [
+            # Same as SI - electric energy reported in kWh
+            (1e9, 1e9, "GWh"),
+            (1e6, 1e6, "MWh"),
+            (1e3, 1e3, "kWh"),
         ],
     },
     "power": {
