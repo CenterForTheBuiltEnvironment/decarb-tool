@@ -598,9 +598,10 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-error", "children"),
     Input({"type": "equipment-edit-btn", "eq_scen_id": ALL}, "n_clicks"),
     State("equipment-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
-def open_edit_modal(edit_clicks, equipment_data):
+def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     """
     Open the edit modal for the scenario whose pencil icon was clicked,
     pre-filling all editable fields.
@@ -717,22 +718,32 @@ def open_edit_modal(edit_clicks, equipment_data):
     #     equipment_list, hr_wwhp_val.get("eq_id")
     # )
 
+    # Get temperature values and convert to display units
+    from utils.units import C_to_F
+
+    unit_mode = unit_mode or "SI"
+
     hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
-    if hr_wwhp_h_supply_t_val is None:
-        hr_wwhp_h_supply_t_val = "None"
+    if hr_wwhp_h_supply_t_val is not None:
+        try:
+            hr_wwhp_h_supply_t_val = float(hr_wwhp_h_supply_t_val)
+            if unit_mode == "IP":
+                hr_wwhp_h_supply_t_val = C_to_F(hr_wwhp_h_supply_t_val)
+        except (ValueError, TypeError):
+            hr_wwhp_h_supply_t_val = None
 
     awhp_val = scenario.get("awhp")
     if awhp_val is None:
         awhp_val = "None"
 
-    # added for autofill callback, not implemented
-    # awhp_supply_t_options = _build_heating_supply_temp_options(
-    #     equipment_list, awhp_val.get("eq_id")
-    # )
-        
     awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
-    if awhp_h_supply_t_val is None:
-        awhp_h_supply_t_val = "None"
+    if awhp_h_supply_t_val is not None:
+        try:
+            awhp_h_supply_t_val = float(awhp_h_supply_t_val)
+            if unit_mode == "IP":
+                awhp_h_supply_t_val = C_to_F(awhp_h_supply_t_val)
+        except (ValueError, TypeError):
+            awhp_h_supply_t_val = None
 
     sizing_mode = scenario.get("awhp_sizing_mode") or "integer_sizing_peak_load"
     sizing_value = scenario.get("awhp_sizing_value", 1.0)
@@ -782,6 +793,7 @@ def open_edit_modal(edit_clicks, equipment_data):
     State("edit-backup-heating-select", "value"),
     State("edit-chiller-select", "value"),
     State("equipment-store", "data"),
+    State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
 def save_edit_scenario(
@@ -799,6 +811,7 @@ def save_edit_scenario(
     backup_heating_val,
     chiller_val,
     equipment_data,
+    unit_mode,
 ):
     if not n_clicks:
         return no_update, no_update, no_update
@@ -810,15 +823,31 @@ def save_edit_scenario(
     if not new_name:
         return True, no_update, "Scenario name cannot be empty."
 
+    from utils.units import F_to_C
+
+    unit_mode = unit_mode or "SI"
+
     if hr_wwhp_val == "None":
         hr_wwhp_val = None
     if awhp_val == "None":
         awhp_val = None
 
-    if hr_wwhp_h_supply_t_val == "None":
-        hr_wwhp_h_supply_t_val = None
-    if awhp_h_supply_t_val == "None":
-        awhp_h_supply_t_val = None
+    # Convert temperature values from display units back to Celsius (base unit)
+    if hr_wwhp_h_supply_t_val is not None:
+        try:
+            hr_wwhp_h_supply_t_val = float(hr_wwhp_h_supply_t_val)
+            if unit_mode == "IP":
+                hr_wwhp_h_supply_t_val = F_to_C(hr_wwhp_h_supply_t_val)
+        except (ValueError, TypeError):
+            hr_wwhp_h_supply_t_val = None
+
+    if awhp_h_supply_t_val is not None:
+        try:
+            awhp_h_supply_t_val = float(awhp_h_supply_t_val)
+            if unit_mode == "IP":
+                awhp_h_supply_t_val = F_to_C(awhp_h_supply_t_val)
+        except (ValueError, TypeError):
+            awhp_h_supply_t_val = None
 
     try:
         sizing_value = float(sizing_value) if sizing_value is not None else 1.0
@@ -878,16 +907,26 @@ def cancel_edit_modal(n_clicks):
     return False
 
 
-# 10. Update temperature labels and select options based on unit mode
+# 10. Update temperature labels, value, min/max, and disabled state based on unit mode and selected HP
 @callback(
     Output("edit-hr-wwhp-h-supply-t-label", "children"),
-    Output("edit-hr-wwhp-h-supply-t-select", "data"),
+    Output("edit-hr-wwhp-h-supply-t-value", "min"),
+    Output("edit-hr-wwhp-h-supply-t-value", "max"),
+    Output("edit-hr-wwhp-h-supply-t-value", "value", allow_duplicate=True),
+    Output("edit-hr-wwhp-h-supply-t-value", "disabled"),
     Output("edit-awhp-h-supply-t-label", "children"),
-    Output("edit-awhp-h-supply-t-select", "data"),
-    Input("unit-toggle", "value"),
+    Output("edit-awhp-h-supply-t-value", "min"),
+    Output("edit-awhp-h-supply-t-value", "max"),
+    Output("edit-awhp-h-supply-t-value", "value", allow_duplicate=True),
+    Output("edit-awhp-h-supply-t-value", "disabled"),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-awhp-select", "value"),
+    State("unit-toggle", "value"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
 )
-def update_temp_labels_and_options(unit_mode):
-    """Update temperature labels and select options based on unit mode."""
+def update_temp_inputs_on_hp_change(hr_hp_id, awhp_id, unit_mode, equipment_data):
+    """Update temperature constraints and reset value when HP selection changes."""
     from utils.units import get_unit_label, C_to_F
 
     unit_mode = unit_mode or "SI"
@@ -896,24 +935,61 @@ def update_temp_labels_and_options(unit_mode):
     hr_label = f"HR HP Heating supply temp ({temp_unit})"
     awhp_label = f"AWHP Heating supply temp ({temp_unit})"
 
-    # Base temperatures in Celsius
-    hr_temps_c = [32.2, 48.9, 60, 73.9]
-    awhp_temps_c = [35, 38, 38.9, 43.3, 45, 48.9, 50, 52, 54.4, 60]
+    # Get equipment list
+    equipment_list = equipment_data.get("equipment", []) if equipment_data else []
 
+    # Get supply temp ranges from selected HPs
+    hr_min_c, hr_max_c = _get_supply_temp_range(equipment_list, hr_hp_id)
+    awhp_min_c, awhp_max_c = _get_supply_temp_range(equipment_list, awhp_id)
+
+    # Check if HPs are selected
+    hr_selected = hr_hp_id and hr_hp_id != "None" and hr_min_c is not None
+    awhp_selected = awhp_id and awhp_id != "None" and awhp_min_c is not None
+
+    # Use defaults for display if no HP selected (but will be disabled)
+    if not hr_selected:
+        hr_min_c, hr_max_c = 32.2, 73.9
+    if not awhp_selected:
+        awhp_min_c, awhp_max_c = 35, 60
+
+    # Convert to display units if IP mode
     if unit_mode == "IP":
-        # Convert to Fahrenheit for display
-        hr_options = [
-            {"label": f"{C_to_F(t):.1f}", "value": str(t)} for t in hr_temps_c
-        ]
-        awhp_options = [
-            {"label": f"{C_to_F(t):.1f}", "value": str(t)} for t in awhp_temps_c
-        ]
+        hr_min = C_to_F(hr_min_c)
+        hr_max = C_to_F(hr_max_c)
+        awhp_min = C_to_F(awhp_min_c)
+        awhp_max = C_to_F(awhp_max_c)
     else:
-        # Use Celsius values directly
-        hr_options = [{"label": str(t), "value": str(t)} for t in hr_temps_c]
-        awhp_options = [{"label": str(t), "value": str(t)} for t in awhp_temps_c]
+        hr_min, hr_max = hr_min_c, hr_max_c
+        awhp_min, awhp_max = awhp_min_c, awhp_max_c
 
-    return hr_label, hr_options, awhp_label, awhp_options
+    # Set value to minimum when HP changes, or None if disabled
+    hr_value = hr_min if hr_selected else None
+    awhp_value = awhp_min if awhp_selected else None
+
+    return (
+        hr_label, hr_min, hr_max, hr_value, not hr_selected,
+        awhp_label, awhp_min, awhp_max, awhp_value, not awhp_selected,
+    )
+
+
+# 10b. Update temperature labels when unit mode changes (without resetting values)
+@callback(
+    Output("edit-hr-wwhp-h-supply-t-label", "children", allow_duplicate=True),
+    Output("edit-awhp-h-supply-t-label", "children", allow_duplicate=True),
+    Input("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_temp_labels_on_unit_change(unit_mode):
+    """Update temperature labels when unit mode changes."""
+    from utils.units import get_unit_label
+
+    unit_mode = unit_mode or "SI"
+    temp_unit = get_unit_label("temperature", unit_mode)
+
+    hr_label = f"HR HP Heating supply temp ({temp_unit})"
+    awhp_label = f"AWHP Heating supply temp ({temp_unit})"
+
+    return hr_label, awhp_label
 
 
 # helper to build equipment options for Selects
@@ -933,6 +1009,37 @@ def _build_equipment_options(
     if include_none:
         options = [{"label": none_label, "value": "None"}] + options
     return options
+
+
+def _get_supply_temp_range(equipment_list, eq_id):
+    """Extract min/max supply temperature from equipment's leaving_supply_t keys.
+
+    Args:
+        equipment_list: List of equipment dictionaries
+        eq_id: Equipment ID to look up
+
+    Returns:
+        Tuple of (min_temp, max_temp) in Celsius, or (None, None) if not found
+    """
+    if not eq_id or eq_id == "None" or not equipment_list:
+        return None, None
+
+    eq = next((e for e in equipment_list if e.get("eq_id") == eq_id), None)
+    if not eq:
+        return None, None
+
+    leaving_supply_t = (
+        eq.get("performance", {}).get("heating", {}).get("leaving_supply_t", {})
+    )
+    if not leaving_supply_t:
+        return None, None
+
+    try:
+        temps = [float(t) for t in leaving_supply_t.keys()]
+        return min(temps), max(temps)
+    except (ValueError, TypeError):
+        return None, None
+
 
 @callback(
     Output("edit-awhp-sizing-value", "step"),

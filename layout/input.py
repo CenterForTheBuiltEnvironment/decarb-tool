@@ -837,12 +837,13 @@ def edit_equipment_modal():
                                     size="sm",
                                     fw=500,
                                 ),
-                                dmc.Select(
-                                    id="edit-hr-wwhp-h-supply-t-select",
-                                    placeholder="None",
-                                    data=[],  # filled by callback based on unit mode
-                                    clearable=True,
-                                    searchable=True,
+                                dmc.NumberInput(
+                                    id="edit-hr-wwhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=32.2,  # Updated dynamically by callback
+                                    max=73.9,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
                                 ),
                             ],
                         ),
@@ -855,12 +856,13 @@ def edit_equipment_modal():
                                     size="sm",
                                     fw=500,
                                 ),
-                                dmc.Select(
-                                    id="edit-awhp-h-supply-t-select",
-                                    placeholder="None",
-                                    data=[],  # filled by callback based on unit mode
-                                    clearable=True,
-                                    searchable=True,
+                                dmc.NumberInput(
+                                    id="edit-awhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=35,  # Updated dynamically by callback
+                                    max=60,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
                                 ),
                             ],
                         ),
