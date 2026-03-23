@@ -1,20 +1,17 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from utils.display_registry import format_emission_scenario_id, format_meter_name
 from utils.units import (
     convert_dataframe,
-    get_display_unit,
     get_auto_scale,
-    get_converter,
-    format_large_number,
+    get_display_unit,
     # Legacy import for backward compatibility (axis labels with HTML)
     unit_map,
 )
-from utils.display_registry import format_emission_scenario_id, format_meter_name
-
 
 # colors
 berkeley_blue = "#002676"
@@ -24,9 +21,7 @@ rose_medium = "#E7115E"
 
 def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
     # Keep existing annotations (like subplot titles)
-    existing_annotations = (
-        list(fig.layout.annotations) if fig.layout.annotations else []
-    )
+    existing_annotations = list(fig.layout.annotations) if fig.layout.annotations else []
 
     if subtitle_text:
         subtitle_annotation = dict(
@@ -59,17 +54,14 @@ def shorten_scenario_name(scen_name, max_length=15):
     return scen_name[:12] + "…"
 
 
-def plot_energy_and_emissions(
-    df, equipment_scenarios, emission_scenarios, unit_mode="SI"
-):
+def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_mode="SI"):
     # --- Filter scenarios ---
     df = df[
-        (df["eq_scen_id"].isin(equipment_scenarios))
-        & (df["em_scen_id"].isin(emission_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios)) & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
     scenarios = df["eq_scen_id"].unique()
-    name_map = dict(zip(df["eq_scen_id"], df["eq_scen_name"]))
+    name_map = dict(zip(df["eq_scen_id"], df["eq_scen_name"], strict=False))
 
     n_scen = len(scenarios)
     opacities = np.linspace(1, 1, n_scen)  # fade scenarios slightly, ignore for now
@@ -82,7 +74,19 @@ def plot_energy_and_emissions(
     for scen in scenarios:
         df_s = df[df["eq_scen_id"] == scen]
         # Energy columns are in Wh (base unit)
-        elec = df_s[["elec_hr_Wh", "elec_awhp_h_Wh", "elec_awhp_c_Wh", "elec_res_Wh", "elec_chiller_Wh"]].sum().sum()
+        elec = (
+            df_s[
+                [
+                    "elec_hr_Wh",
+                    "elec_awhp_h_Wh",
+                    "elec_awhp_c_Wh",
+                    "elec_res_Wh",
+                    "elec_chiller_Wh",
+                ]
+            ]
+            .sum()
+            .sum()
+        )
         gas = df_s["gas_boiler_Wh"].sum()
         energy_totals.extend([elec, gas])
 
@@ -152,9 +156,7 @@ def plot_energy_and_emissions(
                 x=[scen_name_short],
                 y=[elec_scaled],
                 name="Electricity",
-                marker=dict(
-                    color=color_map_energy["Electricity"], opacity=opacities[i]
-                ),
+                marker=dict(color=color_map_energy["Electricity"], opacity=opacities[i]),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
                     f"Electricity: {elec_scaled:,.1f} {energy_hover_unit}"
@@ -207,9 +209,7 @@ def plot_energy_and_emissions(
                 x=[scen_name_short],
                 y=[elec_em_scaled],
                 name="Electricity",
-                marker=dict(
-                    color=color_map_emissions["Electricity"], opacity=opacities[i]
-                ),
+                marker=dict(color=color_map_emissions["Electricity"], opacity=opacities[i]),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
                     f"Electricity: {elec_em_scaled:,.1f} {emissions_hover_unit}"
@@ -247,9 +247,7 @@ def plot_energy_and_emissions(
                 x=[scen_name_short],
                 y=[refrig_em_scaled],
                 name="Refrigerant",
-                marker=dict(
-                    color=color_map_emissions["Refrigerant"], opacity=opacities[i]
-                ),
+                marker=dict(color=color_map_emissions["Refrigerant"], opacity=opacities[i]),
                 hovertemplate=(
                     f"Scenario: {scen_name}<br>"
                     f"Refrigerant: {refrig_em_scaled:,.1f} {emissions_hover_unit}"
@@ -269,7 +267,7 @@ def plot_energy_and_emissions(
     fig.update_yaxes(title_text=yaxis_title_emissions, row=1, col=2)
 
     fig = apply_standard_layout(
-        fig, y_offset=-0.35, subtitle_text="Annual Energy & Emissions by Scenario."
+        fig, y_offset=-0.42, subtitle_text="Annual Energy & Emissions by Scenario."
     )
 
     return fig
@@ -283,8 +281,7 @@ def plot_emission_scenarios_grouped(
 ):
     # --- Filter scenarios ---
     df = df[
-        (df["eq_scen_id"].isin(equipment_scenarios))
-        & (df["em_scen_id"].isin(emission_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios)) & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
     # NOTE: Don't use convert_dataframe - we use auto-scaling directly from base units
@@ -322,9 +319,7 @@ def plot_emission_scenarios_grouped(
     fig = make_subplots(
         rows=1,
         cols=n_em_scen,
-        subplot_titles=[
-            format_emission_scenario_id(em_scen) for em_scen in emission_scenarios
-        ],
+        subplot_titles=[format_emission_scenario_id(em_scen) for em_scen in emission_scenarios],
         horizontal_spacing=0.12,
         shared_yaxes=True,
     )
@@ -420,7 +415,7 @@ def plot_emission_scenarios_grouped(
 
     fig = apply_standard_layout(
         fig,
-        y_offset=-0.35,
+        y_offset=-0.4,
         subtitle_text="Annual Emissions per Equipment and grouped by Emission Scenario.",
     )
 
@@ -457,8 +452,7 @@ def plot_meter_timeseries(
     ]
 
     filtered = df[
-        (df["eq_scen_id"] == equipment_scenario)
-        & (df["em_scen_id"] == emission_scenario)
+        (df["eq_scen_id"] == equipment_scenario) & (df["em_scen_id"] == emission_scenario)
     ].copy()
 
     all_cols = metadata_cols + energy_cols
@@ -506,7 +500,6 @@ def plot_meter_timeseries(
     df_resampled = df_resampled.rename(columns=format_meter_name)
 
     if not stacked:
-
         # Melt for line chart
         df_melt = df_resampled.reset_index().melt(
             id_vars=df_resampled.index.name or "index",
@@ -612,8 +605,7 @@ def plot_emissions_heatmap(
     all_cols = metadata_cols + emission_cols
 
     filtered = df[
-        (df["eq_scen_id"] == equipment_scenario)
-        & (df["em_scen_id"] == emission_scenario)
+        (df["eq_scen_id"] == equipment_scenario) & (df["em_scen_id"] == emission_scenario)
     ].copy()
 
     # keep only what exists
@@ -638,9 +630,7 @@ def plot_emissions_heatmap(
     df["doy"] = df.index.dayofyear
 
     # Pivot to 2D array (hour x day of year)
-    heatmap_data = df.pivot_table(
-        index="hour", columns="doy", values=emission_type, aggfunc="mean"
-    )
+    heatmap_data = df.pivot_table(index="hour", columns="doy", values=emission_type, aggfunc="mean")
 
     # Create the heatmap plot
     fig = go.Figure(
@@ -735,8 +725,7 @@ def plot_scatter_temp_vs_variable(
 
     # --- Filter scenarios ---
     df = df[
-        (df["eq_scen_id"].isin(equipment_scenarios))
-        & (df["em_scen_id"].isin(emission_scenarios))
+        (df["eq_scen_id"].isin(equipment_scenarios)) & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
     if not pd.api.types.is_datetime64_any_dtype(df.index):
@@ -758,13 +747,13 @@ def plot_scatter_temp_vs_variable(
         raise ValueError("Aggregation method not recognized. Use 'D' or 'W'.")
 
     # --- Now group on columns only ---
-    daily = df.groupby(
-        ["period", "eq_scen_id", "em_scen_id", "label"], as_index=False
-    ).agg({"t_out_C": "mean", y_var: "mean"})
+    daily = df.groupby(["period", "eq_scen_id", "em_scen_id", "label"], as_index=False).agg(
+        {"t_out_C": "mean", y_var: "mean"}
+    )
 
     # --- Build figure ---
     fig = go.Figure()
-    for (scen_id, em_scen), df_s in daily.groupby(["eq_scen_id", "em_scen_id"]):
+    for (_, _), df_s in daily.groupby(["eq_scen_id", "em_scen_id"]):
         scen_name = df_s["label"].iloc[0]
         customdata = df_s[["label", "em_scen_id", "t_out_C", y_var]].values
         fig.add_trace(

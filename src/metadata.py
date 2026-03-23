@@ -1,73 +1,71 @@
 import json
-
-from typing import List, Any, Union, Optional
-from pydantic import BaseModel
-from pathlib import Path
-
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
 
 from src.emissions import EmissionScenario
+from src.mixins import DotAccessMixin
 
 
 class LoadData(BaseModel):
-    load_type: Optional[str] = None
-    max_temp: Optional[float] = None
-    median_temp: Optional[float] = None
-    min_temp: Optional[float] = None
-    annual_heating_cooling_ratio: Optional[float] = None
-    chw_annual_load: Optional[float] = None
-    chw_data_coverage: Optional[float] = None
-    chw_max_load: Optional[float] = None
-    chw_max_load_per_area: Optional[float] = None
-    chw_mean_load: Optional[float] = None
-    chw_median_load: Optional[float] = None
-    chw_min_load: Optional[float] = None
-    chw_pct_below_10pct_max: Optional[float] = None
-    chw_pct_below_20pct_max: Optional[float] = None
-    chw_pct_below_30pct_max: Optional[float] = None
-    chw_pct_below_40pct_max: Optional[float] = None
-    chw_pct_below_50pct_max: Optional[float] = None
-    chw_pct_below_60pct_max: Optional[float] = None
-    chw_pct_below_70pct_max: Optional[float] = None
-    chw_pct_below_80pct_max: Optional[float] = None
-    chw_pct_below_90pct_max: Optional[float] = None
-    chw_q25_load: Optional[float] = None
-    chw_q75_load: Optional[float] = None
-    chw_valid_hours: Optional[int] = None
-    heat_recovery_heating_fraction: Optional[float] = None
-    hhw_annual_load: Optional[float] = None
-    hhw_data_coverage: Optional[float] = None
-    hhw_max_load: Optional[float] = None
-    hhw_max_load_per_area: Optional[float] = None
-    hhw_mean_load: Optional[float] = None
-    hhw_median_load: Optional[float] = None
-    hhw_min_load: Optional[float] = None
-    hhw_pct_below_10pct_max: Optional[float] = None
-    hhw_pct_below_20pct_max: Optional[float] = None
-    hhw_pct_below_30pct_max: Optional[float] = None
-    hhw_pct_below_40pct_max: Optional[float] = None
-    hhw_pct_below_50pct_max: Optional[float] = None
+    load_type: str | None = None
+    max_temp: float | None = None
+    median_temp: float | None = None
+    min_temp: float | None = None
+    annual_heating_cooling_ratio: float | None = None
+    chw_annual_load: float | None = None
+    chw_data_coverage: float | None = None
+    chw_max_load: float | None = None
+    chw_max_load_per_area: float | None = None
+    chw_mean_load: float | None = None
+    chw_median_load: float | None = None
+    chw_min_load: float | None = None
+    chw_pct_below_10pct_max: float | None = None
+    chw_pct_below_20pct_max: float | None = None
+    chw_pct_below_30pct_max: float | None = None
+    chw_pct_below_40pct_max: float | None = None
+    chw_pct_below_50pct_max: float | None = None
+    chw_pct_below_60pct_max: float | None = None
+    chw_pct_below_70pct_max: float | None = None
+    chw_pct_below_80pct_max: float | None = None
+    chw_pct_below_90pct_max: float | None = None
+    chw_q25_load: float | None = None
+    chw_q75_load: float | None = None
+    chw_valid_hours: int | None = None
+    heat_recovery_heating_fraction: float | None = None
+    hhw_annual_load: float | None = None
+    hhw_data_coverage: float | None = None
+    hhw_max_load: float | None = None
+    hhw_max_load_per_area: float | None = None
+    hhw_mean_load: float | None = None
+    hhw_median_load: float | None = None
+    hhw_min_load: float | None = None
+    hhw_pct_below_10pct_max: float | None = None
+    hhw_pct_below_20pct_max: float | None = None
+    hhw_pct_below_30pct_max: float | None = None
+    hhw_pct_below_40pct_max: float | None = None
+    hhw_pct_below_50pct_max: float | None = None
 
 
-class Metadata(BaseModel):
-    building_id: Optional[str] = None
-    location: Optional[str] = None
-    building_type: Optional[str] = None
-    vintage: Optional[int] = None
-    ashrae_climate_zone: Optional[str] = None
-    climate_zone_output: Optional[str] = None
-    area_sqm: Optional[float]
+class Metadata(DotAccessMixin, BaseModel):
+    building_id: str | None = None
+    location: str | None = None
+    building_type: str | None = None
+    vintage: int | None = None
+    ashrae_climate_zone: str | None = None
+    climate_zone_output: str | None = None
+    area_sqm: float | None
     load_data: LoadData
-    equipment_scenarios: Union[str, List[str]]
-    emission_settings: List[EmissionScenario]
+    equipment_scenarios: str | list[str]
+    emission_settings: list[EmissionScenario]
     units: str
     last_updated: str
-    custom_load_path: Optional[str] = (
-        None  # Path to custom load data file if load_type='load_custom'
-    )
+    custom_load_path: str | None = None  # Path to custom load data file if load_type='load_custom'
 
     @property
-    def base_gea_grid_region(self) -> Optional[str]:
+    def base_gea_grid_region(self) -> str | None:
         """Assumes all emission scenarios share the same grid region."""
         if not self.emission_settings:
             return None
@@ -148,26 +146,6 @@ class Metadata(BaseModel):
             data = json.load(f)
         return cls(**data)
 
-    def get_value(self, path: str):
-        """
-        Get a (possibly nested) field by dotted path, e.g.:
-        - "location"
-        - "load_data.chw_max_load"
-        """
-        parts = path.split(".")
-        curr = self
-        for part in parts:
-            if isinstance(curr, BaseModel):
-                curr = getattr(curr, part, None)
-            elif isinstance(curr, dict):
-                curr = curr.get(part)
-            else:
-                curr = getattr(curr, part, None)
-
-            if curr is None:
-                return None
-        return curr
-
     # ---------- Scenario helpers ----------
     def get_emission_scenario(self, scen_id: str) -> EmissionScenario:
         for scen in self.emission_settings:
@@ -175,14 +153,12 @@ class Metadata(BaseModel):
                 return scen
         raise KeyError(f"EmissionScenario {scen_id!r} not found")
 
-    def list_emission_scenarios(self) -> List[str]:
+    def list_emission_scenarios(self) -> list[str]:
         return [s.em_scen_id for s in self.emission_settings]
 
     def add_emission_scenario(self, scenario: EmissionScenario, overwrite: bool = True):
         """Add a new scenario. Overwrites existing if `overwrite=True`."""
-        existing = [
-            s for s in self.emission_settings if s.em_scen_id == scenario.em_scen_id
-        ]
+        existing = [s for s in self.emission_settings if s.em_scen_id == scenario.em_scen_id]
         if existing:
             if overwrite:
                 self.emission_settings = [

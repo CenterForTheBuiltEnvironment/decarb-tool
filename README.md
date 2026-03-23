@@ -71,13 +71,13 @@ It supports building decarbonization planning by enabling users to assess and co
 * Interactive results: Compare energy use, emissions, and key performance indicators across equipment and emission scenarios to support early-stage decision-making and sensitivity analyses.
 
 ### Purpose
-The tool is designed to bring consistency, transparency, and scientific robustness to HVAC decarbonization studies — reducing reliance on proprietary or ad hoc internal modeling approaches.
+The tool is designed to bring consistency, transparency, and scientific robustness to HVAC decarbonization studies and to reduce the reliance on proprietary or ad hoc internal modeling approaches.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
 
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![Plotly Dash](https://img.shields.io/badge/plotly-3F4F75.svg?style=for-the-badge&logo=plotly&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![DMC](https://img.shields.io/badge/DMC-008DE4?style=for-the-badge&logo=mantine&logoColor=white) ![Plotly Dash](https://img.shields.io/badge/plotly-3F4F75.svg?style=for-the-badge&logo=plotly&logoColor=white)
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -160,7 +160,7 @@ Thanks!
 
 
 ## License
-Distributed under the GNU General Public License. See `LICENSE_GNU_GPLv3` file for more information.
+Distributed under the MIT License. See `MIT License` file for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
