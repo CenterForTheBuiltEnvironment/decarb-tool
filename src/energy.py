@@ -26,7 +26,7 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
         if scen.hr_wwhp:
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
-            if not hr_wwhp.performance:
+            if not hr_wwhp.performance_heating:
                 logger.error(
                     f"Equipment '{hr_wwhp.eq_id}' lacks heating performance data."
                 )
@@ -221,6 +221,22 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
 
+        # boiler checks
+        backup_heating = library.get_equipment(scen.backup_heating)
+        if backup_heating.fuel == "natural_gas":
+            if not backup_heating.performance_heating:
+                logger.error(
+                    f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
+                )
+                raise ValueError(
+                    f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
+                )
+            
+            if backup_heating.performance_heating.efficiency is None or backup_heating.performance_heating.efficiency <= 0:
+                raise ValueError(
+                    f"Equipment '{backup_heating.eq_id}' requires a positive 'efficiency'."
+                )
+
 
 def _heat_recovery_plr_curve(
     e: Equipment, performance: PerformanceCurves
@@ -372,9 +388,7 @@ def _per_unit_cooling_cop(
 
 
 def _constant_heating_efficiency(e: Equipment) -> Optional[float]:
-    if e.performance and e.performance_heating.efficiency is not None:
-        return float(e.performance_heating.efficiency)
-    return None
+    return float(e.performance_heating.efficiency)
 
 
 def _constant_cooling_efficiency(e: Equipment) -> Optional[float]:
@@ -725,10 +739,6 @@ def loads_to_site_energy(
             logger.debug(
                 f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}"
             )
-            if eff is None or eff <= 0:
-                raise ValueError(
-                    f"Boiler '{backup_heating.eq_id}' requires a positive 'efficiency'."
-                )
 
             boiler_served_W = df[Col.HHW_REM_W].to_numpy()
             gas_Wh = boiler_served_W / eff
@@ -834,7 +844,7 @@ def loads_to_site_energy(
         # =========================
         if df[Col.CHW_REM_W.value].sum() > 1e-9:
             remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
-            chiller_cop = 5.0  # default <- why fix here?
+            chiller_cop = 5.0  # default
             if scen.chiller:
                 logger.debug(
                     f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
