@@ -83,32 +83,44 @@ The tool is designed to bring consistency, transparency, and scientific robustne
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-<!-- GETTING STARTED
 ## Getting Started
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
-
 
 ### Prerequisites
-Software or tools required before installation. <br>
-Make sure `requirements.txt` is up-to-date.
-
-<!-- INSTALLATION CODE BLOCK -->
-<!-- 
-
+- Python 3.12+
+- pip
 
 ### Installation
-Step-by-step guide on how to install and set up the tool, incl. code blocks.
 
-```python
-def welcome(tool-name):
-    print(f"Welcome to the {tool-name} GitHub page!")
+1. Clone the repository
+   ```bash
+   git clone https://github.com/CenterForTheBuiltEnvironment/decarb-tool.git
+   cd decarb-tool
+   ```
 
-welcome("cbe-webtool-name")
-```
+2. Create and activate a virtual environment
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
+3. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p> -->
+4. Set up pre-commit hooks (for contributors)
+   ```bash
+   pre-commit install
+   ```
+   This enables automatic code formatting and linting with [Ruff](https://docs.astral.sh/ruff/) on each commit.
+
+5. Run the development server
+   ```bash
+   python app.py
+   ```
+   The app will be available at http://localhost:8050
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- USAGE EXAMPLES -->
