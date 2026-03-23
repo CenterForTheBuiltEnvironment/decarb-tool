@@ -78,6 +78,149 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                         f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
                     )
 
+        if scen.awhp:
+
+            # awhp heating checks
+            awhp_h = library.get_equipment(scen.awhp)
+
+            if not awhp_h.performance_heating:
+                logger.error(
+                    f"Equipment '{awhp_h.eq_id}' lacks heating performance data."
+                )
+                raise ValueError(
+                    f"Equipment '{awhp_h.eq_id}' lacks heating performance data."
+                )
+
+            awhp_h_supply_t = scen.awhp_h_supply_t
+            if (
+                awhp_h_supply_t < awhp_h.performance_heating.constraints["min_temp_C"]
+                or awhp_h_supply_t
+                > awhp_h.performance_heating.constraints["max_temp_C"]
+            ):
+                logger.error(
+                    f"Supply water temperature {awhp_h_supply_t} is outside the bounds of the provided performance data for equipment '{awhp_h.eq_id}'."
+                )
+                raise ValueError(
+                    f"Supply water temperature {awhp_h_supply_t} is outside the bounds of the provided performance data for equipment '{awhp_h.eq_id}'."
+                )
+
+            if not awhp_h.performance_heating.t_out_C:
+                logger.error(
+                    f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (t_out curve)."
+                )
+                raise ValueError(
+                    f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (t_out curve)."
+                )
+
+            awhp_h_supply_temps_str = list(
+                awhp_h.performance_heating.leaving_supply_t.keys()
+            )
+
+            for t in awhp_h_supply_temps_str:
+
+                if not awhp_h.performance_heating.leaving_supply_t[t].capacity_W:
+                    if not awhp_h.capacity_W:
+                        logger.error(
+                            f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (fixed value or t_out-based curve for capacity_W at supply temperature {t})."
+                        )
+                        raise ValueError(
+                            f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (fixed value or t_out-based curve for capacity_W at supply temperature {t})."
+                        )
+
+                else:
+                    if len(awhp_h.performance_heating.t_out_C) != len(
+                        awhp_h.performance_heating.leaving_supply_t[t].capacity_W
+                    ):
+                        logger.error(
+                            f"Equipment '{awhp_h.eq_id}' heating capacity_W and t_out curves are of different lengths for supply temperature {t}."
+                        )
+                        raise ValueError(
+                            f"Equipment '{awhp_h.eq_id}' heating capacity_W and t_out curves are of different lengths for supply temperature {t}."
+                        )
+
+                if not awhp_h.performance_heating.leaving_supply_t[t].cop:
+                    logger.error(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
+                    )
+                    raise ValueError(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
+                    )
+
+                if len(awhp_h.performance_heating.t_out_C) != len(
+                    awhp_h.performance_heating.leaving_supply_t[t].cop
+                ):
+                    logger.error(
+                        f"Equipment '{awhp_h.eq_id}' heating COP and t_out curves are of different lengths for supply temperature {t}."
+                    )
+                    raise ValueError(
+                        f"Equipment '{awhp_h.eq_id}' heating COP and t_out curves are of different lengths for supply temperature {t}."
+                    )
+
+                if (
+                    "min_temp_C"
+                    not in awhp_h.performance_heating.leaving_supply_t[t].constraints
+                ):
+                    logger.error(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (minimum t_out constraint for supply temperature {t})."
+                    )
+                    raise ValueError(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (minimum t_out constraint for supply temperature {t})."
+                    )
+
+                if (
+                    "max_temp_C"
+                    not in awhp_h.performance_heating.leaving_supply_t[t].constraints
+                ):
+                    logger.error(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (maximum t_out constraint for supply temperature {t})."
+                    )
+                    raise ValueError(
+                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (maximum t_out constraint for supply temperature {t})."
+                    )
+
+            if scen.awhp_sizing_mode is None:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_mode'."
+                )
+
+            if scen.awhp_sizing_value is None:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_value'."
+                )
+
+            if scen.awhp_redundancy is None:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_redundancy'."
+                )
+
+            if scen.awhp_sizing_mode in [
+                "integer_sizing_peak_load",
+                "fractional_sizing_peak_load",
+            ]:
+                if not (0.0 <= scen.awhp_sizing_value <= 1.0):
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires "
+                        f"'awhp_sizing_value' between 0 and 1 for peak load percentage sizing."
+                    )
+
+            elif scen.awhp_sizing_mode == "fixed_num_units":
+                if scen.awhp_sizing_value < 0:
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires "
+                        f"'awhp_sizing_value' to be non-negative for num_of_units mode."
+                    )
+
+            else:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized sizing mode: '{scen.awhp_sizing_mode}'."
+                )
+
+            if scen.awhp_redundancy < 0:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires "
+                    f"'awhp_redundancy' greater than or equal to 0."
+                )
+
 
 def _heat_recovery_plr_curve(
     e: Equipment, performance: PerformanceCurves
@@ -98,37 +241,25 @@ def _heating_supply_temp_performance(
     equip_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
     equip_supply_temps = np.array(equip_supply_temps_str, dtype="float")
 
-    if (  # checked for wwhp
-        supply_t < e.performance_heating.constraints["min_temp_C"]
-        or supply_t > e.performance_heating.constraints["max_temp_C"]
-    ):
-        logger.error(
-            f"Supply water temperature {supply_t} is outside the bounds of the provided performance data for equipment '{e.eq_id}'."
-        )
-        raise ValueError(
-            f"Supply water temperature {supply_t} is outside the bounds of the provided performance data for equipment '{e.eq_id}'."
-        )
-    else:
-        # extract performance data into separate lists
-        cops = [
-            e.performance_heating.leaving_supply_t[t].cop
+    # extract performance data into separate lists
+    cops = [
+        e.performance_heating.leaving_supply_t[t].cop for t in equip_supply_temps_str
+    ]
+    if e.eq_type == "heat_pump":  # only COP needed for WWHPs
+        caps = [
+            e.performance_heating.leaving_supply_t[t].capacity_W
             for t in equip_supply_temps_str
         ]
-        if e.eq_type == "heat_pump":  # only COP needed for WWHPs
-            caps = [
-                e.performance_heating.leaving_supply_t[t].capacity_W
+        constraints = {
+            "min": [
+                e.performance_heating.leaving_supply_t[t].constraints["min_temp_C"]
                 for t in equip_supply_temps_str
-            ]
-            constraints = {
-                "min": [
-                    e.performance_heating.leaving_supply_t[t].constraints["min_temp_C"]
-                    for t in equip_supply_temps_str
-                ],
-                "max": [
-                    e.performance_heating.leaving_supply_t[t].constraints["max_temp_C"]
-                    for t in equip_supply_temps_str
-                ],
-            }
+            ],
+            "max": [
+                e.performance_heating.leaving_supply_t[t].constraints["max_temp_C"]
+                for t in equip_supply_temps_str
+            ],
+        }
 
         # interpolate and store results
         interp_perf.cop = [
@@ -161,7 +292,7 @@ def _per_unit_heating_capacity_W(
                 performance.capacity_W,
                 t_out,
             )
-        else:
+        else:  # done
             logger.error(
                 f"Equipment '{e.eq_id}' heating OAT and capacity curves are of different lengths."
             )
@@ -170,7 +301,7 @@ def _per_unit_heating_capacity_W(
             )
     elif e.capacity_W is not None:  # fallback to fixed capacity if provided
         cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
-    else:
+    else:  # done
         logger.error(
             f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
         )
@@ -185,24 +316,11 @@ def _per_unit_heating_cop(
     e: Equipment, t_out: np.ndarray, performance: PerformanceCurves
 ) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
-    # If the device has a COP curve, use it
-    if e.performance and e.performance_heating.t_out_C and performance.cop:
-        if len(e.performance_heating.t_out_C) == len(performance.cop):
-            return interp_vector(
-                e.performance_heating.t_out_C,
-                performance.cop,
-                t_out,
-            )
-        else:
-            logger.error(
-                f"Equipment '{e.eq_id}' heating OAT and COP curves are of different lengths."
-            )
-            raise ValueError(
-                f"Equipment '{e.eq_id}' heating OAT and COP curves are of different lengths."
-            )
-    # Some devices (boiler/resistance) use efficiency instead (not COP).
-    # We'll not use COP for them here.
-    return np.full_like(t_out, fill_value=np.nan, dtype=float)
+    return interp_vector(
+        e.performance_heating.t_out_C,
+        performance.cop,
+        t_out,
+    )
 
 
 def _per_unit_cooling_capacity_W(
@@ -512,19 +630,11 @@ def loads_to_site_energy(
 
             awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps, awhp_h_performance)
             awhp_cop_h = _per_unit_heating_cop(awhp_h, temps, awhp_h_performance)
-            if np.isnan(awhp_cop_h).all():
-                raise ValueError(f"AWHP heating '{awhp_h.eq_id}' lacks a COP curve.")
 
             # Determine number of units
             sizing_mode = scen.awhp_sizing_mode
             sizing_value = scen.awhp_sizing_value
             redundancy = scen.awhp_redundancy
-
-            if sizing_mode is None or sizing_value is None or redundancy is None:
-                raise ValueError(
-                    f"AWHP scenario '{scen.eq_scen_id}' requires "
-                    f"'awhp_sizing_mode' and 'awhp_sizing_value' and 'awhp_redundancy'."
-                )
 
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
 
@@ -537,7 +647,7 @@ def loads_to_site_energy(
             elif getattr(awhp_h, "capacity_W", None):
                 cap_ref = float(awhp_h.capacity_W)
             else:
-                raise ValueError(
+                raise ValueError(  # shouldn't be needed
                     f"AWHP '{awhp_h.eq_id}' lacks a valid capacity reference."
                 )
 
@@ -546,12 +656,6 @@ def loads_to_site_energy(
                 "integer_sizing_peak_load",
                 "fractional_sizing_peak_load",
             ]:
-                if not (0.0 <= sizing_value <= 1.0):
-                    raise ValueError(
-                        f"AWHP scenario '{scen.eq_scen_id}' requires "
-                        f"'awhp_sizing_value' between 0 and 1 for peak load percentage sizing."
-                    )
-
                 # Fraction of peak HHW load at reference temperature
                 peak_hhw_W = float(df["hhw_W"].max())
                 target_load_W = peak_hhw_W * sizing_value
@@ -563,29 +667,13 @@ def loads_to_site_energy(
                     awhp_num_h = target_load_W / cap_ref
 
             elif sizing_mode == "fixed_num_units":
-                if sizing_value < 0:
-                    raise ValueError(
-                        f"AWHP scenario '{scen.eq_scen_id}' requires "
-                        f"'awhp_sizing_value' to be non-negative for num_of_units mode."
-                    )
                 awhp_num_h = np.ceil(sizing_value)
                 awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
-
-            else:
-                raise ValueError(
-                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized sizing mode: '{sizing_mode}'."
-                )
 
             awhp_num_h = max(awhp_num_h, 0)
 
             # --- Redundancy Logic ---
-            if redundancy >= 0:
-                awhp_num_h_r = awhp_num_h + redundancy
-            else:
-                raise ValueError(
-                    f"AWHP scenario '{scen.eq_scen_id}' requires "
-                    f"'awhp_redundancy' greater than or equal to 0."
-                )
+            awhp_num_h_r = awhp_num_h + redundancy
 
             logger.debug(
                 f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
