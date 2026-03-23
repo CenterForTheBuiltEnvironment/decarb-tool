@@ -261,54 +261,44 @@ def _heating_supply_temp_performance(
             ],
         }
 
-        # interpolate and store results
-        interp_perf.cop = [
-            interp_vector(equip_supply_temps, x, supply_t) for x in zip(*cops)
-        ]
-        if e.eq_type == "heat_pump":
+    # interpolate and store results
+    interp_perf.cop = [
+        interp_vector(equip_supply_temps, x, supply_t) for x in zip(*cops)
+    ]
+    if e.eq_type == "heat_pump":
+        if not all(caps): # in case fixed capacity is used
+            interp_perf.capacity_W = e.capacity_W
+        else:
             interp_perf.capacity_W = [
                 interp_vector(equip_supply_temps, x, supply_t) for x in zip(*caps)
             ]
-            interp_perf.constraints = {
-                "min_temp_C": interp_vector(
-                    equip_supply_temps, constraints["min"], supply_t
-                ),
-                "max_temp_C": interp_vector(
-                    equip_supply_temps, constraints["max"], supply_t
-                ),
-            }
-
-        return interp_perf
+        interp_perf.constraints = {
+            "min_temp_C": interp_vector(
+                equip_supply_temps, constraints["min"], supply_t
+            ),
+            "max_temp_C": interp_vector(
+                equip_supply_temps, constraints["max"], supply_t
+            ),
+        }
+    
+    return interp_perf
 
 
 def _per_unit_heating_capacity_W(
     e: Equipment, t_out: np.ndarray, performance: PerformanceCurves
 ) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if e.performance and e.performance_heating.t_out_C and performance.capacity_W:
-        if len(e.performance_heating.t_out_C) == len(performance.capacity_W):
-            cap_h = interp_vector(
-                e.performance_heating.t_out_C,
-                performance.capacity_W,
-                t_out,
-            )
-        else:  # done
-            logger.error(
-                f"Equipment '{e.eq_id}' heating OAT and capacity curves are of different lengths."
-            )
-            raise ValueError(
-                f"Equipment '{e.eq_id}' heating OAT and capacity curves are of different lengths."
-            )
-    elif e.capacity_W is not None:  # fallback to fixed capacity if provided
-        cap_h = np.full_like(t_out, fill_value=float(e.capacity_W), dtype=float)
-    else:  # done
-        logger.error(
-            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
+    if isinstance(performance.capacity_W, list):
+        cap_h = interp_vector(
+            e.performance_heating.t_out_C,
+            performance.capacity_W,
+            t_out,
         )
-        raise ValueError(
-            f"Equipment '{e.eq_id}' has no heating capacity info (fixed value or t_out-based curve for capacity_W)."
-        )
+    else:  # fallback to fixed capacity
+        cap_h = np.full_like(t_out, fill_value=float(performance.capacity_W), dtype=float)
+
     cap_h = _capacity_constraints(t_out, cap_h, performance, "heating")
+
     return cap_h
 
 
@@ -638,18 +628,14 @@ def loads_to_site_energy(
 
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
 
-            if awhp_h.performance and awhp_h_performance.capacity_W:
+            if isinstance(awhp_h_performance.capacity_W, list):
                 cap_ref = interp_vector(
                     awhp_h.performance_heating.t_out_C,
                     awhp_h_performance.capacity_W,
                     np.array([ref_temp_C]),
                 )[0]
-            elif getattr(awhp_h, "capacity_W", None):
-                cap_ref = float(awhp_h.capacity_W)
             else:
-                raise ValueError(  # shouldn't be needed
-                    f"AWHP '{awhp_h.eq_id}' lacks a valid capacity reference."
-                )
+                cap_ref = float(awhp_h_performance.capacity_W)
 
             # --- Sizing Logic ---
             if sizing_mode in [
