@@ -16,29 +16,76 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str]):
+    """Error checks for all equipment in the selected scenarios."""
+
+    for scenario_id in scenario_ids:
+        scen = library.get_scenario(scenario_id)
+
+        # wwhp checks
+        if scen.hr_wwhp:
+            hr_wwhp = library.get_equipment(scen.hr_wwhp)
+
+            if not hr_wwhp.performance:
+                logger.error(
+                    f"Equipment '{hr_wwhp.eq_id}' lacks heating performance data."
+                )
+                raise ValueError(
+                    f"Equipment '{hr_wwhp.eq_id}' lacks heating performance data."
+                )
+
+            hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t
+            if (
+                hr_wwhp_supply_t < hr_wwhp.performance_heating.constraints["min_temp_C"]
+                or hr_wwhp_supply_t
+                > hr_wwhp.performance_heating.constraints["max_temp_C"]
+            ):
+                logger.error(
+                    f"Supply water temperature {hr_wwhp_supply_t} is outside the bounds of the provided performance data for equipment '{hr_wwhp.eq_id}'."
+                )
+                raise ValueError(
+                    f"Supply water temperature {hr_wwhp_supply_t} is outside the bounds of the provided performance data for equipment '{hr_wwhp.eq_id}'."
+                )
+
+            if not hr_wwhp.performance_heating.capacity_W:
+                logger.error(
+                    f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (capacity_W curve)."
+                )
+                raise ValueError(
+                    f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (capacity_W curve)."
+                )
+
+            hr_wwhp_supply_temps_str = list(
+                hr_wwhp.performance_heating.leaving_supply_t.keys()
+            )
+            for t in hr_wwhp_supply_temps_str:
+
+                if not hr_wwhp.performance_heating.leaving_supply_t[t].cop:
+                    logger.error(
+                        f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
+                    )
+                    raise ValueError(
+                        f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
+                    )
+
+                if len(hr_wwhp.performance_heating.capacity_W) != len(
+                    hr_wwhp.performance_heating.leaving_supply_t[t].cop
+                ):
+                    logger.error(
+                        f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
+                    )
+                    raise ValueError(
+                        f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
+                    )
+
+
 def _heat_recovery_plr_curve(
     e: Equipment, performance: PerformanceCurves
 ) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
-    if e.performance and e.performance_heating.capacity_W and performance.cop:
-        if len(e.performance_heating.capacity_W) == len(performance.cop):
-            cap = e.performance_heating.capacity_W
-            cop = performance.cop
-            return pd.DataFrame({"cap": cap, "cop": cop})
-        else:
-            logger.error(
-                f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths."
-            )
-            raise ValueError(
-                f"Equipment '{e.eq_id}' heating COP and capacity curves are of different lengths."
-            )
-    else:
-        logger.error(
-            f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve)."
-        )
-        raise ValueError(
-            f"Equipment '{e.eq_id}' lacks heating capacity info (capacity_W or COP curve)."
-        )
+    cap = e.performance_heating.capacity_W
+    cop = performance.cop
+    return pd.DataFrame({"cap": cap, "cop": cop})
 
 
 def _heating_supply_temp_performance(
@@ -51,7 +98,7 @@ def _heating_supply_temp_performance(
     equip_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
     equip_supply_temps = np.array(equip_supply_temps_str, dtype="float")
 
-    if (
+    if (  # checked for wwhp
         supply_t < e.performance_heating.constraints["min_temp_C"]
         or supply_t > e.performance_heating.constraints["max_temp_C"]
     ):
@@ -270,6 +317,9 @@ def loads_to_site_energy(
         f"{len(load.df)} hours, detail={detail}"
     )
 
+    # ---- input data validation ----
+    _equipment_data_validation(library, scenario_ids)
+
     results = []
 
     for scenario_id in scenario_ids:
@@ -345,8 +395,6 @@ def loads_to_site_energy(
             )
 
             plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_h_performance)
-            if plr_curve.empty:
-                raise ValueError(f"HR WWHP '{hr_wwhp.eq_id}' lacks a PLR curve.")
 
             plr_curve = plr_curve.sort_values(by="cap", ascending=False).reset_index(
                 drop=True
