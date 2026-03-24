@@ -44,7 +44,7 @@ TABLE_STYLE = ScenarioTableStyle()
 # --- Helpers for table value formatting and styling ---
 
 
-def format_table_value(raw_value, field_name: str = None):
+def format_table_value(raw_value, field_name: str | None = None):
     """
     Normalize values for display in tables.
     - None / "None" -> em dash
@@ -62,10 +62,10 @@ def format_table_value(raw_value, field_name: str = None):
     # Map equipment IDs and enum values to display names
     if field_name is not None:
         from utils.display_registry import (
-            EQUIPMENT_ID_FIELDS,
             ENUM_VALUE_FIELDS,
-            get_equipment_display_name,
+            EQUIPMENT_ID_FIELDS,
             format_enum_value,
+            get_equipment_display_name,
         )
 
         if field_name in EQUIPMENT_ID_FIELDS:
@@ -113,8 +113,12 @@ def get_diff_fields(df, fields):
     for field in fields:
         if field not in df.columns:
             continue
-        # Count unique non-null values
-        unique_values = df[field].dropna().unique()
-        if len(unique_values) > 1:
+        # Count unique values, treating None/NaN as a distinct value
+        col = df[field]
+        has_null = col.isna().any()
+        unique_non_null = col.dropna().unique()
+
+        # Difference exists if: multiple non-null values, OR mix of null and non-null
+        if len(unique_non_null) > 1 or (has_null and len(unique_non_null) >= 1):
             diff_fields.add(field)
     return diff_fields

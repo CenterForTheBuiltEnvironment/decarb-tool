@@ -73,7 +73,7 @@ def layout():
                             href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
                         ),
                         html.Hr(),
-                        select_location(locations_df=get_locations_df()),
+                        select_location(),
                         html.Hr(),
                         select_load_type(),
                         modal_load_data_selection(buildings_df=get_buildings_df()),
@@ -173,6 +173,43 @@ def toggle_modal(n_clicks, opened):
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
     return not opened
+
+
+@callback(
+    Output("location-input", "options"),
+    Input("location-input", "search_value"),
+    Input("location-input", "value"),  # Also trigger when value changes
+)
+def filter_location_options(search_value, current_value):
+    """Server-side search for location dropdown (avoids sending 44K options to client)."""
+    locations = get_locations_df()
+    options = []
+
+    # Always include current selection first (so it stays visible)
+    if current_value:
+        selected_row = locations[locations["zip"] == current_value]
+        if not selected_row.empty:
+            row = selected_row.iloc[0]
+            label = f"{row['zip']} {row['city']}, {row['state_id']}"
+            options.append({"label": label, "value": current_value})
+
+    # Add search results if user is searching (min 2 chars)
+    if search_value and len(search_value) >= 2:
+        search_lower = search_value.lower()
+
+        # Filter by zip or city (case-insensitive)
+        mask = locations["zip"].str.lower().str.startswith(search_lower) | locations[
+            "city"
+        ].str.lower().str.contains(search_lower, regex=False)
+        filtered = locations[mask].head(100)
+
+        # Add filtered results (excluding current value to avoid duplicate)
+        for _, row in filtered.iterrows():
+            if row["zip"] != current_value:
+                label = f"{row['zip']} {row['city']}, {row['state_id']}"
+                options.append({"label": label, "value": row["zip"]})
+
+    return options
 
 
 #! Needs to be reworked later + add trigger from modal confirm button
@@ -657,7 +694,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
 
     Returns dict with status, filepath, data_summary, and summary_payload.
     """
-    content_type, content_string = contents.split(",")
+    _, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
 
     try:

@@ -57,13 +57,8 @@ def unit_toggle():
 # --------------------------------
 
 
-def select_location(locations_df: pd.DataFrame):
-    # Use vectorized string operations instead of slow iterrows()
-    labels = locations_df["zip"] + " " + locations_df["city"] + ", " + locations_df["state_id"]
-    options = [
-        {"label": label, "value": zip_val}
-        for label, zip_val in zip(labels, locations_df["zip"], strict=False)
-    ]
+def select_location():
+    """Location selector with server-side search (options loaded via callback)."""
     return html.Div(
         [
             dbc.Label(
@@ -75,8 +70,8 @@ def select_location(locations_df: pd.DataFrame):
             ),
             dcc.Dropdown(
                 id="location-input",
-                options=options,
-                placeholder="Search by city or zip...",
+                options=[],  # Options loaded dynamically via callback
+                placeholder="Type to search by city or zip...",
                 searchable=True,
                 clearable=True,
             ),
