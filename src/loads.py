@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import Union
+
 import pandas as pd
-import numpy as np
 
+from src import paths
 from src.metadata import Metadata
-
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -56,7 +55,6 @@ class StandardLoad:
 
     @staticmethod
     def _validate(df: pd.DataFrame) -> pd.DataFrame:
-
         # Ensure required columns
         missing = [c for c in STANDARD_COLUMNS if c not in df.columns]
         if missing:
@@ -79,33 +77,31 @@ class StandardLoad:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             bad_count = df[col].isnull().sum()
             if bad_count > 0:
-                logger.warning(
-                    f"{bad_count} invalid values in column {col}, set to NaN"
-                )
+                logger.warning(f"{bad_count} invalid values in column {col}, set to NaN")
 
         return df
 
     # --------- Factory methods ---------
     @classmethod
-    def from_parquet(cls, path: Union[str, Path]) -> "StandardLoad":
+    def from_parquet(cls, path: str | Path) -> "StandardLoad":
         df = pd.read_parquet(path, engine="pyarrow")
         return cls(df)
 
     @classmethod
-    def from_csv(cls, path: Union[str, Path]) -> "StandardLoad":
+    def from_csv(cls, path: str | Path) -> "StandardLoad":
         df = pd.read_csv(path)
         return cls(df)
 
     @classmethod
-    def from_excel(cls, path: Union[str, Path], sheet: str = 0) -> "StandardLoad":
+    def from_excel(cls, path: str | Path, sheet: str = 0) -> "StandardLoad":
         df = pd.read_excel(path, sheet_name=sheet)
         return cls(df)
 
     # --------- Export ---------
-    def to_parquet(self, path: Union[str, Path]):
+    def to_parquet(self, path: str | Path):
         self.df.reset_index().to_parquet(path, engine="pyarrow", index=False)
 
-    def to_csv(self, path: Union[str, Path]):
+    def to_csv(self, path: str | Path):
         self.df.reset_index().to_csv(path, index=False)
 
     # --------- Properties ---------
@@ -203,7 +199,9 @@ class StandardLoad:
                 column_stats[col] = {
                     "valid_count": valid_count,
                     "missing_count": null_count,
-                    "completeness_pct": round(100 * valid_count / self.num_hours, 1) if self.num_hours > 0 else 0,
+                    "completeness_pct": round(100 * valid_count / self.num_hours, 1)
+                    if self.num_hours > 0
+                    else 0,
                 }
                 total_missing += null_count
             else:
@@ -280,7 +278,7 @@ def get_load_data(metadata: Metadata) -> StandardLoad:
         if metadata.building_id is None:
             raise ValueError("building_id required to load simulation/measured data")
 
-        parquet_path = Path("data/input/load_data_full.parquet")
+        parquet_path = paths.LOAD_DATA_PARQUET
 
         # filter at read-time for speed
         df = pd.read_parquet(
@@ -293,9 +291,7 @@ def get_load_data(metadata: Metadata) -> StandardLoad:
         )
 
         if df.empty:
-            raise ValueError(
-                f"No {load_type} load found for building_id={metadata.building_id}"
-            )
+            raise ValueError(f"No {load_type} load found for building_id={metadata.building_id}")
 
         keep = ["timestamp", "t_out_C", "heating_W", "cooling_W"]
         missing = [c for c in keep if c not in df.columns]

@@ -1,59 +1,63 @@
 import base64
 import calendar
 import io
+from functools import lru_cache
 from pathlib import Path
 
 import dash
-from dash import dcc, html, Input, Output, State, callback, ctx, no_update
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+import numpy as np
+import pandas as pd
+from dash import Input, Output, State, callback, ctx, dcc, html, no_update
 from dash_iconify import DashIconify
 
-import pandas as pd
-import numpy as np
-
-from src.config import URLS
-from src.metadata import Metadata, LoadData
-from src.loads import StandardLoad, STANDARD_COLUMNS
-
-
 from layout.input import (
-    select_location,
-    select_load_type,
-    modal_load_data_selection,
     build_building_table,
     build_completeness_modal,
     build_completeness_summary,
-    LOAD_INDEX,  # slider min/max values in base SI units
+    get_load_index,  # slider min/max values in base SI units (lazy-loaded)
+    modal_load_data_selection,
+    select_load_type,
+    select_location,
 )
-
 from layout.output import (
     building_characteristics_card,
-    load_characteristics_card,
     empty_state,
+    load_characteristics_card,
 )
-
-from src.loads import StandardLoad, STANDARD_COLUMNS, get_load_data
-from utils.tooltips import with_icon, with_tooltip, TOOLTIPS
+from src import paths
+from src.config import URLS
+from src.loads import STANDARD_COLUMNS, StandardLoad, get_load_data
+from src.metadata import LoadData, Metadata
 from utils.logging_config import get_logger
+from utils.tooltips import TOOLTIPS, with_icon, with_tooltip
 
 logger = get_logger(__name__)
 
 
 dash.register_page(__name__, name="Loads", path=URLS.HOME.value, order=0)
 
-# Preprocess once at the top of the file and split space-separated zips into rows
-locations_df = pd.read_csv("data/input/locations.csv")
-locations_df = (
-    locations_df.assign(zip=locations_df["zips"].str.split())
-    .explode("zip")
-    .drop(columns=["zips"])
-)
-locations_df["zip"] = locations_df["zip"].astype(str)
 
-# Load building metadata from CSV
-buildings_df = pd.read_csv("data/input/building_metadata.csv")
-BUILDINGS = buildings_df.to_dict("records")
+# --- Lazy-loaded data accessors (cached after first call) ---
+@lru_cache(maxsize=1)
+def get_locations_df():
+    """Lazy-load and cache locations data with zip code expansion."""
+    df = pd.read_csv(paths.LOCATIONS_CSV)
+    df = df.assign(zip=df["zips"].str.split()).explode("zip").drop(columns=["zips"])
+    df["zip"] = df["zip"].astype(str)
+    return df
+
+
+@lru_cache(maxsize=1)
+def get_buildings_df():
+    """Lazy-load and cache building metadata."""
+    return pd.read_csv(paths.BUILDING_METADATA_CSV)
+
+
+def get_buildings_list():
+    """Get buildings as list of dicts (for table display)."""
+    return get_buildings_df().to_dict("records")
 
 
 def layout():
@@ -69,10 +73,10 @@ def layout():
                             href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
                         ),
                         html.Hr(),
-                        select_location(locations_df=locations_df),
+                        select_location(),
                         html.Hr(),
                         select_load_type(),
-                        modal_load_data_selection(buildings_df=buildings_df),
+                        modal_load_data_selection(buildings_df=get_buildings_df()),
                         build_completeness_modal(),
                     ],
                     bg="gray.0",
@@ -90,9 +94,7 @@ def layout():
                         html.Div(
                             id="summary-selection-info",
                         ),
-                        html.Pre(
-                            id="metadata-display", style={"whiteSpace": "pre-wrap"}
-                        ),
+                        html.Pre(id="metadata-display", style={"whiteSpace": "pre-wrap"}),
                     ],
                     bg="white",
                     radius="md",
@@ -173,6 +175,43 @@ def toggle_modal(n_clicks, opened):
     return not opened
 
 
+@callback(
+    Output("location-input", "options"),
+    Input("location-input", "search_value"),
+    Input("location-input", "value"),  # Also trigger when value changes
+)
+def filter_location_options(search_value, current_value):
+    """Server-side search for location dropdown (avoids sending 44K options to client)."""
+    locations = get_locations_df()
+    options = []
+
+    # Always include current selection first (so it stays visible)
+    if current_value:
+        selected_row = locations[locations["zip"] == current_value]
+        if not selected_row.empty:
+            row = selected_row.iloc[0]
+            label = f"{row['zip']} {row['city']}, {row['state_id']}"
+            options.append({"label": label, "value": current_value})
+
+    # Add search results if user is searching (min 2 chars)
+    if search_value and len(search_value) >= 2:
+        search_lower = search_value.lower()
+
+        # Filter by zip or city (case-insensitive)
+        mask = locations["zip"].str.lower().str.startswith(search_lower) | locations[
+            "city"
+        ].str.lower().str.contains(search_lower, regex=False)
+        filtered = locations[mask].head(100)
+
+        # Add filtered results (excluding current value to avoid duplicate)
+        for _, row in filtered.iterrows():
+            if row["zip"] != current_value:
+                label = f"{row['zip']} {row['city']}, {row['state_id']}"
+                options.append({"label": label, "value": row["zip"]})
+
+    return options
+
+
 #! Needs to be reworked later + add trigger from modal confirm button
 @callback(
     Output("metadata-store", "data"),
@@ -194,7 +233,8 @@ def update_metadata(
 
     if trigger == "location-input" and selected_zip:
         # look up the location row
-        row = locations_df.loc[locations_df["zip"] == selected_zip].iloc[0]
+        locations = get_locations_df()
+        row = locations.loc[locations["zip"] == selected_zip].iloc[0]
         metadata.location = row["city"]
         metadata.ashrae_climate_zone = row["ASHRAE"]
         if row["state_id"] == "CA":
@@ -241,7 +281,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
 
     building = next(
-        (b for b in BUILDINGS if str(b.get("building_id")) == str(current_choice)),
+        (b for b in get_buildings_list() if str(b.get("building_id")) == str(current_choice)),
         None,
     )
     if building is None:
@@ -272,11 +312,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             continue
 
         # treat None, "", and NaN as "missing"
-        if (
-            value is None
-            or value == ""
-            or (isinstance(value, float) and pd.isna(value))
-        ):
+        if value is None or value == "" or (isinstance(value, float) and pd.isna(value)):
             continue
 
         if key in load_fields:
@@ -293,9 +329,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             metadata_updates.pop("vintage", None)
 
     if "ashrae_climate_zone" in metadata_updates:
-        metadata_updates["ashrae_climate_zone"] = str(
-            metadata_updates["ashrae_climate_zone"]
-        )
+        metadata_updates["ashrae_climate_zone"] = str(metadata_updates["ashrae_climate_zone"])
 
     # apply updates
     for field, value in metadata_updates.items():
@@ -310,7 +344,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         metadata.set_gea_grid_region_for_all(region)
 
     # optional: path column in buildings_df
-    if "load_file_path" in building and building["load_file_path"]:
+    if building.get("load_file_path"):
         metadata.custom_load_path = building["load_file_path"]
 
     # ------------------------------------------------------------------
@@ -342,9 +376,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
 
         # 5) store path as string
         load_data_path = str(path)
-        logger.info(
-            f"Using load dataset with ID {metadata.building_id}, saved to {path}"
-        )
+        logger.info(f"Using load dataset with ID {metadata.building_id}, saved to {path}")
 
         # -------------------------
         # Build summary for charts
@@ -356,9 +388,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         monthly = df.copy()
         monthly["month"] = monthly.index.month
         peaks = (
-            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]]
-            .max()
-            .reset_index()
+            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]].max().reset_index()
         )
 
         monthly_summary = [
@@ -381,9 +411,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         center_start = np.floor(t_min / bin_width) * bin_width
         center_end = np.ceil(t_max / bin_width) * bin_width
         centers = np.arange(center_start, center_end + bin_width, bin_width)
-        bin_edges = np.arange(
-            center_start - half, center_end + half + bin_width, bin_width
-        )
+        bin_edges = np.arange(center_start - half, center_end + half + bin_width, bin_width)
 
         temp_df["t_bin"] = pd.cut(
             temp_df["t_out_C"],
@@ -393,9 +421,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         )
 
         bin_stats = (
-            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]]
-            .mean()
-            .reset_index()
+            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]].mean().reset_index()
         )
 
         temp_summary = [
@@ -444,9 +470,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
                     else None
                 ),
                 "end_date": (
-                    data_summary["end_date"].isoformat()
-                    if data_summary.get("end_date")
-                    else None
+                    data_summary["end_date"].isoformat() if data_summary.get("end_date") else None
                 ),
                 "num_hours": data_summary.get("num_hours"),
                 "expected_hours": data_summary.get("expected_hours"),
@@ -468,9 +492,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             "start_date": data_summary.get("start_date"),
             "end_date": data_summary.get("end_date"),
         }
-        completeness_content = build_completeness_summary(
-            display_summary, source_type="measured"
-        )
+        completeness_content = build_completeness_summary(display_summary, source_type="measured")
 
         return (
             no_update,  # selected-building-store
@@ -672,7 +694,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
 
     Returns dict with status, filepath, data_summary, and summary_payload.
     """
-    content_type, content_string = contents.split(",")
+    _, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
 
     try:
@@ -711,9 +733,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
         monthly = df_sorted.copy()
         monthly["month"] = monthly.index.month
         peaks = (
-            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]]
-            .max()
-            .reset_index()
+            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]].max().reset_index()
         )
         monthly_summary = [
             {
@@ -733,9 +753,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
         center_start = np.floor(t_min / bin_width) * bin_width
         center_end = np.ceil(t_max / bin_width) * bin_width
         centers = np.arange(center_start, center_end + bin_width, bin_width)
-        bin_edges = np.arange(
-            center_start - half, center_end + half + bin_width, bin_width
-        )
+        bin_edges = np.arange(center_start - half, center_end + half + bin_width, bin_width)
         temp_df["t_bin"] = pd.cut(
             temp_df["t_out_C"],
             bins=bin_edges,
@@ -743,9 +761,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
             include_lowest=True,
         )
         bin_stats = (
-            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]]
-            .mean()
-            .reset_index()
+            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]].mean().reset_index()
         )
         temp_summary = [
             {
@@ -775,7 +791,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
 
     except Exception as e:
         logger.error(f"Error parsing custom load data: {e}")
-        return {"status": "error", "message": f"Error processing file: {str(e)}"}
+        return {"status": "error", "message": f"Error processing file: {e!s}"}
 
 
 @callback(
@@ -824,9 +840,7 @@ def process_upload(contents, filename, metadata_data, session_data):
                     else None
                 ),
                 "end_date": (
-                    data_summary["end_date"].isoformat()
-                    if data_summary.get("end_date")
-                    else None
+                    data_summary["end_date"].isoformat() if data_summary.get("end_date") else None
                 ),
                 "num_hours": data_summary.get("num_hours"),
                 "expected_hours": data_summary.get("expected_hours"),
@@ -845,9 +859,7 @@ def process_upload(contents, filename, metadata_data, session_data):
         }
 
         # Build completeness summary UI
-        completeness_content = build_completeness_summary(
-            data_summary, source_type="custom"
-        )
+        completeness_content = build_completeness_summary(data_summary, source_type="custom")
 
         # Show info alert that file was parsed
         alert = dbc.Alert(
@@ -910,7 +922,7 @@ def update_table(
     unit_mode,
     current_choice,
 ):
-    from utils.units import sqm_to_sqft, W_to_BTUh, ton_to_W
+    from utils.units import W_to_BTUh, ton_to_W
 
     unit_mode = unit_mode or "SI"
 
@@ -947,13 +959,14 @@ def update_table(
     # -----------------------------
     # 0) Base filter: load_type
     # -----------------------------
+    buildings = get_buildings_df()
     if load_type_filter in (None, "all"):
-        df = buildings_df.copy()
+        df = buildings.copy()
     else:
-        if "load_type" in buildings_df.columns:
-            df = buildings_df[buildings_df["load_type"] == load_type_filter].copy()
+        if "load_type" in buildings.columns:
+            df = buildings[buildings["load_type"] == load_type_filter].copy()
         else:
-            df = buildings_df.copy()
+            df = buildings.copy()
 
     if df.empty:
         return build_building_table(df, selected_id=None, unit_mode=unit_mode)
@@ -1098,14 +1111,15 @@ def update_table(
 )
 def update_slider_units(unit_mode):
     """Update slider labels and ranges based on unit mode (SI/IP)."""
-    from utils.units import get_display_unit, sqm_to_sqft, W_to_BTUh, W_to_tons
+    from utils.units import W_to_BTUh, W_to_tons, get_display_unit, sqm_to_sqft
 
     unit_mode = unit_mode or "SI"
 
-    # Get base values from LOAD_INDEX (in SI units, stored as W)
-    area_min_si, area_max_si = LOAD_INDEX["area_sqm"]
-    hhw_min_si, hhw_max_si = LOAD_INDEX["hhw_max_load"]
-    chw_min_si, chw_max_si = LOAD_INDEX["chw_max_load"]
+    # Get base values from load index (in SI units, stored as W)
+    load_index = get_load_index()
+    area_min_si, area_max_si = load_index["area_sqm"]
+    hhw_min_si, hhw_max_si = load_index["hhw_max_load"]
+    chw_min_si, chw_max_si = load_index["chw_max_load"]
 
     # Get display units
     area_unit = get_display_unit("area", unit_mode)
@@ -1227,7 +1241,7 @@ def update_selected_text(current_choice):
         )
 
     building = next(
-        (b for b in BUILDINGS if str(b["building_id"]) == str(current_choice)),
+        (b for b in get_buildings_list() if str(b["building_id"]) == str(current_choice)),
         None,
     )
 
@@ -1235,9 +1249,7 @@ def update_selected_text(current_choice):
         return dmc.Group(
             [
                 DashIconify(icon="mdi:alert-circle-outline", width=15),
-                dmc.Text(
-                    f"Only found building ID: {current_choice}", c="red", size="sm"
-                ),
+                dmc.Text(f"Only found building ID: {current_choice}", c="red", size="sm"),
             ],
             gap="xs",
         )
@@ -1281,7 +1293,6 @@ def update_selected_text(current_choice):
     prevent_initial_call=False,
 )
 def update_load_visualization(summary_data, pathname, unit_mode):
-
     # Only draw when we are on the Loads page
     if pathname != URLS.HOME.value:
         raise dash.exceptions.PreventUpdate
@@ -1293,7 +1304,7 @@ def update_load_visualization(summary_data, pathname, unit_mode):
     unit_mode = unit_mode or "SI"
 
     # Import unit conversion helpers
-    from utils.units import get_unit_label, C_to_F, get_auto_scale_for_values
+    from utils.units import C_to_F, get_auto_scale_for_values, get_unit_label
 
     temp_unit = get_unit_label("temperature", unit_mode)
 
@@ -1314,9 +1325,7 @@ def update_load_visualization(summary_data, pathname, unit_mode):
         all_power_w = [w for w in all_power_w if w is not None]
 
         # Get auto-scale (scale_factor, unit_label) - works directly with base units
-        power_scale, power_unit = get_auto_scale_for_values(
-            all_power_w, "power", unit_mode
-        )
+        power_scale, power_unit = get_auto_scale_for_values(all_power_w, "power", unit_mode)
 
         # Helper to scale W values to display values
         def scale_power(w):

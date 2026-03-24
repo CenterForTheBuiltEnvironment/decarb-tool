@@ -1,20 +1,24 @@
 # layout/shell.py
 
 import uuid
+from functools import lru_cache
+
 import dash
-from dash import dcc, html, Input, Output, State, ALL, callback
 import dash_mantine_components as dmc
+from dash import ALL, Input, Output, State, callback, dcc, html
 
-from layout.header import shell_header
 from layout.footer import shell_footer
+from layout.header import shell_header
 from layout.input import unit_toggle
-
-from src.config import LINKS, DEFAULT_SELECTIONS
-
+from src import paths
+from src.config import DEFAULT_SELECTIONS, LINKS
 from src.equipment import load_library  # adjust if path differs
 
 
-equipment_library = load_library("data/input/equipment_data.JSON").model_dump()
+@lru_cache(maxsize=1)
+def _get_equipment_library():
+    """Lazy-load and cache the equipment library as a dict."""
+    return load_library(paths.EQUIPMENT_JSON).model_dump()
 
 
 def build_shell(page_content):
@@ -24,15 +28,16 @@ def build_shell(page_content):
     """
 
     # ---- global stores ----
+    equipment_library = _get_equipment_library()
     global_state = [
-        dcc.Store(id="metadata-store"),
+        dcc.Store(id="metadata-store", storage_type="session"),
         dcc.Store(
             id="load-data-path-store",
             storage_type="session",
             data=None,
         ),
-        dcc.Store(id="equipment-initial-store", data=equipment_library),
-        dcc.Store(id="equipment-store", data=equipment_library),
+        dcc.Store(id="equipment-initial-store", storage_type="session", data=equipment_library),
+        dcc.Store(id="equipment-store", storage_type="session", data=equipment_library),
         dcc.Store(
             id="selected-equipment-store",
             storage_type="session",
@@ -48,7 +53,9 @@ def build_shell(page_content):
             storage_type="session",
             data=DEFAULT_SELECTIONS.EMISSIONS_SCENARIO.value,
         ),
-        dcc.Store(id="session-store", data={"session_id": str(uuid.uuid4())}),
+        dcc.Store(
+            id="session-store", storage_type="session", data={"session_id": str(uuid.uuid4())}
+        ),
         dcc.Store(id="selected-building-store", storage_type="session"),
         dcc.Store(id="load-summary-store", storage_type="session", data=None),
         dcc.Store(id="pending-load-data-store", storage_type="session", data=None),
@@ -76,9 +83,7 @@ def build_shell(page_content):
         dmc.Stack(
             [
                 dcc.Location(id="url", refresh=False),
-                dmc.NotificationContainer(
-                    id="notification-container", position="top-right"
-                ),
+                dmc.NotificationContainer(id="notification-container", position="top-right"),
                 *global_state,
                 html.Div(page_content),
             ],
@@ -114,7 +119,6 @@ def build_shell(page_content):
 
 
 def build_navbar_content():
-
     pages = sorted(
         dash.page_registry.values(),
         key=lambda p: p.get("order", 0),

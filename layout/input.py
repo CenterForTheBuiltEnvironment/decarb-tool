@@ -1,28 +1,38 @@
+import json
+from functools import lru_cache
+
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-from dash_iconify import DashIconify
 import dash_mantine_components as dmc
 import pandas as pd
-import json
-from pathlib import Path
-
-from utils.tooltips import with_tooltip
-from utils.units import unit_map
+from dash import dcc, html
+from dash_iconify import DashIconify
 
 from layout.table_config import (
     TABLE_STYLE,
     format_table_value,
-    value_deemphasis_style,
     get_diff_fields,
+    value_deemphasis_style,
 )
-from src.config import EquipmentTableRows, EmissionTableRows
+from src import paths
+from src.config import EmissionTableRows, EquipmentTableRows
+from utils.tooltips import with_tooltip
 
-META_INDEX_PATH = Path("data/input/metadata_index.json")
-with META_INDEX_PATH.open("r") as f:
-    METADATA_INDEX = json.load(f)
 
-LOAD_INDEX = METADATA_INDEX["load_data_full"]
-EMISSIONS_INDEX = METADATA_INDEX["emissions"]
+@lru_cache(maxsize=1)
+def _get_metadata_index():
+    """Lazy-load and cache the metadata index JSON."""
+    with paths.METADATA_INDEX_JSON.open("r") as f:
+        return json.load(f)
+
+
+def get_load_index():
+    """Get load data index from metadata index (lazy-loaded)."""
+    return _get_metadata_index()["load_data_full"]
+
+
+def get_emissions_index():
+    """Get emissions index from metadata index (lazy-loaded)."""
+    return _get_metadata_index()["emissions"]
 
 
 def unit_toggle():
@@ -47,16 +57,8 @@ def unit_toggle():
 # --------------------------------
 
 
-def select_location(locations_df: pd.DataFrame):
-
-    #! Use metadata_index here
-    options = [
-        {
-            "label": f"{row['zip']} {row['city']}, {row['state_id']}",
-            "value": row["zip"],
-        }
-        for _, row in locations_df.iterrows()
-    ]
+def select_location():
+    """Location selector with server-side search (options loaded via callback)."""
     return html.Div(
         [
             dbc.Label(
@@ -68,8 +70,8 @@ def select_location(locations_df: pd.DataFrame):
             ),
             dcc.Dropdown(
                 id="location-input",
-                options=options,
-                placeholder="Search by city or zip...",
+                options=[],  # Options loaded dynamically via callback
+                placeholder="Type to search by city or zip...",
                 searchable=True,
                 clearable=True,
             ),
@@ -109,9 +111,7 @@ def select_load_type():
                                 children=dbc.Button(
                                     [
                                         "Upload Custom Data ",
-                                        DashIconify(
-                                            icon="material-symbols:upload", width=20
-                                        ),
+                                        DashIconify(icon="material-symbols:upload", width=20),
                                     ],
                                     color="secondary",
                                 ),
@@ -137,8 +137,8 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
     from utils.units import (
-        get_category,
         get_auto_scale_for_values,
+        get_category,
     )
 
     # Define desired columns with their base display names (without units)
@@ -180,14 +180,16 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
         return base_label
 
     # Build body rows with auto-scaling (directly from base units)
+    # Convert to list of dicts for faster iteration (iterrows is very slow)
+    records = buildings_data.to_dict("records")
     body_rows = []
-    for idx, row in buildings_data.iterrows():
+    for idx, row in enumerate(records):
         cells = [
             dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
         ]  # use 'building_id' field or index
 
         for col, _ in available_columns:
-            raw_value = row[col]
+            raw_value = row.get(col)
             # Scale value if it has a registered category
             if col in column_scales and raw_value is not None:
                 try:
@@ -244,15 +246,15 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
 
 
 def modal_load_data_selection(buildings_df: pd.DataFrame):
-
     # --- options from metadata_index.json ----------------------------------
-    building_type_options = sorted(LOAD_INDEX["building_type"])
-    climate_zone_options = sorted(LOAD_INDEX["ashrae_climate_zone"])
-    load_type_options = ["all"] + LOAD_INDEX["load_type"]
+    load_index = get_load_index()
+    building_type_options = sorted(load_index["building_type"])
+    climate_zone_options = sorted(load_index["ashrae_climate_zone"])
+    load_type_options = ["all"] + load_index["load_type"]
 
-    area_min, area_max = LOAD_INDEX["area_sqm"]
-    hhw_min, hhw_max = LOAD_INDEX["hhw_max_load"]
-    chw_min, chw_max = LOAD_INDEX["chw_max_load"]
+    area_min, area_max = load_index["area_sqm"]
+    hhw_min, hhw_max = load_index["hhw_max_load"]
+    chw_min, chw_max = load_index["chw_max_load"]
 
     return dmc.Modal(
         title="Load Data Library",
@@ -277,8 +279,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="load-type-filter",
                                 label="Load type",
                                 data=[
-                                    {"value": v, "label": v.capitalize()}
-                                    for v in load_type_options
+                                    {"value": v, "label": v.capitalize()} for v in load_type_options
                                 ],
                                 value="all",
                                 clearable=False,
@@ -289,10 +290,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="climate-filter",
                                 label="Climate zone",
                                 placeholder="All",
-                                data=[
-                                    {"value": cz, "label": cz}
-                                    for cz in climate_zone_options
-                                ],
+                                data=[{"value": cz, "label": cz} for cz in climate_zone_options],
                                 value=None,
                                 clearable=True,
                                 style={"width": 180},
@@ -302,10 +300,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="building-type-filter",
                                 label="Building type",
                                 placeholder="All",
-                                data=[
-                                    {"value": bt, "label": bt}
-                                    for bt in building_type_options
-                                ],
+                                data=[{"value": bt, "label": bt} for bt in building_type_options],
                                 value=None,
                                 clearable=True,
                                 searchable=True,
@@ -441,7 +436,8 @@ def build_equipment_table(
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_label, get_unit_converter
+    from utils.units import get_unit_converter, get_unit_label
+
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
     else:
@@ -470,9 +466,7 @@ def build_equipment_table(
         )
 
     equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
-    equipment_df = (
-        equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
-    )
+    equipment_df = equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
 
     # Get unit label for temperature (dynamic based on unit_mode)
     temp_unit = get_unit_label("temperature", unit_mode)
@@ -523,9 +517,7 @@ def build_equipment_table(
             )
     else:  # "advanced" or default
         available_rows = [
-            (field, label)
-            for field, label in row_config
-            if field in equipment_df.columns
+            (field, label) for field, label in row_config if field in equipment_df.columns
         ]
 
     active_ids = set(active_ids or [])
@@ -706,9 +698,8 @@ def build_equipment_table(
     body = dmc.TableTbody(body_rows)
 
     # Force horizontal scrolling
-    table_min_width = (
-        TABLE_STYLE.property_col_width
-        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    table_min_width = TABLE_STYLE.property_col_width + TABLE_STYLE.scenario_col_width * max(
+        len(scen_ids), 1
     )
 
     table = dmc.ScrollArea(
@@ -971,9 +962,7 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def build_emissions_table(
-    emission_data, active_ids=None, view_mode="simple", unit_mode="SI"
-):
+def build_emissions_table(emission_data, active_ids=None, view_mode="simple", unit_mode="SI"):
     """
     Transposed emissions scenarios table:
     - Columns = emission scenarios (em_scen_id)
@@ -990,12 +979,9 @@ def build_emissions_table(
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_label, get_unit_converter
+    from utils.units import get_unit_converter, get_unit_label
 
-    if isinstance(emission_data, list):
-        emission_df = pd.DataFrame(emission_data)
-    else:
-        emission_df = emission_data
+    emission_df = pd.DataFrame(emission_data) if isinstance(emission_data, list) else emission_data
 
     if emission_df is None or emission_df.empty:
         return dmc.CheckboxGroup(
@@ -1057,9 +1043,7 @@ def build_emissions_table(
             )
     else:  # "advanced" or default
         available_rows = [
-            (field, label)
-            for field, label in row_config
-            if field in emission_df.columns
+            (field, label) for field, label in row_config if field in emission_df.columns
         ]
 
     active_ids = set(active_ids or [])
@@ -1192,9 +1176,8 @@ def build_emissions_table(
     body = dmc.TableTbody(body_rows)
 
     # Force horizontal scrolling
-    table_min_width = (
-        TABLE_STYLE.property_col_width
-        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    table_min_width = TABLE_STYLE.property_col_width + TABLE_STYLE.scenario_col_width * max(
+        len(scen_ids), 1
     )
 
     table = dmc.ScrollArea(
@@ -1275,7 +1258,7 @@ def build_completeness_modal():
     """
     # Building type options from metadata index
     building_type_options = [
-        {"value": bt, "label": bt} for bt in sorted(LOAD_INDEX["building_type"])
+        {"value": bt, "label": bt} for bt in sorted(get_load_index()["building_type"])
     ]
 
     return dmc.Modal(
@@ -1378,9 +1361,7 @@ def build_completeness_modal():
     )
 
 
-def build_completeness_summary(
-    data_summary: dict, source_type: str = "measured"
-) -> html.Div:
+def build_completeness_summary(data_summary: dict, source_type: str = "measured") -> html.Div:
     """
     Build the summary content from StandardLoad.get_data_summary().
 
@@ -1400,10 +1381,6 @@ def build_completeness_summary(
     num_hours = data_summary.get("num_hours", 0)
     expected_hours = data_summary.get("expected_hours", 8760)
     is_complete = data_summary.get("is_complete", False)
-    hours_complete = data_summary.get(
-        "hours_complete", data_summary.get("is_complete", False)
-    )
-    data_complete = data_summary.get("data_complete", True)
     has_leap_day = data_summary.get("has_leap_day", False)
     spans_multiple_years = data_summary.get("spans_multiple_years", False)
     missing_hours = data_summary.get("missing_hours", 0)
@@ -1491,11 +1468,7 @@ def build_completeness_summary(
         dmc.Group(
             [
                 DashIconify(
-                    icon=(
-                        "mdi:check-circle"
-                        if not spans_multiple_years
-                        else "mdi:information"
-                    ),
+                    icon=("mdi:check-circle" if not spans_multiple_years else "mdi:information"),
                     color="green" if not spans_multiple_years else "blue",
                     width=16,
                 ),
@@ -1526,9 +1499,7 @@ def build_completeness_summary(
             value_text = dmc.Text("100%", c="green", size="sm")
         else:
             icon = DashIconify(icon="mdi:alert-circle", color="orange", width=16)
-            value_text = dmc.Text(
-                f"{completeness}% ({missing:,} missing)", c="orange", size="sm"
-            )
+            value_text = dmc.Text(f"{completeness}% ({missing:,} missing)", c="orange", size="sm")
 
         column_rows.append(
             dmc.Group(
@@ -1546,13 +1517,9 @@ def build_completeness_summary(
     if missing_hours > 0:
         warnings.append(f"Dataset is missing {missing_hours} hours of data.")
     if has_missing_values:
-        warnings.append(
-            f"Dataset has {total_missing_values} missing values in data columns."
-        )
+        warnings.append(f"Dataset has {total_missing_values} missing values in data columns.")
     if not is_complete:
-        warnings.append(
-            "Results may be understated. Consider providing a complete dataset."
-        )
+        warnings.append("Results may be understated. Consider providing a complete dataset.")
 
     warning_alert = None
     if warnings:
@@ -1599,6 +1566,7 @@ def edit_emission_modal():
     def _options(values):
         return [{"value": str(v), "label": str(v)} for v in values]
 
+    emissions_index = get_emissions_index()
     return dmc.Modal(
         id="emissions-edit-modal",
         opened=False,
@@ -1625,7 +1593,7 @@ def edit_emission_modal():
                             id="edit-em-grid-scenario",
                             label="Grid scenario",
                             placeholder="Select grid scenario",
-                            data=_options(EMISSIONS_INDEX["emission_scenario"]),
+                            data=_options(emissions_index["emission_scenario"]),
                             searchable=True,
                             clearable=False,
                         ),
@@ -1633,7 +1601,7 @@ def edit_emission_modal():
                             id="edit-em-gea-grid-region",
                             label="GEA grid region",
                             placeholder="Select grid region",
-                            data=_options(EMISSIONS_INDEX["gea_grid_region"]),
+                            data=_options(emissions_index["gea_grid_region"]),
                             searchable=True,
                             clearable=False,
                         ),
@@ -1653,7 +1621,7 @@ def edit_emission_modal():
                             id="edit-em-emission-type",
                             label="Emission type",
                             placeholder="Select emission type",
-                            data=_options(EMISSIONS_INDEX["emission_type"]),
+                            data=_options(emissions_index["emission_type"]),
                             searchable=False,
                             clearable=False,
                         ),
@@ -1674,7 +1642,7 @@ def edit_emission_modal():
                             id="edit-em-year",
                             label="Year",
                             placeholder="Select year",
-                            data=_options(EMISSIONS_INDEX["year"]),
+                            data=_options(emissions_index["year"]),
                             searchable=False,
                             clearable=False,
                         ),

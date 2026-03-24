@@ -347,9 +347,7 @@ COLUMN_CONFIG = {
 # These are derived from COLUMN_CONFIG to maintain backward compatibility.
 # New code should use COLUMN_CONFIG or the helper functions.
 
-COLUMN_REGISTRY = {
-    col: config[0] for col, config in COLUMN_CONFIG.items() if config[0] is not None
-}
+COLUMN_REGISTRY = {col: config[0] for col, config in COLUMN_CONFIG.items() if config[0] is not None}
 
 COLUMN_DISPLAY_NAMES = {col: config[1] for col, config in COLUMN_CONFIG.items()}
 
@@ -453,7 +451,6 @@ def _build_legacy_unit_map():
         legacy[category] = {}
         for mode in ["SI", "IP"]:
             mode_config = config[mode]
-            base_unit = config["base"]
             display_unit = mode_config["unit"]
 
             legacy[category][mode] = {
@@ -562,8 +559,8 @@ def convert_dataframe(df, unit_mode: str):
         category = get_category(col)
         if category is not None:
             converter = get_converter(category, unit_mode)
-            # Handle potential NaN values
-            df[col] = df[col].apply(lambda x: converter(x) if pd.notna(x) else x)
+            # Handle potential NaN values (use default arg to bind converter)
+            df[col] = df[col].apply(lambda x, conv=converter: conv(x) if pd.notna(x) else x)
     return df
 
 
@@ -661,9 +658,7 @@ def get_auto_scale(values, category: str, unit_mode: str):
 
     # Find the maximum absolute value
     try:
-        max_val = max(
-            abs(v) for v in values if v is not None and v == v
-        )  # v == v filters NaN
+        max_val = max(abs(v) for v in values if v is not None and v == v)  # v == v filters NaN
     except (ValueError, TypeError):
         # Empty or invalid values
         return 1, get_display_unit(category, unit_mode)
@@ -712,9 +707,7 @@ def auto_scale_series(values, category: str, unit_mode: str):
     return scaled, unit
 
 
-def get_scaled_axis_label(
-    category: str, unit_mode: str, max_value: float = None
-) -> str:
+def get_scaled_axis_label(category: str, unit_mode: str, max_value: float | None = None) -> str:
     """Get an axis label with auto-scaled unit based on data range.
 
     Args:
@@ -863,9 +856,18 @@ def format_with_auto_scale(
         return "—"
 
     try:
-        # Determine auto-scaling directly from base unit value
-        scale, unit = get_auto_scale([value], category, unit_mode)
-        scaled = value / scale
+        # Check if this category has auto-scaling configured
+        if category in AUTO_SCALE_CONFIG:
+            # Use auto-scaling (divide by scale factor)
+            scale, unit = get_auto_scale([value], category, unit_mode)
+            scaled = value / scale
+        else:
+            # No auto-scaling - apply the conversion function directly
+            # This is important for categories like temperature where
+            # conversion is not a simple scale factor (e.g., C_to_F)
+            converter = get_converter(category, unit_mode)
+            scaled = converter(value)
+            unit = get_display_unit(category, unit_mode)
 
         formatted = f"{scaled:,.{decimals}f}"
 
