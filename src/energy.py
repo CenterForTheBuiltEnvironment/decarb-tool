@@ -63,10 +63,10 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                         f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
                     )
 
-            # if scen.hr_wwhp_performance_model not in ["fixed_COP", "interpolate_HHWST", "performance_curves"]:
-            #     raise ValueError(
-            #         f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.hr_wwhp_performance_model}'."
-            #     )
+            if scen.hr_wwhp_performance_model not in ["fixed_COP", "interpolate_HHWST", "performance_curves"]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.hr_wwhp_performance_model}'."
+                )
 
         if scen.awhp:
             # awhp heating checks
@@ -182,10 +182,10 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
 
-            # if scen.awhp_performance_model not in ["fixed_COP", "interpolate_HHWST_fixed", "interpolate_HHWST_reset", "performance_curves"]:
-            #     raise ValueError(
-            #         f"AWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.awhp_performance_model}'."
-            #     )
+            if scen.awhp_performance_model not in ["fixed_COP", "interpolate_HHWST_fixed", "interpolate_HHWST_reset", "performance_curves"]:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.awhp_performance_model}'."
+                )
 
             # awhp cooling checks
             if scen.awhp_use_cooling:
@@ -270,7 +270,7 @@ def _heat_recovery_plr_curve(
 ) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
     cap = e.performance_heating.capacity_W
-    cop = performance.cop
+    cop = performance.cop[0]
     return pd.DataFrame({"cap": cap, "cop": cop})
 
 
@@ -297,6 +297,15 @@ def _heating_supply_temp_performance(
         supply_t = interp_vector(
             t_out_lim, supply_temp_lim, t_out
         )  # creates an array of HHWST at every OAT
+        logger.debug(
+            f"AWHP heating water supply temperature array: "
+            f"length {len(supply_t)}, "
+            f"minimum {np.min(supply_t)}°C, "
+            f"maximum {np.max(supply_t)}°C."
+        )
+
+    else: # edit later when fixed COP/curves are added; for now, this is for fixed HHWST
+        logger.debug(f"Equipment {e.eq_id} heating water supply temperature: {supply_t[0]}°C")
 
     interp_perf = PerformanceCurves()
 
@@ -339,6 +348,9 @@ def _heating_supply_temp_performance(
                 [interp_vector(equip_supply_temps, constraints["max"], supply_t)]
             ),
         }
+    else:
+        # for WWHPs
+        interp_perf.capacity_W = np.array(e.performance_heating.capacity_W)
 
     return interp_perf
 
@@ -537,13 +549,12 @@ def loads_to_site_energy(
             logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
-            hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t
-            logger.debug(
-                f"HR WWHP heating water supply temperature: {hr_wwhp_supply_t}°C"
-            )
-
-            # hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
-            hr_wwhp_h_performance_model = "interpolate_HHWST"
+            hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
+            # hr_wwhp_h_performance_model = "interpolate_HHWST"
+            logger.debug(f"HR WWHP performance calculation model: {hr_wwhp_h_performance_model}")
+            
+            hr_wwhp_supply_t = np.array([scen.hr_wwhp_h_supply_t])
+            
             hr_wwhp_h_performance = _heating_supply_temp_performance(
                 hr_wwhp, hr_wwhp_supply_t, temps, hr_wwhp_h_performance_model
             )
@@ -658,11 +669,12 @@ def loads_to_site_energy(
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
             awhp_h = library.get_equipment(scen.awhp)
 
+            awhp_h_performance_model = scen.awhp_performance_model 
+            # awhp_h_performance_model = "interpolate_HHWST_reset"
+            logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
+            
             awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
-            logger.debug(f"AWHP heating water supply temperature: {awhp_h_supply_t}°C")
 
-            # awhp_h_performance_model = scen.awhp_performance_model
-            awhp_h_performance_model = "interpolate_HHWST_fixed"
             awhp_h_performance = _heating_supply_temp_performance(
                 awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
             )

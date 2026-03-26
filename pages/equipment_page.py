@@ -583,9 +583,11 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
+    Output("edit-hr-wwhp-performance-model", "value"),
     Output("edit-hr-wwhp-h-supply-t-value", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
+    Output("edit-awhp-performance-model", "value"),
     Output("edit-awhp-h-supply-t-value", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
@@ -607,7 +609,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 18
+        return (no_update,) * 20
 
     if not equipment_data:
         return (
@@ -617,7 +619,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -636,7 +640,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 18
+        return (no_update,) * 20
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -651,7 +655,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -678,7 +684,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -713,10 +721,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     if hr_wwhp_val is None:
         hr_wwhp_val = "None"
 
-    # added for autofill callback, not implemented
-    # hr_hp_supply_t_options = _build_heating_supply_temp_options(
-    #     equipment_list, hr_wwhp_val.get("eq_id")
-    # )
+    hr_wwhp_performance_model_val = scenario.get("hr_wwhp_performance_model") or "interpolate_HHWST"
 
     # Get temperature values and convert to display units
     from utils.units import C_to_F
@@ -735,6 +740,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     awhp_val = scenario.get("awhp")
     if awhp_val is None:
         awhp_val = "None"
+
+    awhp_performance_model_val = scenario.get("awhp_performance_model") or "interpolate_HHWST_fixed"
 
     awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
     if awhp_h_supply_t_val is not None:
@@ -759,9 +766,11 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         scen_name,
         hr_hp_options,
         hr_wwhp_val,
+        hr_wwhp_performance_model_val,
         hr_wwhp_h_supply_t_val,
         awhp_options,
         awhp_val,
+        awhp_performance_model_val,
         awhp_h_supply_t_val,
         sizing_mode,
         sizing_value,
@@ -783,8 +792,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-scenario-id-input", "value"),
     State("edit-scenario-name-input", "value"),
     State("edit-hr-wwhp-select", "value"),
+    State("edit-hr-wwhp-performance-model", "value"),
     State("edit-hr-wwhp-h-supply-t-value", "value"),
     State("edit-awhp-select", "value"),
+    State("edit-awhp-performance-model", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
     State("edit-awhp-sizing-mode", "value"),
     State("edit-awhp-sizing-value", "value"),
@@ -801,8 +812,10 @@ def save_edit_scenario(
     scen_id,
     new_name,
     hr_wwhp_val,
+    hr_wwhp_performance_model_val,
     hr_wwhp_h_supply_t_val,
     awhp_val,
+    awhp_performance_model_val,
     awhp_h_supply_t_val,
     sizing_mode,
     sizing_value,
@@ -870,8 +883,10 @@ def save_edit_scenario(
             new_scen = scen.copy()
             new_scen["eq_scen_name"] = new_name
             new_scen["hr_wwhp"] = hr_wwhp_val
+            new_scen["hr_wwhp_performance_model"] = hr_wwhp_performance_model_val
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
             new_scen["awhp"] = awhp_val
+            new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
             new_scen["awhp_sizing_mode"] = sizing_mode
             new_scen["awhp_sizing_value"] = sizing_value
@@ -991,6 +1006,23 @@ def update_temp_labels_on_unit_change(unit_mode):
 
     return hr_label, awhp_label
 
+# @callback(
+#     Output("edit-hr-wwhp-performance-model", "disabled"),
+#     Output("edit-awhp-performance-model", "disabled"),
+#     Input("edit-hr-wwhp-select", "value"),
+#     Input("edit-awhp-select", "value"),
+#     prevent_initial_call=True,
+# )
+# def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
+#     """Update performance model disabled state based selected HP"""
+
+#     # Check if HPs are selected
+#     hr_selected = hr_hp_id and hr_hp_id != "None"
+#     awhp_selected = awhp_id and awhp_id != "None"
+
+#     return (
+#         not hr_selected, not awhp_selected
+#     )
 
 # helper to build equipment options for Selects
 
