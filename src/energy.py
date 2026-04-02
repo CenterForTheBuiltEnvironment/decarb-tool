@@ -293,6 +293,11 @@ def _heating_supply_temp_performance(
         t_out_lim[0] = e.performance_heating.leaving_supply_t[
             min(equip_supply_temps_str)
         ].constraints["min_temp_C"]
+        logger.debug(
+            f"AWHP heating water supply temperature reset: "
+            f"HHWST {supply_temp_lim[0]}°C at OAT {t_out_lim[0]}°C, "
+            f"HHWST {supply_temp_lim[1]}°C at OAT {t_out_lim[1]}°C."
+        )
 
         supply_t = interp_vector(
             t_out_lim, supply_temp_lim, t_out
@@ -550,7 +555,6 @@ def loads_to_site_energy(
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
             hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
-            # hr_wwhp_h_performance_model = "interpolate_HHWST"
             logger.debug(f"HR WWHP performance calculation model: {hr_wwhp_h_performance_model}")
             
             hr_wwhp_supply_t = np.array([scen.hr_wwhp_h_supply_t])
@@ -670,7 +674,6 @@ def loads_to_site_energy(
             awhp_h = library.get_equipment(scen.awhp)
 
             awhp_h_performance_model = scen.awhp_performance_model 
-            # awhp_h_performance_model = "interpolate_HHWST_reset"
             logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
             
             awhp_h_supply_t = np.array([scen.awhp_h_supply_t])

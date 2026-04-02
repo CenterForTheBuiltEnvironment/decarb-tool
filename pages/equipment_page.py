@@ -904,7 +904,7 @@ def cancel_edit_modal(n_clicks):
     return False
 
 
-# 10. Update temperature labels, value, min/max, and disabled state based on unit mode and selected HP
+# 10. Update temperature labels, value, min/max, and disabled state based on unit mode, selected HP, and performance model
 @callback(
     Output("edit-hr-wwhp-h-supply-t-label", "children"),
     Output("edit-hr-wwhp-h-supply-t-value", "min"),
@@ -918,6 +918,7 @@ def cancel_edit_modal(n_clicks):
     Output("edit-awhp-h-supply-t-value", "disabled"),
     Input("edit-hr-wwhp-select", "value"),
     Input("edit-awhp-select", "value"),
+    Input("edit-awhp-performance-model", "value"),
     State("edit-hr-wwhp-h-supply-t-value", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
     State("unit-toggle", "value"),
@@ -925,7 +926,7 @@ def cancel_edit_modal(n_clicks):
     prevent_initial_call=True,
 )
 def update_temp_inputs_on_hp_change(
-    hr_hp_id, awhp_id, current_hr_temp, current_awhp_temp, unit_mode, equipment_data
+    hr_hp_id, awhp_id, awhp_perf_model, current_hr_temp, current_awhp_temp, unit_mode, equipment_data
 ):
     """Update temperature constraints when HP selection changes.
 
@@ -950,6 +951,11 @@ def update_temp_inputs_on_hp_change(
     # Check if HPs are selected
     hr_selected = hr_hp_id and hr_hp_id != "None" and hr_min_c is not None
     awhp_selected = awhp_id and awhp_id != "None" and awhp_min_c is not None
+
+    # Check if AWHP performance model is 'reset'; disable temperature input in this case
+    awhp_performance_reset = awhp_perf_model == "interpolate_HHWST_reset"
+
+    awhp_supply_t_enabled = awhp_selected and not awhp_performance_reset
 
     # Use defaults for display if no HP selected (but will be disabled)
     if not hr_selected:
@@ -994,7 +1000,7 @@ def update_temp_inputs_on_hp_change(
         awhp_min,
         awhp_max,
         awhp_value,
-        not awhp_selected,
+        not awhp_supply_t_enabled,
     )
 
 
@@ -1018,23 +1024,23 @@ def update_temp_labels_on_unit_change(unit_mode):
     return hr_label, awhp_label
 
 
-# @callback(
-#     Output("edit-hr-wwhp-performance-model", "disabled"),
-#     Output("edit-awhp-performance-model", "disabled"),
-#     Input("edit-hr-wwhp-select", "value"),
-#     Input("edit-awhp-select", "value"),
-#     prevent_initial_call=True,
-# )
-# def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
-#     """Update performance model disabled state based selected HP"""
+@callback(
+    Output("edit-hr-wwhp-performance-model", "disabled"),
+    Output("edit-awhp-performance-model", "disabled"),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-awhp-select", "value"),
+    prevent_initial_call=True,
+)
+def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
+    """Enable/disable performance model input when HP selection changes."""
 
-#     # Check if HPs are selected
-#     hr_selected = hr_hp_id and hr_hp_id != "None"
-#     awhp_selected = awhp_id and awhp_id != "None"
+    # Check if HPs are selected
+    hr_selected = hr_hp_id and hr_hp_id != "None"
+    awhp_selected = awhp_id and awhp_id != "None"
 
-#     return (
-#         not hr_selected, not awhp_selected
-#     )
+    return (
+        not hr_selected, not awhp_selected
+    )
 
 # helper to build equipment options for Selects
 
