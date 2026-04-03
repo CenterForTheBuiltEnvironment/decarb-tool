@@ -4,6 +4,7 @@
       "eq_id": "hr01",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water",
+      "eq_calc_type": "specific",
       "model": "GenericHR_WWHP",
       "nominal_tons": 300,
       "fuel": "electricity",
@@ -32,7 +33,9 @@
       "eq_id": "hr02",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericHR_WWHP",
       "nominal_tons": 30,
       "fuel": "electricity",
       "refrigerant": "R-454B",
@@ -60,7 +63,9 @@
       "eq_id": "hr03",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericHR_WWHP",
       "nominal_tons": 60,
       "fuel": "electricity",
       "refrigerant": "R-454B",
@@ -88,7 +93,9 @@
       "eq_id": "hr04",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericHR_WWHP",
       "nominal_tons": 250,
       "fuel": "electricity",
       "refrigerant": "R-515B",
@@ -116,7 +123,9 @@
       "eq_id": "hr05",
       "eq_type": "hr_heat_pump",
       "eq_subtype": "water_to_water_scroll",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericHR_WWHP",
       "nominal_tons": 500,
       "fuel": "electricity",
       "refrigerant": "R-515B",
@@ -144,6 +153,7 @@
       "eq_id": "hp01",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
+      "eq_calc_type": "specific",
       "model": "GenericAWHP",
       "nominal_tons": 60,
       "fuel": "electricity",
@@ -199,7 +209,9 @@
       "eq_id": "hp02",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericAWHP",
       "nominal_tons": 30,
       "fuel": "electricity",
       "refrigerant": "R-454B",
@@ -252,7 +264,9 @@
       "eq_id": "hp03",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
-      "model": "GenericIMC",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericAWHP",
       "nominal_tons": 60,
       "fuel": "electricity",
       "refrigerant": "R-454B",
@@ -305,6 +319,7 @@
       "eq_id": "hp04",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
+      "eq_calc_type": "specific",
       "eq_manufacturer": "Aermec",
       "model": "NRBHA800",
       "nominal_tons": 60,
@@ -369,6 +384,7 @@
       "eq_id": "hp05",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
+      "eq_calc_type": "specific",
       "eq_manufacturer": "Aermec",
       "model": "NRBHA1600",
       "nominal_tons": 120,
@@ -433,6 +449,7 @@
       "eq_id": "hp06",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
+      "eq_calc_type": "specific",
       "eq_manufacturer": "Trane",
       "model": "AXM",
       "nominal_tons": 60,
@@ -505,6 +522,7 @@
       "eq_id": "hp07",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
+      "eq_calc_type": "specific",
       "eq_manufacturer": "Trane",
       "model": "ACX",
       "nominal_tons": 120,
@@ -577,60 +595,64 @@
       "eq_id": "bo01",
       "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
-      "model": "GenericBoiler-90%Eff",
+      "eq_calc_type": "generic",
+      "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 500000,
       "performance": {
         "heating": {
-          "efficiency": 0.9
+          "efficiency": 0.8
         } 
-      },
-      "emissions": {
-        "co2_kg_per_mwh": 200
       }
     },
     {
       "eq_id": "bo02",
       "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
-      "model": "GenericBoiler-80%Eff",
+      "eq_calc_type": "specific",
+      "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 500000,
+      "capacity_W": 150000,
       "performance": {
         "heating": {
-          "efficiency": 0.8
+          "efficiency": 0.9
         }
-      },
-      "emissions": {
-        "co2_kg_per_mwh": 200
       }
     },
     {
       "eq_id": "bo03",
       "eq_type": "backup_heating",
       "eq_subtype": "hot_water",
-      "model": "GenericBoiler-70%Eff",
+      "eq_calc_type": "specific",
+      "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 500000,
+      "capacity_W": 150000,
+      "performance": {
+        "heating": {
+          "efficiency": 0.8
+        }
+      }
+    },
+    {
+      "eq_id": "bo04",
+      "eq_type": "backup_heating",
+      "eq_subtype": "hot_water",
+      "eq_calc_type": "specific",
+      "model": "GenericBoiler",
+      "fuel": "natural_gas",
+      "capacity_W": 150000,
       "performance": {
         "heating": {
           "efficiency": 0.7
         }
-      },
-      "emissions": {
-        "co2_kg_per_mwh": 200
       }
     },
     {
       "eq_id": "ch01",
       "eq_type": "chiller",
-      "model": "GenericChiller",
       "eq_subtype": "air_cooled",
+      "eq_calc_type": "generic",
+      "model": "GenericChiller",
       "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 90700,
-      "refrigerant_gwp": 2088,
-      "capacity_W": 150000,
       "performance": {
         "cooling": {
           "efficiency": 2.84
@@ -641,7 +663,10 @@
       "eq_id": "ch02",
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",
-      "model": "IMC-AirCooledChiller-100Ton",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericChiller",
+      "nominal_tons": 100,
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 45400,
@@ -657,7 +682,10 @@
       "eq_id": "ch03",
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",
-      "model": "IMC-AirCooledChiller-200Ton",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "IMC",
+      "model": "GenericChiller",
+      "nominal_tons": 200,
       "fuel": "electricity",
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 90700,
@@ -674,8 +702,22 @@
       "eq_type": "backup_heating",
       "model": "GenericResHeater",
       "eq_subtype": "electric",
+      "eq_calc_type": "generic",
       "fuel": "electricity",
-      "capacity_W": 50000,
+      "performance": {
+        "heating": {
+          "efficiency": 1.0
+        }        
+      }
+    },
+    {
+      "eq_id": "res02",
+      "eq_type": "backup_heating",
+      "model": "GenericResHeater",
+      "eq_calc_type": "specific",
+      "eq_subtype": "electric",
+      "fuel": "electricity",
+      "capacity_W": 150000,
       "performance": {
         "heating": {
           "efficiency": 1.0
@@ -696,7 +738,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -710,7 +752,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
-      "backup_heating": "res01",
+      "backup_heating": "res02",
       "chiller": "ch03"
     },
     {
@@ -724,7 +766,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -738,7 +780,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "res01",
+      "backup_heating": "res02",
       "chiller": "ch03"
     },
     {
@@ -752,7 +794,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "res01",
+      "backup_heating": "res02",
       "chiller": "ch03"
     },
     {
@@ -766,7 +808,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -780,7 +822,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -794,7 +836,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -808,7 +850,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -822,7 +864,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
-      "backup_heating": "bo02",
+      "backup_heating": "bo03",
       "chiller": "ch03"
     },
     {
@@ -836,7 +878,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
-      "backup_heating": "res01",
+      "backup_heating": "res02",
       "chiller": "ch03"
     },
     {
@@ -850,7 +892,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
-      "backup_heating": "res01",
+      "backup_heating": "res02",
       "chiller": "ch03"
     }
   ],

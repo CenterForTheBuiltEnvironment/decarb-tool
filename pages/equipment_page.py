@@ -998,14 +998,36 @@ def update_temp_labels_on_unit_change(unit_mode):
 def _build_equipment_options(
     equipment_list, eq_type, include_none=False, none_label="None"
 ):
-    options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in (equipment_list or [])
-        if eq.get("eq_type") == eq_type
-    ]
+    options = []
+    for eq in (equipment_list or []):
+        if eq.get("eq_type") == eq_type:
+            
+            if eq.get("eq_manufacturer"):
+                label = f"{eq.get('eq_manufacturer', '')} {eq.get('model', '')}"
+
+            else:
+                label = f"{eq.get('model', '')}"
+
+            if eq_type == "backup_heating":
+                eff = eq.get('performance', '')['heating']['efficiency']
+                label += f" {eff*100:.0f}% Eff"
+
+            if eq.get("eq_calc_type") == "specific":
+                if eq_type in ["hr_heat_pump", "heat_pump", "chiller"]:
+                    label += f" ({eq.get('nominal_tons', '')} Ton)"
+
+                if eq_type == "backup_heating":
+                    label += f" ({eq.get('capacity_W', '')/1000:.0f} kW)"
+
+            else:
+                label += " (Infinite cap.)"
+
+            options.append(
+                {
+                "label": label,
+                "value": eq.get("eq_id"),
+                }
+            )
     if include_none:
         options = [{"label": none_label, "value": "None"}] + options
     return options

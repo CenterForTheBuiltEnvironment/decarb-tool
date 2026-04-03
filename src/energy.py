@@ -731,6 +731,19 @@ def loads_to_site_energy(
             boiler_served_W = df[Col.HHW_REM_W].to_numpy()
             gas_Wh = boiler_served_W / eff
 
+            boiler_peak_served_W = np.nanmax(boiler_served_W)
+            # sizing logic
+            if backup_heating.eq_calc_type == "generic":
+                # generic equipment - do not account for space, electric capacity, etc.
+                boiler_num = 0
+            else: 
+                # specific equipment model
+                boiler_cap = backup_heating.capacity_W
+                boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
+                boiler_num = max(boiler_num, 1) # ensure at least one unit
+
+                logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
+                
             df[Col.BOILER_HHW_W.value] = boiler_served_W
             df[Col.GAS_BOILER_WH.value] = gas_Wh
             df[Col.BOILER_EFF.value] = eff
@@ -768,6 +781,20 @@ def loads_to_site_energy(
                 logger.warning(
                     f"Both gas and electric backup heating equipment are being used."
                 )
+
+            resheater_peak_served_W = np.nanmax(elec_res_Wh)
+            # sizing logic
+            if backup_heating.eq_calc_type == "generic":
+                # generic equipment - do not account for space, electric capacity, etc.
+                resheater_num = 0
+            else: 
+                # specific equipment model
+                resheater_cap = backup_heating.capacity_W
+                resheater_num = np.ceil(resheater_peak_served_W / resheater_cap)
+                resheater_num = max(resheater_num, 1) # ensure at least one unit
+
+                logger.debug(f"Electric resistance heater sizing: {resheater_num:.0f} units")
+
             df[Col.RES_HHW_W.value] = remaining_h_W
             df[Col.ELEC_RES_WH.value] = elec_res_Wh
             df[Col.ELEC_WH.value] += elec_res_Wh
@@ -861,13 +888,30 @@ def loads_to_site_energy(
             # scalar COP path
             served_W = df[Col.CHW_REM_W.value].to_numpy()
             elec_Wh = served_W / chiller_cop
+            
+            chl_peak_served_W = np.nanmax(served_W)
+            # sizing logic
+            if chl.eq_calc_type == "generic":
+                # generic equipment - do not account for refrigerant, space, electric capacity, etc.
+                chl_num = 0
+            else: 
+                # specific equipment model
+                # assumes fixed capacity, edit for curves later
+                chl_cap = chl.capacity_W
+                chl_num = np.ceil(chl_peak_served_W / chl_cap)
+                chl_num = max(chl_num, 1) # ensure at least one unit
+
+                logger.debug(f"Chiller sizing: {chl_num:.0f} units")
 
             # add refrigerant information
             chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
             num_hours = len(df)  # Use actual data length (handles leap years)
 
             chiller_refrigerant_weight_kg = (
-                chl.refrigerant_weight_g * 0.001 / num_hours
+                chl.refrigerant_weight_g
+                * 0.001
+                * chl_num
+                / num_hours
                 if chl.refrigerant_weight_g
                 else 0.0
             )
@@ -878,7 +922,8 @@ def loads_to_site_energy(
                 else 0.0
             )
 
-            if chiller_refrigerant_gwp_kg == 0:
+            # this will produce a warning if generic equipment is used
+            if chiller_refrigerant_gwp_kg == 0: 
                 if chiller_refrigerant_weight_kg == 0:
                     logger.warning("Chiller refrigerant charge is 0.")
                 else:

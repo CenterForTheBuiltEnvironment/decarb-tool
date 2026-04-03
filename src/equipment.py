@@ -31,6 +31,7 @@ class Equipment(BaseModel):
     eq_id: str
     eq_type: str
     eq_subtype: str | None = None
+    eq_calc_type: str | None = None
     eq_manufacturer: str | None = None
     model: str
     nominal_tons: int | None = None
