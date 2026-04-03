@@ -32,7 +32,10 @@ def multi_interp_vector(xp, fp, x):
     right = x >= xp[-1]
     interp[right] = fp[right, -1] # set values where x >= xp[-1] equal to fp[-1]
 
-    mid = np.invert(left + right)
+    empty = np.isnan(x)
+    interp[empty] = np.nan # set values where x = nan to nan
+
+    mid = np.invert(left + right + empty)
     if np.any(mid):
         x_mid = x[mid]
         i = np.where(mid)[0]      

@@ -304,9 +304,9 @@ def _heating_supply_temp_performance(
         )  # creates an array of HHWST at every OAT
         logger.debug(
             f"AWHP heating water supply temperature array: "
-            f"length {len(supply_t)}, "
-            f"minimum {np.min(supply_t)}°C, "
-            f"maximum {np.max(supply_t)}°C."
+            f"length {len(supply_t)} ({np.sum(np.isnan(supply_t))} NaNs), "
+            f"minimum {np.nanmin(supply_t):.1f}°C, "
+            f"maximum {np.nanmax(supply_t):.1f}°C."
         )
 
     else: # edit later when fixed COP/curves are added; for now, this is for fixed HHWST
@@ -743,7 +743,7 @@ def loads_to_site_energy(
 
             logger.debug(
                 f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
-                f"units={awhp_num_h}, with {redundancy} redundant = {awhp_num_h_r} total"
+                f"units={awhp_num_h:.2f}, with {redundancy} redundant = {awhp_num_h_r:.2f} total"
             )
 
             # capacity calculations use the original sizing number
@@ -872,7 +872,7 @@ def loads_to_site_energy(
 
             awhp_num_c = awhp_num_h  # use same number of units as heating
 
-            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c} units")
+            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c:.2f} units")
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
 
