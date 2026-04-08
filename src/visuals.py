@@ -60,7 +60,10 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         (df["eq_scen_id"].isin(equipment_scenarios)) & (df["em_scen_id"].isin(emission_scenarios))
     ].copy()
 
-    scenarios = df["eq_scen_id"].unique()
+    # Use passed equipment_scenarios order (preserves user-defined order)
+    # Filter to only include scenarios that exist in the data
+    df_ids = set(df["eq_scen_id"].unique())
+    scenarios = [s for s in equipment_scenarios if s in df_ids]
     name_map = dict(zip(df["eq_scen_id"], df["eq_scen_name"], strict=False))
 
     n_scen = len(scenarios)
