@@ -9,7 +9,7 @@ from src.metadata import Metadata
 from src.config import Columns as Col
 
 from utils.units import cop_h_to_cop_c
-from utils.interp import interp_vector
+from utils.interp import interp_vector, multi_interp_vector
 
 from utils.logging_config import get_logger
 
@@ -51,7 +51,6 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
             )
 
             for t in hr_wwhp_supply_temps_str:
-
                 if not hr_wwhp.performance_heating.leaving_supply_t[t].cop:
                     raise ValueError(
                         f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
@@ -64,8 +63,12 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                         f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
                     )
 
-        if scen.awhp:
+            if scen.hr_wwhp_performance_model not in ["fixed_COP", "interpolate_HHWST", "performance_curves"]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.hr_wwhp_performance_model}'."
+                )
 
+        if scen.awhp:
             # awhp heating checks
             awhp_h = library.get_equipment(scen.awhp)
 
@@ -94,7 +97,6 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
             )
 
             for t in awhp_h_supply_temps_str:
-
                 if not awhp_h.performance_heating.leaving_supply_t[t].capacity_W:
                     if not awhp_h.capacity_W:
                         raise ValueError(
@@ -179,7 +181,12 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"AWHP scenario '{scen.eq_scen_id}' requires "
                     f"'awhp_redundancy' greater than or equal to 0."
                 )
-            
+
+            if scen.awhp_performance_model not in ["fixed_COP", "interpolate_HHWST_fixed", "interpolate_HHWST_reset", "performance_curves"]:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.awhp_performance_model}'."
+                )
+
             # awhp cooling checks
             if scen.awhp_use_cooling:
                 awhp_c = library.get_equipment(scen.awhp)
@@ -188,18 +195,17 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     raise ValueError(
                         f"Equipment '{awhp_c.eq_id}' lacks cooling performance data."
                     )
-                
+
                 if not awhp_c.performance_cooling.t_out_C:
                     raise ValueError(
                         f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (t_out curve)."
                     )
-                
+
                 awhp_c_supply_temps_str = list(
                     awhp_c.performance_cooling.leaving_supply_t.keys()
                 )
 
                 for t in awhp_c_supply_temps_str:
-
                     if not awhp_c.performance_cooling.leaving_supply_t[t].capacity_W:
                         if not awhp_c.capacity_W:
                             raise ValueError(
@@ -249,8 +255,11 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                 raise ValueError(
                     f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
                 )
-            
-            if backup_heating.performance_heating.efficiency is None or backup_heating.performance_heating.efficiency <= 0:
+
+            if (
+                backup_heating.performance_heating.efficiency is None
+                or backup_heating.performance_heating.efficiency <= 0
+            ):
                 raise ValueError(
                     f"Equipment '{backup_heating.eq_id}' requires a positive 'efficiency'."
                 )
@@ -261,19 +270,49 @@ def _heat_recovery_plr_curve(
 ) -> pd.DataFrame:
     """Heat recovery COP vs part-load ratio (PLR)."""
     cap = e.performance_heating.capacity_W
-    cop = performance.cop
+    cop = performance.cop[0]
     return pd.DataFrame({"cap": cap, "cop": cop})
 
 
 def _heating_supply_temp_performance(
-    e: Equipment, supply_t: float
+    e: Equipment, supply_t: np.ndarray, t_out: np.ndarray, perf_model: str
 ) -> PerformanceCurves:
     """Heat pump performance data (COP, capacity, operating constraints) interpolated based on supply water temperature"""
-    interp_perf = PerformanceCurves()
-
     # extract list of supply temperatures
     equip_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
     equip_supply_temps = np.array(equip_supply_temps_str, dtype="float")
+
+    if perf_model == "interpolate_HHWST_reset":
+        # define reset bounds
+        supply_temp_lim = [
+            max(equip_supply_temps),
+            min(equip_supply_temps),
+        ]  # highest HHWST at lowest OAT
+        t_out_lim = [np.nan, 20]
+        # set low limit to the minimum operating OAT at the lowest supply temperature
+        t_out_lim[0] = e.performance_heating.leaving_supply_t[
+            min(equip_supply_temps_str)
+        ].constraints["min_temp_C"]
+        logger.debug(
+            f"AWHP heating water supply temperature reset: "
+            f"HHWST {supply_temp_lim[0]}°C at OAT {t_out_lim[0]}°C, "
+            f"HHWST {supply_temp_lim[1]}°C at OAT {t_out_lim[1]}°C."
+        )
+
+        supply_t = interp_vector(
+            t_out_lim, supply_temp_lim, t_out
+        )  # creates an array of HHWST at every OAT
+        logger.debug(
+            f"AWHP heating water supply temperature array: "
+            f"length {len(supply_t)} ({np.sum(np.isnan(supply_t))} NaNs), "
+            f"minimum {np.nanmin(supply_t):.1f}°C, "
+            f"maximum {np.nanmax(supply_t):.1f}°C."
+        )
+
+    else: # edit later when fixed COP/curves are added; for now, this is for fixed HHWST
+        logger.debug(f"Equipment {e.eq_id} heating water supply temperature: {supply_t[0]}°C")
+
+    interp_perf = PerformanceCurves()
 
     # extract performance data into separate lists
     cops = [
@@ -296,55 +335,73 @@ def _heating_supply_temp_performance(
         }
 
     # interpolate and store results
-    interp_perf.cop = [
-        interp_vector(equip_supply_temps, x, supply_t) for x in zip(*cops)
-    ]
+    interp_perf.cop = np.array(
+        [interp_vector(equip_supply_temps, x, supply_t) for x in zip(*cops)]
+    ).T
     if e.eq_type == "heat_pump":
-        if not all(caps): # in case fixed capacity is used
+        if not all(caps):  # in case fixed capacity is used
             interp_perf.capacity_W = e.capacity_W
         else:
-            interp_perf.capacity_W = [
-                interp_vector(equip_supply_temps, x, supply_t) for x in zip(*caps)
-            ]
+            interp_perf.capacity_W = np.array(
+                [interp_vector(equip_supply_temps, x, supply_t) for x in zip(*caps)]
+            ).T
         interp_perf.constraints = {
-            "min_temp_C": interp_vector(
-                equip_supply_temps, constraints["min"], supply_t
+            "min_temp_C": np.array(
+                [interp_vector(equip_supply_temps, constraints["min"], supply_t)]
             ),
-            "max_temp_C": interp_vector(
-                equip_supply_temps, constraints["max"], supply_t
+            "max_temp_C": np.array(
+                [interp_vector(equip_supply_temps, constraints["max"], supply_t)]
             ),
         }
-    
+    else:
+        # for WWHPs
+        interp_perf.capacity_W = np.array(e.performance_heating.capacity_W)
+
     return interp_perf
 
 
 def _per_unit_heating_capacity_W(
-    e: Equipment, t_out: np.ndarray, performance: PerformanceCurves
+    e: Equipment, t_out: np.ndarray, performance: PerformanceCurves, perf_model: str
 ) -> np.ndarray:
     """Per-unit thermal capacity [W] vs outdoor temperature."""
-    if isinstance(performance.capacity_W, list):
-        cap_h = interp_vector(
-            e.performance_heating.t_out_C,
-            performance.capacity_W,
-            t_out,
-        )
+    if isinstance(performance.capacity_W, np.ndarray):
+        if perf_model == "interpolate_HHWST_fixed":
+            cap_h = interp_vector(
+                e.performance_heating.t_out_C,
+                performance.capacity_W[0],
+                t_out,
+            )
+        elif perf_model == "interpolate_HHWST_reset":
+            cap_h = multi_interp_vector(
+                e.performance_heating.t_out_C,
+                performance.capacity_W,
+                t_out,
+            )
     else:  # fallback to fixed capacity
-        cap_h = np.full_like(t_out, fill_value=float(performance.capacity_W), dtype=float)
+        cap_h = np.full_like(
+            t_out, fill_value=float(performance.capacity_W), dtype=float
+        )
 
     cap_h = _capacity_constraints(t_out, cap_h, performance, "heating")
-
     return cap_h
 
 
 def _per_unit_heating_cop(
-    e: Equipment, t_out: np.ndarray, performance: PerformanceCurves
+    e: Equipment, t_out: np.ndarray, performance: PerformanceCurves, perf_model: str
 ) -> np.ndarray:
     """Per-unit COP vs outdoor temperature."""
-    return interp_vector(
-        e.performance_heating.t_out_C,
-        performance.cop,
-        t_out,
-    )
+    if perf_model == "interpolate_HHWST_fixed":
+        return interp_vector(
+            e.performance_heating.t_out_C,
+            performance.cop[0],
+            t_out,
+        )
+    elif perf_model == "interpolate_HHWST_reset":
+        return multi_interp_vector(
+            e.performance_heating.t_out_C,
+            performance.cop,
+            t_out,
+        )
 
 
 def _per_unit_cooling_capacity_W(
@@ -374,6 +431,7 @@ def _per_unit_cooling_cop(
         performance.cop,
         t_out,
     )
+
 
 def _constant_heating_efficiency(e: Equipment) -> Optional[float]:
     return float(e.performance_heating.efficiency)
@@ -496,12 +554,13 @@ def loads_to_site_energy(
             logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
-            hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t
-            logger.debug(
-                f"HR WWHP heating water supply temperature: {hr_wwhp_supply_t}°C"
-            )
+            hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
+            logger.debug(f"HR WWHP performance calculation model: {hr_wwhp_h_performance_model}")
+            
+            hr_wwhp_supply_t = np.array([scen.hr_wwhp_h_supply_t])
+            
             hr_wwhp_h_performance = _heating_supply_temp_performance(
-                hr_wwhp, hr_wwhp_supply_t
+                hr_wwhp, hr_wwhp_supply_t, temps, hr_wwhp_h_performance_model
             )
 
             plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_h_performance)
@@ -614,14 +673,21 @@ def loads_to_site_energy(
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
             awhp_h = library.get_equipment(scen.awhp)
 
-            awhp_h_supply_t = scen.awhp_h_supply_t
-            logger.debug(f"AWHP heating water supply temperature: {awhp_h_supply_t}°C")
+            awhp_h_performance_model = scen.awhp_performance_model 
+            logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
+            
+            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
+
             awhp_h_performance = _heating_supply_temp_performance(
-                awhp_h, awhp_h_supply_t
+                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
             )
 
-            awhp_cap_h = _per_unit_heating_capacity_W(awhp_h, temps, awhp_h_performance)
-            awhp_cop_h = _per_unit_heating_cop(awhp_h, temps, awhp_h_performance)
+            awhp_cap_h = _per_unit_heating_capacity_W(
+                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            )
+            awhp_cop_h = _per_unit_heating_cop(
+                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            )
 
             # Determine number of units
             sizing_mode = scen.awhp_sizing_mode
@@ -629,13 +695,25 @@ def loads_to_site_energy(
             redundancy = scen.awhp_redundancy
 
             ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
+            if isinstance(awhp_h_performance.capacity_W, np.ndarray):
+                # closest supply temperature to input (for reset, this defaults to the lowest)
+                awhp_h_supply_temps_str = list(
+                    awhp_h.performance_heating.leaving_supply_t.keys()
+                )
+                awhp_h_supply_temps = np.array(awhp_h_supply_temps_str, dtype=float)
+                ref_supply_temp = awhp_h_supply_temps_str[
+                    np.argmin(np.abs(awhp_h_supply_temps - awhp_h_supply_t))
+                ]
+                ref_capacity_W = awhp_h.performance_heating.leaving_supply_t[
+                    ref_supply_temp
+                ].capacity_W
 
-            if isinstance(awhp_h_performance.capacity_W, list):
                 cap_ref = interp_vector(
                     awhp_h.performance_heating.t_out_C,
-                    awhp_h_performance.capacity_W,
+                    ref_capacity_W,
                     np.array([ref_temp_C]),
                 )[0]
+
             else:
                 cap_ref = float(awhp_h_performance.capacity_W)
 
@@ -665,7 +743,7 @@ def loads_to_site_energy(
 
             logger.debug(
                 f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
-                f"units={awhp_num_h}, with {redundancy} redundant = {awhp_num_h_r} total"
+                f"units={awhp_num_h:.2f}, with {redundancy} redundant = {awhp_num_h_r:.2f} total"
             )
 
             # capacity calculations use the original sizing number
@@ -794,7 +872,7 @@ def loads_to_site_energy(
 
             awhp_num_c = awhp_num_h  # use same number of units as heating
 
-            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c} units")
+            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c:.2f} units")
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
 

@@ -475,8 +475,10 @@ def build_equipment_table(
     # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
     row_config = [
         ("hr_wwhp", "HR WWHP Model"),
+        ("hr_wwhp_performance_model", "HR WWHP Performance Calculation Model"),
         ("hr_wwhp_h_supply_t", f"HR WWHP Heating Supply Temp ({temp_unit})"),
         ("awhp", "AWHP Model"),
+        ("awhp_performance_model", "AWHP Performance Calculation Model"),
         ("awhp_h_supply_t", f"AWHP Heating Supply Temp ({temp_unit})"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
@@ -816,6 +818,36 @@ def edit_equipment_modal():
                             label="Air-to-water Heat Pump",
                             placeholder="None",
                             data=[],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-wwhp-performance-model",
+                            label="HR HP Performance Calculation Model",
+                            placeholder="None",
+                            data = [ # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST",
+                                }
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-performance-model",
+                            label="AWHP Performance Calculation Model",
+                            placeholder="None",
+                            data = [ # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST_fixed",
+                                },
+                                {
+                                    "label": "Interpolated table (HHWST reset)",
+                                    "value": "interpolate_HHWST_reset",
+                                }
+                            ],
                             clearable=True,
                             searchable=True,
                         ),

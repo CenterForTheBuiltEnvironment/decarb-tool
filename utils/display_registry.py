@@ -59,8 +59,23 @@ AWHP_SIZING_MODE_DISPLAY = {
     "fixed_num_units": "Fixed number of units",
 }
 
+# AWHP performance model value mappings
+AWHP_PERFORMANCE_MODEL_DISPLAY = {
+    "interpolate_HHWST_fixed": "Interpolated table (HHWST fixed)",
+    "interpolate_HHWST_reset": "Interpolated table (HHWST reset)",
+    "fixed_COP": "Fixed COP",
+    "performance_curves": "Performance curves",
+}
+
+# HR performance model value mappings
+HR_WWHP_PERFORMANCE_MODEL_DISPLAY = {
+    "interpolate_HHWST": "Interpolated table (HHWST fixed)",
+    "fixed_COP": "Fixed COP",
+    "performance_curves": "Performance curves",
+}
+
 # Fields that have enumerated values needing display mapping
-ENUM_VALUE_FIELDS = frozenset({"awhp_sizing_mode"})
+ENUM_VALUE_FIELDS = frozenset({"awhp_sizing_mode", "awhp_performance_model", "hr_wwhp_performance_model"})
 
 
 def format_enum_value(value: str, field_name: str) -> str:
@@ -78,6 +93,12 @@ def format_enum_value(value: str, field_name: str) -> str:
 
     if field_name == "awhp_sizing_mode":
         return AWHP_SIZING_MODE_DISPLAY.get(value, value)
+
+    if field_name == "awhp_performance_model":
+        return AWHP_PERFORMANCE_MODEL_DISPLAY.get(value, value)
+
+    if field_name == "hr_wwhp_performance_model":
+        return HR_WWHP_PERFORMANCE_MODEL_DISPLAY.get(value, value)
 
     return value
 

@@ -54,17 +54,26 @@ class Equipment(BaseModel):
 class EquipmentScenario(DotAccessMixin, BaseModel):
     eq_scen_id: str
     eq_scen_name: str
-    hr_wwhp: str | None
-    hr_wwhp_h_supply_t: float | None
-    awhp: str | None
-    awhp_h_supply_t: float | None
+    hr_wwhp: str | None = None
+    hr_wwhp_performance_model: (
+        Literal["fixed_COP", "interpolate_HHWST", "performance_curves"] | None
+    ) = None
+    hr_wwhp_h_supply_t: float | None = None
+    awhp: str | None = None
+    awhp_performance_model: (
+        Literal[
+            "fixed_COP", "interpolate_HHWST_fixed", "interpolate_HHWST_reset", "performance_curves"
+        ]
+        | None
+    ) = None
+    awhp_h_supply_t: float | None = None
     awhp_sizing_mode: (
         Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"] | None
     ) = None
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
-    backup_heating: str | None
+    backup_heating: str | None = None
     chiller: str | None = None
 
 
