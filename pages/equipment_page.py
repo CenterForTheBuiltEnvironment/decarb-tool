@@ -694,16 +694,16 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     # --- Build select options from equipment list ---
     hr_hp_options = _build_equipment_options(
-        equipment_list, "hr_heat_pump", include_none=True
+        equipment_list, "hr_heat_pump", unit_mode, include_none=True
     )
     awhp_options = _build_equipment_options(
-        equipment_list, "heat_pump", include_none=True
+        equipment_list, "heat_pump", unit_mode, include_none=True
     )
     backup_heating_options = _build_equipment_options(
-        equipment_list, "backup_heating", include_none=False
+        equipment_list, "backup_heating", unit_mode, include_none=False
     )
     chiller_options = _build_equipment_options(
-        equipment_list, "chiller", include_none=False
+        equipment_list, "chiller", unit_mode, include_none=False
     )
 
     # --- Scenario current values ---
@@ -996,8 +996,15 @@ def update_temp_labels_on_unit_change(unit_mode):
 
 
 def _build_equipment_options(
-    equipment_list, eq_type, include_none=False, none_label="None"
+    equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
 ):
+    from utils.units import format_with_auto_scale
+    unit_mode = unit_mode or "SI"
+    if unit_mode == 'IP':
+        decimals = 0
+    else:
+        decimals = 1
+    
     options = []
     for eq in (equipment_list or []):
         if eq.get("eq_type") == eq_type:
@@ -1014,13 +1021,24 @@ def _build_equipment_options(
 
             if eq.get("eq_calc_type") == "specific":
                 if eq_type in ["hr_heat_pump", "heat_pump", "chiller"]:
-                    label += f" ({eq.get('nominal_tons', '')} Ton)"
-
+                    capacity = "nominal_capacity_W"
+                    category = "power_cooling"
+                    
                 if eq_type == "backup_heating":
-                    label += f" ({eq.get('capacity_W', '')/1000:.0f} kW)"
+                    capacity = "capacity_W"
+                    category = "power"
+
+                label_cap = format_with_auto_scale(
+                    eq.get(capacity, ''),
+                    category,
+                    unit_mode,
+                    decimals = decimals
+                )
 
             else:
-                label += " (Infinite cap.)"
+                label_cap = "Infinite cap."
+            
+            label += f" ({label_cap})"
 
             options.append(
                 {
