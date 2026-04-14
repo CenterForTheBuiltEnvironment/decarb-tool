@@ -227,34 +227,79 @@ def populate_group_dropdown(pathname, equipment_data):
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Output("equipment-checkbox-group", "value", allow_duplicate=True),
     Output("equipment-scenario-group-store", "data", allow_duplicate=True),
+    Output("equipment-store", "data", allow_duplicate=True),
     Input("scenario-group-select", "value"),
     State("equipment-store", "data"),
+    State("equipment-initial-store", "data"),
     State("equipment-scenario-group-store", "data"),
     prevent_initial_call=True,
 )
-def handle_group_selection(group_id, equipment_data, stored_group):
+def handle_group_selection(group_id, equipment_data, initial_data, stored_group):
     """
     When a scenario group is selected, update displayed and selected scenarios.
     Also persists the selection to the store for restoration on page navigation.
     Skips reapplying settings if this is just a restore (group unchanged).
+    Resets all scenarios in the group to their initial/default values.
     """
-    if not group_id or not equipment_data:
-        return no_update, no_update, no_update, no_update
+    # When dropdown is cleared, clear the stored group to allow re-selecting
+    if not group_id:
+        if stored_group is not None:
+            return no_update, no_update, no_update, None, no_update
+        return no_update, no_update, no_update, no_update, no_update
+
+    if not equipment_data:
+        return no_update, no_update, no_update, no_update, no_update
 
     # Skip if this is just restoring the same group (don't overwrite manual edits)
     if group_id == stored_group:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update
 
     groups = equipment_data.get("scenario_groups", [])
     selected_group = next((g for g in groups if g.get("group_id") == group_id), None)
 
     if not selected_group:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update
 
     scenario_ids = selected_group.get("scenario_ids", [])
+    scenario_ids_set = set(scenario_ids)
 
-    # Update displayed, selected, checkbox group, and persist group selection
-    return scenario_ids, scenario_ids, scenario_ids, group_id
+    # Reset scenarios in the group to their initial/default values
+    current_scenarios = equipment_data.get("equipment_scenarios", [])
+    initial_scenarios = initial_data.get("equipment_scenarios", []) if initial_data else []
+
+    # Build a map of initial scenarios for quick lookup
+    initial_map = {s.get("eq_scen_id"): s for s in initial_scenarios}
+
+    # Keep scenarios not in the group as-is, reset group scenarios to initial values
+    updated_scenarios = []
+    restored_ids = []
+
+    # First, keep all scenarios not in the group
+    for scen in current_scenarios:
+        if scen.get("eq_scen_id") not in scenario_ids_set:
+            updated_scenarios.append(scen)
+
+    # Then add/restore all scenarios from the group using initial values
+    for scen_id in scenario_ids:
+        if scen_id in initial_map:
+            updated_scenarios.append(initial_map[scen_id])
+            restored_ids.append(scen_id)
+
+    if restored_ids:
+        logger.info(
+            "Reset %d scenarios to initial values for group '%s': %s",
+            len(restored_ids),
+            group_id,
+            restored_ids,
+        )
+
+    updated_equipment = {
+        **equipment_data,
+        "equipment_scenarios": updated_scenarios,
+    }
+
+    # Update displayed, selected, checkbox group, persist group selection, and equipment store
+    return scenario_ids, scenario_ids, scenario_ids, group_id, updated_equipment
 
 
 @callback(
@@ -302,6 +347,7 @@ def _next_scenario_id(equip_json):
 @callback(
     Output("equipment-add-modal", "opened"),
     Output("add-base-scenario-select", "data"),
+    Output("add-base-scenario-select", "value"),
     Output("add-scenario-id-input", "value"),
     Output("add-scenario-name-input", "value"),
     Output("add-scenario-error", "children"),
@@ -314,55 +360,69 @@ def equipment_add_modal(add_clicks, cancel_clicks, save_clicks, equipment_data):
     ctx = callback_context
 
     base_options = _build_base_options(equipment_data)
+    # Set first scenario as default base selection
+    default_base = base_options[0]["value"] if base_options else None
 
     # Initial page load
     if not ctx.triggered:
-        return False, base_options, "", "", ""
+        return False, base_options, None, "", "", ""
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # --- Open modal ---
     if trigger_id == "button-add-equipment":
         auto_id = _next_scenario_id(equipment_data)
-        return True, base_options, auto_id, "", ""
+        return True, base_options, default_base, auto_id, "", ""
 
     # --- Cancel -> close modal ---
     if trigger_id == "add-scenario-cancel-btn":
-        return False, base_options, "", "", ""
+        return False, base_options, None, "", "", ""
 
     # --- Save -> close modal as well ---
     if trigger_id == "add-scenario-save-btn":
         # store update happens in callback B
-        return False, base_options, "", "", ""
+        return False, base_options, None, "", "", ""
 
     # Fallback
-    return no_update, no_update, no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update, no_update, no_update
 
 
 # 3. Update equipment-store when adding new scenario
 
 
 @callback(
-    Output("equipment-store", "data"),
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("displayed-equipment-store", "data", allow_duplicate=True),
+    Output("add-scenario-error", "children", allow_duplicate=True),
+    Output("equipment-scenario-group-store", "data", allow_duplicate=True),
     Input("add-scenario-save-btn", "n_clicks"),
     State("equipment-store", "data"),
+    State("displayed-equipment-store", "data"),
     State("add-base-scenario-select", "value"),
     State("add-scenario-id-input", "value"),
     State("add-scenario-name-input", "value"),
     prevent_initial_call=True,
 )
-def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name):
+def add_scenario_to_store(save_clicks, equipment_data, displayed_ids, base_id, new_id, new_name):
+    logger.debug(
+        "add_scenario_to_store called: clicks=%s, base_id=%s, new_id=%s",
+        save_clicks,
+        base_id,
+        new_id,
+    )
+
     if not save_clicks:
         # should never hit with prevent_initial_call, but extra guard is cheap
-        return no_update
+        return no_update, no_update, no_update, no_update
 
     if not equipment_data:
-        return no_update
+        logger.warning("No equipment data available")
+        return no_update, no_update, "No equipment data available", no_update
 
     scenarios = equipment_data.get("equipment_scenarios", [])
     if not base_id:
-        #! potentially highlight error in UI
-        return no_update
+        logger.warning("No base scenario selected")
+        return no_update, no_update, "Please select a base scenario", no_update
 
     if not new_id or not new_id.strip():
         new_id = _next_scenario_id(equipment_data)
@@ -371,12 +431,13 @@ def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name
 
     existing_ids = {s.get("eq_scen_id") for s in scenarios}
     if new_id in existing_ids:
-        #! potentially highlight error in UI
-        return no_update
+        logger.warning("Scenario ID '%s' already exists", new_id)
+        return no_update, no_update, f"Scenario ID '{new_id}' already exists", no_update
 
     base_scenario = next((s for s in scenarios if s.get("eq_scen_id") == base_id), None)
     if base_scenario is None:
-        return no_update
+        logger.warning("Base scenario '%s' not found", base_id)
+        return no_update, no_update, "Base scenario not found", no_update
 
     new_scenario = {**base_scenario, "eq_scen_id": new_id, "eq_scen_name": new_name}
     updated_equipment = {
@@ -384,7 +445,13 @@ def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name
         "equipment_scenarios": [*scenarios, new_scenario],
     }
 
-    return updated_equipment
+    # Add the new scenario to displayed IDs so it appears in the table
+    updated_displayed = [*(displayed_ids or []), new_id]
+
+    logger.info("Added new equipment scenario: %s (based on %s)", new_id, base_id)
+
+    # Clear scenario group store to allow re-selecting the same group
+    return updated_equipment, updated_displayed, "", None
 
 
 @callback(
@@ -517,25 +584,29 @@ def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data
 @callback(
     Output("equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
+    Output("displayed-equipment-store", "data", allow_duplicate=True),
+    Output("equipment-scenario-group-store", "data", allow_duplicate=True),
     Input({"type": "equipment-remove-btn", "eq_scen_id": ALL}, "n_clicks"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
+    State("displayed-equipment-store", "data"),
     prevent_initial_call=True,
 )
-def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
+def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids, displayed_ids):
     """
     Remove the scenario whose trash icon was clicked, and also
-    prune it from selected-equipment-store if it was active.
+    prune it from selected-equipment-store and displayed-equipment-store.
+    Clears scenario group store to allow re-selecting the same group.
     """
     if not any(remove_clicks or []):
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     if not equipment_data or "equipment_scenarios" not in equipment_data:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     triggered = callback_context.triggered
     if not triggered:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -543,18 +614,18 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
     try:
         btn_id = json.loads(id_str)
     except json.JSONDecodeError:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     eq_scen_id = btn_id.get("eq_scen_id")
     if not eq_scen_id:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     # ----- 1) Update equipment-store -----
     scenarios = equipment_data["equipment_scenarios"]
     new_scenarios = [s for s in scenarios if s.get("eq_scen_id") != eq_scen_id]
 
     if len(new_scenarios) == len(scenarios):
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     updated_equipment = equipment_data.copy()
     updated_equipment["equipment_scenarios"] = new_scenarios
@@ -562,9 +633,15 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids):
     # ----- 2) Update selected-equipment-store (prune removed id) -----
     selected_equipment_ids = selected_equipment_ids or []
     new_selected = [sid for sid in selected_equipment_ids if sid != eq_scen_id]
-    logger.info("Updated selected equipment IDs: %s", new_selected)
 
-    return updated_equipment, new_selected
+    # ----- 3) Update displayed-equipment-store (prune removed id) -----
+    displayed_ids = displayed_ids or []
+    new_displayed = [sid for sid in displayed_ids if sid != eq_scen_id]
+
+    logger.info("Removed scenario '%s'. Selected: %s", eq_scen_id, new_selected)
+
+    # Clear scenario group store to allow re-selecting the same group
+    return updated_equipment, new_selected, new_displayed, None
 
 
 @callback(

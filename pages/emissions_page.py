@@ -244,7 +244,13 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     - precombustion: Sets all to "Includes pre-combustion", others reset to defaults
     - combustion_only: Sets all to "Combustion only", others reset to defaults
     """
-    if not group_id or not metadata_data:
+    # When dropdown is cleared, clear the stored group to allow re-selecting
+    if not group_id:
+        if stored_group is not None:
+            return no_update, no_update, None
+        return no_update, no_update, no_update
+
+    if not metadata_data:
         return no_update, no_update, no_update
 
     # Skip if this is just restoring the same group (don't overwrite manual edits)
@@ -254,64 +260,74 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     if "emission_settings" not in metadata_data:
         return no_update, no_update, no_update
 
-    scenarios = metadata_data["emission_settings"]
-    selected_ids = selected_ids or []
+    existing_scenarios = list(metadata_data["emission_settings"])
 
-    # Get the scenarios we want to modify (selected ones, or all if none selected)
-    # Sort to ensure consistent ordering when applying variation values
-    target_ids = selected_ids if selected_ids else [s["em_scen_id"] for s in scenarios]
-    target_ids = sorted(target_ids)
-
-    if not target_ids:
-        return no_update, no_update
-
-    # Define the variation values
+    # Define the variation values and default IDs
     year_values = [2025, 2035, 2045]
     leakage_values = [0.01, 0.05, 0.1]
+    default_ids = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
 
     # Get defaults
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
 
-    # Modify the scenarios
+    # Create base scenario template from first existing scenario or defaults
+    base_scenario = (
+        existing_scenarios[0].copy()
+        if existing_scenarios
+        else {
+            "grid_scenario": "MidCase",
+            "gea_grid_region": None,
+            "time_zone": "America/Los_Angeles",
+            "emission_type": default_emission_type,
+            "shortrun_weighting": 0,
+            "annual_refrig_leakage_percent": default_leakage,
+            "annual_ng_leakage_g_per_kWh": 239.2,
+            "year": default_year,
+        }
+    )
+
+    # Reset to default 3 scenarios (a, b, c) with group-specific values
     updated_scenarios = []
-    for scen in scenarios:
-        scen_copy = scen.copy()
+    for idx, scen_id in enumerate(default_ids):
+        scen = {**base_scenario, "em_scen_id": scen_id}
 
-        if scen["em_scen_id"] in target_ids:
-            target_idx = target_ids.index(scen["em_scen_id"])
+        if group_id == "year":
+            # Vary year, reset others to defaults
+            scen["year"] = year_values[idx % len(year_values)]
+            scen["annual_refrig_leakage_percent"] = default_leakage
+            scen["emission_type"] = default_emission_type
+        elif group_id == "refrigerant_leakage":
+            # Vary leakage, reset others to defaults
+            scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
+            scen["year"] = default_year
+            scen["emission_type"] = default_emission_type
+        elif group_id == "precombustion":
+            # Set emission type, reset others to defaults
+            scen["emission_type"] = "Includes pre-combustion"
+            scen["year"] = default_year
+            scen["annual_refrig_leakage_percent"] = default_leakage
+        elif group_id == "combustion_only":
+            # Set emission type, reset others to defaults
+            scen["emission_type"] = "Combustion only"
+            scen["year"] = default_year
+            scen["annual_refrig_leakage_percent"] = default_leakage
 
-            if group_id == "year":
-                # Vary year, reset others to defaults
-                scen_copy["year"] = year_values[target_idx % len(year_values)]
-                scen_copy["annual_refrig_leakage_percent"] = default_leakage
-                scen_copy["emission_type"] = default_emission_type
-            elif group_id == "refrigerant_leakage":
-                # Vary leakage, reset others to defaults
-                scen_copy["annual_refrig_leakage_percent"] = leakage_values[
-                    target_idx % len(leakage_values)
-                ]
-                scen_copy["year"] = default_year
-                scen_copy["emission_type"] = default_emission_type
-            elif group_id == "precombustion":
-                # Set emission type, reset others to defaults
-                scen_copy["emission_type"] = "Includes pre-combustion"
-                scen_copy["year"] = default_year
-                scen_copy["annual_refrig_leakage_percent"] = default_leakage
-            elif group_id == "combustion_only":
-                # Set emission type, reset others to defaults
-                scen_copy["emission_type"] = "Combustion only"
-                scen_copy["year"] = default_year
-                scen_copy["annual_refrig_leakage_percent"] = default_leakage
+        updated_scenarios.append(scen)
 
-        updated_scenarios.append(scen_copy)
+    logger.info(
+        "Reset emission scenarios to defaults for group '%s': %s",
+        group_id,
+        default_ids,
+    )
 
     # Update metadata
     updated_metadata = metadata_data.copy()
     updated_metadata["emission_settings"] = updated_scenarios
 
-    return updated_metadata, selected_ids, group_id
+    # Update selected_ids to the default scenario IDs
+    return updated_metadata, default_ids, group_id
 
 
 @callback(
@@ -399,8 +415,11 @@ def emissions_add_modal(add_clicks, cancel_clicks, save_clicks, metadata_data):
 
 @callback(
     Output("metadata-store", "data", allow_duplicate=True),
+    Output("selected-emissions-store", "data", allow_duplicate=True),
+    Output("emission-scenario-group-store", "data", allow_duplicate=True),
     Input("add-em-scenario-save-btn", "n_clicks"),
     State("metadata-store", "data"),
+    State("selected-emissions-store", "data"),
     State("add-em-base-scenario-select", "value"),
     State("add-em-scenario-id-input", "value"),
     prevent_initial_call=True,
@@ -408,19 +427,20 @@ def emissions_add_modal(add_clicks, cancel_clicks, save_clicks, metadata_data):
 def add_emission_scenario_to_metadata(
     save_clicks,
     metadata_data,
+    selected_ids,
     base_id,
     new_id,
 ):
     if not save_clicks:
-        return no_update
+        return no_update, no_update, no_update
 
     if not metadata_data or "emission_settings" not in metadata_data:
-        return no_update
+        return no_update, no_update, no_update
 
     scenarios = metadata_data.get("emission_settings", [])
     if not base_id:
         # could also push error into add-em-scenario-error
-        return no_update
+        return no_update, no_update, no_update
 
     if not new_id or not new_id.strip():
         new_id = _next_emission_scen_id(metadata_data)
@@ -429,14 +449,14 @@ def add_emission_scenario_to_metadata(
     existing_ids = {s.get("em_scen_id") for s in scenarios}
     if new_id in existing_ids:
         # ID already exists; might set error text instead
-        return no_update
+        return no_update, no_update, no_update
 
     base_scen = next(
         (s for s in scenarios if s.get("em_scen_id") == base_id),
         None,
     )
     if base_scen is None:
-        return no_update
+        return no_update, no_update, no_update
 
     new_scenario = {**base_scen, "em_scen_id": new_id}
     new_scenarios = [*scenarios, new_scenario]
@@ -446,27 +466,37 @@ def add_emission_scenario_to_metadata(
         "emission_settings": new_scenarios,
     }
 
-    return updated_metadata
+    # Add the new scenario to selected IDs so it appears in the table
+    updated_selected = [*(selected_ids or []), new_id]
+
+    logger.info("Added new emission scenario: %s (based on %s)", new_id, base_id)
+
+    # Clear scenario group store to allow re-selecting the same group
+    return updated_metadata, updated_selected, None
 
 
 @callback(
     Output("metadata-store", "data", allow_duplicate=True),
     Output("selected-emissions-store", "data", allow_duplicate=True),
+    Output("emission-scenario-group-store", "data", allow_duplicate=True),
     Input({"type": "emission-remove-btn", "em_scen_id": ALL}, "n_clicks"),
     State("metadata-store", "data"),
     State("selected-emissions-store", "data"),
     prevent_initial_call=True,
 )
 def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
+    """
+    Remove emission scenario and clear group store to allow re-selecting same group.
+    """
     if not any(remove_clicks or []):
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     if not metadata_data or "emission_settings" not in metadata_data:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     triggered = callback_context.triggered
     if not triggered:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -474,17 +504,17 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     try:
         btn_id = json.loads(id_str)
     except json.JSONDecodeError:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     em_scen_id = btn_id.get("em_scen_id")
     if not em_scen_id:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     scenarios = metadata_data.get("emission_settings", [])
     new_scenarios = [s for s in scenarios if s.get("em_scen_id") != em_scen_id]
 
     if len(new_scenarios) == len(scenarios):
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     updated_metadata = metadata_data.copy()
     updated_metadata["emission_settings"] = new_scenarios
@@ -492,7 +522,10 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     selected_em_ids = selected_em_ids or []
     new_selected = [sid for sid in selected_em_ids if sid != em_scen_id]
 
-    return updated_metadata, new_selected
+    logger.info("Removed emission scenario '%s'", em_scen_id)
+
+    # Clear scenario group store to allow re-selecting the same group
+    return updated_metadata, new_selected, None
 
 
 @callback(
