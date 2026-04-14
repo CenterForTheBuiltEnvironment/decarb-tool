@@ -59,6 +59,9 @@ def build_shell(page_content):
         dcc.Store(id="selected-building-store", storage_type="session"),
         dcc.Store(id="load-summary-store", storage_type="session", data=None),
         dcc.Store(id="pending-load-data-store", storage_type="session", data=None),
+        # Scenario group selections (persisted across page navigation)
+        dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
+        dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
     ]
 
     header = dmc.AppShellHeader(

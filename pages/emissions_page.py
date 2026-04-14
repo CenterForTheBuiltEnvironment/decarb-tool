@@ -1,43 +1,36 @@
+import contextlib
 import json
+from pathlib import Path
 
 import dash
+import dash_mantine_components as dmc
+import pandas as pd
 from dash import (
-    dcc,
-    html,
+    ALL,
     Input,
     Output,
     State,
     callback,
     callback_context,
+    dcc,
+    html,
     no_update,
-    ALL,
 )
-import dash_mantine_components as dmc
-
-import pandas as pd
-from pathlib import Path
-
 from dash_iconify import DashIconify
 
+from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
 from src.config import URLS, EmissionScenarioDefaults
-
-from src.metadata import Metadata
-from src.loads import get_load_data
-from src.equipment import EquipmentLibrary
 from src.energy import loads_to_site_energy, site_to_source
-
-from layout.input import build_emissions_table, add_emission_modal, edit_emission_modal
-
-from utils.tooltips import with_tooltip, with_icon
-from utils.logging_config import get_logger
+from src.equipment import EquipmentLibrary
+from src.loads import get_load_data
+from src.metadata import Metadata
 from utils.error_handling import (
     create_error_notification,
-    create_warning_notification,
     create_success_notification,
-    DataNotFoundError,
-    ValidationError,
-    CalculationError,
+    create_warning_notification,
 )
+from utils.logging_config import get_logger
+from utils.tooltips import with_icon
 
 logger = get_logger(__name__)
 
@@ -102,15 +95,24 @@ def layout():
                                         id="emission-scenario-group-select",
                                         data=[
                                             {"label": "Year (2025, 2035, 2045)", "value": "year"},
-                                            {"label": "Refrigerant leakage (1%, 5%, 10%)", "value": "refrigerant_leakage"},
-                                            {"label": "Including pre-combustion", "value": "precombustion"},
-                                            {"label": "Combustion only", "value": "combustion_only"},
+                                            {
+                                                "label": "Refrigerant leakage (1%, 5%, 10%)",
+                                                "value": "refrigerant_leakage",
+                                            },
+                                            {
+                                                "label": "Including pre-combustion",
+                                                "value": "precombustion",
+                                            },
+                                            {
+                                                "label": "Combustion only",
+                                                "value": "combustion_only",
+                                            },
                                         ],
-                                        value="year",
+                                        value=None,
                                         placeholder="Select a scenario group",
                                         size="sm",
                                         style={"width": "280px"},
-                                        allowDeselect=False,
+                                        clearable=True,
                                         comboboxProps={"withinPortal": True, "zIndex": 1000},
                                     ),
                                 ],
@@ -220,14 +222,18 @@ def sync_active_emissions(selected_values):
 @callback(
     Output("metadata-store", "data", allow_duplicate=True),
     Output("selected-emissions-store", "data", allow_duplicate=True),
+    Output("emission-scenario-group-store", "data", allow_duplicate=True),
     Input("emission-scenario-group-select", "value"),
     State("metadata-store", "data"),
     State("selected-emissions-store", "data"),
+    State("emission-scenario-group-store", "data"),
     prevent_initial_call=True,
 )
-def handle_emission_group_selection(group_id, metadata_data, selected_ids):
+def handle_emission_group_selection(group_id, metadata_data, selected_ids, stored_group):
     """
     When an emission scenario group is selected, modify the displayed scenarios.
+    Also persists the selection to the store for restoration on page navigation.
+    Skips reapplying settings if this is just a restore (group unchanged).
 
     The selected group parameter varies across scenarios, while all other
     parameters are reset to their defaults.
@@ -239,10 +245,14 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids):
     - combustion_only: Sets all to "Combustion only", others reset to defaults
     """
     if not group_id or not metadata_data:
-        return no_update, no_update
+        return no_update, no_update, no_update
+
+    # Skip if this is just restoring the same group (don't overwrite manual edits)
+    if group_id == stored_group:
+        return no_update, no_update, no_update
 
     if "emission_settings" not in metadata_data:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     scenarios = metadata_data["emission_settings"]
     selected_ids = selected_ids or []
@@ -266,7 +276,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids):
 
     # Modify the scenarios
     updated_scenarios = []
-    for i, scen in enumerate(scenarios):
+    for scen in scenarios:
         scen_copy = scen.copy()
 
         if scen["em_scen_id"] in target_ids:
@@ -301,7 +311,19 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids):
     updated_metadata = metadata_data.copy()
     updated_metadata["emission_settings"] = updated_scenarios
 
-    return updated_metadata, selected_ids
+    return updated_metadata, selected_ids, group_id
+
+
+@callback(
+    Output("emission-scenario-group-select", "value"),
+    Input("url", "pathname"),
+    State("emission-scenario-group-store", "data"),
+)
+def restore_emission_group_selection(pathname, stored_group):
+    """Restore the scenario group selection when navigating back to the page."""
+    if pathname != URLS.EMISSIONS.value:
+        return no_update
+    return stored_group
 
 
 def _build_emission_base_options(metadata_json):
@@ -332,10 +354,8 @@ def _next_emission_scen_id(metadata_json):
     for scen in metadata_json["emission_settings"]:
         sid = scen.get("em_scen_id", "")
         if isinstance(sid, str) and sid.startswith("em_scenario_"):
-            try:
+            with contextlib.suppress(ValueError):
                 nums.append(int(sid.split("_")[-1]))
-            except ValueError:
-                pass
     n = max(nums) + 1 if nums else 1
     return f"em_scenario_{n}"
 
@@ -419,7 +439,7 @@ def add_emission_scenario_to_metadata(
         return no_update
 
     new_scenario = {**base_scen, "em_scen_id": new_id}
-    new_scenarios = scenarios + [new_scenario]
+    new_scenarios = [*scenarios, new_scenario]
 
     updated_metadata = {
         **metadata_data,
@@ -559,6 +579,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     ng_leakage_base = scen.get("annual_ng_leakage_g_per_kWh")
     if ng_leakage_base is not None and unit_mode == "IP":
         from utils.units import get_unit_converter
+
         ng_converter = get_unit_converter("ng_leakage_rate", "IP")
         ng_leakage_display = ng_converter(float(ng_leakage_base))
     else:
@@ -631,9 +652,7 @@ def save_edit_emission(
 
     # basic type cleaning
     try:
-        shortrun_weighting = (
-            float(shortrun_weighting) if shortrun_weighting is not None else 0.0
-        )
+        shortrun_weighting = float(shortrun_weighting) if shortrun_weighting is not None else 0.0
     except (TypeError, ValueError):
         shortrun_weighting = 0.0
 
@@ -655,7 +674,8 @@ def save_edit_emission(
     # Convert NG leakage back to base units (g/kWh) if in IP mode
     unit_mode = unit_mode or "SI"
     if unit_mode == "IP" and ng_leakage > 0:
-        from utils.units import g_to_lb, Wh_to_BTU
+        from utils.units import Wh_to_BTU, g_to_lb
+
         # IP unit is lb/kBTU, convert back to g/kWh
         # g/kWh = (lb/kBTU) / (g_to_lb / Wh_to_BTU)
         ng_leakage = ng_leakage / (g_to_lb / Wh_to_BTU)
@@ -707,6 +727,7 @@ def cancel_edit_emission_modal(n_clicks):
 def update_ng_leakage_label(unit_mode):
     """Update NG leakage label based on unit mode."""
     from utils.units import get_unit_label
+
     unit_mode = unit_mode or "SI"
     ng_unit = get_unit_label("ng_leakage_rate", unit_mode)
     return f"Annual NG leakage ({ng_unit})"
@@ -786,7 +807,8 @@ def run_loads_to_site(
     except ValueError as e:
         logger.error(f"Calculation validation error: {e}")
         notification = create_error_notification(
-            "Calculation Error", str(e)  # ValueError messages from energy.py
+            "Calculation Error",
+            str(e),  # ValueError messages from energy.py
         )
         return no_update, [notification]
 
@@ -816,9 +838,7 @@ def run_loads_to_site(
     State("session-store", "data"),
     prevent_initial_call=True,
 )
-def run_site_to_source(
-    site_energy_path, metadata_json, selected_emission_ids, session_data
-):
+def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, session_data):
     if not site_energy_path:
         raise dash.exceptions.PreventUpdate
 

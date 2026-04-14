@@ -226,27 +226,47 @@ def populate_group_dropdown(pathname, equipment_data):
     Output("displayed-equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Output("equipment-checkbox-group", "value", allow_duplicate=True),
+    Output("equipment-scenario-group-store", "data", allow_duplicate=True),
     Input("scenario-group-select", "value"),
     State("equipment-store", "data"),
+    State("equipment-scenario-group-store", "data"),
     prevent_initial_call=True,
 )
-def handle_group_selection(group_id, equipment_data):
+def handle_group_selection(group_id, equipment_data, stored_group):
     """
     When a scenario group is selected, update displayed and selected scenarios.
+    Also persists the selection to the store for restoration on page navigation.
+    Skips reapplying settings if this is just a restore (group unchanged).
     """
     if not group_id or not equipment_data:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
+
+    # Skip if this is just restoring the same group (don't overwrite manual edits)
+    if group_id == stored_group:
+        return no_update, no_update, no_update, no_update
 
     groups = equipment_data.get("scenario_groups", [])
     selected_group = next((g for g in groups if g.get("group_id") == group_id), None)
 
     if not selected_group:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     scenario_ids = selected_group.get("scenario_ids", [])
 
-    # Update displayed, selected, and checkbox group with the group's scenarios
-    return scenario_ids, scenario_ids, scenario_ids
+    # Update displayed, selected, checkbox group, and persist group selection
+    return scenario_ids, scenario_ids, scenario_ids, group_id
+
+
+@callback(
+    Output("scenario-group-select", "value"),
+    Input("url", "pathname"),
+    State("equipment-scenario-group-store", "data"),
+)
+def restore_equipment_group_selection(pathname, stored_group):
+    """Restore the scenario group selection when navigating back to the page."""
+    if pathname != URLS.EQUIPMENT.value:
+        return no_update
+    return stored_group
 
 
 # 2. Add equipment scenario modal + store update
@@ -1078,7 +1098,7 @@ def _build_equipment_options(
 
             if eq_type == "backup_heating":
                 eff = eq.get("performance", "")["heating"]["efficiency"]
-                label += f" {eff*100:.0f}% Eff"
+                label += f" {eff * 100:.0f}% Eff"
 
             if eq.get("eq_calc_type") == "specific":
                 if eq_type in ["hr_heat_pump", "heat_pump", "chiller"]:
