@@ -167,14 +167,19 @@ def update_total_emissions_plot(session_data, equipment_scenarios, emission_scen
     Input("session-store", "data"),
     Input("emission-em-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
-    # prevent_initial_call=True
+    State("selected-equipment-store", "data"),  # preserves user ordering
 )
-def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode):
+def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selected_equipment_ids):
     df = load_source_energy(session_data)
     if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
-    equipment_scenarios = df["eq_scen_id"].unique().tolist()
+    # Use user-defined order from selected-equipment-store
+    df_ids = set(df["eq_scen_id"].unique())
+    if selected_equipment_ids:
+        equipment_scenarios = [sid for sid in selected_equipment_ids if sid in df_ids]
+    else:
+        equipment_scenarios = list(df_ids)
 
     # Ensure emission_scenarios is a list
     if isinstance(emission_scenarios, str):

@@ -371,24 +371,27 @@ def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name
     Output("selected-equipment-store", "data"),
     Output("equipment-checkbox-group", "value"),
     Input("equipment-checkbox-group", "value"),
+    State("displayed-equipment-store", "data"),
     prevent_initial_call=True,
 )
-def sync_active_equipment(selected_values):
+def sync_active_equipment(selected_values, displayed_ids):
     """
     Keep selected-equipment-store in sync with the checkbox group.
     Enforce the 'max 5 scenarios' rule by capping and reflecting
     that back in the CheckboxGroup.
+    Preserves the displayed order (column order in the table) for chart consistency.
     """
-    raw_selected = selected_values or []
-    capped_selected = raw_selected[:5]
+    raw_selected = set(selected_values or [])
 
-    # If user picked <= 5, just mirror as-is
-    if len(raw_selected) <= 5:
-        return capped_selected, capped_selected
+    # Reorder selected values to match the displayed order
+    if displayed_ids:
+        ordered_selected = [sid for sid in displayed_ids if sid in raw_selected]
+    else:
+        ordered_selected = list(raw_selected)
 
-    # If user tried to pick more than 5:
-    # - store only the first 5
-    # - set the CheckboxGroup value back to those 5, auto-unchecking extras
+    # Enforce max 5 scenarios rule
+    capped_selected = ordered_selected[:5]
+
     return capped_selected, capped_selected
 
 
@@ -932,7 +935,13 @@ def cancel_edit_modal(n_clicks):
     prevent_initial_call=True,
 )
 def update_temp_inputs_on_hp_change(
-    hr_hp_id, awhp_id, awhp_perf_model, current_hr_temp, current_awhp_temp, unit_mode, equipment_data
+    hr_hp_id,
+    awhp_id,
+    awhp_perf_model,
+    current_hr_temp,
+    current_awhp_temp,
+    unit_mode,
+    equipment_data,
 ):
     """Update temperature constraints when HP selection changes.
 
@@ -1044,9 +1053,8 @@ def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
     hr_selected = hr_hp_id and hr_hp_id != "None"
     awhp_selected = awhp_id and awhp_id != "None"
 
-    return (
-        not hr_selected, not awhp_selected
-    )
+    return (not hr_selected, not awhp_selected)
+
 
 # helper to build equipment options for Selects
 
@@ -1055,16 +1063,13 @@ def _build_equipment_options(
     equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
 ):
     from utils.units import format_with_auto_scale
+
     unit_mode = unit_mode or "SI"
-    if unit_mode == 'IP':
-        decimals = 0
-    else:
-        decimals = 1
-    
+    decimals = 0 if unit_mode == "IP" else 1
+
     options = []
-    for eq in (equipment_list or []):
+    for eq in equipment_list or []:
         if eq.get("eq_type") == eq_type:
-            
             if eq.get("eq_manufacturer"):
                 label = f"{eq.get('eq_manufacturer', '')} {eq.get('model', '')}"
 
@@ -1072,34 +1077,31 @@ def _build_equipment_options(
                 label = f"{eq.get('model', '')}"
 
             if eq_type == "backup_heating":
-                eff = eq.get('performance', '')['heating']['efficiency']
+                eff = eq.get("performance", "")["heating"]["efficiency"]
                 label += f" {eff*100:.0f}% Eff"
 
             if eq.get("eq_calc_type") == "specific":
                 if eq_type in ["hr_heat_pump", "heat_pump", "chiller"]:
                     capacity = "nominal_capacity_W"
                     category = "power_cooling"
-                    
+
                 if eq_type == "backup_heating":
                     capacity = "capacity_W"
                     category = "power"
 
                 label_cap = format_with_auto_scale(
-                    eq.get(capacity, ''),
-                    category,
-                    unit_mode,
-                    decimals = decimals
+                    eq.get(capacity, ""), category, unit_mode, decimals=decimals
                 )
 
             else:
                 label_cap = "Infinite cap."
-            
+
             label += f" ({label_cap})"
 
             options.append(
                 {
-                "label": label,
-                "value": eq.get("eq_id"),
+                    "label": label,
+                    "value": eq.get("eq_id"),
                 }
             )
     if include_none:
