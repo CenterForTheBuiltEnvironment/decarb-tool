@@ -1,33 +1,30 @@
-import dash
-from dash import html, dcc, Input, Output, State, callback
-import dash_mantine_components as dmc
-from dash_iconify import DashIconify
-
+import contextlib
 import datetime
-import pandas as pd
-import plotly.express as px
 from pathlib import Path
 
-from src.config import URLS
-
-from layout.output import summary_project_info, empty_state
+import dash
+import dash_mantine_components as dmc
+import pandas as pd
+import plotly.express as px
+from dash import Input, Output, State, callback, dcc
+from dash_iconify import DashIconify
 
 from layout.charts import chart_tabs
-
+from layout.output import summary_project_info
+from src.config import URLS
 from src.metadata import Metadata
 from src.visuals import (
-    plot_meter_timeseries,
-    plot_energy_and_emissions,
     plot_emission_scenarios_grouped,
     plot_emissions_heatmap,
+    plot_energy_and_emissions,
+    plot_meter_timeseries,
     plot_scatter_temp_vs_variable,
 )
-
-from utils.logging_config import get_logger
 from utils.display_registry import (
-    format_equipment_scenario_id,
     format_emission_scenario_id,
+    format_equipment_scenario_id,
 )
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -57,9 +54,7 @@ def layout():
             ),
             dmc.Button(
                 "Download data ",
-                rightSection=DashIconify(
-                    icon="material-symbols-light:download", width=20
-                ),
+                rightSection=DashIconify(icon="material-symbols-light:download", width=20),
                 variant="outline",
                 color="blue",
                 id="download-button",
@@ -127,7 +122,6 @@ def update_meter_plot(
     frequency_value,
     unit_mode,
 ):
-
     df = load_source_energy(session_data)
     if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
@@ -156,9 +150,7 @@ def update_meter_plot(
     Input("total-emission-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
 )
-def update_total_emissions_plot(
-    session_data, equipment_scenarios, emission_scenario, unit_mode
-):
+def update_total_emissions_plot(session_data, equipment_scenarios, emission_scenario, unit_mode):
     df = load_source_energy(session_data)
     if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
@@ -166,9 +158,7 @@ def update_total_emissions_plot(
     if isinstance(emission_scenario, str):
         emission_scenario = [emission_scenario]
 
-    fig = plot_energy_and_emissions(
-        df, equipment_scenarios, emission_scenario, unit_mode=unit_mode
-    )
+    fig = plot_energy_and_emissions(df, equipment_scenarios, emission_scenario, unit_mode=unit_mode)
     return fig
 
 
@@ -180,7 +170,6 @@ def update_total_emissions_plot(
     # prevent_initial_call=True
 )
 def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode):
-
     df = load_source_energy(session_data)
     if df is None:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
@@ -298,11 +287,12 @@ def show_download_notification(n_clicks, unit_mode):
 def download_results(n_clicks, session_data, unit_mode):
     """Download the entire results dataframe as a .csv file with unit conversion."""
     import numpy as np
+
     from utils.units import (
+        COLUMN_DISPLAY_NAMES,
         convert_dataframe,
         get_category,
         get_column_label,
-        COLUMN_DISPLAY_NAMES,
     )
 
     # Only trigger on actual button click
@@ -323,7 +313,7 @@ def download_results(n_clicks, session_data, unit_mode):
 
     # Round numeric values: 2 decimals normally, 3 for values < 1
     def smart_round(val):
-        if pd.isna(val) or not isinstance(val, (int, float, np.number)):
+        if pd.isna(val) or not isinstance(val, int | float | np.number):
             return val
         if abs(val) < 1 and val != 0:
             return round(val, 3)
@@ -387,18 +377,14 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
         # Keep only those that are in df, and preserve user selection order
         eq_ids = [sid for sid in selected_equipment_ids if sid in df_ids]
     else:
-        eq_ids = df_ids
+        # No user ordering available - sort by numeric suffix as fallback
+        def eq_sort_key(scen_id):
+            if scen_id.startswith("eq_scenario_"):
+                with contextlib.suppress(ValueError):
+                    return int(scen_id[len("eq_scenario_") :])
+            return scen_id
 
-    # Sort equipment scenarios by their numeric suffix (eq_scenario_1 < eq_scenario_2 < ...)
-    def eq_sort_key(scen_id):
-        if scen_id.startswith("eq_scenario_"):
-            try:
-                return int(scen_id[len("eq_scenario_") :])
-            except ValueError:
-                pass
-        return scen_id
-
-    eq_ids = sorted(eq_ids, key=eq_sort_key)
+        eq_ids = sorted(df_ids, key=eq_sort_key)
 
     if not eq_ids:
         # Fallback: nothing computed
@@ -406,8 +392,7 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
 
     # Build options list with user-friendly labels
     options = [
-        {"label": format_equipment_scenario_id(scen_id), "value": scen_id}
-        for scen_id in eq_ids
+        {"label": format_equipment_scenario_id(scen_id), "value": scen_id} for scen_id in eq_ids
     ]
 
     # Defaults:
@@ -530,8 +515,7 @@ def populate_emission_dropdowns(
 
     # Build options with user-friendly labels
     options = [
-        {"label": format_emission_scenario_id(scen_id), "value": scen_id}
-        for scen_id in em_ids
+        {"label": format_emission_scenario_id(scen_id), "value": scen_id} for scen_id in em_ids
     ]
 
     # Helper: choose new value based on previous value type (single vs multi)

@@ -1,31 +1,29 @@
+import contextlib
 import json
 
 import dash
+import dash_mantine_components as dmc
 from dash import (
     ALL,
-    callback,
-    html,
-    dcc,
     Input,
     Output,
     State,
+    callback,
     callback_context,
+    dcc,
+    html,
     no_update,
 )
-import dash_mantine_components as dmc
-
 from dash_iconify import DashIconify
-
-from src.config import URLS
 
 from layout.input import (
     add_equipment_modal,
     build_equipment_table,
     edit_equipment_modal,
 )
-
+from src.config import URLS
 from utils.logging_config import get_logger
-from utils.tooltips import with_tooltip, with_icon
+from utils.tooltips import with_icon, with_tooltip
 
 logger = get_logger(__name__)
 
@@ -143,9 +141,7 @@ def layout():
                 [
                     dmc.Button(
                         "Specify Emissions ",
-                        rightSection=DashIconify(
-                            icon="tabler:arrow-narrow-right-dashed"
-                        ),
+                        rightSection=DashIconify(icon="tabler:arrow-narrow-right-dashed"),
                         variant="filled",
                         color="blue",
                         id="button-specify-emissions",
@@ -277,10 +273,8 @@ def _next_scenario_id(equip_json):
     for scen in equip_json["equipment_scenarios"]:
         sid = scen.get("eq_scen_id", "")
         if isinstance(sid, str) and sid.startswith("eq_scenario_"):
-            try:
+            with contextlib.suppress(ValueError):
                 nums.append(int(sid.split("_")[-1]))
-            except ValueError:
-                pass
     n = max(nums) + 1 if nums else 1
     return f"eq_scenario_{n}"
 
@@ -367,7 +361,7 @@ def add_scenario_to_store(save_clicks, equipment_data, base_id, new_id, new_name
     new_scenario = {**base_scenario, "eq_scen_id": new_id, "eq_scen_name": new_name}
     updated_equipment = {
         **equipment_data,
-        "equipment_scenarios": scenarios + [new_scenario],
+        "equipment_scenarios": [*scenarios, new_scenario],
     }
 
     return updated_equipment
@@ -409,9 +403,7 @@ def sync_active_equipment(selected_values):
     State("selected-equipment-store", "data"),
     prevent_initial_call=True,
 )
-def handle_column_dropdown_change(
-    dropdown_values, displayed_ids, equipment_data, selected_ids
-):
+def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data, selected_ids):
     """
     Handle scenario selection from column dropdowns.
     If selected scenario is already displayed elsewhere, create a copy.
@@ -459,9 +451,7 @@ def handle_column_dropdown_change(
     if already_displayed:
         # Create a copy of the scenario with a new ID
         scenarios = equipment_data.get("equipment_scenarios", [])
-        base_scenario = next(
-            (s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None
-        )
+        base_scenario = next((s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None)
 
         if base_scenario is None:
             return no_update, no_update, no_update, no_update
@@ -480,7 +470,7 @@ def handle_column_dropdown_change(
         # Add to equipment store
         updated_equipment = {
             **equipment_data,
-            "equipment_scenarios": scenarios + [new_scenario],
+            "equipment_scenarios": [*scenarios, new_scenario],
         }
 
         # Use the copy's ID in the displayed list
@@ -491,9 +481,7 @@ def handle_column_dropdown_change(
 
     # Update selected-equipment-store: swap old scenario for new one
     new_selected = list(selected_ids) if selected_ids else []
-    old_scen_id = displayed_ids[
-        column_idx
-    ]  # The scenario that was in this column before
+    old_scen_id = displayed_ids[column_idx]  # The scenario that was in this column before
 
     if old_scen_id in new_selected:
         # Replace old with new in selection
@@ -583,9 +571,11 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-scenario-name-input", "value"),
     Output("edit-hr-wwhp-select", "data"),
     Output("edit-hr-wwhp-select", "value"),
+    Output("edit-hr-wwhp-performance-model", "value"),
     Output("edit-hr-wwhp-h-supply-t-value", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
+    Output("edit-awhp-performance-model", "value"),
     Output("edit-awhp-h-supply-t-value", "value"),
     Output("edit-awhp-sizing-mode", "value"),
     Output("edit-awhp-sizing-value", "value"),
@@ -607,7 +597,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 18
+        return (no_update,) * 20
 
     if not equipment_data:
         return (
@@ -617,7 +607,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -636,7 +628,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 18
+        return (no_update,) * 20
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -651,7 +643,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -678,7 +672,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            None,
             [],
+            None,
             None,
             None,
             None,
@@ -713,10 +709,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     if hr_wwhp_val is None:
         hr_wwhp_val = "None"
 
-    # added for autofill callback, not implemented
-    # hr_hp_supply_t_options = _build_heating_supply_temp_options(
-    #     equipment_list, hr_wwhp_val.get("eq_id")
-    # )
+    hr_wwhp_performance_model_val = scenario.get("hr_wwhp_performance_model") or "interpolate_HHWST"
 
     # Get temperature values and convert to display units
     from utils.units import C_to_F
@@ -735,6 +728,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     awhp_val = scenario.get("awhp")
     if awhp_val is None:
         awhp_val = "None"
+
+    awhp_performance_model_val = scenario.get("awhp_performance_model") or "interpolate_HHWST_fixed"
 
     awhp_h_supply_t_val = scenario.get("awhp_h_supply_t")
     if awhp_h_supply_t_val is not None:
@@ -759,9 +754,11 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         scen_name,
         hr_hp_options,
         hr_wwhp_val,
+        hr_wwhp_performance_model_val,
         hr_wwhp_h_supply_t_val,
         awhp_options,
         awhp_val,
+        awhp_performance_model_val,
         awhp_h_supply_t_val,
         sizing_mode,
         sizing_value,
@@ -783,8 +780,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-scenario-id-input", "value"),
     State("edit-scenario-name-input", "value"),
     State("edit-hr-wwhp-select", "value"),
+    State("edit-hr-wwhp-performance-model", "value"),
     State("edit-hr-wwhp-h-supply-t-value", "value"),
     State("edit-awhp-select", "value"),
+    State("edit-awhp-performance-model", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
     State("edit-awhp-sizing-mode", "value"),
     State("edit-awhp-sizing-value", "value"),
@@ -801,8 +800,10 @@ def save_edit_scenario(
     scen_id,
     new_name,
     hr_wwhp_val,
+    hr_wwhp_performance_model_val,
     hr_wwhp_h_supply_t_val,
     awhp_val,
+    awhp_performance_model_val,
     awhp_h_supply_t_val,
     sizing_mode,
     sizing_value,
@@ -870,8 +871,10 @@ def save_edit_scenario(
             new_scen = scen.copy()
             new_scen["eq_scen_name"] = new_name
             new_scen["hr_wwhp"] = hr_wwhp_val
+            new_scen["hr_wwhp_performance_model"] = hr_wwhp_performance_model_val
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
             new_scen["awhp"] = awhp_val
+            new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
             new_scen["awhp_sizing_mode"] = sizing_mode
             new_scen["awhp_sizing_value"] = sizing_value
@@ -907,7 +910,7 @@ def cancel_edit_modal(n_clicks):
     return False
 
 
-# 10. Update temperature labels, value, min/max, and disabled state based on unit mode and selected HP
+# 10. Update temperature labels, value, min/max, and disabled state based on unit mode, selected HP, and performance model
 @callback(
     Output("edit-hr-wwhp-h-supply-t-label", "children"),
     Output("edit-hr-wwhp-h-supply-t-value", "min"),
@@ -921,13 +924,22 @@ def cancel_edit_modal(n_clicks):
     Output("edit-awhp-h-supply-t-value", "disabled"),
     Input("edit-hr-wwhp-select", "value"),
     Input("edit-awhp-select", "value"),
+    Input("edit-awhp-performance-model", "value"),
+    State("edit-hr-wwhp-h-supply-t-value", "value"),
+    State("edit-awhp-h-supply-t-value", "value"),
     State("unit-toggle", "value"),
     State("equipment-store", "data"),
     prevent_initial_call=True,
 )
-def update_temp_inputs_on_hp_change(hr_hp_id, awhp_id, unit_mode, equipment_data):
-    """Update temperature constraints and reset value when HP selection changes."""
-    from utils.units import get_unit_label, C_to_F
+def update_temp_inputs_on_hp_change(
+    hr_hp_id, awhp_id, awhp_perf_model, current_hr_temp, current_awhp_temp, unit_mode, equipment_data
+):
+    """Update temperature constraints when HP selection changes.
+
+    Preserves existing temperature values if they're within the new valid range.
+    Only resets to minimum if the current value is invalid or None.
+    """
+    from utils.units import C_to_F, get_unit_label
 
     unit_mode = unit_mode or "SI"
     temp_unit = get_unit_label("temperature", unit_mode)
@@ -946,6 +958,11 @@ def update_temp_inputs_on_hp_change(hr_hp_id, awhp_id, unit_mode, equipment_data
     hr_selected = hr_hp_id and hr_hp_id != "None" and hr_min_c is not None
     awhp_selected = awhp_id and awhp_id != "None" and awhp_min_c is not None
 
+    # Check if AWHP performance model is 'reset'; disable temperature input in this case
+    awhp_performance_reset = awhp_perf_model == "interpolate_HHWST_reset"
+
+    awhp_supply_t_enabled = awhp_selected and not awhp_performance_reset
+
     # Use defaults for display if no HP selected (but will be disabled)
     if not hr_selected:
         hr_min_c, hr_max_c = 32.2, 73.9
@@ -962,13 +979,34 @@ def update_temp_inputs_on_hp_change(hr_hp_id, awhp_id, unit_mode, equipment_data
         hr_min, hr_max = hr_min_c, hr_max_c
         awhp_min, awhp_max = awhp_min_c, awhp_max_c
 
-    # Set value to minimum when HP changes, or None if disabled
-    hr_value = hr_min if hr_selected else None
-    awhp_value = awhp_min if awhp_selected else None
+    # Preserve current value if valid, otherwise set to minimum
+    if hr_selected:
+        if current_hr_temp is not None and hr_min <= current_hr_temp <= hr_max:
+            hr_value = current_hr_temp
+        else:
+            hr_value = hr_min
+    else:
+        hr_value = None
+
+    if awhp_selected:
+        if current_awhp_temp is not None and awhp_min <= current_awhp_temp <= awhp_max:
+            awhp_value = current_awhp_temp
+        else:
+            awhp_value = awhp_min
+    else:
+        awhp_value = None
 
     return (
-        hr_label, hr_min, hr_max, hr_value, not hr_selected,
-        awhp_label, awhp_min, awhp_max, awhp_value, not awhp_selected,
+        hr_label,
+        hr_min,
+        hr_max,
+        hr_value,
+        not hr_selected,
+        awhp_label,
+        awhp_min,
+        awhp_max,
+        awhp_value,
+        not awhp_supply_t_enabled,
     )
 
 
@@ -991,6 +1029,24 @@ def update_temp_labels_on_unit_change(unit_mode):
 
     return hr_label, awhp_label
 
+
+@callback(
+    Output("edit-hr-wwhp-performance-model", "disabled"),
+    Output("edit-awhp-performance-model", "disabled"),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-awhp-select", "value"),
+    prevent_initial_call=True,
+)
+def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
+    """Enable/disable performance model input when HP selection changes."""
+
+    # Check if HPs are selected
+    hr_selected = hr_hp_id and hr_hp_id != "None"
+    awhp_selected = awhp_id and awhp_id != "None"
+
+    return (
+        not hr_selected, not awhp_selected
+    )
 
 # helper to build equipment options for Selects
 
@@ -1047,7 +1103,7 @@ def _build_equipment_options(
                 }
             )
     if include_none:
-        options = [{"label": none_label, "value": "None"}] + options
+        options = [{"label": none_label, "value": "None"}, *options]
     return options
 
 
@@ -1068,14 +1124,12 @@ def _get_supply_temp_range(equipment_list, eq_id):
     if not eq:
         return None, None
 
-    leaving_supply_t = (
-        eq.get("performance", {}).get("heating", {}).get("leaving_supply_t", {})
-    )
+    leaving_supply_t = eq.get("performance", {}).get("heating", {}).get("leaving_supply_t", {})
     if not leaving_supply_t:
         return None, None
 
     try:
-        temps = [float(t) for t in leaving_supply_t.keys()]
+        temps = [float(t) for t in leaving_supply_t]
         return min(temps), max(temps)
     except (ValueError, TypeError):
         return None, None
@@ -1114,11 +1168,8 @@ def update_sizing_value_constraints_and_snap(mode, current_value):
 
         # Snap to an integer within [1, 10]
         try:
-            if current_value is None:
-                v = INT_MIN
-            else:
-                v = float(current_value)
-            v = int(round(v))
+            v = INT_MIN if current_value is None else float(current_value)
+            v = round(v)
         except (TypeError, ValueError):
             v = INT_MIN
 
@@ -1133,10 +1184,7 @@ def update_sizing_value_constraints_and_snap(mode, current_value):
     max_val = PCT_MAX
 
     try:
-        if current_value is None:
-            v = DEFAULT_PERCENT
-        else:
-            v = float(current_value)
+        v = DEFAULT_PERCENT if current_value is None else float(current_value)
     except (TypeError, ValueError):
         v = DEFAULT_PERCENT
 
