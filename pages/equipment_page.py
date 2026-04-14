@@ -689,12 +689,18 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         )
 
     # --- Build select options from equipment list ---
-    hr_hp_options = _build_equipment_options(equipment_list, "hr_heat_pump", include_none=True)
-    awhp_options = _build_equipment_options(equipment_list, "heat_pump", include_none=True)
-    backup_heating_options = _build_equipment_options(
-        equipment_list, "backup_heating", include_none=False
+    hr_hp_options = _build_equipment_options(
+        equipment_list, "hr_heat_pump", unit_mode, include_none=True
     )
-    chiller_options = _build_equipment_options(equipment_list, "chiller", include_none=False)
+    awhp_options = _build_equipment_options(
+        equipment_list, "heat_pump", unit_mode, include_none=True
+    )
+    backup_heating_options = _build_equipment_options(
+        equipment_list, "backup_heating", unit_mode, include_none=False
+    )
+    chiller_options = _build_equipment_options(
+        equipment_list, "chiller", unit_mode, include_none=False
+    )
 
     # --- Scenario current values ---
     scen_name = scenario.get("eq_scen_name", eq_scen_id)
@@ -1045,15 +1051,57 @@ def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
 # helper to build equipment options for Selects
 
 
-def _build_equipment_options(equipment_list, eq_type, include_none=False, none_label="None"):
-    options = [
-        {
-            "label": f"{eq.get('model', '')} ({eq.get('eq_subtype', '')})",
-            "value": eq.get("eq_id"),
-        }
-        for eq in (equipment_list or [])
-        if eq.get("eq_type") == eq_type
-    ]
+def _build_equipment_options(
+    equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
+):
+    from utils.units import format_with_auto_scale
+    unit_mode = unit_mode or "SI"
+    if unit_mode == 'IP':
+        decimals = 0
+    else:
+        decimals = 1
+    
+    options = []
+    for eq in (equipment_list or []):
+        if eq.get("eq_type") == eq_type:
+            
+            if eq.get("eq_manufacturer"):
+                label = f"{eq.get('eq_manufacturer', '')} {eq.get('model', '')}"
+
+            else:
+                label = f"{eq.get('model', '')}"
+
+            if eq_type == "backup_heating":
+                eff = eq.get('performance', '')['heating']['efficiency']
+                label += f" {eff*100:.0f}% Eff"
+
+            if eq.get("eq_calc_type") == "specific":
+                if eq_type in ["hr_heat_pump", "heat_pump", "chiller"]:
+                    capacity = "nominal_capacity_W"
+                    category = "power_cooling"
+                    
+                if eq_type == "backup_heating":
+                    capacity = "capacity_W"
+                    category = "power"
+
+                label_cap = format_with_auto_scale(
+                    eq.get(capacity, ''),
+                    category,
+                    unit_mode,
+                    decimals = decimals
+                )
+
+            else:
+                label_cap = "Infinite cap."
+            
+            label += f" ({label_cap})"
+
+            options.append(
+                {
+                "label": label,
+                "value": eq.get("eq_id"),
+                }
+            )
     if include_none:
         options = [{"label": none_label, "value": "None"}, *options]
     return options
