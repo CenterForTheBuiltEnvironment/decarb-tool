@@ -62,6 +62,8 @@ class EmissionScenarioDefaults(Enum):
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
+    NG_LEAKAGE_G_KWH: float = 239.2
+    NG_LEAKAGE_G_KWH_COMBUSTION: float = 181
 
 
 class Columns(str, Enum):

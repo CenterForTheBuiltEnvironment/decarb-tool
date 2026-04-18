@@ -237,7 +237,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     Groups:
     - year: Varies years (2025, 2035, 2045), others reset to defaults
     - refrigerant_leakage: Varies leakage (0.01, 0.05, 0.1), others reset to defaults
-    - emission_types: Varies emission type between "Includes pre-combustion" and "Combustion only", others reset to defaults
+    - emission_types: Varies emission type ("Includes pre-combustion" vs "Combustion only"), others reset to defaults
     """
     # When dropdown is cleared, clear the stored group to allow re-selecting
     if not group_id:
@@ -257,11 +257,6 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
 
     existing_scenarios = list(metadata_data["emission_settings"])
 
-    # Define the variation values and default IDs
-    year_values = [2025, 2035, 2045]
-    leakage_values = [0.01, 0.05, 0.1]
-    emission_types = ["Combustion only", "Includes pre-combustion"]
-
     default_ids = ["em_scenario_a", "em_scenario_b"]
     if group_id != "emission_types": # only two scenarios for comparing emission types
         default_ids.append("em_scenario_c")
@@ -270,6 +265,13 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
+    default_ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH.value
+
+    # Define the variation values and default IDs
+    year_values = [2025, 2035, 2045]
+    leakage_values = [0.01, 0.05, 0.1]
+    emission_types = ["Combustion only", "Includes pre-combustion"]
+    ng_leakage_values = [EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value, default_ng_leakage]
 
     # Create base scenario template from first existing scenario or defaults
     base_scenario = (
@@ -282,7 +284,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             "emission_type": default_emission_type,
             "shortrun_weighting": 0,
             "annual_refrig_leakage_percent": default_leakage,
-            "annual_ng_leakage_g_per_kWh": 239.2,
+            "annual_ng_leakage_g_per_kWh": default_ng_leakage,
             "year": default_year,
         }
     )
@@ -297,14 +299,17 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["year"] = year_values[idx % len(year_values)]
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["emission_type"] = default_emission_type
+            scen["annual_ng_leakage_g_per_kWh"] = default_ng_leakage
         elif group_id == "refrigerant_leakage":
             # Vary leakage, reset others to defaults
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
+            scen["annual_ng_leakage_g_per_kWh"] = default_ng_leakage
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
+            scen["annual_ng_leakage_g_per_kWh"] = ng_leakage_values[idx % len(ng_leakage_values)]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
         
@@ -920,3 +925,24 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
             "Unexpected Error", "Emissions calculation failed."
         )
         return no_update, [notification]
+
+@callback(
+    Output("edit-em-ng-leakage", "value", allow_duplicate=True),
+    Input("edit-em-emission-type", "value"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_ng_leakage_on_emission_type_change(emission_type, unit_mode):
+    """Update NG leakage when emission type changes."""
+    from utils.units import format_value
+    unit_mode = unit_mode or "SI"
+
+    if emission_type == "Combustion only":
+        ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value
+    elif emission_type == "Includes pre-combustion":
+        ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH.value
+
+    if unit_mode == "IP":
+        ng_leakage = format_value(ng_leakage, "annual_ng_leakage_g_per_kWh", unit_mode, decimals=2)
+
+    return ng_leakage
