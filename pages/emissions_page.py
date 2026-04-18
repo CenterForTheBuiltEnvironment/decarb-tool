@@ -100,12 +100,8 @@ def layout():
                                                 "value": "refrigerant_leakage",
                                             },
                                             {
-                                                "label": "Including pre-combustion",
-                                                "value": "precombustion",
-                                            },
-                                            {
-                                                "label": "Combustion only",
-                                                "value": "combustion_only",
+                                                "label": "Combustion vs pre-combustion",
+                                                "value": "emission_types",
                                             },
                                         ],
                                         value=None,
@@ -241,8 +237,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     Groups:
     - year: Varies years (2025, 2035, 2045), others reset to defaults
     - refrigerant_leakage: Varies leakage (0.01, 0.05, 0.1), others reset to defaults
-    - precombustion: Sets all to "Includes pre-combustion", others reset to defaults
-    - combustion_only: Sets all to "Combustion only", others reset to defaults
+    - emission_types: Varies emission type between "Includes pre-combustion" and "Combustion only", others reset to defaults
     """
     # When dropdown is cleared, clear the stored group to allow re-selecting
     if not group_id:
@@ -265,7 +260,11 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     # Define the variation values and default IDs
     year_values = [2025, 2035, 2045]
     leakage_values = [0.01, 0.05, 0.1]
-    default_ids = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
+    emission_types = ["Combustion only", "Includes pre-combustion"]
+
+    default_ids = ["em_scenario_a", "em_scenario_b"]
+    if group_id != "emission_types": # only two scenarios for comparing emission types
+        default_ids.append("em_scenario_c")
 
     # Get defaults
     default_year = EmissionScenarioDefaults.YEAR.value
@@ -288,7 +287,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         }
     )
 
-    # Reset to default 3 scenarios (a, b, c) with group-specific values
+    # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
         scen = {**base_scenario, "em_scen_id": scen_id}
@@ -303,17 +302,12 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
-        elif group_id == "precombustion":
+        elif group_id == "emission_types":
             # Set emission type, reset others to defaults
-            scen["emission_type"] = "Includes pre-combustion"
+            scen["emission_type"] = emission_types[idx % len(emission_types)]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
-        elif group_id == "combustion_only":
-            # Set emission type, reset others to defaults
-            scen["emission_type"] = "Combustion only"
-            scen["year"] = default_year
-            scen["annual_refrig_leakage_percent"] = default_leakage
-
+        
         updated_scenarios.append(scen)
 
     logger.info(
