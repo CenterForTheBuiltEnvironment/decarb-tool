@@ -75,7 +75,9 @@ HR_WWHP_PERFORMANCE_MODEL_DISPLAY = {
 }
 
 # Fields that have enumerated values needing display mapping
-ENUM_VALUE_FIELDS = frozenset({"awhp_sizing_mode", "awhp_performance_model", "hr_wwhp_performance_model"})
+ENUM_VALUE_FIELDS = frozenset(
+    {"awhp_sizing_mode", "awhp_performance_model", "hr_wwhp_performance_model"}
+)
 
 
 def format_enum_value(value: str, field_name: str) -> str:
@@ -136,6 +138,39 @@ def format_emission_scenario_id(em_scen_id: str) -> str:
     if em_scen_id.startswith("em_scenario_"):
         suffix = em_scen_id[len("em_scenario_") :]
         return f"Emission Scen. {suffix.upper()}"
+    return em_scen_id
+
+
+def format_equipment_scenario_id_short(eq_scen_id: str) -> str:
+    """Format equipment scenario ID as a short label for chart tick marks.
+
+    Args:
+        eq_scen_id: The scenario ID (e.g., "eq_scenario_1", "eq_scenario_2")
+
+    Returns:
+        Short label (e.g., "1", "2")
+    """
+    if eq_scen_id is None:
+        return ""
+    if eq_scen_id.startswith("eq_scenario_"):
+        return eq_scen_id[len("eq_scenario_") :]
+    return eq_scen_id
+
+
+def format_emission_scenario_id_short(em_scen_id: str) -> str:
+    """Format emission scenario ID as a short label for chart tick marks.
+
+    Args:
+        em_scen_id: The scenario ID (e.g., "em_scenario_a", "em_scenario_b")
+
+    Returns:
+        Short label (e.g., "A", "B")
+    """
+    if em_scen_id is None:
+        return ""
+    if em_scen_id.startswith("em_scenario_"):
+        suffix = em_scen_id[len("em_scenario_") :]
+        return suffix.upper()
     return em_scen_id
 
 

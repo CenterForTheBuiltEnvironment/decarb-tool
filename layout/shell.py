@@ -9,10 +9,14 @@ from dash import ALL, Input, Output, State, callback, dcc, html
 
 from layout.footer import shell_footer
 from layout.header import shell_header
-from layout.input import unit_toggle
+from layout.input import legend_toggle, scenario_legend_accordion, unit_toggle
 from src import paths
 from src.config import DEFAULT_SELECTIONS, LINKS
 from src.equipment import load_library  # adjust if path differs
+from utils.display_registry import (
+    format_emission_scenario_id_short,
+    format_equipment_scenario_id_short,
+)
 
 
 @lru_cache(maxsize=1)
@@ -151,6 +155,13 @@ def build_navbar_content():
             dmc.Divider(),
             unit_toggle(),
             dmc.Divider(),
+            legend_toggle(),
+            html.Div(
+                id="legend-container",
+                children=scenario_legend_accordion(),
+                style={"display": "none"},  # Hidden by default
+            ),
+            dmc.Divider(),
             dmc.Stack(  # external resources section
                 [docs_link],
                 gap="xs",
@@ -191,3 +202,86 @@ def toggle_navbar(opened, navbar):
 
     navbar["collapsed"] = collapsed
     return navbar
+
+
+@callback(
+    Output("legend-container", "style"),
+    Input("legend-toggle", "checked"),
+)
+def toggle_legend_visibility(checked):
+    """Show/hide the legend accordion based on toggle state."""
+    if checked:
+        return {"display": "block"}
+    return {"display": "none"}
+
+
+@callback(
+    Output("equipment-legend-content", "children"),
+    Input("equipment-store", "data"),
+    Input("selected-equipment-store", "data"),
+)
+def update_equipment_legend(equipment_data, selected_ids):
+    """Populate the equipment legend with ID to name mappings."""
+    if not equipment_data or not selected_ids:
+        return dmc.Text("No scenarios selected", c="dimmed", size="sm")
+
+    scenarios = equipment_data.get("equipment_scenarios", [])
+    selected_scenarios = [s for s in scenarios if s.get("eq_scen_id") in selected_ids]
+
+    if not selected_scenarios:
+        return dmc.Text("No scenarios selected", c="dimmed", size="sm")
+
+    rows = []
+    for scen in selected_scenarios:
+        scen_id = scen.get("eq_scen_id", "")
+        scen_name = scen.get("eq_scen_name", scen_id)
+        short_id = format_equipment_scenario_id_short(scen_id)
+
+        rows.append(
+            dmc.Group(
+                [
+                    dmc.Badge(short_id, size="sm", variant="light", color="blue", w=30),
+                    dmc.Text(scen_name, size="sm", truncate=True),
+                ],
+                gap="xs",
+                wrap="nowrap",
+            )
+        )
+
+    return dmc.Stack(rows, gap="xs")
+
+
+@callback(
+    Output("emission-legend-content", "children"),
+    Input("metadata-store", "data"),
+    Input("selected-emissions-store", "data"),
+)
+def update_emission_legend(metadata_data, selected_ids):
+    """Populate the emission legend with ID to name mappings."""
+    if not metadata_data or not selected_ids:
+        return dmc.Text("No scenarios selected", c="dimmed", size="sm")
+
+    scenarios = metadata_data.get("emission_settings", [])
+    selected_scenarios = [s for s in scenarios if s.get("em_scen_id") in selected_ids]
+
+    if not selected_scenarios:
+        return dmc.Text("No scenarios selected", c="dimmed", size="sm")
+
+    rows = []
+    for scen in selected_scenarios:
+        scen_id = scen.get("em_scen_id", "")
+        scen_name = scen.get("em_scen_name", scen_id)
+        short_id = format_emission_scenario_id_short(scen_id)
+
+        rows.append(
+            dmc.Group(
+                [
+                    dmc.Badge(short_id, size="sm", variant="light", color="green", w=30),
+                    dmc.Text(scen_name, size="sm", truncate=True),
+                ],
+                gap="xs",
+                wrap="nowrap",
+            )
+        )
+
+    return dmc.Stack(rows, gap="xs")

@@ -1,4 +1,3 @@
-import contextlib
 import json
 from pathlib import Path
 
@@ -258,7 +257,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     existing_scenarios = list(metadata_data["emission_settings"])
 
     default_ids = ["em_scenario_a", "em_scenario_b"]
-    if group_id != "emission_types": # only two scenarios for comparing emission types
+    if group_id != "emission_types":  # only two scenarios for comparing emission types
         default_ids.append("em_scenario_c")
 
     # Get defaults
@@ -271,7 +270,10 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     year_values = [2025, 2035, 2045]
     leakage_values = [0.01, 0.05, 0.1]
     emission_types = ["Combustion only", "Includes pre-combustion"]
-    ng_leakage_values = [EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value, default_ng_leakage]
+    ng_leakage_values = [
+        EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value,
+        default_ng_leakage,
+    ]
 
     # Create base scenario template from first existing scenario or defaults
     base_scenario = (
@@ -292,7 +294,10 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
-        scen = {**base_scenario, "em_scen_id": scen_id}
+        # Generate default name from ID suffix (a -> A, b -> B, c -> C)
+        suffix = scen_id.replace("em_scenario_", "").upper()
+        scen_name = f"Scenario {suffix}"
+        scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": scen_name}
 
         if group_id == "year":
             # Vary year, reset others to defaults
@@ -312,7 +317,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["annual_ng_leakage_g_per_kWh"] = ng_leakage_values[idx % len(ng_leakage_values)]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
-        
+
         updated_scenarios.append(scen)
 
     logger.info(
@@ -360,25 +365,34 @@ def _build_emission_base_options(metadata_json):
 
 def _next_emission_scen_id(metadata_json):
     """
-    Generate next em_scen_id like em_scenario_4, em_scenario_5, ...
+    Generate next em_scen_id like em_scenario_d, em_scenario_e, ...
+    Uses lowercase letters to match the default scenarios (a, b, c).
     """
     if not metadata_json or "emission_settings" not in metadata_json:
-        return "em_scenario_1"
+        return "em_scenario_a"
 
-    nums = []
+    existing_suffixes = set()
     for scen in metadata_json["emission_settings"]:
         sid = scen.get("em_scen_id", "")
         if isinstance(sid, str) and sid.startswith("em_scenario_"):
-            with contextlib.suppress(ValueError):
-                nums.append(int(sid.split("_")[-1]))
-    n = max(nums) + 1 if nums else 1
-    return f"em_scenario_{n}"
+            suffix = sid.split("_")[-1].lower()
+            existing_suffixes.add(suffix)
+
+    # Find next available letter (a-z)
+    for i in range(26):
+        letter = chr(ord("a") + i)
+        if letter not in existing_suffixes:
+            return f"em_scenario_{letter}"
+
+    # Fallback if all letters used (unlikely)
+    return f"em_scenario_{len(existing_suffixes) + 1}"
 
 
 @callback(
     Output("emissions-add-modal", "opened"),
     Output("add-em-base-scenario-select", "data"),
     Output("add-em-scenario-id-input", "value"),
+    Output("add-em-scenario-name-input", "value"),
     Output("add-em-scenario-error", "children"),
     Input("button-add-emission", "n_clicks"),
     Input("add-em-scenario-cancel-btn", "n_clicks"),
@@ -392,24 +406,24 @@ def emissions_add_modal(add_clicks, cancel_clicks, save_clicks, metadata_data):
 
     # initial load
     if not ctx.triggered:
-        return False, base_options, "", ""
+        return False, base_options, "", "", ""
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # Open modal
     if trigger_id == "button-add-emission":
         auto_id = _next_emission_scen_id(metadata_data)
-        return True, base_options, auto_id, ""
+        return True, base_options, auto_id, "", ""
 
     # Cancel -> close
     if trigger_id == "add-em-scenario-cancel-btn":
-        return False, base_options, "", ""
+        return False, base_options, "", "", ""
 
     # Save -> close (store update in separate callback)
     if trigger_id == "add-em-scenario-save-btn":
-        return False, base_options, "", ""
+        return False, base_options, "", "", ""
 
-    return no_update, no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update, no_update
 
 
 @callback(
@@ -421,6 +435,7 @@ def emissions_add_modal(add_clicks, cancel_clicks, save_clicks, metadata_data):
     State("selected-emissions-store", "data"),
     State("add-em-base-scenario-select", "value"),
     State("add-em-scenario-id-input", "value"),
+    State("add-em-scenario-name-input", "value"),
     prevent_initial_call=True,
 )
 def add_emission_scenario_to_metadata(
@@ -429,6 +444,7 @@ def add_emission_scenario_to_metadata(
     selected_ids,
     base_id,
     new_id,
+    new_name,
 ):
     if not save_clicks:
         return no_update, no_update, no_update
@@ -457,7 +473,14 @@ def add_emission_scenario_to_metadata(
     if base_scen is None:
         return no_update, no_update, no_update
 
-    new_scenario = {**base_scen, "em_scen_id": new_id}
+    # Use provided name or generate default from ID
+    new_name = (new_name or "").strip()
+    if not new_name:
+        # Extract suffix from ID (e.g., "em_scenario_4" -> "4")
+        suffix = new_id.replace("em_scenario_", "").upper()
+        new_name = f"Scenario {suffix}"
+
+    new_scenario = {**base_scen, "em_scen_id": new_id, "em_scen_name": new_name}
     new_scenarios = [*scenarios, new_scenario]
 
     updated_metadata = {
@@ -530,6 +553,7 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
 @callback(
     Output("emissions-edit-modal", "opened"),
     Output("edit-em-scenario-id-input", "value"),
+    Output("edit-em-scenario-name-input", "value"),
     Output("edit-em-grid-scenario", "value"),
     Output("edit-em-gea-grid-region", "value"),
     Output("edit-em-time-zone", "value"),
@@ -546,11 +570,12 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
 )
 def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     if not any(edit_clicks or []):
-        return (no_update,) * 11
+        return (no_update,) * 12
 
     if not metadata_data or "emission_settings" not in metadata_data:
         return (
             False,
+            "",
             "",
             "",
             "",
@@ -567,7 +592,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 11
+        return (no_update,) * 12
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -577,6 +602,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     except json.JSONDecodeError:
         return (
             False,
+            "",
             "",
             "",
             "",
@@ -595,6 +621,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     if scen is None:
         return (
             False,
+            "",
             "",
             "",
             "",
@@ -629,6 +656,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     return (
         True,
         scen.get("em_scen_id"),
+        scen.get("em_scen_name", ""),
         scen.get("grid_scenario", ""),
         scen.get("gea_grid_region", ""),
         scen.get("time_zone", ""),
@@ -647,6 +675,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     Output("edit-em-scenario-error", "children", allow_duplicate=True),
     Input("edit-em-scenario-save-btn", "n_clicks"),
     State("edit-em-scenario-id-input", "value"),
+    State("edit-em-scenario-name-input", "value"),
     State("edit-em-grid-scenario", "value"),
     State("edit-em-gea-grid-region", "value"),
     State("edit-em-time-zone", "value"),
@@ -662,6 +691,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
 def save_edit_emission(
     n_clicks,
     scen_id,
+    scen_name,
     grid_scenario,
     gea_grid_region,
     time_zone,
@@ -719,6 +749,7 @@ def save_edit_emission(
     for scen in scenarios:
         if scen.get("em_scen_id") == scen_id:
             new_scen = scen.copy()
+            new_scen["em_scen_name"] = scen_name or scen.get("em_scen_name", "")
             new_scen["grid_scenario"] = grid_scenario
             new_scen["gea_grid_region"] = gea_grid_region
             new_scen["time_zone"] = time_zone
@@ -926,6 +957,7 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
         )
         return no_update, [notification]
 
+
 @callback(
     Output("edit-em-ng-leakage", "value", allow_duplicate=True),
     Input("edit-em-emission-type", "value"),
@@ -935,6 +967,7 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
 def update_ng_leakage_on_emission_type_change(emission_type, unit_mode):
     """Update NG leakage when emission type changes."""
     from utils.units import format_value
+
     unit_mode = unit_mode or "SI"
 
     if emission_type == "Combustion only":

@@ -9,6 +9,7 @@ from src.mixins import DotAccessMixin
 
 class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_id: str
+    em_scen_name: str
     grid_scenario: str
     gea_grid_region: str | None = None
     time_zone: str
