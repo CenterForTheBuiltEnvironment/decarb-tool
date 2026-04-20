@@ -52,6 +52,48 @@ def unit_toggle():
     )
 
 
+def legend_toggle():
+    """Toggle to show/hide the scenario legend accordion."""
+    return dmc.Switch(
+        id="legend-toggle",
+        label="Show Scenario Legend",
+        size="sm",
+        checked=True,
+    )
+
+
+def scenario_legend_accordion():
+    """Collapsible accordion showing ID to name mappings for scenarios."""
+    return dmc.Accordion(
+        id="scenario-legend-accordion",
+        value=["equipment", "emission"],  # Both sections open by default
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl("Equipment Scenarios", fz="sm"),
+                    dmc.AccordionPanel(
+                        html.Div(id="equipment-legend-content"),
+                    ),
+                ],
+                value="equipment",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl("Emission Scenarios", fz="sm"),
+                    dmc.AccordionPanel(
+                        html.Div(id="emission-legend-content"),
+                    ),
+                ],
+                value="emission",
+            ),
+        ],
+        multiple=True,
+        variant="separated",
+        radius="md",
+        styles={"control": {"padding": "8px"}, "content": {"padding": "8px"}},
+    )
+
+
 # --------------------------------
 # LOADS page inputs
 # --------------------------------
@@ -825,7 +867,7 @@ def edit_equipment_modal():
                             id="edit-hr-wwhp-performance-model",
                             label="HR HP Performance Calculation Model",
                             placeholder="None",
-                            data = [ # not including fixed_COP and performance_curves atm
+                            data=[  # not including fixed_COP and performance_curves atm
                                 {
                                     "label": "Interpolated table (HHWST fixed)",
                                     "value": "interpolate_HHWST",
@@ -838,7 +880,7 @@ def edit_equipment_modal():
                             id="edit-awhp-performance-model",
                             label="AWHP Performance Calculation Model",
                             placeholder="None",
-                            data = [ # not including fixed_COP and performance_curves atm
+                            data=[  # not including fixed_COP and performance_curves atm
                                 {
                                     "label": "Interpolated table (HHWST fixed)",
                                     "value": "interpolate_HHWST_fixed",
@@ -846,7 +888,7 @@ def edit_equipment_modal():
                                 {
                                     "label": "Interpolated table (HHWST reset)",
                                     "value": "interpolate_HHWST_reset",
-                                }
+                                },
                             ],
                             clearable=True,
                             searchable=True,
@@ -1257,6 +1299,11 @@ def add_emission_modal():
                     label="New scenario ID",
                     placeholder="e.g. em_scenario_4",
                 ),
+                dmc.TextInput(
+                    id="add-em-scenario-name-input",
+                    label="Scenario name",
+                    placeholder="Descriptive name",
+                ),
                 dmc.Text(
                     id="add-em-scenario-error",
                     size="xs",
@@ -1613,6 +1660,11 @@ def edit_emission_modal():
                             label="Scenario ID",
                             disabled=True,
                             style={"flex": 1},
+                        ),
+                        dmc.TextInput(
+                            id="edit-em-scenario-name-input",
+                            label="Scenario name",
+                            style={"flex": 2},
                         ),
                     ],
                     grow=True,

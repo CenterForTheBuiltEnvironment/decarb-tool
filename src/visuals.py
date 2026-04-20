@@ -4,7 +4,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from utils.display_registry import format_emission_scenario_id, format_meter_name
+from utils.display_registry import (
+    format_emission_scenario_id_short,
+    format_equipment_scenario_id_short,
+    format_meter_name,
+)
 from utils.units import (
     convert_dataframe,
     get_auto_scale,
@@ -132,7 +136,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         df_s = df[df["eq_scen_id"] == scen]
 
         scen_name = name_map.get(scen, scen)
-        scen_name_short = shorten_scenario_name(scen_name)
+        scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
 
         elec_total = (
             df_s[
@@ -156,7 +160,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         # Electricity
         fig.add_trace(
             go.Bar(
-                x=[scen_name_short],
+                x=[scen_label],
                 y=[elec_scaled],
                 name="Electricity",
                 marker=dict(color=color_map_energy["Electricity"], opacity=opacities[i]),
@@ -174,7 +178,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         # Gas
         fig.add_trace(
             go.Bar(
-                x=[scen_name_short],
+                x=[scen_label],
                 y=[gas_scaled],
                 name="Gas",
                 marker=dict(color=color_map_energy["Gas"], opacity=opacities[i]),
@@ -195,7 +199,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
     for i, scen in enumerate(scenarios):
         df_s = df[df["eq_scen_id"] == scen]
         scen_name = name_map.get(scen, scen)
-        scen_name_short = shorten_scenario_name(scen_name)
+        scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
 
         elec_em = df_s["elec_emissions"].sum().sum()
         gas_em = df_s["gas_emissions"].sum().sum()
@@ -209,7 +213,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         show_legend = "Electricity" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen_name_short],
+                x=[scen_label],
                 y=[elec_em_scaled],
                 name="Electricity",
                 marker=dict(color=color_map_emissions["Electricity"], opacity=opacities[i]),
@@ -228,7 +232,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         show_legend = "Gas" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen_name_short],
+                x=[scen_label],
                 y=[gas_em_scaled],
                 name="Gas",
                 marker=dict(color=color_map_emissions["Gas"], opacity=opacities[i]),
@@ -247,7 +251,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         show_legend = "Refrigerant" not in added_legends
         fig.add_trace(
             go.Bar(
-                x=[scen_name_short],
+                x=[scen_label],
                 y=[refrig_em_scaled],
                 name="Refrigerant",
                 marker=dict(color=color_map_emissions["Refrigerant"], opacity=opacities[i]),
@@ -268,6 +272,19 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
 
     fig.update_yaxes(title_text=yaxis_title_energy, row=1, col=1)
     fig.update_yaxes(title_text=yaxis_title_emissions, row=1, col=2)
+
+    # # Shared x-axis label
+    fig.add_annotation(
+        text="Equipment Scenarios",
+        x=0.5,
+        y=-0.18,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=18, weight=200),
+        xanchor="center",
+        yanchor="top",
+    )
 
     fig = apply_standard_layout(
         fig, y_offset=-0.42, subtitle_text="Annual Energy & Emissions by Scenario."
@@ -322,7 +339,9 @@ def plot_emission_scenarios_grouped(
     fig = make_subplots(
         rows=1,
         cols=n_em_scen,
-        subplot_titles=[format_emission_scenario_id(em_scen) for em_scen in emission_scenarios],
+        subplot_titles=[
+            format_emission_scenario_id_short(em_scen) for em_scen in emission_scenarios
+        ],
         horizontal_spacing=0.12,
         shared_yaxes=True,
     )
@@ -342,7 +361,7 @@ def plot_emission_scenarios_grouped(
                 continue
 
             scen_name = df_s["eq_scen_name"].iloc[0]  # for hover template
-            scen_name_short = shorten_scenario_name(scen_name)
+            scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
 
             elec_em = df_s["elec_emissions"].sum()
             gas_em = df_s["gas_emissions"].sum()
@@ -357,7 +376,7 @@ def plot_emission_scenarios_grouped(
             show_legend = "Electricity" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen_name_short],  # 👈 use name instead of ID
+                    x=[scen_label],
                     y=[elec_em_scaled],
                     name="Electricity",
                     marker=dict(color=color_map_emissions["Electricity"]),
@@ -377,7 +396,7 @@ def plot_emission_scenarios_grouped(
             show_legend = "Gas" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen_name_short],
+                    x=[scen_label],
                     y=[gas_em_scaled],
                     name="Gas",
                     marker=dict(color=color_map_emissions["Gas"]),
@@ -397,7 +416,7 @@ def plot_emission_scenarios_grouped(
             show_legend = "Refrigerant" not in added_legends
             fig.add_trace(
                 go.Bar(
-                    x=[scen_name_short],
+                    x=[scen_label],
                     y=[refrig_em_scaled],
                     name="Refrigerant",
                     marker=dict(color=color_map_emissions["Refrigerant"]),
@@ -424,6 +443,19 @@ def plot_emission_scenarios_grouped(
 
     # Shared y-axis label
     fig.update_yaxes(title_text=yaxis_title_emissions, row=1, col=1)
+
+    # Shared x-axis label
+    fig.add_annotation(
+        text="Equipment Scenarios",
+        x=0.5,
+        y=-0.18,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=18, weight=200),
+        xanchor="center",
+        yanchor="top",
+    )
 
     return fig
 

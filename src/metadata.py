@@ -94,6 +94,7 @@ class Metadata(DotAccessMixin, BaseModel):
             emission_settings=[
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
+                    em_scen_name="Scenario A",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
@@ -105,6 +106,7 @@ class Metadata(DotAccessMixin, BaseModel):
                 ),
                 EmissionScenario(
                     em_scen_id="em_scenario_b",
+                    em_scen_name="Scenario B",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
@@ -116,6 +118,7 @@ class Metadata(DotAccessMixin, BaseModel):
                 ),
                 EmissionScenario(
                     em_scen_id="em_scenario_c",
+                    em_scen_name="Scenario C",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
