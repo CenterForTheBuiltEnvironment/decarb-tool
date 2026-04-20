@@ -41,14 +41,30 @@ def serve_layout():
 app.layout = serve_layout
 
 
-@callback(
-    Output("session-store", "data", allow_duplicate=True),
+# Clientside callback to generate session_id only if it doesn't exist.
+# This ensures the session_id persists across page refreshes (stored in browser sessionStorage)
+# but creates a new one for new tabs/sessions.
+app.clientside_callback(
+    """
+    function(data) {
+        if (!data || !data.session_id) {
+            return {session_id: crypto.randomUUID()};
+        }
+        return dash_clientside.no_update;
+    }
+    """,
+    Output("session-store", "data"),
     Input("session-store", "data"),
-    prevent_initial_call=True,
+)
+
+
+@callback(
+    Input("session-store", "data"),
 )
 def log_session_id(session_data):
-    logger.debug(f"Session initialized: {session_data['session_id']}")
-    return session_data
+    """Log when a session is initialized (runs server-side after clientside callback)."""
+    if session_data and session_data.get("session_id"):
+        logger.debug(f"Session initialized: {session_data['session_id']}")
 
 
 if __name__ == "__main__":
