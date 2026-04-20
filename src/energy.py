@@ -1093,7 +1093,6 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
 def site_to_source(
     df_loads: pd.DataFrame,
     metadata: Metadata,
-    gas_emissions_rate: float = 239.2,  # gCO2e/kWh (example default)
 ) -> pd.DataFrame:
     """
     Convert site energy data (from loads_to_site) into source emissions
@@ -1119,6 +1118,7 @@ def site_to_source(
 
         shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
+        gas_emissions_rate = float(em_scen.annual_ng_leakage_g_per_kWh)
 
         # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()
