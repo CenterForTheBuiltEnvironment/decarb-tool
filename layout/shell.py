@@ -84,7 +84,19 @@ def build_shell(page_content):
 
     navbar = dmc.AppShellNavbar(
         id="navbar",
-        children=build_navbar_content(),
+        children=dmc.ScrollArea(
+            build_navbar_content(),
+            type="hover",
+            offsetScrollbars=True,
+            scrollbarSize=10,
+            scrollHideDelay=1000,
+            styles={
+                "thumb": {
+                    "backgroundColor": "var(--mantine-color-gray-2)",
+                },
+            },
+            p="0px 10px 0px 0px",
+        ),
         p="md",
     )
 
@@ -116,7 +128,7 @@ def build_shell(page_content):
         header={"height": 120},
         # footer={"height": 120},
         navbar={
-            "width": 300,
+            "width": 350,
             "breakpoint": "sm",
             "collapsed": {"mobile": True, "desktop": False},
         },
