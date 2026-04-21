@@ -248,7 +248,7 @@ def update_equipment_legend(equipment_data, selected_ids):
             dmc.Group(
                 [
                     dmc.Tooltip(
-                        dmc.Badge(short_id, size="sm", variant="light", color="blue", w=30),
+                        dmc.Badge(short_id, size="sm", variant="light", color="blue", w=40),
                         label=scen_name,
                         position="right",
                         withArrow=True,
@@ -289,7 +289,7 @@ def update_emission_legend(metadata_data, selected_ids):
             dmc.Group(
                 [
                     dmc.Tooltip(
-                        dmc.Badge(short_id, size="sm", variant="light", color="green", w=30),
+                        dmc.Badge(short_id, size="sm", variant="light", color="green", w=40),
                         label=scen_name,
                         position="right",
                         withArrow=True,
