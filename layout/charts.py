@@ -74,6 +74,7 @@ def energy_emissions_chart():
                 placeholder="Equipment Scenarios",
                 searchable=True,
                 clearable=True,
+                w=1050,  # fix for now; should be dynamic
             ),
             dmc.Select(
                 id="total-emission-scen-dropdown",
