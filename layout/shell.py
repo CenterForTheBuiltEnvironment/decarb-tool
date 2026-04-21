@@ -13,10 +13,7 @@ from layout.input import legend_toggle, scenario_legend_accordion, unit_toggle
 from src import paths
 from src.config import DEFAULT_SELECTIONS, LINKS
 from src.equipment import load_library  # adjust if path differs
-from utils.display_registry import (
-    format_emission_scenario_id_short,
-    format_equipment_scenario_id_short,
-)
+from utils.display_registry import format_emission_scenario_id_short
 
 
 @lru_cache(maxsize=1)
@@ -46,6 +43,11 @@ def build_shell(page_content):
             id="selected-equipment-store",
             storage_type="session",
             data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+        ),
+        dcc.Store(
+            id="equipment-scenario-number-map",
+            storage_type="session",
+            data={},
         ),
         dcc.Store(
             id="displayed-equipment-store",
@@ -239,10 +241,10 @@ def update_equipment_legend(equipment_data, selected_ids):
         return dmc.Text("No scenarios selected", c="dimmed", size="sm")
 
     rows = []
-    for scen in selected_scenarios:
+    for i, scen in enumerate(selected_scenarios):
         scen_id = scen.get("eq_scen_id", "")
         scen_name = scen.get("eq_scen_name", scen_id)
-        short_id = format_equipment_scenario_id_short(scen_id)
+        short_id = str(i + 1)  # Display position (1-5) instead of scenario ID suffix
 
         rows.append(
             dmc.Group(
@@ -302,3 +304,14 @@ def update_emission_legend(metadata_data, selected_ids):
         )
 
     return dmc.Stack(rows, gap="xs")
+
+
+@callback(
+    Output("equipment-scenario-number-map", "data"),
+    Input("selected-equipment-store", "data"),
+)
+def update_equipment_number_map(selected_ids):
+    """Create mapping of scenario_id -> display_number (1-5)."""
+    if not selected_ids:
+        return {}
+    return {scen_id: i + 1 for i, scen_id in enumerate(selected_ids)}

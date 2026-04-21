@@ -20,10 +20,7 @@ from src.visuals import (
     plot_meter_timeseries,
     plot_scatter_temp_vs_variable,
 )
-from utils.display_registry import (
-    format_emission_scenario_id,
-    format_equipment_scenario_id,
-)
+from utils.display_registry import format_emission_scenario_id
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -363,8 +360,9 @@ def download_results(n_clicks, session_data, unit_mode):
     Output("scatter-equipment-scen-dropdown", "value"),
     Input("session-store", "data"),
     State("selected-equipment-store", "data"),  # optional, keeps user ordering
+    State("equipment-scenario-number-map", "data"),  # display numbers (1-5)
 )
-def populate_equipment_dropdowns(session_data, selected_equipment_ids):
+def populate_equipment_dropdowns(session_data, selected_equipment_ids, number_map):
     """
     Populate all equipment scenario dropdowns with only the scenarios
     that were actually computed for this session.
@@ -395,9 +393,14 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids):
         # Fallback: nothing computed
         return [], [], [], None, [], None, [], []
 
-    # Build options list with user-friendly labels
+    # Build options list with user-friendly labels using display numbers (1-5)
+    number_map = number_map or {}
     options = [
-        {"label": format_equipment_scenario_id(scen_id), "value": scen_id} for scen_id in eq_ids
+        {
+            "label": f"Equipment Scen. {number_map.get(scen_id, '?')}",
+            "value": scen_id,
+        }
+        for scen_id in eq_ids
     ]
 
     # Defaults:

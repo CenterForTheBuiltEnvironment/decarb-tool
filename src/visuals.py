@@ -6,7 +6,6 @@ from plotly.subplots import make_subplots
 
 from utils.display_registry import (
     format_emission_scenario_id_short,
-    format_equipment_scenario_id_short,
     format_meter_name,
 )
 from utils.units import (
@@ -136,7 +135,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         df_s = df[df["eq_scen_id"] == scen]
 
         scen_name = name_map.get(scen, scen)
-        scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
+        scen_label = str(i + 1)  # Display position (1-5) instead of scenario ID suffix
 
         elec_total = (
             df_s[
@@ -199,7 +198,7 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
     for i, scen in enumerate(scenarios):
         df_s = df[df["eq_scen_id"] == scen]
         scen_name = name_map.get(scen, scen)
-        scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
+        scen_label = str(i + 1)  # Display position (1-5) instead of scenario ID suffix
 
         elec_em = df_s["elec_emissions"].sum().sum()
         gas_em = df_s["gas_emissions"].sum().sum()
@@ -353,7 +352,7 @@ def plot_emission_scenarios_grouped(
     for i, em_scen in enumerate(emission_scenarios):
         df_e = df[df["em_scen_id"] == em_scen]
 
-        for scen in equipment_scenarios:
+        for j, scen in enumerate(equipment_scenarios):
             df_s = df_e[df_e["eq_scen_id"] == scen]
 
             # if this combo doesn't exist in data, skip safely
@@ -361,7 +360,7 @@ def plot_emission_scenarios_grouped(
                 continue
 
             scen_name = df_s["eq_scen_name"].iloc[0]  # for hover template
-            scen_label = format_equipment_scenario_id_short(scen)  # Short ID for tick label
+            scen_label = str(j + 1)  # Display position (1-5) instead of scenario ID suffix
 
             elec_em = df_s["elec_emissions"].sum()
             gas_em = df_s["gas_emissions"].sum()
