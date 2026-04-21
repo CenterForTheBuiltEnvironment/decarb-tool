@@ -1,12 +1,11 @@
 import dash_bootstrap_components as dbc
-from dash import html
-
 import dash_mantine_components as dmc
+from dash import html
 from dash_iconify import DashIconify
 
-from src.metadata import Metadata
-
 from src.equipment import EquipmentLibrary, EquipmentScenario
+from src.metadata import Metadata
+from utils.units import format_with_auto_scale
 
 
 def get_nested_value(obj, attr_path):
@@ -18,10 +17,8 @@ def get_nested_value(obj, attr_path):
     for part in parts:
         if isinstance(obj, list):
             # Apply recursively to each item
-            obj = [
-                get_nested_value(o, ".".join(parts[parts.index(part) :])) for o in obj
-            ]
-            # Stop recursion once we’ve handled list expansion
+            obj = [get_nested_value(o, ".".join(parts[parts.index(part) :])) for o in obj]
+            # Stop recursion once we have handled list expansion
             return obj
         elif isinstance(obj, dict):
             obj = obj.get(part)
@@ -30,16 +27,42 @@ def get_nested_value(obj, attr_path):
     return obj
 
 
-def make_metadata_card(metadata: Metadata, fields, title=""):
+def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI"):
+    """Build a card displaying metadata fields with optional unit conversion.
+
+    Args:
+        metadata: Object with get_value() method
+        fields: List of tuples. Each tuple can be:
+            - (key, label) for plain text fields
+            - (key, label, var_type) for unit-aware fields (var_type: "power", "area", "temperature")
+        title: Card title
+        unit_mode: "SI" or "IP" for unit conversion
+    """
     rows = []
-    for key, label in fields:
+    for field in fields:
+        # Unpack field definition
+        if len(field) == 3:
+            key, base_label, var_type = field
+        else:
+            key, base_label = field
+            var_type = None
+
         value = metadata.get_value(key)  # ← uses Metadata.get_value
+
+        # Format value and label based on variable type
+        if var_type and value is not None:
+            # Apply unit conversion with auto-scaling (includes unit in output)
+            display_value = format_with_auto_scale(value, var_type, unit_mode)
+            label = base_label
+        else:
+            display_value = str(value) if value is not None else "-"
+            label = base_label
 
         rows.append(
             dmc.Group(
                 [
                     dmc.Text(label, fw=200),
-                    dmc.Text(str(value) if value is not None else "-", c="dimmed"),
+                    dmc.Text(display_value, c="dimmed"),
                 ],
                 justify="space-between",
             )
@@ -59,30 +82,34 @@ def make_metadata_card(metadata: Metadata, fields, title=""):
     )
 
 
-def building_characteristics_card(metadata: Metadata):
+def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
     fields = [
         ("location", "Location"),
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("climate_zone_output", "Climate Region"),
         ("base_gea_grid_region", "GEA Grid Region"),
-        ("area_sqm", "Building Area (m²)"),
+        ("area_sqm", "Building Area", "area"),
     ]
-    return make_metadata_card(metadata, fields, title="Building Characteristics")
+    return make_metadata_card(
+        metadata, fields, title="Building Characteristics", unit_mode=unit_mode
+    )
 
 
-def load_characteristics_card(metadata: Metadata):
+def load_characteristics_card(metadata: Metadata, unit_mode="SI"):
     load_fields = [
         ("load_data.load_type", "Load Type"),
         ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
-        ("load_data.hhw_max_load", "Peak Heating Load [W]"),
-        ("load_data.chw_max_load", "Peak Cooling Load [W]"),
-        ("load_data.max_temp", "Max. Outdoor Temp. [°C]"),
-        ("load_data.median_temp", "Median Outdoor Temp. [°C]"),
-        ("load_data.min_temp", "Min. Outdoor Temp. [°C]"),
+        ("load_data.hhw_max_load", "Peak Heating Load", "power"),
+        ("load_data.chw_max_load", "Peak Cooling Load", "power_cooling"),
+        ("load_data.max_temp", "Max. Outdoor Temp.", "temperature"),
+        ("load_data.median_temp", "Median Outdoor Temp.", "temperature"),
+        ("load_data.min_temp", "Min. Outdoor Temp.", "temperature"),
     ]
 
-    return make_metadata_card(metadata, load_fields, title="Load Characteristics")
+    return make_metadata_card(
+        metadata, load_fields, title="Load Characteristics", unit_mode=unit_mode
+    )
 
 
 def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=None):
@@ -127,7 +154,11 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
     fields = [
         ("eq_scen_name", "Scenario"),
         ("hr_wwhp", "HR WWHP"),
+        ("hr_wwhp_performance_model", "HR WWHP Performance Calculation Model"),
+        ("hr_wwhp_h_supply_t", "HR WWHP Heating Supply Temperature"),
         ("awhp", "AWHP"),
+        ("awhp_performance_model", "AWHP Performance Calculation Model"),
+        ("awhp_h_supply_t", "AWHP Heating Supply Temperature"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
@@ -145,9 +176,7 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
             title="Summary",
         )
 
-        tab_label = (
-            f"Scen. {scen.eq_scen_id[-1].upper()}" if scen.eq_scen_id else "Scenario"
-        )
+        tab_label = f"Scen. {scen.eq_scen_id[-1].upper()}" if scen.eq_scen_id else "Scenario"
 
         tabs_list_items.append(
             dmc.TabsTab(
@@ -246,16 +275,19 @@ def summary_emissions_selection(metadata: Metadata, active_tab=None):
     )
 
 
-def summary_project_info(metadata: Metadata):
-
+def summary_project_info(metadata: Metadata, unit_mode="SI"):
     overview_fields = [
         ("location", "Location"),
         ("climate_zone_output", "Climate Region"),
         ("building_type", "Building Type"),
-        ("area_sqm", "Building Area (m²)"),
+        ("area_sqm", "Building Area", "area"),
         # Load-side fields (from LoadData)
-        ("load_data.hhw_max_load", "Peak HHW Load [W]"),
-        ("load_data.chw_max_load", "Peak CHW Load [W]"),
+        ("load_data.hhw_max_load", "Peak HHW Load", "power"),
+        (
+            "load_data.chw_max_load",
+            "Peak CHW Load",
+            "power_cooling",
+        ),  # Uses TR in IP mode
         ("load_data.annual_heating_cooling_ratio", "Annual Heating/Cooling Ratio"),
     ]
 
@@ -263,6 +295,7 @@ def summary_project_info(metadata: Metadata):
         metadata,
         overview_fields,
         title="Project Overview",
+        unit_mode=unit_mode,
     )
 
 
@@ -272,12 +305,8 @@ def summary_scenario_results():
             dbc.CardHeader("Scenario Results"),
             dbc.CardBody(
                 [
-                    html.P(
-                        "This section will display the results of the selected scenario."
-                    ),
-                    html.P(
-                        "More detailed results will be added here in future updates."
-                    ),
+                    html.P("This section will display the results of the selected scenario."),
+                    html.P("More detailed results will be added here in future updates."),
                 ]
             ),
         ]
@@ -291,7 +320,6 @@ def empty_state(
     icon_size=40,
     padding=40,
 ):
-
     return dmc.Stack(
         [
             dmc.Center(

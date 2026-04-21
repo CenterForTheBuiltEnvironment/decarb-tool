@@ -1,42 +1,23 @@
-from pprint import pprint
-import pandas as pd
 from pathlib import Path
-from typing import Optional, Union
 
+import pandas as pd
 from pydantic import BaseModel
 
+from src import paths
+from src.mixins import DotAccessMixin
 
-class EmissionScenario(BaseModel):
+
+class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_id: str
+    em_scen_name: str
     grid_scenario: str
-    gea_grid_region: Optional[str] = None
+    gea_grid_region: str | None = None
     time_zone: str
     emission_type: str
     shortrun_weighting: float
     annual_refrig_leakage_percent: float
     annual_ng_leakage_g_per_kWh: float
     year: int
-
-    def get_value(self, path: str):
-        """
-        Resolve a (possibly dotted) field path, e.g.:
-        - "em_scen_id"
-        - "year"
-        - "grid_scenario"
-        """
-        parts = path.split(".")
-        curr = self
-        for part in parts:
-            if isinstance(curr, BaseModel):
-                curr = getattr(curr, part, None)
-            elif isinstance(curr, dict):
-                curr = curr.get(part)
-            else:
-                curr = getattr(curr, part, None)
-
-            if curr is None:
-                return None
-        return curr
 
 
 class StandardEmissions:
@@ -81,10 +62,10 @@ class StandardEmissions:
         return df
 
     # --------- Export ---------
-    def to_parquet(self, path: Union[str, Path]):
+    def to_parquet(self, path: str | Path):
         self.df.reset_index().to_parquet(path, engine="pyarrow", index=False)
 
-    def to_csv(self, path: Union[str, Path]):
+    def to_csv(self, path: str | Path):
         self.df.reset_index().to_csv(path, index=False)
 
     # --------- Accessors ---------
@@ -97,21 +78,23 @@ class StandardEmissions:
 
 def get_emissions_data(
     scenario: EmissionScenario,
-    path: Union[str, Path] = "data/input/emission_data.parquet",
+    path: str | Path = paths.EMISSION_DATA_PARQUET,
 ) -> StandardEmissions:
     """
     Load emissions data filtered by user-provided EmissionsScenario.
     Handles selection of 'Combustion only' vs. 'Includes pre-combustion'.
     """
 
-    df = pd.read_parquet(path, engine="pyarrow")
-
-    # --- Filter by scenario, region, and years ---
-    df = df[
-        (df["emission_scenario"] == scenario.grid_scenario)
-        & (df["gea_grid_region"] == scenario.gea_grid_region)
-        & (df["year"] == scenario.year)
-    ].copy()
+    # Use PyArrow predicate pushdown for efficient filtering at read time
+    df = pd.read_parquet(
+        path,
+        engine="pyarrow",
+        filters=[
+            ("emission_scenario", "=", scenario.grid_scenario),
+            ("gea_grid_region", "=", scenario.gea_grid_region),
+            ("year", "=", scenario.year),
+        ],
+    )
 
     if df.empty:
         raise ValueError(

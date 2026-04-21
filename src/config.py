@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class URLS(Enum):
@@ -9,23 +9,62 @@ class URLS(Enum):
 
 
 class LINKS(Enum):
-    DOCS_URL: str = (
-        "https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/main/docs/documentation-short.md"
-    )
+    DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb"
 
 
 class DEFAULT_SELECTIONS(Enum):
-    EQUIPMENT_SCENARIO: list = [
+    EQUIPMENT_SCENARIO = (
         "eq_scenario_1",
         "eq_scenario_2",
         "eq_scenario_3",
         "eq_scenario_4",
         "eq_scenario_5",
-    ]
-    EMISSIONS_SCENARIO: list = ["em_scenario_a", "em_scenario_b", "em_scenario_c"]
+    )
+    EMISSIONS_SCENARIO = ("em_scenario_a", "em_scenario_b", "em_scenario_c")
 
 
-class Columns(str, Enum):
+class EquipmentTableRows(Enum):
+    """Row configurations for equipment table view modes."""
+
+    SIMPLE = ("hr_wwhp", "awhp", "backup_heating", "chiller")
+    ADVANCED = (
+        "hr_wwhp",
+        "awhp",
+        "awhp_sizing_mode",
+        "awhp_sizing_value",
+        "awhp_redundancy",
+        "awhp_use_cooling",
+        "backup_heating",
+        "chiller",
+    )
+
+
+class EmissionTableRows(Enum):
+    """Row configurations for emission table view modes."""
+
+    SIMPLE = ("grid_scenario", "gea_grid_region", "emission_type", "year")
+    ADVANCED = (
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
+        "shortrun_weighting",
+        "annual_refrig_leakage_percent",
+        "annual_ng_leakage_g_per_kWh",
+        "year",
+    )
+
+
+class EmissionScenarioDefaults(Enum):
+    """Default values for emission scenario parameters."""
+
+    YEAR: int = 2025
+    REFRIGERANT_LEAKAGE: float = 0.02
+    EMISSION_TYPE: str = "Includes pre-combustion"
+    NG_LEAKAGE_G_KWH: float = 239.2
+    NG_LEAKAGE_G_KWH_COMBUSTION: float = 181
+
+
+class Columns(StrEnum):
     # --- Core time & scenario metadata ---
     TIMESTAMP = "timestamp"
     YEAR = "year"
@@ -59,7 +98,7 @@ class Columns(str, Enum):
     SIMULT_H_HR_W = "simult_h_hr_W"
     ELEC_HR_WH = "elec_hr_Wh"
 
-    # --- Air–Water Heat Pump (Heating) ---
+    # --- Air-Water Heat Pump (Heating) ---
     AWHP_NUM_H = "awhp_num_h"
     AWHP_NUM_H_R = "awhp_num_h_redundant"
     AWHP_CAP_H_W = "awhp_cap_h_W"
@@ -76,7 +115,7 @@ class Columns(str, Enum):
     RES_HHW_W = "res_hhw_W"
     ELEC_RES_WH = "elec_res_Wh"
 
-    # --- Air–Water Heat Pump (Cooling) ---
+    # --- Air-Water Heat Pump (Cooling) ---
     AWHP_NUM_C = "awhp_num_c"
     AWHP_CAP_C_W = "awhp_cap_c_W"
     AWHP_COP_C = "awhp_cop_c"

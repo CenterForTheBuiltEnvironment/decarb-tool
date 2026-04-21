@@ -1,5 +1,5 @@
-from dash import dcc
 import dash_mantine_components as dmc
+from dash import dcc
 
 
 def _controls_bar(children):
@@ -13,7 +13,7 @@ def _controls_bar(children):
     )
 
 
-def _chart_block(controls, graph_id):
+def _chart_block(controls, graph_id, height=600):
     return dmc.Stack(
         [
             dmc.Space(h=5),
@@ -21,12 +21,18 @@ def _chart_block(controls, graph_id):
             dmc.Paper(
                 dcc.Loading(
                     type="default",
-                    children=dcc.Graph(id=graph_id),
+                    children=dcc.Graph(
+                        id=graph_id,
+                        style={"height": f"{height}px", "width": "100%"},
+                        config={"responsive": True},
+                    ),
                 ),
                 shadow="xs",
                 radius="md",
                 p="md",
+                style={"minHeight": f"{height + 120}px"},  # Account for padding
             ),
+            dmc.Space(h=5),
         ],
         gap="xs",
     )
@@ -68,6 +74,7 @@ def energy_emissions_chart():
                 placeholder="Equipment Scenarios",
                 searchable=True,
                 clearable=True,
+                w=1050,  # fix for now; should be dynamic
             ),
             dmc.Select(
                 id="total-emission-scen-dropdown",
@@ -262,4 +269,5 @@ def chart_tabs():
         id="chart-tabs",
         value="emissions",
         mt="sm",
+        keepMounted=True,  # Keep all tabs rendered to prevent layout shift on tab switch
     )

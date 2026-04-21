@@ -71,49 +71,61 @@ It supports building decarbonization planning by enabling users to assess and co
 * Interactive results: Compare energy use, emissions, and key performance indicators across equipment and emission scenarios to support early-stage decision-making and sensitivity analyses.
 
 ### Purpose
-The tool is designed to bring consistency, transparency, and scientific robustness to HVAC decarbonization studies — reducing reliance on proprietary or ad hoc internal modeling approaches.
+The tool is designed to bring consistency, transparency, and scientific robustness to HVAC decarbonization studies and to reduce the reliance on proprietary or ad hoc internal modeling approaches.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
 
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![Plotly Dash](https://img.shields.io/badge/plotly-3F4F75.svg?style=for-the-badge&logo=plotly&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![DMC](https://img.shields.io/badge/DMC-008DE4?style=for-the-badge&logo=mantine&logoColor=white) ![Plotly Dash](https://img.shields.io/badge/plotly-3F4F75.svg?style=for-the-badge&logo=plotly&logoColor=white)
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-<!-- GETTING STARTED
 ## Getting Started
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
-
 
 ### Prerequisites
-Software or tools required before installation. <br>
-Make sure `requirements.txt` is up-to-date.
-
-<!-- INSTALLATION CODE BLOCK -->
-<!-- 
-
+- Python 3.12+
+- pip
 
 ### Installation
-Step-by-step guide on how to install and set up the tool, incl. code blocks.
 
-```python
-def welcome(tool-name):
-    print(f"Welcome to the {tool-name} GitHub page!")
+1. Clone the repository
+   ```bash
+   git clone https://github.com/CenterForTheBuiltEnvironment/decarb-tool.git
+   cd decarb-tool
+   ```
 
-welcome("cbe-webtool-name")
-```
+2. Create and activate a virtual environment
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
+3. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p> -->
+4. Set up pre-commit hooks (for contributors)
+   ```bash
+   pre-commit install
+   ```
+   This enables automatic code formatting and linting with [Ruff](https://docs.astral.sh/ruff/) on each commit.
+
+5. Run the development server
+   ```bash
+   python app.py
+   ```
+   The app will be available at http://localhost:8050
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- USAGE EXAMPLES -->
 ## Documentation
-While the tool is still under development, we have set up a short documentation outlining underlying calculations [here](). <br>
+While the tool is still under development, we have set up a short documentation outlining underlying calculations [here](https://cbe-berkeley.gitbook.io/decarb). <br>
 
 <!-- - All larger tools should have a dedicated Documentation, ideally set up using GitBook and linked to the `docs` folder. -->
 
@@ -160,7 +172,7 @@ Thanks!
 
 
 ## License
-Distributed under the GNU General Public License. See `LICENSE_GNU_GPLv3` file for more information.
+Distributed under the MIT License. See `MIT License` file for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

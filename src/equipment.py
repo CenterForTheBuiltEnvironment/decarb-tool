@@ -1,43 +1,26 @@
-from typing import List, Literal, Optional, Union, Dict
-from pydantic import BaseModel, Field, PrivateAttr
 import json
+from functools import lru_cache
 from pathlib import Path
-import numpy as np
+from typing import Literal
 
-from utils.interp import interp_vector
+from pydantic import BaseModel, Field, PrivateAttr
+
+from src.mixins import DotAccessMixin
 
 
 # --- Models ---
-class COPCurve(BaseModel):
-    t_out_C: List[float]
-    cop: List[float]
-
-    def get_cop(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.cop, temp))
-
-
-class CapCurve(BaseModel):
-    t_out_C: List[float]
-    capacity_W: List[float]
-
-    def get_capacity(self, temp: float) -> float:
-        return float(interp_vector(self.t_out_C, self.capacity_W, temp))
-
-
-class plrCurve(BaseModel):
-    capacity_W: List[float]
-    cop: List[float]
-
-    def get_cop(self, cap: float) -> float:
-        return float(interp_vector(self.capacity_W, self.cop, cap))
+class PerformanceCurves(BaseModel):
+    cop: list[float] | None = None
+    capacity_W: list[float] | None = None
+    constraints: dict[str, float] | None = None
 
 
 class Performance(BaseModel):
-    cop_curve: Optional[COPCurve] = None
-    cap_curve: Optional[CapCurve] = None
-    plr_curve: Optional[plrCurve] = None
-    efficiency: Optional[float] = None
-    constraints: Optional[Dict[str, float]] = None
+    t_out_C: list[float] | None = None  # for AWHPs
+    capacity_W: list[float] | None = None  # for WWHPs
+    leaving_supply_t: dict[str, PerformanceCurves] | None = None
+    efficiency: float | None = None  # for boilers/chillers
+    constraints: dict[str, float] | None = None
 
 
 class Emissions(BaseModel):
@@ -47,67 +30,65 @@ class Emissions(BaseModel):
 class Equipment(BaseModel):
     eq_id: str
     eq_type: str
-    eq_subtype: Optional[str] = None
-    eq_manufacturer: Optional[str] = None
+    eq_subtype: str | None = None
+    eq_calc_type: str | None = None
+    eq_manufacturer: str | None = None
     model: str
+    nominal_capacity_W: int | None = None
     fuel: str
-    refrigerant: Optional[str] = None
-    refrigerant_weight_g: Optional[float] = None
-    refrigerant_gwp: Optional[float] = None  # in kgCO2e per kg of refrigerant
-    capacity_W: Optional[float] = None
-    performance: Dict[str, Performance] = Field(default_factory=dict)
-    emissions: Optional[Emissions] = (
-        None  #! potentially rename to something more specific
-    )
+    refrigerant: str | None = None
+    refrigerant_weight_g: float | None = None
+    refrigerant_gwp: float | None = None  # in kgCO2e per kg of refrigerant
+    capacity_W: float | None = None
+    performance: dict[str, Performance] = Field(default_factory=dict)
+    emissions: Emissions | None = None  #! potentially rename to something more specific
 
     @property
-    def performance_heating(self) -> Optional[Performance]:
+    def performance_heating(self) -> Performance | None:
         return self.performance.get("heating")
 
     @property
-    def performance_cooling(self) -> Optional[Performance]:
+    def performance_cooling(self) -> Performance | None:
         return self.performance.get("cooling")
 
 
-class EquipmentScenario(BaseModel):
+class EquipmentScenario(DotAccessMixin, BaseModel):
     eq_scen_id: str
     eq_scen_name: str
-    hr_wwhp: Optional[str]
-    awhp: Optional[str]
-    awhp_sizing_mode: Optional[Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"]] = None
+    hr_wwhp: str | None = None
+    hr_wwhp_performance_model: (
+        Literal["fixed_COP", "interpolate_HHWST", "performance_curves"] | None
+    ) = None
+    hr_wwhp_h_supply_t: float | None = None
+    awhp: str | None = None
+    awhp_performance_model: (
+        Literal[
+            "fixed_COP", "interpolate_HHWST_fixed", "interpolate_HHWST_reset", "performance_curves"
+        ]
+        | None
+    ) = None
+    awhp_h_supply_t: float | None = None
+    awhp_sizing_mode: (
+        Literal["integer_sizing_peak_load", "fractional_sizing_peak_load", "fixed_num_units"] | None
+    ) = None
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
-    backup_heating: Optional[str]
-    chiller: Optional[str] = None
+    backup_heating: str | None = None
+    chiller: str | None = None
 
-    def get_value(self, path: str):
-        """
-        Resolve a (possibly dotted) field path, e.g.:
-        - "eq_scen_name"
-        - "awhp"
-        - "awhp_sizing_mode"
-        """
-        parts = path.split(".")
-        curr = self
-        for part in parts:
-            if isinstance(curr, BaseModel):
-                curr = getattr(curr, part, None)
-            elif isinstance(curr, dict):
-                curr = curr.get(part)
-            else:
-                curr = getattr(curr, part, None)
 
-            if curr is None:
-                return None
-        return curr
+class ScenarioGroup(BaseModel):
+    group_id: str
+    group_name: str
+    scenario_ids: list[str]
 
 
 # --- Dot-accessible wrapper with dynamic updates ---
 class DotDict:
-    def __init__(self, items: List[BaseModel], id_attr: str):
+    def __init__(self, items: list[BaseModel], id_attr: str):
         self._id_attr = id_attr
-        self._items: Dict[str, BaseModel] = {}
+        self._items: dict[str, BaseModel] = {}
         for item in items:
             self.add(item)
 
@@ -142,8 +123,9 @@ class DotDict:
 
 # --- Library ---
 class EquipmentLibrary(BaseModel):
-    equipment: List[Equipment]
-    equipment_scenarios: List[EquipmentScenario]
+    equipment: list[Equipment]
+    equipment_scenarios: list[EquipmentScenario]
+    scenario_groups: list[ScenarioGroup] = []
 
     # Private (non-validated) attributes
     _equipment_dict: DotDict = PrivateAttr()
@@ -169,13 +151,9 @@ class EquipmentLibrary(BaseModel):
         self.equipment = [e for e in self.equipment if e.eq_id != eq_id]
         self._equipment_dict.remove(eq_id)
 
-    def add_equipment_scenario(
-        self, scenario: EquipmentScenario, overwrite: bool = True
-    ):
+    def add_equipment_scenario(self, scenario: EquipmentScenario, overwrite: bool = True):
         """Add a new scenario. Overwrites existing if `overwrite=True`."""
-        existing = [
-            s for s in self.equipment_scenarios if s.eq_scen_id == scenario.eq_scen_id
-        ]
+        existing = [s for s in self.equipment_scenarios if s.eq_scen_id == scenario.eq_scen_id]
 
         if existing:
             if overwrite:
@@ -197,10 +175,10 @@ class EquipmentLibrary(BaseModel):
         self.equipment_scenarios = [
             s for s in self.equipment_scenarios if s.eq_scen_id != eq_scen_id
         ]
-        self.scenarios.remove(eq_scen_id)
+        self._scenarios.remove(eq_scen_id)
 
     # Save back to JSON
-    def to_json(self, file_path: Union[str, Path], indent: int = 2):
+    def to_json(self, file_path: str | Path, indent: int = 2):
         """
         Save the current library state to a JSON file.
 
@@ -221,7 +199,9 @@ class EquipmentLibrary(BaseModel):
 
 
 # --- Loader ---
-def load_library(file_path: Union[str, Path]) -> EquipmentLibrary:
+@lru_cache(maxsize=4)
+def load_library(file_path: str | Path) -> EquipmentLibrary:
+    """Load equipment library from JSON file with caching."""
     file_path = Path(file_path)
     with file_path.open("r") as f:
         data = json.load(f)

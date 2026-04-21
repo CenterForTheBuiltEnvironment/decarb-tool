@@ -19,6 +19,7 @@ class ScenarioTableStyle:
     # Styles
     active_col_style: dict = None
     inactive_col_style: dict = None
+    diff_row_style: dict = None
 
     def __post_init__(self):
         object.__setattr__(
@@ -27,6 +28,14 @@ class ScenarioTableStyle:
             {"backgroundColor": "var(--mantine-color-blue-0)", "fontWeight": 500},
         )
         object.__setattr__(self, "inactive_col_style", {})
+        object.__setattr__(
+            self,
+            "diff_row_style",
+            {
+                "fontWeight": 2000,
+                "borderLeft": "5px solid var(--mantine-color-pink-7)",
+            },
+        )
 
 
 TABLE_STYLE = ScenarioTableStyle()
@@ -35,11 +44,13 @@ TABLE_STYLE = ScenarioTableStyle()
 # --- Helpers for table value formatting and styling ---
 
 
-def format_table_value(raw_value):
+def format_table_value(raw_value, field_name: str | None = None):
     """
     Normalize values for display in tables.
     - None / "None" -> em dash
     - booleans -> Yes / No
+    - Equipment IDs -> model names (when field_name is provided)
+    - Enum values -> user-friendly names (when field_name is provided)
     """
     if raw_value is None:
         return "—"
@@ -47,6 +58,22 @@ def format_table_value(raw_value):
         return "-"
     if isinstance(raw_value, bool):
         return "Yes" if raw_value else "No"
+
+    # Map equipment IDs and enum values to display names
+    if field_name is not None:
+        from utils.display_registry import (
+            ENUM_VALUE_FIELDS,
+            EQUIPMENT_ID_FIELDS,
+            format_enum_value,
+            get_equipment_display_name,
+        )
+
+        if field_name in EQUIPMENT_ID_FIELDS:
+            return get_equipment_display_name(raw_value)
+
+        if field_name in ENUM_VALUE_FIELDS:
+            return format_enum_value(raw_value, field_name)
+
     return str(raw_value)
 
 
@@ -69,3 +96,29 @@ def value_deemphasis_style(raw_value):
         }
 
     return {}
+
+
+def get_diff_fields(df, fields):
+    """
+    Identify which fields have differing values across rows in the DataFrame.
+
+    Args:
+        df: DataFrame with scenarios as rows
+        fields: List of field names to check
+
+    Returns:
+        Set of field names that have more than one unique value
+    """
+    diff_fields = set()
+    for field in fields:
+        if field not in df.columns:
+            continue
+        # Count unique values, treating None/NaN as a distinct value
+        col = df[field]
+        has_null = col.isna().any()
+        unique_non_null = col.dropna().unique()
+
+        # Difference exists if: multiple non-null values, OR mix of null and non-null
+        if len(unique_non_null) > 1 or (has_null and len(unique_non_null) >= 1):
+            diff_fields.add(field)
+    return diff_fields

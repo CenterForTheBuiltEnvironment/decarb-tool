@@ -1,22 +1,38 @@
+import json
+from functools import lru_cache
+
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-from dash_iconify import DashIconify
 import dash_mantine_components as dmc
 import pandas as pd
-import json
-from pathlib import Path
+from dash import dcc, html
+from dash_iconify import DashIconify
 
+from layout.table_config import (
+    TABLE_STYLE,
+    format_table_value,
+    get_diff_fields,
+    value_deemphasis_style,
+)
+from src import paths
+from src.config import EmissionTableRows, EquipmentTableRows
 from utils.tooltips import with_tooltip
-from utils.units import unit_map
 
-from layout.table_config import TABLE_STYLE, format_table_value, value_deemphasis_style
 
-META_INDEX_PATH = Path("data/input/metadata_index.json")
-with META_INDEX_PATH.open("r") as f:
-    METADATA_INDEX = json.load(f)
+@lru_cache(maxsize=1)
+def _get_metadata_index():
+    """Lazy-load and cache the metadata index JSON."""
+    with paths.METADATA_INDEX_JSON.open("r") as f:
+        return json.load(f)
 
-LOAD_INDEX = METADATA_INDEX["load_data_full"]
-EMISSIONS_INDEX = METADATA_INDEX["emissions"]
+
+def get_load_index():
+    """Get load data index from metadata index (lazy-loaded)."""
+    return _get_metadata_index()["load_data_full"]
+
+
+def get_emissions_index():
+    """Get emissions index from metadata index (lazy-loaded)."""
+    return _get_metadata_index()["emissions"]
 
 
 def unit_toggle():
@@ -36,21 +52,55 @@ def unit_toggle():
     )
 
 
+def legend_toggle():
+    """Toggle to show/hide the scenario legend accordion."""
+    return dmc.Switch(
+        id="legend-toggle",
+        label="Show Scenario Legend",
+        size="sm",
+        checked=False,
+    )
+
+
+def scenario_legend_accordion():
+    """Collapsible accordion showing ID to name mappings for scenarios."""
+    return dmc.Accordion(
+        id="scenario-legend-accordion",
+        value=["equipment", "emission"],  # Both sections open by default
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl("Equipment Scenarios", fz="sm"),
+                    dmc.AccordionPanel(
+                        html.Div(id="equipment-legend-content"),
+                    ),
+                ],
+                value="equipment",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl("Emission Scenarios", fz="sm"),
+                    dmc.AccordionPanel(
+                        html.Div(id="emission-legend-content"),
+                    ),
+                ],
+                value="emission",
+            ),
+        ],
+        multiple=True,
+        variant="separated",
+        radius="md",
+        styles={"control": {"padding": "8px"}, "content": {"padding": "8px"}},
+    )
+
+
 # --------------------------------
 # LOADS page inputs
 # --------------------------------
 
 
-def select_location(locations_df: pd.DataFrame):
-
-    #! Use metadata_index here
-    options = [
-        {
-            "label": f"{row['zip']} {row['city']}, {row['state_id']}",
-            "value": row["zip"],
-        }
-        for _, row in locations_df.iterrows()
-    ]
+def select_location():
+    """Location selector with server-side search (options loaded via callback)."""
     return html.Div(
         [
             dbc.Label(
@@ -62,8 +112,8 @@ def select_location(locations_df: pd.DataFrame):
             ),
             dcc.Dropdown(
                 id="location-input",
-                options=options,
-                placeholder="Search by city or zip...",
+                options=[],  # Options loaded dynamically via callback
+                placeholder="Type to search by city or zip...",
                 searchable=True,
                 clearable=True,
             ),
@@ -103,16 +153,12 @@ def select_load_type():
                                 children=dbc.Button(
                                     [
                                         "Upload Custom Data ",
-                                        DashIconify(
-                                            icon="material-symbols:upload", width=20
-                                        ),
+                                        DashIconify(icon="material-symbols:upload", width=20),
                                     ],
                                     color="secondary",
-                                    disabled=True,
                                 ),
                                 accept=".csv",
                                 multiple=False,
-                                disabled=True,
                             ),
                             html.Div(id="upload-data-alert", className="mt-2"),
                         ],
@@ -126,41 +172,97 @@ def select_load_type():
     )
 
 
-def build_building_table(buildings_data, selected_id=None):
+def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"):
     """
     Build a table from a DataFrame with predefined columns.
     Only displays columns that exist in the data.
+    Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
-    # Define desired columns with their display names
+    from utils.units import (
+        get_auto_scale_for_values,
+        get_category,
+    )
+
+    # Define desired columns with their base display names (without units)
+    # Format: (column_name, display_name)
     column_config = [
         ("location", "Location"),
         ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
         ("load_type", "Source"),
-        ("area_sqm", "Area [m²]"),
-        ("hhw_max_load", "Peak HHW Load [W]"),
-        ("chw_max_load", "Peak CHW Load [W]"),
+        ("area_sqm", "Area"),
+        ("hhw_max_load", "Peak HHW Load"),
+        ("chw_max_load", "Peak CHW Load"),
         ("annual_heating_cooling_ratio", "Annual H/C Ratio"),
-        ("min_temp", "Min Temp [°C]"),
-        ("max_temp", "Max Temp [°C]"),
+        ("min_temp", "Min Temp"),
+        ("max_temp", "Max Temp"),
     ]
 
     available_columns = [
         (col, label) for col, label in column_config if col in buildings_data.columns
     ]
 
-    # Build body rows
+    # Pre-calculate auto-scaling for each column
+    # Store (scale_factor, unit_label) for each column
+    column_scales = {}
+    for col, _ in available_columns:
+        category = get_category(col)
+        if category:
+            # Get all non-null values for this column (in base units)
+            values = buildings_data[col].dropna().tolist()
+            if values:
+                scale, unit = get_auto_scale_for_values(values, category, unit_mode)
+                column_scales[col] = (scale, unit)
+
+    # Build header labels with auto-scaled units
+    def get_header_label(col_name: str, base_label: str) -> str:
+        if col_name in column_scales:
+            _, unit = column_scales[col_name]
+            return f"{base_label} [{unit}]"
+        return base_label
+
+    # Build body rows with auto-scaling (directly from base units)
+    # Convert to list of dicts for faster iteration (iterrows is very slow)
+    records = buildings_data.to_dict("records")
     body_rows = []
-    for idx, row in buildings_data.iterrows():
+    for idx, row in enumerate(records):
         cells = [
             dmc.TableTd(dmc.Radio(value=str(row.get("building_id", idx))))
         ]  # use 'building_id' field or index
-        cells.extend([dmc.TableTd(str(row[col])) for col, _ in available_columns])
+
+        for col, _ in available_columns:
+            raw_value = row.get(col)
+            # Scale value if it has a registered category
+            if col in column_scales and raw_value is not None:
+                try:
+                    scale, _ = column_scales[col]
+                    # Divide base unit value by scale to get display value
+                    scaled = float(raw_value) / scale
+                    # Format based on magnitude of scaled value
+                    if abs(scaled) >= 1000:
+                        display_value = f"{scaled:,.0f}"
+                    elif abs(scaled) >= 1:
+                        display_value = f"{scaled:,.1f}"
+                    else:
+                        display_value = f"{scaled:,.2f}"
+                except (TypeError, ValueError):
+                    display_value = str(raw_value)
+            else:
+                display_value = str(raw_value) if raw_value is not None else "—"
+
+            cells.append(dmc.TableTd(display_value))
+
         body_rows.append(dmc.TableTr(cells))
 
-    # Build header
-    header_cells = [dmc.TableTh("")]  # radio column
-    header_cells.extend([dmc.TableTh(label) for _, label in available_columns])
+    # Build header (use normal case, not uppercase)
+    header_style = {"textTransform": "none", "fontWeight": 500}
+    header_cells = [dmc.TableTh("", style=header_style)]  # radio column
+    header_cells.extend(
+        [
+            dmc.TableTh(get_header_label(col, label), style=header_style)
+            for col, label in available_columns
+        ]
+    )
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -186,15 +288,15 @@ def build_building_table(buildings_data, selected_id=None):
 
 
 def modal_load_data_selection(buildings_df: pd.DataFrame):
-
     # --- options from metadata_index.json ----------------------------------
-    building_type_options = sorted(LOAD_INDEX["building_type"])
-    climate_zone_options = sorted(LOAD_INDEX["ashrae_climate_zone"])
-    load_type_options = ["all"] + LOAD_INDEX["load_type"]
+    load_index = get_load_index()
+    building_type_options = sorted(load_index["building_type"])
+    climate_zone_options = sorted(load_index["ashrae_climate_zone"])
+    load_type_options = ["all"] + load_index["load_type"]
 
-    area_min, area_max = LOAD_INDEX["area_sqm"]
-    hhw_min, hhw_max = LOAD_INDEX["hhw_max_load"]
-    chw_min, chw_max = LOAD_INDEX["chw_max_load"]
+    area_min, area_max = load_index["area_sqm"]
+    hhw_min, hhw_max = load_index["hhw_max_load"]
+    chw_min, chw_max = load_index["chw_max_load"]
 
     return dmc.Modal(
         title="Load Data Library",
@@ -219,8 +321,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="load-type-filter",
                                 label="Load type",
                                 data=[
-                                    {"value": v, "label": v.capitalize()}
-                                    for v in load_type_options
+                                    {"value": v, "label": v.capitalize()} for v in load_type_options
                                 ],
                                 value="all",
                                 clearable=False,
@@ -231,10 +332,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="climate-filter",
                                 label="Climate zone",
                                 placeholder="All",
-                                data=[
-                                    {"value": cz, "label": cz}
-                                    for cz in climate_zone_options
-                                ],
+                                data=[{"value": cz, "label": cz} for cz in climate_zone_options],
                                 value=None,
                                 clearable=True,
                                 style={"width": 180},
@@ -244,10 +342,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 id="building-type-filter",
                                 label="Building type",
                                 placeholder="All",
-                                data=[
-                                    {"value": bt, "label": bt}
-                                    for bt in building_type_options
-                                ],
+                                data=[{"value": bt, "label": bt} for bt in building_type_options],
                                 value=None,
                                 clearable=True,
                                 searchable=True,
@@ -255,7 +350,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("Area (m²)", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="area-slider-label",
+                                        children="Area (m²)",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="area-range-slider",
                                         min=area_min,
@@ -272,7 +372,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("HHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="hhw-slider-label",
+                                        children="HHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="hhw-range-slider",
                                         min=hhw_min,
@@ -289,7 +394,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                             ),
                             dmc.Stack(
                                 [
-                                    dmc.Text("CHW Peak Load [W]", size="sm", fw=500),
+                                    dmc.Text(
+                                        id="chw-slider-label",
+                                        children="CHW Peak Load [kW]",
+                                        size="sm",
+                                        fw=500,
+                                    ),
                                     dmc.RangeSlider(
                                         id="chw-range-slider",
                                         min=chw_min,
@@ -348,7 +458,9 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
 # --------------------------------
 
 
-def build_equipment_table(equipment_data, active_ids=None):
+def build_equipment_table(
+    equipment_data, displayed_ids, active_ids=None, view_mode="simple", unit_mode="SI"
+):
     """
     Transposed equipment scenarios table:
     - Columns = equipment scenarios (eq_scen_id)
@@ -358,28 +470,58 @@ def build_equipment_table(equipment_data, active_ids=None):
     1) Selected (checkbox + EDIT / REMOVE)
     2) Scenario ID (eq_scen_id)
     3+) Other properties
+
+    Args:
+        equipment_data: Equipment scenarios data (list or DataFrame)
+        displayed_ids: List of scenario IDs to display as columns
+        active_ids: Set of scenario IDs that are selected/active
+        view_mode: One of "simple", "advanced", or "differences"
+        unit_mode: "SI" or "IP" for unit conversion
     """
+    from utils.units import get_unit_converter, get_unit_label
+
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
     else:
         equipment_df = equipment_data
 
     if equipment_df is None or equipment_df.empty:
-        return dmc.Text("No equipment scenarios defined yet.")
+        return dmc.CheckboxGroup(
+            id="equipment-checkbox-group",
+            value=[],
+            children=dmc.Text("No equipment scenarios defined yet."),
+        )
 
     # Ensure IDs exist
     if "eq_scen_id" not in equipment_df.columns:
         equipment_df["eq_scen_id"] = [f"eq_scen_{i}" for i in range(len(equipment_df))]
 
-    # Sort for stable column order
-    equipment_df = equipment_df.sort_values("eq_scen_id").reset_index(drop=True)
+    # Filter to displayed scenarios that actually exist in the data
+    available_ids = set(equipment_df["eq_scen_id"].tolist())
+    valid_displayed_ids = [sid for sid in displayed_ids if sid in available_ids]
+
+    if not valid_displayed_ids:
+        return dmc.CheckboxGroup(
+            id="equipment-checkbox-group",
+            value=[],
+            children=dmc.Text("No equipment scenarios to display."),
+        )
+
+    equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
+    equipment_df = equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
+
+    # Get unit label for temperature (dynamic based on unit_mode)
+    temp_unit = get_unit_label("temperature", unit_mode)
 
     # Rows to display (property name, label)
+    # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
     row_config = [
-        ("eq_scen_id", "Scenario ID"),
-        ("eq_scen_name", "Scenario Name"),
         ("hr_wwhp", "HR WWHP Model"),
+        ("hr_wwhp_performance_model", "HR WWHP Performance Calculation Model"),
+        ("hr_wwhp_h_supply_t", f"HR WWHP Heating Supply Temp ({temp_unit})"),
         ("awhp", "AWHP Model"),
+        ("awhp_performance_model", "AWHP Performance Calculation Model"),
+        ("awhp_h_supply_t", f"AWHP Heating Supply Temp ({temp_unit})"),
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
@@ -388,9 +530,39 @@ def build_equipment_table(equipment_data, active_ids=None):
         ("chiller", "Backup Cooling"),
     ]
 
-    available_rows = [
-        (field, label) for field, label in row_config if field in equipment_df.columns
-    ]
+    # Pre-compute which fields have differences across scenarios
+    all_fields = [field for field, _ in row_config if field in equipment_df.columns]
+    diff_fields = get_diff_fields(equipment_df, all_fields)
+
+    # Filter rows based on view mode
+    if view_mode == "simple":
+        simple_fields = set(EquipmentTableRows.SIMPLE.value)
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in equipment_df.columns and field in simple_fields
+        ]
+    elif view_mode == "differences":
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in equipment_df.columns and field in diff_fields
+        ]
+        # Handle case where no differences exist
+        if not available_rows:
+            return dmc.CheckboxGroup(
+                id="equipment-checkbox-group",
+                value=list(active_ids) if active_ids else [],
+                children=dmc.Text(
+                    "All scenarios have identical values for the displayed properties.",
+                    c="dimmed",
+                    fs="italic",
+                ),
+            )
+    else:  # "advanced" or default
+        available_rows = [
+            (field, label) for field, label in row_config if field in equipment_df.columns
+        ]
 
     active_ids = set(active_ids or [])
 
@@ -421,10 +593,10 @@ def build_equipment_table(equipment_data, active_ids=None):
     }
 
     # ---------- Header row ----------
-    header_cells = [dmc.TableTh("Property", style=prop_th_style)]
     scen_ids = []
+    header_cells = [dmc.TableTh("Equipment Scenario", style=prop_th_style)]
 
-    for _, row in equipment_df.iterrows():
+    for idx, (_, row) in enumerate(equipment_df.iterrows(), start=1):
         scen_id = str(row.get("eq_scen_id", ""))
         scen_ids.append(scen_id)
 
@@ -432,13 +604,14 @@ def build_equipment_table(equipment_data, active_ids=None):
             **scen_cell_style_base,
             **(active_col_style if scen_id in active_ids else inactive_col_style),
         }
-        header_cells.append(dmc.TableTh(scen_id, style=cell_style))
+        # Display just the number in the header
+        header_cells.append(dmc.TableTh(str(idx), style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body_rows = []
 
-    # ---------- Row 1: Selected (checkbox + actions) ----------
+    # ---------- Row 0: Selected (checkbox + actions) - moved to top ----------
     selected_cells = [dmc.TableTh("Selected", style=prop_th_style)]
     for scen_id in scen_ids:
         cell_style = {
@@ -488,24 +661,79 @@ def build_equipment_table(equipment_data, active_ids=None):
         )
     body_rows.append(dmc.TableTr(selected_cells))
 
+    # ---------- Row 1: Scenario selector dropdowns ----------
+    # Build options from ALL scenarios in the library (not just displayed)
+    all_scenario_options = [
+        {
+            "label": row.get("eq_scen_name", row.get("eq_scen_id", "")),
+            "value": row.get("eq_scen_id"),
+        }
+        for _, row in pd.DataFrame(equipment_data).iterrows()
+        if row.get("eq_scen_id")
+    ]
+
+    dropdown_cells = [dmc.TableTh("Scenario", style=prop_th_style)]
+    for idx, scen_id in enumerate(scen_ids):
+        cell_style = {
+            **scen_cell_style_base,
+            **(active_col_style if scen_id in active_ids else inactive_col_style),
+        }
+        dropdown_cells.append(
+            dmc.TableTd(
+                dmc.Select(
+                    id={"type": "equipment-column-dropdown", "column": idx},
+                    data=all_scenario_options,
+                    value=scen_id,
+                    size="xs",
+                    allowDeselect=False,
+                    style={"minWidth": "120px"},
+                ),
+                style=cell_style,
+            )
+        )
+    body_rows.append(dmc.TableTr(dropdown_cells))
+
     # ---------- Property rows ----------
+    diff_row_style = TABLE_STYLE.diff_row_style
+
+    # Get converter for temperature values
+    temp_converter = get_unit_converter("temperature", unit_mode)
+    temp_fields = {"hr_wwhp_h_supply_t", "awhp_h_supply_t"}
+
     for field, label in available_rows:
-        row_cells = [dmc.TableTh(label, style=prop_th_style)]
+        is_diff_row = field in diff_fields
+
+        # Apply diff styling to the property label cell if row has differences
+        prop_label_style = {**prop_th_style}
+        if is_diff_row:
+            prop_label_style.update(diff_row_style)
+
+        row_cells = [dmc.TableTh(label, style=prop_label_style)]
 
         for idx, scen_id in enumerate(scen_ids):
-            cell_style = {
-                **scen_cell_style_base,
-                **(active_col_style if scen_id in active_ids else inactive_col_style),
-            }
             raw_value = equipment_df.iloc[idx].get(field, "")
 
-            display_value = format_table_value(raw_value)
+            # Apply unit conversion for temperature fields
+            if field in temp_fields and raw_value is not None:
+                try:
+                    converted = temp_converter(float(raw_value))
+                    display_value = f"{converted:.1f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            else:
+                display_value = format_table_value(raw_value, field_name=field)
 
+            # Build cell style: base + active/inactive + deemphasis + diff highlighting
             cell_style = {
                 **scen_cell_style_base,
                 **(active_col_style if scen_id in active_ids else inactive_col_style),
                 **value_deemphasis_style(raw_value),
             }
+
+            # Apply bold text only for data cells in rows with differences
+            # (left border is only on the property label cell)
+            if is_diff_row:
+                cell_style["fontWeight"] = 900  # ? Is this still required?
 
             row_cells.append(dmc.TableTd(display_value, style=cell_style))
 
@@ -514,9 +742,8 @@ def build_equipment_table(equipment_data, active_ids=None):
     body = dmc.TableTbody(body_rows)
 
     # Force horizontal scrolling
-    table_min_width = (
-        TABLE_STYLE.property_col_width
-        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    table_min_width = TABLE_STYLE.property_col_width + TABLE_STYLE.scenario_col_width * max(
+        len(scen_ids), 1
     )
 
     table = dmc.ScrollArea(
@@ -636,6 +863,74 @@ def edit_equipment_modal():
                             clearable=True,
                             searchable=True,
                         ),
+                        dmc.Select(
+                            id="edit-hr-wwhp-performance-model",
+                            label="HR HP Performance Calculation Model",
+                            placeholder="None",
+                            data=[  # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST",
+                                }
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-performance-model",
+                            label="AWHP Performance Calculation Model",
+                            placeholder="None",
+                            data=[  # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST_fixed",
+                                },
+                                {
+                                    "label": "Interpolated table (HHWST reset)",
+                                    "value": "interpolate_HHWST_reset",
+                                },
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-hr-wwhp-h-supply-t-label",
+                                    children="HR HP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-wwhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=32.2,  # Updated dynamically by callback
+                                    max=73.9,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
+                                ),
+                            ],
+                        ),
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-awhp-h-supply-t-label",
+                                    children="AWHP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-awhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=35,  # Updated dynamically by callback
+                                    max=60,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
+                                ),
+                            ],
+                        ),
                     ],
                 ),
                 dmc.Divider(label="Heat pump sizing", labelPosition="center"),
@@ -741,7 +1036,7 @@ def edit_equipment_modal():
 # --------------------------------
 
 
-def build_emissions_table(emission_data, active_ids=None):
+def build_emissions_table(emission_data, active_ids=None, view_mode="simple", unit_mode="SI"):
     """
     Transposed emissions scenarios table:
     - Columns = emission scenarios (em_scen_id)
@@ -751,14 +1046,23 @@ def build_emissions_table(emission_data, active_ids=None):
     1) Selected (checkbox + EDIT / REMOVE)
     2) Scenario ID (em_scen_id)
     3+) Other properties
+
+    Args:
+        emission_data: Emission scenarios data (list or DataFrame)
+        active_ids: Set of scenario IDs that are selected/active
+        view_mode: One of "simple", "advanced", or "differences"
+        unit_mode: "SI" or "IP" for unit conversion
     """
-    if isinstance(emission_data, list):
-        emission_df = pd.DataFrame(emission_data)
-    else:
-        emission_df = emission_data
+    from utils.units import get_unit_converter, get_unit_label
+
+    emission_df = pd.DataFrame(emission_data) if isinstance(emission_data, list) else emission_data
 
     if emission_df is None or emission_df.empty:
-        return dmc.Text("No emission scenarios defined yet.")
+        return dmc.CheckboxGroup(
+            id="emissions-checkbox-group",
+            value=[],
+            children=dmc.Text("No emission scenarios defined yet."),
+        )
 
     # Ensure IDs exist
     if "em_scen_id" not in emission_df.columns:
@@ -767,21 +1071,54 @@ def build_emissions_table(emission_data, active_ids=None):
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Rows to display
+    # Get unit label for NG leakage (dynamic based on unit_mode)
+    ng_leakage_unit = get_unit_label("ng_leakage_rate", unit_mode)
+
+    # Rows to display (property name, label)
+    # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
-        ("em_scen_id", "Scenario ID"),
         ("grid_scenario", "Grid Scenario"),
         ("gea_grid_region", "GEA Grid Region"),
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("annual_ng_leakage_g_per_kWh", "NG leakage (g/kWh)"),
+        ("annual_ng_leakage_g_per_kWh", f"NG leakage ({ng_leakage_unit})"),
         ("year", "Year"),
     ]
 
-    available_rows = [
-        (field, label) for field, label in row_config if field in emission_df.columns
-    ]
+    # Pre-compute which fields have differences across scenarios
+    all_fields = [field for field, _ in row_config if field in emission_df.columns]
+    diff_fields = get_diff_fields(emission_df, all_fields)
+
+    # Filter rows based on view mode
+    if view_mode == "simple":
+        simple_fields = set(EmissionTableRows.SIMPLE.value)
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in emission_df.columns and field in simple_fields
+        ]
+    elif view_mode == "differences":
+        available_rows = [
+            (field, label)
+            for field, label in row_config
+            if field in emission_df.columns and field in diff_fields
+        ]
+        # Handle case where no differences exist
+        if not available_rows:
+            return dmc.CheckboxGroup(
+                id="emissions-checkbox-group",
+                value=list(active_ids) if active_ids else [],
+                children=dmc.Text(
+                    "All scenarios have identical values for the displayed properties.",
+                    c="dimmed",
+                    fs="italic",
+                ),
+            )
+    else:  # "advanced" or default
+        available_rows = [
+            (field, label) for field, label in row_config if field in emission_df.columns
+        ]
 
     active_ids = set(active_ids or [])
 
@@ -811,11 +1148,11 @@ def build_emissions_table(emission_data, active_ids=None):
         "whiteSpace": "nowrap",
     }
 
-    # ---------- Header ----------
-    header_cells = [dmc.TableTh("Property", style=prop_th_style)]
+    # ---------- Header row ----------
     scen_ids = []
+    header_cells = [dmc.TableTh("Emission Scenario", style=prop_th_style)]
 
-    for _, row in emission_df.iterrows():
+    for idx, (_, row) in enumerate(emission_df.iterrows(), start=1):
         scen_id = str(row.get("em_scen_id", ""))
         scen_ids.append(scen_id)
 
@@ -823,7 +1160,9 @@ def build_emissions_table(emission_data, active_ids=None):
             **scen_cell_base,
             **(active_col_style if scen_id in active_ids else inactive_col_style),
         }
-        header_cells.append(dmc.TableTh(scen_id, style=cell_style))
+        # Display capital letter in the header (A, B, C, ...)
+        letter = chr(64 + idx)  # 1 -> 'A', 2 -> 'B', etc.
+        header_cells.append(dmc.TableTh(letter, style=cell_style))
 
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
@@ -865,28 +1204,54 @@ def build_emissions_table(emission_data, active_ids=None):
     body_rows.append(dmc.TableTr(selected_cells))
 
     # ---------- Property rows ----------
+    diff_row_style = TABLE_STYLE.diff_row_style
+
+    # Get converter for NG leakage values
+    ng_leakage_converter = get_unit_converter("ng_leakage_rate", unit_mode)
+
     for field, label in available_rows:
-        row_cells = [dmc.TableTh(label, style=prop_th_style)]
+        is_diff_row = field in diff_fields
+
+        # Apply diff styling to the property label cell if row has differences
+        prop_label_style = {**prop_th_style}
+        if is_diff_row:
+            prop_label_style.update(diff_row_style)
+
+        row_cells = [dmc.TableTh(label, style=prop_label_style)]
 
         for idx, scen_id in enumerate(scen_ids):
+            raw_value = emission_df.iloc[idx].get(field, "")
+
+            # Apply unit conversion for NG leakage
+            if field == "annual_ng_leakage_g_per_kWh" and raw_value is not None:
+                try:
+                    converted = ng_leakage_converter(float(raw_value))
+                    display_value = f"{converted:.2f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            else:
+                display_value = format_table_value(raw_value, field_name=field)
+
+            # Build cell style: base + active/inactive + deemphasis
             cell_style = {
                 **scen_cell_base,
                 **(active_col_style if scen_id in active_ids else inactive_col_style),
+                **value_deemphasis_style(raw_value),
             }
-            value = emission_df.iloc[idx].get(field, "")
-            if isinstance(value, float):
-                value = f"{value:.4g}"
 
-            row_cells.append(dmc.TableTd(str(value), style=cell_style))
+            # Apply bold text only for data cells in rows with differences
+            if is_diff_row:
+                cell_style["fontWeight"] = 600
+
+            row_cells.append(dmc.TableTd(display_value, style=cell_style))
 
         body_rows.append(dmc.TableTr(row_cells))
 
     body = dmc.TableTbody(body_rows)
 
     # Force horizontal scrolling
-    table_min_width = (
-        TABLE_STYLE.property_col_width
-        + TABLE_STYLE.scenario_col_width * max(len(scen_ids), 1)
+    table_min_width = TABLE_STYLE.property_col_width + TABLE_STYLE.scenario_col_width * max(
+        len(scen_ids), 1
     )
 
     table = dmc.ScrollArea(
@@ -934,6 +1299,11 @@ def add_emission_modal():
                     label="New scenario ID",
                     placeholder="e.g. em_scenario_4",
                 ),
+                dmc.TextInput(
+                    id="add-em-scenario-name-input",
+                    label="Scenario name",
+                    placeholder="Descriptive name",
+                ),
                 dmc.Text(
                     id="add-em-scenario-error",
                     size="xs",
@@ -959,11 +1329,323 @@ def add_emission_modal():
     )
 
 
+def build_completeness_modal():
+    """
+    Modal to show data completeness summary before confirming load data selection.
+    Shows for measured library data and custom uploads (not for simulated data).
+    For custom uploads, also shows metadata input fields.
+    """
+    # Building type options from metadata index
+    building_type_options = [
+        {"value": bt, "label": bt} for bt in sorted(get_load_index()["building_type"])
+    ]
+
+    return dmc.Modal(
+        title="Data Completeness Summary",
+        id="data-completeness-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            html.Div(id="completeness-summary-content"),
+            # Metadata inputs section (shown only for custom uploads)
+            html.Div(
+                id="custom-metadata-inputs",
+                style={"display": "none"},  # Hidden by default, shown via callback
+                children=[
+                    dmc.Divider(my="md"),
+                    dmc.Text("Building Metadata", fw=600, size="lg"),
+                    dmc.Text(
+                        "Please provide building information for this custom dataset.",
+                        size="sm",
+                        c="dimmed",
+                        mb="md",
+                    ),
+                    dmc.SimpleGrid(
+                        cols=2,
+                        spacing="md",
+                        children=[
+                            dmc.TextInput(
+                                id="custom-building-id",
+                                label="Building ID",
+                                placeholder="Enter a unique identifier",
+                                required=True,
+                                withAsterisk=True,
+                            ),
+                            dmc.Select(
+                                id="custom-building-type",
+                                label="Building Type",
+                                placeholder="Select building type (optional)",
+                                data=building_type_options,
+                                clearable=True,
+                                searchable=True,
+                            ),
+                            dmc.NumberInput(
+                                id="custom-vintage",
+                                label="Vintage (Year Built)",
+                                placeholder="e.g., 1990",
+                                min=1800,
+                                max=2100,
+                            ),
+                            dmc.Stack(
+                                gap=4,
+                                children=[
+                                    dmc.Group(
+                                        gap=2,
+                                        children=[
+                                            dmc.Text(
+                                                id="custom-area-label",
+                                                children="Building Area (m²)",
+                                                size="sm",
+                                                fw=500,
+                                            ),
+                                            dmc.Text("*", c="red", size="sm"),
+                                        ],
+                                    ),
+                                    dmc.NumberInput(
+                                        id="custom-area",
+                                        placeholder="Enter building area",
+                                        min=0,
+                                        required=True,
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    dmc.Text(
+                        id="custom-metadata-error",
+                        c="red",
+                        size="sm",
+                        mt="sm",
+                    ),
+                ],
+            ),
+            dmc.Group(
+                [
+                    dmc.Button(
+                        "Cancel",
+                        id="completeness-cancel-btn",
+                        variant="outline",
+                    ),
+                    dmc.Button(
+                        "Confirm Selection",
+                        id="completeness-confirm-btn",
+                        color="blue",
+                    ),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
+def build_completeness_summary(data_summary: dict, source_type: str = "measured") -> html.Div:
+    """
+    Build the summary content from StandardLoad.get_data_summary().
+
+    Args:
+        data_summary: Dictionary from StandardLoad.get_data_summary()
+        source_type: "measured" or "custom" for display purposes
+
+    Returns:
+        Dash component with formatted summary
+    """
+    if not data_summary:
+        return dmc.Text("No data summary available.", c="dimmed")
+
+    # Extract values
+    start_date = data_summary.get("start_date")
+    end_date = data_summary.get("end_date")
+    num_hours = data_summary.get("num_hours", 0)
+    expected_hours = data_summary.get("expected_hours", 8760)
+    is_complete = data_summary.get("is_complete", False)
+    has_leap_day = data_summary.get("has_leap_day", False)
+    spans_multiple_years = data_summary.get("spans_multiple_years", False)
+    missing_hours = data_summary.get("missing_hours", 0)
+    column_stats = data_summary.get("column_stats", {})
+    has_missing_values = data_summary.get("has_missing_values", False)
+    total_missing_values = data_summary.get("total_missing_values", 0)
+
+    # Format dates
+    start_str = start_date.strftime("%Y-%m-%d %H:%M") if start_date else "N/A"
+    end_str = end_date.strftime("%Y-%m-%d %H:%M") if end_date else "N/A"
+
+    # Build status display
+    if is_complete:
+        status_icon = DashIconify(icon="mdi:check-circle", color="green", width=20)
+        status_text = dmc.Text("Complete", c="green", fw=600)
+    else:
+        # Build descriptive status message
+        issues = []
+        if missing_hours > 0:
+            issues.append(f"{missing_hours} hours missing")
+        if has_missing_values:
+            issues.append(f"{total_missing_values} missing values")
+        issue_text = ", ".join(issues) if issues else "incomplete"
+        status_icon = DashIconify(icon="mdi:alert-circle", color="orange", width=20)
+        status_text = dmc.Text(f"Incomplete - {issue_text}", c="orange", fw=600)
+
+    # Build info rows
+    info_rows = [
+        dmc.Group(
+            [
+                dmc.Text("Start Date:", fw=500, w=140),
+                dmc.Text(start_str),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("End Date:", fw=500, w=140),
+                dmc.Text(end_str),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("Total Hours:", fw=500, w=140),
+                dmc.Text(f"{num_hours:,}"),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                dmc.Text("Expected Hours:", fw=500, w=140),
+                dmc.Text(f"{expected_hours:,}"),
+            ],
+            gap="xs",
+        ),
+    ]
+
+    # Status row
+    status_row = dmc.Group(
+        [
+            dmc.Text("Status:", fw=500, w=140),
+            status_icon,
+            status_text,
+        ],
+        gap="xs",
+    )
+
+    # Build check items for time-based properties
+    check_items = [
+        dmc.Group(
+            [
+                DashIconify(
+                    icon="mdi:check-circle" if not has_leap_day else "mdi:information",
+                    color="green" if not has_leap_day else "blue",
+                    width=16,
+                ),
+                dmc.Text(
+                    f"Contains leap day (Feb 29): {'Yes' if has_leap_day else 'No'}",
+                    size="sm",
+                ),
+            ],
+            gap="xs",
+        ),
+        dmc.Group(
+            [
+                DashIconify(
+                    icon=("mdi:check-circle" if not spans_multiple_years else "mdi:information"),
+                    color="green" if not spans_multiple_years else "blue",
+                    width=16,
+                ),
+                dmc.Text(
+                    f"Spans multiple years: {'Yes' if spans_multiple_years else 'No'}",
+                    size="sm",
+                ),
+            ],
+            gap="xs",
+        ),
+    ]
+
+    # Build column quality section
+    column_labels = {
+        "t_out_C": "Outdoor Temperature",
+        "heating_W": "Heating Load",
+        "cooling_W": "Cooling Load",
+    }
+
+    column_rows = []
+    for col, label in column_labels.items():
+        stats = column_stats.get(col, {})
+        missing = stats.get("missing_count", 0)
+        completeness = stats.get("completeness_pct", 100)
+
+        if missing == 0:
+            icon = DashIconify(icon="mdi:check-circle", color="green", width=16)
+            value_text = dmc.Text("100%", c="green", size="sm")
+        else:
+            icon = DashIconify(icon="mdi:alert-circle", color="orange", width=16)
+            value_text = dmc.Text(f"{completeness}% ({missing:,} missing)", c="orange", size="sm")
+
+        column_rows.append(
+            dmc.Group(
+                [
+                    icon,
+                    dmc.Text(f"{label}:", size="sm", w=140),
+                    value_text,
+                ],
+                gap="xs",
+            )
+        )
+
+    # Build warning messages
+    warnings = []
+    if missing_hours > 0:
+        warnings.append(f"Dataset is missing {missing_hours} hours of data.")
+    if has_missing_values:
+        warnings.append(f"Dataset has {total_missing_values} missing values in data columns.")
+    if not is_complete:
+        warnings.append("Results may be understated. Consider providing a complete dataset.")
+
+    warning_alert = None
+    if warnings:
+        warning_alert = dmc.Alert(
+            dmc.Stack([dmc.Text(w, size="sm") for w in warnings], gap=4),
+            title="Data Quality Warning",
+            color="orange",
+            icon=DashIconify(icon="mdi:alert"),
+        )
+
+    # Source badge
+    source_badge = dmc.Badge(
+        source_type.capitalize(),
+        color="blue" if source_type == "measured" else "grape",
+        variant="light",
+    )
+
+    return dmc.Stack(
+        [
+            dmc.Group(
+                [
+                    dmc.Text("Dataset Overview", fw=600, size="lg"),
+                    source_badge,
+                ],
+                justify="space-between",
+            ),
+            dmc.Divider(),
+            dmc.Stack(info_rows, gap="xs"),
+            dmc.Divider(),
+            status_row,
+            dmc.Divider(),
+            dmc.Text("Data Column Quality", fw=500, size="sm"),
+            dmc.Stack(column_rows, gap="xs"),
+            dmc.Divider(),
+            dmc.Stack(check_items, gap="xs"),
+            warning_alert,
+        ],
+        gap="sm",
+    )
+
+
 def edit_emission_modal():
     # helper to turn a list of values into Mantine Select data
     def _options(values):
         return [{"value": str(v), "label": str(v)} for v in values]
 
+    emissions_index = get_emissions_index()
     return dmc.Modal(
         id="emissions-edit-modal",
         opened=False,
@@ -979,6 +1661,11 @@ def edit_emission_modal():
                             disabled=True,
                             style={"flex": 1},
                         ),
+                        dmc.TextInput(
+                            id="edit-em-scenario-name-input",
+                            label="Scenario name",
+                            style={"flex": 2},
+                        ),
                     ],
                     grow=True,
                 ),
@@ -990,7 +1677,7 @@ def edit_emission_modal():
                             id="edit-em-grid-scenario",
                             label="Grid scenario",
                             placeholder="Select grid scenario",
-                            data=_options(EMISSIONS_INDEX["emission_scenario"]),
+                            data=_options(emissions_index["emission_scenario"]),
                             searchable=True,
                             clearable=False,
                         ),
@@ -998,7 +1685,7 @@ def edit_emission_modal():
                             id="edit-em-gea-grid-region",
                             label="GEA grid region",
                             placeholder="Select grid region",
-                            data=_options(EMISSIONS_INDEX["gea_grid_region"]),
+                            data=_options(emissions_index["gea_grid_region"]),
                             searchable=True,
                             clearable=False,
                         ),
@@ -1018,7 +1705,7 @@ def edit_emission_modal():
                             id="edit-em-emission-type",
                             label="Emission type",
                             placeholder="Select emission type",
-                            data=_options(EMISSIONS_INDEX["emission_type"]),
+                            data=_options(emissions_index["emission_type"]),
                             searchable=False,
                             clearable=False,
                         ),
@@ -1039,7 +1726,7 @@ def edit_emission_modal():
                             id="edit-em-year",
                             label="Year",
                             placeholder="Select year",
-                            data=_options(EMISSIONS_INDEX["year"]),
+                            data=_options(emissions_index["year"]),
                             searchable=False,
                             clearable=False,
                         ),
@@ -1056,11 +1743,21 @@ def edit_emission_modal():
                             max=1,
                             step=0.01,
                         ),
-                        dmc.NumberInput(
-                            id="edit-em-ng-leakage",
-                            label="Annual NG leakage (g/kWh)",
-                            min=0,
-                            step=1,
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-em-ng-leakage-label",
+                                    children="Annual NG leakage (g/kWh)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-em-ng-leakage",
+                                    min=0,
+                                    step=1,
+                                ),
+                            ],
+                            gap=4,
                         ),
                     ],
                 ),

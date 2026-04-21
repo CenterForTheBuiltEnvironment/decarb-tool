@@ -1,13 +1,13 @@
-import os
 import logging
+import os
 
 import dash
-from dash import Dash, callback, Input, Output, State
 import dash_bootstrap_components as dbc
+from dash import Dash, Input, Output, callback
 
-from utils.logging_config import setup_logging, get_logger
+import utils.plotly_theme  # noqa: F401 - imports for side effect (sets default Plotly theme)
 from layout.shell import build_shell
-from utils.plotly_theme import *
+from utils.logging_config import get_logger, setup_logging
 
 # Read level from environment variable (or default to INFO)
 log_level_name = os.environ.get("LOG_LEVEL", "INFO")
@@ -30,6 +30,9 @@ app = Dash(
     serve_locally=True,
 )
 
+# Expose Flask server for gunicorn
+server = app.server
+
 
 def serve_layout():
     return build_shell(dash.page_container)
@@ -38,27 +41,36 @@ def serve_layout():
 app.layout = serve_layout
 
 
-@callback(
-    Output("session-store", "data", allow_duplicate=True),
+# Clientside callback to generate session_id only if it doesn't exist.
+# This ensures the session_id persists across page refreshes (stored in browser sessionStorage)
+# but creates a new one for new tabs/sessions.
+app.clientside_callback(
+    """
+    function(data) {
+        if (!data || !data.session_id) {
+            return {session_id: crypto.randomUUID()};
+        }
+        return dash_clientside.no_update;
+    }
+    """,
+    Output("session-store", "data"),
     Input("session-store", "data"),
-    prevent_initial_call=True,
+)
+
+
+@callback(
+    Input("session-store", "data"),
 )
 def log_session_id(session_data):
-    logger.debug(f"Session initialized: {session_data['session_id']}")
-    return session_data
+    """Log when a session is initialized (runs server-side after clientside callback)."""
+    if session_data and session_data.get("session_id"):
+        logger.debug(f"Session initialized: {session_data['session_id']}")
 
 
 if __name__ == "__main__":
-    app.run(
-        debug=False,
-        host="0.0.0.0",
-        port=8080,
-    )
+    # Development mode
+    debug = os.environ.get("DEBUG", "true").lower() == "true"
+    port = int(os.environ.get("PORT", 8050))
+    host = "localhost" if debug else "0.0.0.0"
 
-
-# if __name__ == "__main__":
-#     app.run(
-#         debug=True,
-#         host="localhost",
-#         port=8050,
-#     )
+    app.run(debug=debug, host=host, port=port)
