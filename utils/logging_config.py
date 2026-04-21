@@ -1,8 +1,7 @@
 import logging
 import sys
-from pathlib import Path
-from typing import Optional
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 # ---- Constants ----
 DEFAULT_LOG_LEVEL = logging.INFO
@@ -12,7 +11,7 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def setup_logging(
     level: int = DEFAULT_LOG_LEVEL,
-    log_file: Optional[Path] = None,
+    log_file: Path | None = None,
     max_bytes: int = 5_000_000,
     backup_count: int = 3,
 ) -> logging.Logger:

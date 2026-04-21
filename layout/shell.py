@@ -5,6 +5,7 @@ from functools import lru_cache
 import dash
 import dash_mantine_components as dmc
 from dash import ALL, Input, Output, State, callback, dcc, html
+from dash_iconify import DashIconify
 
 from layout.footer import shell_footer
 from layout.header import shell_header
@@ -141,7 +142,14 @@ def build_navbar_content():
     ]
 
     docs_link = dmc.Anchor(
-        "Documentation",
+        dmc.Group(
+            [
+                DashIconify(icon="material-symbols-light:menu-book-outline", width=25),
+                "Documentation",
+            ],
+            gap="xs",  # Gap between icon and text
+            align="center",
+        ),
         href=LINKS.DOCS_URL.value,
         target="_blank",
         underline=False,
@@ -239,7 +247,12 @@ def update_equipment_legend(equipment_data, selected_ids):
         rows.append(
             dmc.Group(
                 [
-                    dmc.Badge(short_id, size="sm", variant="light", color="blue", w=30),
+                    dmc.Tooltip(
+                        dmc.Badge(short_id, size="sm", variant="light", color="blue", w=30),
+                        label=scen_name,
+                        position="right",
+                        withArrow=True,
+                    ),
                     dmc.Text(scen_name, size="sm", truncate=True),
                 ],
                 gap="xs",
@@ -275,7 +288,12 @@ def update_emission_legend(metadata_data, selected_ids):
         rows.append(
             dmc.Group(
                 [
-                    dmc.Badge(short_id, size="sm", variant="light", color="green", w=30),
+                    dmc.Tooltip(
+                        dmc.Badge(short_id, size="sm", variant="light", color="green", w=30),
+                        label=scen_name,
+                        position="right",
+                        withArrow=True,
+                    ),
                     dmc.Text(scen_name, size="sm", truncate=True),
                 ],
                 gap="xs",

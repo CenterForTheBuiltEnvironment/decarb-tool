@@ -239,7 +239,7 @@ def update_metadata(
         metadata.ashrae_climate_zone = row["ASHRAE"]
         if row["state_id"] == "CA":
             metadata.climate_zone_output = (
-                metadata.ashrae_climate_zone + f" (CA Region {row["ca_climate"]:.0f})"
+                metadata.ashrae_climate_zone + f" (CA Region {row['ca_climate']:.0f})"
             )
         else:
             metadata.climate_zone_output = metadata.ashrae_climate_zone

@@ -805,7 +805,7 @@ def plot_scatter_temp_vs_variable(
                     # temperature row
                     f"T_out ({agg_label} mean): %{{customdata[2]:.2f}} {t_hover_unit}<br>"
                     # y_var row (pretty name)
-                    f"{y_var.replace('_',' ').title()} ({agg_label} mean): "
+                    f"{y_var.replace('_', ' ').title()} ({agg_label} mean): "
                     f"%{{customdata[3]:.2f}} {y_hover_unit}"
                     "<extra></extra>"
                 ),
@@ -824,7 +824,7 @@ def plot_scatter_temp_vs_variable(
     fig = apply_standard_layout(
         fig,
         y_offset=-0.35,
-        subtitle_text=f"Average Outdoor Temperature against {y_var.replace('_',' ').title()}.",
+        subtitle_text=f"Average Outdoor Temperature against {y_var.replace('_', ' ').title()}.",
     )
 
     return fig

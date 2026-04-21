@@ -1,12 +1,10 @@
 import dash_bootstrap_components as dbc
-from dash import html
-
 import dash_mantine_components as dmc
+from dash import html
 from dash_iconify import DashIconify
 
-from src.metadata import Metadata
-
 from src.equipment import EquipmentLibrary, EquipmentScenario
+from src.metadata import Metadata
 from utils.units import format_with_auto_scale
 
 
@@ -19,10 +17,8 @@ def get_nested_value(obj, attr_path):
     for part in parts:
         if isinstance(obj, list):
             # Apply recursively to each item
-            obj = [
-                get_nested_value(o, ".".join(parts[parts.index(part) :])) for o in obj
-            ]
-            # Stop recursion once we’ve handled list expansion
+            obj = [get_nested_value(o, ".".join(parts[parts.index(part) :])) for o in obj]
+            # Stop recursion once we have handled list expansion
             return obj
         elif isinstance(obj, dict):
             obj = obj.get(part)
@@ -180,9 +176,7 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
             title="Summary",
         )
 
-        tab_label = (
-            f"Scen. {scen.eq_scen_id[-1].upper()}" if scen.eq_scen_id else "Scenario"
-        )
+        tab_label = f"Scen. {scen.eq_scen_id[-1].upper()}" if scen.eq_scen_id else "Scenario"
 
         tabs_list_items.append(
             dmc.TabsTab(
@@ -282,7 +276,6 @@ def summary_emissions_selection(metadata: Metadata, active_tab=None):
 
 
 def summary_project_info(metadata: Metadata, unit_mode="SI"):
-
     overview_fields = [
         ("location", "Location"),
         ("climate_zone_output", "Climate Region"),
@@ -312,12 +305,8 @@ def summary_scenario_results():
             dbc.CardHeader("Scenario Results"),
             dbc.CardBody(
                 [
-                    html.P(
-                        "This section will display the results of the selected scenario."
-                    ),
-                    html.P(
-                        "More detailed results will be added here in future updates."
-                    ),
+                    html.P("This section will display the results of the selected scenario."),
+                    html.P("More detailed results will be added here in future updates."),
                 ]
             ),
         ]
@@ -331,7 +320,6 @@ def empty_state(
     icon_size=40,
     padding=40,
 ):
-
     return dmc.Stack(
         [
             dmc.Center(
