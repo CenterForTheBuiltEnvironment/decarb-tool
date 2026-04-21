@@ -58,7 +58,7 @@ def legend_toggle():
         id="legend-toggle",
         label="Show Scenario Legend",
         size="sm",
-        checked=True,
+        checked=False,
     )
 
 
