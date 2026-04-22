@@ -1,5 +1,7 @@
 import contextlib
 import datetime
+import io
+import zipfile
 from pathlib import Path
 
 import dash
@@ -339,10 +341,15 @@ def download_results(n_clicks, session_data, unit_mode):
         # else: keep original column name
     df = df.rename(columns=column_renames)
 
-    filename = f"results_{datetime.datetime.now()}.csv"
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_string = df.to_csv(index=True)
 
-    # Use dcc.send_data_frame to stream the dataframe as CSV
-    return dcc.send_data_frame(df.to_csv, filename, index=True)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"results_{timestamp}.csv", csv_string)
+
+    buf.seek(0)
+    return dcc.send_bytes(buf.getvalue(), f"results_{timestamp}.zip")
 
 
 @callback(
