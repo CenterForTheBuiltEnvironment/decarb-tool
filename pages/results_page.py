@@ -339,10 +339,19 @@ def download_results(n_clicks, session_data, unit_mode):
         # else: keep original column name
     df = df.rename(columns=column_renames)
 
-    filename = f"results_{datetime.datetime.now()}.csv"
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_filename = f"results_{timestamp}.zip"
+    csv_internal_name = f"results_{timestamp}.csv"
 
-    # Use dcc.send_data_frame to stream the dataframe as CSV
-    return dcc.send_data_frame(df.to_csv, filename, index=True)
+    return dcc.send_data_frame(
+        df.to_csv,
+        zip_filename,
+        index=True,
+        compression={
+            "method": "zip",
+            "archive_name": csv_internal_name,
+        },
+    )
 
 
 @callback(
