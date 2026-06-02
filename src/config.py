@@ -49,7 +49,7 @@ class EmissionTableRows(Enum):
         "emission_type",
         "shortrun_weighting",
         "annual_refrig_leakage_percent",
-        "annual_ng_leakage_g_per_kWh",
+        "ng_emission_rate_gCO2e_per_kWh",
         "year",
     )
 
@@ -60,8 +60,8 @@ class EmissionScenarioDefaults(Enum):
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
-    NG_LEAKAGE_G_KWH: float = 239.2
-    NG_LEAKAGE_G_KWH_COMBUSTION: float = 181
+    NG_EMISSION_RATE_G_KWH: float = 239.2
+    NG_EMISSION_RATE_G_KWH_COMBUSTION: float = 181
 
 
 class Columns(StrEnum):
