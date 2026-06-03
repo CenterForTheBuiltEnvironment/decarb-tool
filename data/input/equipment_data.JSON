@@ -921,7 +921,7 @@
     },
     {
       "eq_scen_id": "eq_scenario_13",
-      "eq_scen_name": "100% AWHP (H+C, High HHWST)+Elec Backup",
+      "eq_scen_name": "High HHWST 100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 48.9,
@@ -937,7 +937,7 @@
     },
     {
       "eq_scen_id": "eq_scenario_14",
-      "eq_scen_name": "100% AWHP (H+C, Reset HHWST)+Elec Backup",
+      "eq_scen_name": "Reset HHWST 100% AWHP (H+C, Reset HHWST)+Elec Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 48.9,
@@ -953,7 +953,7 @@
     },
     {
       "eq_scen_id": "eq_scenario_15",
-      "eq_scen_name": "HR WWHP+100% AWHP (H+C, High HHWST)+Elec Backup",
+      "eq_scen_name": "High HHWST HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr03",
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 60,
