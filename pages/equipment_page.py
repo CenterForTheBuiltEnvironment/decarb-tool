@@ -799,7 +799,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         equipment_list, "backup_heating", unit_mode, include_none=False
     )
     chiller_options = _build_equipment_options(
-        equipment_list, "chiller", unit_mode, include_none=False
+        equipment_list, "chiller", unit_mode, include_none=True
     )
 
     # --- Scenario current values ---
@@ -846,7 +846,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     use_cooling = scenario.get("awhp_use_cooling", False)
 
     backup_heating_val = scenario.get("backup_heating")
+
     chiller_val = scenario.get("chiller")
+    if chiller_val is None:
+        chiller_val = "None"
 
     return (
         True,  # modal open
@@ -932,6 +935,8 @@ def save_edit_scenario(
         hr_wwhp_val = None
     if awhp_val == "None":
         awhp_val = None
+    if chiller_val == "None":
+        chiller_val = None
 
     # Convert temperature values from display units back to Celsius (base unit)
     if hr_wwhp_h_supply_t_val is not None:

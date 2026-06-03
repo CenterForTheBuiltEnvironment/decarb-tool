@@ -883,8 +883,10 @@ def loads_to_site_energy(
         # =========================
         if df[Col.CHW_REM_W.value].sum() > 1e-9:
             remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
-            chiller_cop = 5.0  # default
+
             if scen.chiller:
+                chiller_cop = 5.0  # default
+
                 logger.debug(
                     f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
                 )
@@ -911,57 +913,61 @@ def loads_to_site_energy(
                         cols = _finalize_columns(df, detail)
                         return df[cols]
 
-            # scalar COP path
-            served_W = df[Col.CHW_REM_W.value].to_numpy()
-            elec_Wh = served_W / chiller_cop
+                # scalar COP path
+                served_W = df[Col.CHW_REM_W.value].to_numpy()
+                elec_Wh = served_W / chiller_cop
 
-            chl_peak_served_W = np.nanmax(served_W)
-            # sizing logic
-            if chl.eq_calc_type == "generic":
-                # generic equipment - do not account for refrigerant, space, electric capacity, etc.
-                chl_num = 0
-            else:
-                # specific equipment model
-                # assumes fixed capacity, edit for curves later
-                chl_cap = chl.capacity_W
-                chl_num = np.ceil(chl_peak_served_W / chl_cap)
-                chl_num = max(chl_num, 1)  # ensure at least one unit
-
-                logger.debug(f"Chiller sizing: {chl_num:.0f} units")
-
-            # add refrigerant information
-            chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
-            num_hours = len(df)  # Use actual data length (handles leap years)
-
-            chiller_refrigerant_weight_kg = (
-                chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
-                if chl.refrigerant_weight_g
-                else 0.0
-            )
-
-            chiller_refrigerant_gwp_kg = (
-                chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
-            )
-
-            # this will produce a warning if generic equipment is used
-            if chiller_refrigerant_gwp_kg == 0:
-                if chiller_refrigerant_weight_kg == 0:
-                    logger.warning("Chiller refrigerant charge is 0.")
+                chl_peak_served_W = np.nanmax(served_W)
+                # sizing logic
+                if chl.eq_calc_type == "generic":
+                    # generic equipment - do not account for refrigerant, space, electric capacity, etc.
+                    chl_num = 0
                 else:
-                    logger.warning("Chiller refrigerant GWP is 0.")
+                    # specific equipment model
+                    # assumes fixed capacity, edit for curves later
+                    chl_cap = chl.capacity_W
+                    chl_num = np.ceil(chl_peak_served_W / chl_cap)
+                    chl_num = max(chl_num, 1)  # ensure at least one unit
 
-            if detail:
-                df[Col.CHILLER_CHW_W.value] = served_W
-                df[Col.ELEC_CHILLER_WH.value] = elec_Wh
-                df[Col.CHILLER_COP.value] = chiller_cop
+                    logger.debug(f"Chiller sizing: {chl_num:.0f} units")
 
-            df[Col.ELEC_WH.value] += elec_Wh
-            df[Col.CHW_REM_W.value] = 0.0
-            df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
-            df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
-            df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
+                # add refrigerant information
+                chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
+                num_hours = len(df)  # Use actual data length (handles leap years)
 
-            df = df.round(4)
+                chiller_refrigerant_weight_kg = (
+                    chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
+                    if chl.refrigerant_weight_g
+                    else 0.0
+                )
+
+                chiller_refrigerant_gwp_kg = (
+                    chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
+                )
+
+                # this will produce a warning if generic equipment is used
+                if chiller_refrigerant_gwp_kg == 0:
+                    if chiller_refrigerant_weight_kg == 0:
+                        logger.warning("Chiller refrigerant charge is 0.")
+                    else:
+                        logger.warning("Chiller refrigerant GWP is 0.")
+
+                if detail:
+                    df[Col.CHILLER_CHW_W.value] = served_W
+                    df[Col.ELEC_CHILLER_WH.value] = elec_Wh
+                    df[Col.CHILLER_COP.value] = chiller_cop
+
+                df[Col.ELEC_WH.value] += elec_Wh
+                df[Col.CHW_REM_W.value] = 0.0
+                df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
+                df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
+                df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
+            
+            else:
+                logger.error(f"{remaining_c_kWh:.1f} kWh remaining cooling load not served. "
+                             f"Add a backup chiller to equipment scenario {scen.eq_scen_id}")
+
+        df = df.round(4)
 
         # ---- finalize ----
         cols = _finalize_columns(df, detail)

@@ -789,7 +789,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": null
     },
     {
       "eq_scen_id": "eq_scenario_5",
@@ -805,7 +805,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": null
     },
     {
       "eq_scen_id": "eq_scenario_6",
