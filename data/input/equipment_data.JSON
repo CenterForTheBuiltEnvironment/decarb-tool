@@ -918,6 +918,54 @@
       "awhp_use_cooling": true,
       "backup_heating": "res02",
       "chiller": "ch03"
+    },
+    {
+      "eq_scen_id": "eq_scenario_13",
+      "eq_scen_name": "100% AWHP (H+C, High HHWST)+Elec Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 52,
+      "awhp_use_cooling": true,
+      "backup_heating": "res02",
+      "chiller": "ch03"
+    },
+    {
+      "eq_scen_id": "eq_scenario_14",
+      "eq_scen_name": "100% AWHP (H+C, Reset HHWST)+Elec Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_reset",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "backup_heating": "res02",
+      "chiller": "ch03"
+    },
+    {
+      "eq_scen_id": "eq_scenario_15",
+      "eq_scen_name": "HR WWHP+100% AWHP (H+C, High HHWST)+Elec Backup",
+      "hr_wwhp": "hr03",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 60,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 52,
+      "awhp_use_cooling": true,
+      "backup_heating": "res02",
+      "chiller": "ch03"
     }
   ],
   "scenario_groups": [
@@ -935,6 +983,11 @@
       "group_id": "heat_recovery",
       "group_name": "Heat Recovery",
       "scenario_ids": ["eq_scenario_10", "eq_scenario_11", "eq_scenario_12", "eq_scenario_5"]
+    },
+    {
+      "group_id": "hhw_supply_temps",
+      "group_name": "HHW Supply Temps",
+      "scenario_ids": ["eq_scenario_4", "eq_scenario_13", "eq_scenario_14", "eq_scenario_5", "eq_scenario_15"]
     }
   ]
 }
