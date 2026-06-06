@@ -321,12 +321,8 @@ def _heating_supply_temp_performance(
                 [interp_vector(equip_supply_temps, x, supply_t) for x in zip(*caps, strict=False)]
             ).T
         interp_perf.constraints = {
-            "min_temp_C": np.array(
-                [interp_vector(equip_supply_temps, constraints["min"], supply_t)]
-            ),
-            "max_temp_C": np.array(
-                [interp_vector(equip_supply_temps, constraints["max"], supply_t)]
-            ),
+            "min_temp_C": interp_vector(equip_supply_temps, constraints["min"], supply_t),
+            "max_temp_C": interp_vector(equip_supply_temps, constraints["max"], supply_t),
         }
     else:
         # for WWHPs
