@@ -193,12 +193,6 @@ UNIT_MAP = {
         "SI": {"unit": "g CO₂e/kWh", "func": lambda x: x},
         "IP": {"unit": "lb CO₂e/kBTU", "func": lambda x: x * g_to_lb / Wh_to_BTU},
     },
-    # --- NG leakage rate ---
-    "ng_leakage_rate": {
-        "base": "g/kWh",
-        "SI": {"unit": "g/kWh", "func": lambda x: x},
-        "IP": {"unit": "lb/kBTU", "func": lambda x: x * g_to_lb / Wh_to_BTU},
-    },
     # --- Mass (refrigerant weight, etc.) ---
     "mass": {
         "base": "kg",
@@ -303,8 +297,7 @@ COLUMN_CONFIG = {
     "lrmer_co2e_p": ("emissions_rate", "LRMER Pre-combustion"),
     "srmer_co2e_c": ("emissions_rate", "SRMER Combustion"),
     "srmer_co2e_p": ("emissions_rate", "SRMER Pre-combustion"),
-    # === NG Leakage ===
-    "annual_ng_leakage_g_per_kWh": ("ng_leakage_rate", "Annual NG Leakage"),
+    "ng_emission_rate_gCO2e_per_kWh": ("gas_emission_factor", "Gas Emissions Rate"),
     # === Refrigerant Mass (kg) ===
     "hr_wwhp_refrigerant_weight_kg": ("mass", "HR-WWHP Refrig Weight"),
     "total_awhp_refrigerant_weight_kg": ("mass", "AWHP Refrig Weight"),

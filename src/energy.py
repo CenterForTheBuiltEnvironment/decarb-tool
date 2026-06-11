@@ -1061,7 +1061,7 @@ def site_to_source(
 
         shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
-        gas_emissions_rate = float(em_scen.annual_ng_leakage_g_per_kWh)
+        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
 
         # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()

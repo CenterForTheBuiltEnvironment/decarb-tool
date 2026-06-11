@@ -16,7 +16,7 @@ class EmissionScenario(DotAccessMixin, BaseModel):
     emission_type: str
     shortrun_weighting: float
     annual_refrig_leakage_percent: float
-    annual_ng_leakage_g_per_kWh: float
+    ng_emission_rate_gCO2e_per_kWh: float
     year: int
 
 
