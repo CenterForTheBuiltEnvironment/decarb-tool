@@ -99,8 +99,6 @@ class Columns(StrEnum):
     ELEC_HR_WH = "elec_hr_Wh"
 
     # --- Air-Water Heat Pump (Heating) ---
-    # AWHP_NUM_H = "awhp_num_h"
-    # AWHP_NUM_H_R = "awhp_num_h_redundant"
     AWHP_NUM = "awhp_num"
     AWHP_NUM_R = "awhp_num_redundant"
     AWHP_CAP_H_W = "awhp_cap_h_W"
@@ -118,7 +116,7 @@ class Columns(StrEnum):
     ELEC_RES_WH = "elec_res_Wh"
 
     # --- Air-Water Heat Pump (Cooling) ---
-    # AWHP_NUM_C = "awhp_num_c"
+    AWHP_NUM_C = "awhp_num_c"
     AWHP_CAP_C_W = "awhp_cap_c_W"
     AWHP_COP_C = "awhp_cop_c"
     AWHP_CHW_W = "awhp_chw_W"

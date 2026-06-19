@@ -315,9 +315,7 @@ COLUMN_CONFIG = {
     "chiller_cop": (None, "Chiller COP"),
     "boiler_eff": (None, "Boiler Efficiency"),
     # === Equipment Counts (dimensionless) ===
-    # "awhp_num_h": (None, "AWHP Count (Heating)"),
-    # "awhp_num_h_redundant": (None, "AWHP Redundant (Heating)"),
-    # "awhp_num_c": (None, "AWHP Count (Cooling)"),
+    "awhp_num_c": (None, "AWHP Count (Cooling)"),
     "awhp_num": (None, "AWHP Count"),
     "awhp_num_redundant": (None, "AWHP Redundant Count"),
     # === Refrigerant Type (text - no conversion) ===

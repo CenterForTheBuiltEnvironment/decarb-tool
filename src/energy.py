@@ -528,8 +528,6 @@ def loads_to_site_energy(
                 Col.AWHP_HHW_W.value,
                 Col.AWHP_COP_H.value,
                 Col.AWHP_CAP_H_W.value,
-                # Col.AWHP_NUM_H.value,
-                # Col.AWHP_NUM_H_R.value,
                 Col.AWHP_NUM.value,
                 Col.AWHP_NUM_R.value,
                 Col.ELEC_AWHP_H_WH.value,
@@ -544,7 +542,7 @@ def loads_to_site_energy(
                 Col.AWHP_CHW_W.value,
                 Col.AWHP_COP_C.value,
                 Col.AWHP_CAP_C_W.value,
-                # Col.AWHP_NUM_C.value,
+                Col.AWHP_NUM_C.value,
                 Col.ELEC_AWHP_C_WH.value,
                 # Electric chiller
                 Col.CHILLER_CHW_W.value,
@@ -896,15 +894,19 @@ def loads_to_site_energy(
 
             logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
 
-            cap_total_c_W = awhp_cap_c * awhp_num
-            mask = (
-                df[Col.AWHP_HHW_W.value] == 0
-            )  # create a mask for hours when no heating is served by AWHP
-            served_c_W = np.zeros(len(df))  # Initialize served_c_W as zeros
-            served_c_W[mask] = np.minimum(
-                df.loc[mask, Col.CHW_REM_W.value].to_numpy(), cap_total_c_W[mask]
-            )  # Compute only where mask is True
+            # cap_total_c_W = awhp_cap_c * awhp_num
 
+            # assuming that AWHPs all have 50% turndown (2 compressors)
+            num_compressors = awhp_num * 2
+            # calculate number of "compressors" used to serve heating load
+            num_compressors_h = np.ceil((df[Col.AWHP_HHW_W.value] / df[Col.AWHP_CAP_H_W.value]) * num_compressors)
+            # remaining compressors can serve cooling load
+            num_compressors_c = num_compressors - num_compressors_h
+            awhp_num_c = num_compressors_c / 2 # number of compressors available to operate in cooling
+
+            cap_total_c_W = awhp_cap_c * awhp_num_c
+            served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
+            
             # Compute electricity only where cooling is served
             elec_c_Wh = served_c_W / awhp_cop_c
             df[Col.AWHP_CHW_W.value] = served_c_W
@@ -913,6 +915,7 @@ def loads_to_site_energy(
             df[Col.ELEC_AWHP_C_WH.value] = elec_c_Wh
             df[Col.ELEC_WH.value] += elec_c_Wh
             df[Col.CHW_REM_W.value] -= served_c_W
+            df[Col.AWHP_NUM_C] = awhp_num_c
 
             awhp_c_coverage = (
                 (np.nansum(served_c_W) / np.nansum(df[Col.CHW_W.value])) * 100
@@ -1045,8 +1048,6 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.HR_WWHP_REFRIGERANT.value,
         Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value,
         Col.HR_WWHP_REFRIGERANT_GWP.value,
-        # Col.AWHP_NUM_H.value,
-        # Col.AWHP_NUM_H_R.value,
         Col.AWHP_NUM.value,
         Col.AWHP_NUM_R.value,
         Col.AWHP_CAP_H_W.value,
@@ -1061,7 +1062,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.GAS_BOILER_WH.value,
         Col.RES_HHW_W.value,
         Col.ELEC_RES_WH.value,
-        # Col.AWHP_NUM_C.value,
+        Col.AWHP_NUM_C.value,
         Col.AWHP_CAP_C_W.value,
         Col.AWHP_COP_C.value,
         Col.AWHP_CHW_W.value,
