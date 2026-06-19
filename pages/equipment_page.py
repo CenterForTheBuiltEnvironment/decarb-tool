@@ -1162,8 +1162,22 @@ def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
     return (not hr_selected, not awhp_selected)
 
 
-# helper to build equipment options for Selects
+@callback(
+    Output("edit-awhp-sizing-priority", "disabled"),
+    Input("edit-awhp-use-cooling", "checked"),
+    Input("edit-awhp-sizing-mode", "value"),
+    prevent_initial_call=True,
+)
+def update_sizing_priority(use_cooling, sizing_mode):
+    """Enable/disable AWHP sizing priority input when use-cooling or sizing mode changes."""
 
+    # Disable input if AWHP is not used for cooling or if sizing is not based on peak load
+    disabled = (use_cooling == False) or (sizing_mode == "fixed_num_units")
+
+    return disabled
+
+
+# helper to build equipment options for Selects
 
 def _build_equipment_options(
     equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
