@@ -327,6 +327,18 @@
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 29030,
       "refrigerant_gwp": 2088,
+      "dimensions": {
+        "length": 2.21,
+        "width": 2.46,
+        "height": 3.96
+      },
+      "operating_weight_g": 3079892,
+      "electrical": {
+        "mca": 129,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 87.5,
       "performance": {
         "heating": {
           "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
@@ -392,6 +404,18 @@
       "refrigerant": "R-410A",
       "refrigerant_weight_g": 55792,
       "refrigerant_gwp": 2088,
+      "dimensions": {
+        "length": 2.21,
+        "width": 2.46,
+        "height": 7.54
+      },
+      "operating_weight_g": 5310206,
+      "electrical": {
+        "mca": 265,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 93.9,
       "performance": {
         "heating": {
           "t_out_C": [-15, -10, -5, 0, 5, 7, 10, 15, 20, 25, 30],
@@ -457,6 +481,17 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 78018,
       "refrigerant_gwp": 466,
+      "dimensions": {
+        "length": 1.22,
+        "width": 2.62,
+        "height": 2.45
+      },
+      "operating_weight_g": 2721554,
+      "electrical": {
+        "mca": 151,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
@@ -530,6 +565,17 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 104326,
       "refrigerant_gwp": 466,
+      "dimensions": {
+        "length": 5.82,
+        "width": 2.24,
+        "height": 2.49
+      },
+      "operating_weight_g": 4369455,
+      "electrical": {
+        "mca": 254,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "t_out_C": [-23.3, -17.7, -12.2, -6.7, -1.1, 4.4, 10],
@@ -611,7 +657,18 @@
       "eq_calc_type": "specific",
       "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 150000,
+      "capacity_W": 190500,
+      "dimensions": {
+        "length": 1.06, 
+        "width": 0.833, 
+        "height": 2.01
+      },
+      "operating_weight_g": 305000,
+      "electrical": {
+        "mca": 10,
+        "voltage": 120,
+        "phase": 1
+      },
       "performance": {
         "heating": {
           "efficiency": 0.9
@@ -625,7 +682,18 @@
       "eq_calc_type": "specific",
       "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 150000,
+      "capacity_W": 190500,
+      "dimensions": {
+        "length": 1.06, 
+        "width": 0.833, 
+        "height": 2.01
+      },
+      "operating_weight_g": 305000,
+      "electrical": {
+        "mca": 10,
+        "voltage": 120,
+        "phase": 1
+      },
       "performance": {
         "heating": {
           "efficiency": 0.8
@@ -639,7 +707,18 @@
       "eq_calc_type": "specific",
       "model": "GenericBoiler",
       "fuel": "natural_gas",
-      "capacity_W": 150000,
+      "capacity_W": 190500,
+      "dimensions": {
+        "length": 1.06, 
+        "width": 0.833, 
+        "height": 2.01
+      },
+      "operating_weight_g": 305000,
+      "electrical": {
+        "mca": 10,
+        "voltage": 120,
+        "phase": 1
+      },
       "performance": {
         "heating": {
           "efficiency": 0.7
@@ -664,17 +743,28 @@
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",
       "eq_calc_type": "specific",
-      "eq_manufacturer": "IMC",
       "model": "GenericChiller",
-      "nominal_capacity_W": 351600,
+      "nominal_capacity_W": 703400,
       "fuel": "electricity",
-      "refrigerant": "R-410A",
-      "refrigerant_weight_g": 45400,
-      "refrigerant_gwp": 2088,
-      "capacity_W": 351700,
+      "refrigerant": "R-134A",
+      "refrigerant_weight_g": 286000,
+      "refrigerant_gwp": 1430,
+      "capacity_W": 703400,
+      "dimensions": {
+        "length": 9, 
+        "width": 2.2, 
+        "height": 2.5
+      },
+      "operating_weight_g": 6945000,
+      "electrical": {
+        "mca": 500,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 100,
       "performance": {
         "cooling": {
-          "efficiency": 2.84
+          "efficiency": 3.2
         }        
       }
     },
@@ -683,17 +773,91 @@
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",
       "eq_calc_type": "specific",
-      "eq_manufacturer": "IMC",
-      "model": "GenericChiller",
-      "nominal_capacity_W": 703200,
+      "eq_manufacturer": "York",
+      "model": "YLAA",
+      "nominal_capacity_W": 351700,
       "fuel": "electricity",
       "refrigerant": "R-410A",
-      "refrigerant_weight_g": 90700,
+      "refrigerant_weight_g": 46220, 
       "refrigerant_gwp": 2088,
-      "capacity_W": 703400,
+      "capacity_W": 351700,
+      "dimensions": {
+        "length": 3.64, 
+        "width": 2.25, 
+        "height": 2.39
+      },
+      "operating_weight_g": 2453900,
+      "electrical": {
+        "mca": 229,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 95,
       "performance": {
         "cooling": {
-          "efficiency": 2.84
+          "efficiency": 2.97
+        }        
+      }
+    },
+    {
+      "eq_id": "ch04",
+      "eq_type": "chiller",
+      "eq_subtype": "air_cooled",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "York",
+      "model": "YVAA",
+      "nominal_capacity_W": 703400,
+      "fuel": "electricity",
+      "refrigerant": "R-134A",
+      "refrigerant_weight_g": 286000,
+      "refrigerant_gwp": 1430,
+      "capacity_W": 703400,
+      "dimensions": {
+        "length": 10.84, 
+        "width": 2.18, 
+        "height": 2.41
+      },
+      "operating_weight_g": 9546700,
+      "electrical": {
+        "mca": 569,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 100,
+      "performance": {
+        "cooling": {
+          "efficiency": 3.5
+        }        
+      }
+    },
+    {
+      "eq_id": "ch05",
+      "eq_type": "chiller",
+      "eq_subtype": "air_cooled",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "Trane",
+      "model": "ACS",
+      "nominal_capacity_W": 703400,
+      "fuel": "electricity",
+      "refrigerant": "R-454B",
+      "refrigerant_weight_g": 57000,
+      "refrigerant_gwp": 466,
+      "capacity_W": 703400,
+      "dimensions": {
+        "length": 7.15, 
+        "width": 2.24, 
+        "height": 2.5
+      },
+      "operating_weight_g": 4343000,
+      "electrical": {
+        "mca": 401,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 100,
+      "performance": {
+        "cooling": {
+          "efficiency": 3.0
         }        
       }
     },
@@ -717,7 +881,18 @@
       "eq_calc_type": "specific",
       "eq_subtype": "electric",
       "fuel": "electricity",
-      "capacity_W": 150000,
+      "capacity_W": 180000,
+      "dimensions": {
+        "length": 1.34,
+        "width": 0.832,
+        "height": 1.75
+      },
+      "operating_weight_g": 928000,
+      "electrical": {
+        "mca": 273,
+        "voltage": 480,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "efficiency": 1.0
@@ -741,7 +916,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_2",
@@ -757,7 +932,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_3",
@@ -773,7 +948,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_4",
@@ -789,7 +964,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_5",
@@ -805,7 +980,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_6",
@@ -821,7 +996,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_7",
@@ -837,7 +1012,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_8",
@@ -853,7 +1028,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_9",
@@ -869,7 +1044,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_10",
@@ -885,7 +1060,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
       "backup_heating": "bo03",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_11",
@@ -901,7 +1076,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_12",
@@ -917,7 +1092,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_13",
@@ -933,7 +1108,7 @@
       "awhp_h_supply_t": 52,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_14",
@@ -949,7 +1124,7 @@
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_15",
@@ -965,7 +1140,7 @@
       "awhp_h_supply_t": 52,
       "awhp_use_cooling": true,
       "backup_heating": "res02",
-      "chiller": "ch03"
+      "chiller": "ch02"
     }
   ],
   "scenario_groups": [

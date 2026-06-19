@@ -26,6 +26,15 @@ class Performance(BaseModel):
 class Emissions(BaseModel):
     co2_kg_per_mwh: float
 
+class Dimensions(BaseModel): # all in metres
+    length: float | None = None
+    height: float | None = None
+    width: float | None = None
+
+class Electrical(BaseModel):
+    mca: float | None = None # minimum circuit amps
+    voltage: float | None = None
+    phase: int | None = None
 
 class Equipment(BaseModel):
     eq_id: str
@@ -40,6 +49,10 @@ class Equipment(BaseModel):
     refrigerant_weight_g: float | None = None
     refrigerant_gwp: float | None = None  # in kgCO2e per kg of refrigerant
     capacity_W: float | None = None
+    dimensions: Dimensions | None = None
+    operating_weight_g: float | None = None
+    electrical: Electrical | None = None
+    max_output_dba: float | None = None
     performance: dict[str, Performance] = Field(default_factory=dict)
     emissions: Emissions | None = None  #! potentially rename to something more specific
 
