@@ -295,9 +295,10 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
         # Generate default name from ID suffix (a -> A, b -> B, c -> C)
-        suffix = scen_id.replace("em_scenario_", "").upper()
-        scen_name = f"Scenario {suffix}"
-        scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": scen_name}
+        # suffix = scen_id.replace("em_scenario_", "").upper()
+        # scen_name = f"Scenario {suffix}"
+        # scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": scen_name}
+        scen = {**base_scenario, "em_scen_id": scen_id}
 
         if group_id == "year":
             # Vary year, reset others to defaults
@@ -305,18 +306,21 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
+            scen["em_scen_name"] = str(scen["year"])
         elif group_id == "refrigerant_leakage":
             # Vary leakage, reset others to defaults
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
+            scen["em_scen_name"] = f"{scen["annual_refrig_leakage_percent"]*100:.0f}% leakage"
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
             scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[idx % len(ng_emission_rate_values)]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
+            scen["em_scen_name"] = scen["emission_type"]
 
         updated_scenarios.append(scen)
 
