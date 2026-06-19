@@ -34,6 +34,7 @@ class EquipmentTableRows(Enum):
         "awhp_sizing_value",
         "awhp_redundancy",
         "awhp_use_cooling",
+        "awhp_sizing_priority",
         "backup_heating",
         "chiller",
     )

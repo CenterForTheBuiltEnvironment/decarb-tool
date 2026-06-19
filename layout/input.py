@@ -526,6 +526,7 @@ def build_equipment_table(
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
         ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
         ("chiller", "Backup Cooling"),
     ]
@@ -976,12 +977,38 @@ def edit_equipment_modal():
                             ],
                             grow=True,
                         ),
-                        dmc.Switch(
-                            id="edit-awhp-use-cooling",
-                            label="Use heat pump also for cooling",
-                            mt="xs",
+                        dmc.Group(
+                            [
+                                dmc.Switch(
+                                    id="edit-awhp-use-cooling",
+                                    label="Use heat pump also for cooling",
+                                    mt="xs",
+                                ),
+                                dmc.Select(
+                                    id="edit-awhp-sizing-priority",
+                                    label="Sizing priority",
+                                    placeholder="None",
+                                    data=[
+                                        {
+                                            "label": "Heating load",
+                                            "value": "heating",
+                                        },
+                                        {
+                                            "label": "Cooling load",
+                                            "value": "cooling",
+                                        },
+                                        {
+                                            "label": "Larger of heating and cooling load",
+                                            "value": "larger",
+                                        },
+                                    ],
+                                    clearable=True,
+                                    searchable=True,
+                                ),
+                            ],
+                            grow = True,
                         ),
-                    ]
+                    ],
                 ),
                 dmc.Divider(label="Backup equipment", labelPosition="center"),
                 dmc.SimpleGrid(

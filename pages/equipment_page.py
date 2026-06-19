@@ -681,6 +681,7 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-awhp-sizing-value", "value"),
     Output("edit-awhp-redundancy", "value"),
     Output("edit-awhp-use-cooling", "checked"),
+    Output("edit-awhp-sizing-priority", "value"),
     Output("edit-backup-heating-select", "data"),
     Output("edit-backup-heating-select", "value"),
     Output("edit-chiller-select", "data"),
@@ -697,7 +698,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 20
+        return (no_update,) * 21
 
     if not equipment_data:
         return (
@@ -716,6 +717,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             False,
+            None,
             [],
             None,
             [],
@@ -728,7 +730,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 20
+        return (no_update,) * 21
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -752,6 +754,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             False,
+            None,
             [],
             None,
             [],
@@ -781,6 +784,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             False,
+            None,
             [],
             None,
             [],
@@ -844,6 +848,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     sizing_value = scenario.get("awhp_sizing_value", 1.0)
     redundancy = scenario.get("awhp_redundancy", 1)
     use_cooling = scenario.get("awhp_use_cooling", False)
+    sizing_priority = scenario.get("awhp_sizing_priority") or "heating"
 
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
@@ -864,6 +869,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         sizing_value,
         redundancy,
         use_cooling,
+        sizing_priority,
         backup_heating_options,
         backup_heating_val,
         chiller_options,
@@ -889,6 +895,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-awhp-sizing-value", "value"),
     State("edit-awhp-redundancy", "value"),
     State("edit-awhp-use-cooling", "checked"),
+    State("edit-awhp-sizing-priority", "value"),
     State("edit-backup-heating-select", "value"),
     State("edit-chiller-select", "value"),
     State("equipment-store", "data"),
@@ -909,6 +916,7 @@ def save_edit_scenario(
     sizing_value,
     redundancy,
     use_cooling,
+    sizing_priority,
     backup_heating_val,
     chiller_val,
     equipment_data,
@@ -980,6 +988,7 @@ def save_edit_scenario(
             new_scen["awhp_sizing_value"] = sizing_value
             new_scen["awhp_redundancy"] = redundancy
             new_scen["awhp_use_cooling"] = use_cooling
+            new_scen["awhp_sizing_priority"] = sizing_priority
             new_scen["backup_heating"] = backup_heating_val
             new_scen["chiller"] = chiller_val
             new_scenarios.append(new_scen)

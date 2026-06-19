@@ -694,7 +694,7 @@ def loads_to_site_energy(
             redundancy = scen.awhp_redundancy
 
             if scen.awhp_use_cooling:
-                sizing_priority = "both" # scen.awhp_sizing_priority
+                sizing_priority = scen.awhp_sizing_priority
 
                 awhp_c = library.get_equipment(scen.awhp)
                 # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
@@ -714,7 +714,7 @@ def loads_to_site_energy(
                 sizing_load = "chw_W"
                 cap_ref = _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
             
-            elif sizing_priority == "both" and sizing_mode in [
+            elif sizing_priority == "larger" and sizing_mode in [
                 "integer_sizing_peak_load",
                 "fractional_sizing_peak_load",
             ]:
@@ -906,7 +906,7 @@ def loads_to_site_energy(
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
             served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
-            
+
             # Compute electricity only where cooling is served
             elec_c_Wh = served_c_W / awhp_cop_c
             df[Col.AWHP_CHW_W.value] = served_c_W
