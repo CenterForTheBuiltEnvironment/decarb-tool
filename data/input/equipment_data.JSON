@@ -8,15 +8,26 @@
       "model": "GenericHR_WWHP",
       "nominal_capacity_W": 1054800,
       "fuel": "electricity",
-      "refrigerant": "R-454B",
-      "refrigerant_weight_g": 200000,
-      "refrigerant_gwp": 466,
+      "refrigerant": "R-515B",
+      "refrigerant_weight_g": 400000,
+      "refrigerant_gwp": 292,
+      "dimensions": {
+        "length": 4.0,
+        "width": 1.5,
+        "height": 2.0
+      },
+      "operating_weight_g": 6000000,
+      "electrical": {
+        "mca": 500,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "capacity_W": [323600, 647300, 704300, 818800, 933300, 1048100],
           "leaving_supply_t": {
             "32.2": {
-              "cop": [6.7, 5.8, 5.9, 5.94, 5.97, 6.0]
+              "cop": [5.7, 5.8, 5.9, 5.94, 5.97, 6.0]
             },
             "73.9": {
               "cop": [2.28, 2.28, 2.3, 2.33, 2.35, 2.37]
@@ -39,8 +50,20 @@
       "nominal_capacity_W": 105480,
       "fuel": "electricity",
       "refrigerant": "R-454B",
-      "refrigerant_weight_g": 17700,
+      "refrigerant_weight_g": 23000,
       "refrigerant_gwp": 466,
+      "dimensions": {
+        "length": 2.25,
+        "width": 1.20,
+        "height": 2.50
+      },
+      "operating_weight_g": 1210000,
+      "electrical": {
+        "mca": 75,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 85,
       "performance": {
         "heating": {
           "capacity_W": [50000, 105500],
@@ -69,8 +92,20 @@
       "nominal_capacity_W": 210960,
       "fuel": "electricity",
       "refrigerant": "R-454B",
-      "refrigerant_weight_g": 29000,
+      "refrigerant_weight_g": 45000,
       "refrigerant_gwp": 466,
+      "dimensions": {
+        "length": 3.00,
+        "width": 2.25, 
+        "height": 2.50
+      },
+      "operating_weight_g": 2612000, 
+      "electrical": {
+        "mca": 140,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 90,
       "performance": {
         "heating": {
           "capacity_W": [70000, 140000, 211000],
@@ -92,7 +127,7 @@
     {
       "eq_id": "hr04",
       "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_scroll",
+      "eq_subtype": "water_to_water",
       "eq_calc_type": "specific",
       "eq_manufacturer": "IMC",
       "model": "GenericHR_WWHP",
@@ -101,6 +136,17 @@
       "refrigerant": "R-515B",
       "refrigerant_weight_g": 300800,
       "refrigerant_gwp": 292,
+      "dimensions": {
+        "length": 3.0,
+        "width": 1.8,
+        "height": 1.5
+      },
+      "operating_weight_g": 4000000,
+      "electrical": {
+        "mca": 300,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "capacity_W": [175000, 300000, 500000, 700000, 879250],
@@ -122,15 +168,26 @@
     {
       "eq_id": "hr05",
       "eq_type": "hr_heat_pump",
-      "eq_subtype": "water_to_water_scroll",
+      "eq_subtype": "water_to_water",
       "eq_calc_type": "specific",
       "eq_manufacturer": "IMC",
       "model": "GenericHR_WWHP",
       "nominal_capacity_W": 1758000,
       "fuel": "electricity",
       "refrigerant": "R-515B",
-      "refrigerant_weight_g": 453600,
+      "refrigerant_weight_g": 600000,
       "refrigerant_gwp": 292,
+      "dimensions": {
+        "length": 4.2,
+        "width": 2.1,
+        "height": 2.4
+      },
+      "operating_weight_g": 8000000,
+      "electrical": {
+        "mca": 800,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "capacity_W": [350000, 600000, 800000, 1200000, 1758500],
@@ -160,6 +217,18 @@
       "refrigerant": "R-454B",
       "refrigerant_weight_g": 54000,
       "refrigerant_gwp": 466,
+      "dimensions": {
+        "length": 2.0,
+        "width": 2.5,
+        "height": 3.2
+      },
+      "operating_weight_g": 2900000,
+      "electrical": {
+        "mca": 140,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 90,
       "performance": {
         "heating": {
           "t_out_C": [-15, -12.2, -6.7, -1.1, 4.4, 10, 15, 20, 30],
@@ -218,6 +287,17 @@
       "refrigerant_weight_g": 40000,
       "refrigerant_gwp": 466,
       "capacity_W": 105500,
+      "dimensions": {
+        "length": 2.0,
+        "width": 1.5,
+        "height": 2.5
+      },
+      "operating_weight_g": 1450000,
+      "electrical": {
+        "mca": 70,
+        "voltage": 460,
+        "phase": 3
+      },
       "performance": {
         "heating": {
           "t_out_C": [-8, 8],
@@ -273,6 +353,18 @@
       "refrigerant_weight_g": 80000,
       "refrigerant_gwp": 466,
       "capacity_W": 211000,
+      "dimensions": {
+        "length": 2.0,
+        "width": 2.5,
+        "height": 3.2
+      },
+      "operating_weight_g": 2900000,
+      "electrical": {
+        "mca": 140,
+        "voltage": 460,
+        "phase": 3
+      },
+      "max_output_dba": 90,
       "performance": {
         "heating": {
           "t_out_C": [-8, 8],
