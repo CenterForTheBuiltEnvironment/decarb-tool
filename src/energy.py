@@ -175,6 +175,9 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
             if scen.awhp_use_cooling:
                 awhp_c = library.get_equipment(scen.awhp)
 
+                if scen.awhp_sizing_priority is None:
+                    raise ValueError(f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'.")
+                
                 if not awhp_c.performance_cooling:
                     raise ValueError(f"Equipment '{awhp_c.eq_id}' lacks cooling performance data.")
 
