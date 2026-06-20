@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import numpy as np
 
 
 @dataclass(frozen=True)
@@ -56,7 +57,7 @@ def format_table_value(raw_value, field_name: str | None = None):
         return "—"
     if isinstance(raw_value, str) and raw_value.strip().lower() == "none":
         return "-"
-    if isinstance(raw_value, bool):
+    if isinstance(raw_value, np.bool):
         return "Yes" if raw_value else "No"
 
     # Map equipment IDs and enum values to display names
