@@ -181,6 +181,7 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     from utils.units import (
         get_auto_scale_for_values,
         get_category,
+        C_to_F,
     )
 
     # Define desired columns with their base display names (without units)
@@ -235,9 +236,16 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
             # Scale value if it has a registered category
             if col in column_scales and raw_value is not None:
                 try:
-                    scale, _ = column_scales[col]
-                    # Divide base unit value by scale to get display value
-                    scaled = float(raw_value) / scale
+                    if col in ["min_temp", "max_temp"]:
+                        if unit_mode == "IP":
+                            scaled = C_to_F(float(raw_value))
+                        else:
+                            scaled = float(raw_value)
+                    else:
+                        scale, _ = column_scales[col]
+                        # Divide base unit value by scale to get display value
+                        scaled = float(raw_value) / scale
+                        
                     # Format based on magnitude of scaled value
                     if abs(scaled) >= 1000:
                         display_value = f"{scaled:,.0f}"
