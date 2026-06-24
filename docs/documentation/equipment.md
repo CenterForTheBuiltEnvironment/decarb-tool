@@ -66,10 +66,6 @@ These two inputs determine how the total number of AWHP units, not including red
 * **Fractional sizing (peak load)**: The number of units required to meet the user-specified percentage of annual peak heating load, unrounded.
 * **Fixed number of units**: User-specified actual number of units.
 
-#### AWHP Sizing Priority
-
-This input determines which load profile is used to calculate the number of units per the sizing mode and value inputs.
-
 #### AWHP Redundancy
 
 An integer number of additional units for redundancy. The default value is 1, i.e., N+1 redundancy. The total number of AWHP units, including redundancy, is used in refrigerant leakage calculations.
