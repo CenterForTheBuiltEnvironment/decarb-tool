@@ -30,7 +30,7 @@ Loads are allocated in 6 phases, one for each type of equipment present in the s
 **Phase 2: Heating Air-to-Water Heat Pump (AWHP)**
 
 * The number of AWHPs is determined as described in [Equipment](equipment.md#air-to-water-heat-pump-awhp).
-* The heating load served (i.e., capacity) and operating efficiency for each hour are calculated as described in [Equipment](equipment.md#air-to-water-heat-pump-awhp). These are used to calculate the electricity usage.
+* The heating capacity and operating efficiency for each hour are calculated as described in [Equipment](equipment.md#air-to-water-heat-pump-awhp). These are used to calculate the electricity usage.
 
 **Phase 3: Natural Gas Boiler**
 
@@ -44,8 +44,8 @@ Loads are allocated in 6 phases, one for each type of equipment present in the s
 
 **Phase 5: Cooling Air-to-Water Heat Pump (AWHP)**
 
-* The number of AWHPs is equal to that calculated for heating in Phase 2.
-* Electricity usage is calculated in the same manner as Phase 2.
+* The number of AWHPs utilized for heating is calculated using the hourly heating load and overall capacity. The difference between this and the total number of AWHPs calculated in Phase 2 is the number of AWHPs available for cooling.
+* The cooling capacity and operating efficiency for each hour based on OAT are calculated by interpolating between performance table values for a fixed chilled water supply temperature. These are used to calculate the electricity usage.
 
 **Phase 6: Electric Chiller**
 
@@ -82,7 +82,7 @@ The second step is to convert the electricity and gas site energy, and any refri
 
 **Step 1: Compute electricity emissions rate**
 
-* The total electricity emissions rate is calculated as the weighted sum of the short-run marginal emissions rate (SRMER) and the long-run marginal emissions rate (LRMER).&#x20;
+* The total electricity emissions rate is calculated as the weighted sum of the short-run marginal emissions rate (SRMER) and the long-run marginal emissions rate (LRMER).
 
 **Step 2: Merge emissions and loads data**
 
@@ -105,14 +105,13 @@ The second step is to convert the electricity and gas site energy, and any refri
 
 ### Future Development
 
-1. Allow sizing for AWHPs based on cooling load or the larger of heating and cooling load, instead of heating only.
-2. Add functionality to size and vary the number of HR WWHPs.
-3. Add functionality to derate performance data to account for reported vs field performance and/or defrost.
-4. Add functionality for water cooled chillers.
-5. Add cooling tower water use calculations.
-6. Add functionality for chiller performance tables and/or curves instead of fixed COP.
-7. Add fuel switching evaluation (based on grid emissions and equipment COP).
-8. Add load shifting evaluation (thermal energy storage).
-9. Add exhaust air heat recovery as an optional heat source for WWHPs.
-10. Add functionality for AWHP models with heat recovery.
-11. Add utility cost calculations.
+1. Add functionality to size and vary the number of HR WWHPs.
+2. Add functionality to derate performance data to account for reported vs field performance and/or defrost.
+3. Add functionality for water cooled chillers.
+4. Add cooling tower water use calculations.
+5. Add functionality for chiller performance tables and/or curves instead of fixed COP.
+6. Add fuel switching evaluation (based on grid emissions and equipment COP).
+7. Add load shifting evaluation (thermal energy storage).
+8. Add exhaust air heat recovery as an optional heat source for WWHPs.
+9. Add functionality for AWHP models with heat recovery.
+10. Add utility cost calculations.
