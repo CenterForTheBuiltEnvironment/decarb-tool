@@ -10,29 +10,37 @@ from src.mixins import DotAccessMixin
 
 # --- Models ---
 class PerformanceCurves(BaseModel):
+    """Equipment performance curves: coefficient of performance (COP), capacity, and outdoor air temperature constraints."""
     cop: list[float] | None = None
     capacity_W: list[float] | None = None
     constraints: dict[str, float] | None = None
 
 
 class Performance(BaseModel):
-    t_out_C: list[float] | None = None  # for AWHPs
-    capacity_W: list[float] | None = None  # for WWHPs
+    """Equipment performance data:
+    Leaving supply water temperatures, associated performance curves, and supply water temperature constraints.
+    Outdoor air temperature curve for AWHPs, capacity curve for WWHPs, constant efficiency for boilers/chillers.
+    """
+    t_out_C: list[float] | None = None 
+    capacity_W: list[float] | None = None
     leaving_supply_t: dict[str, PerformanceCurves] | None = None
-    efficiency: float | None = None  # for boilers/chillers
+    efficiency: float | None = None
     constraints: dict[str, float] | None = None
 
 
 class Emissions(BaseModel):
+    """"Equipment emissions data."""
     co2_kg_per_mwh: float
 
-class Dimensions(BaseModel): # all in metres
+class Dimensions(BaseModel):
+    """Equipment physical dimensions in metres."""
     length: float | None = None
     height: float | None = None
     width: float | None = None
 
 class Electrical(BaseModel):
-    mca: float | None = None # minimum circuit amps
+    """Equipment electrical characteristics: minimum circuit amperage (MCA), voltage, and phase."""
+    mca: float | None = None
     voltage: float | None = None
     phase: int | None = None
 
