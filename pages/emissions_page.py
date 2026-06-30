@@ -294,11 +294,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
-        # Generate default name from ID suffix (a -> A, b -> B, c -> C)
-        # suffix = scen_id.replace("em_scenario_", "").upper()
-        # scen_name = f"Scenario {suffix}"
-        # scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": scen_name}
-        scen = {**base_scenario, "em_scen_id": scen_id}
+        scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": ""}
 
         if group_id == "year":
             # Vary year, reset others to defaults
@@ -313,7 +309,8 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            scen["em_scen_name"] = f"{scen["annual_refrig_leakage_percent"]*100:.0f}% leakage"
+            pct_leakage = scen["annual_refrig_leakage_percent"]*100
+            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
