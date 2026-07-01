@@ -1172,7 +1172,7 @@ def update_sizing_priority(use_cooling, sizing_mode):
     """Enable/disable AWHP sizing priority input when use-cooling or sizing mode changes."""
 
     # Disable input if AWHP is not used for cooling or if sizing is not based on peak load
-    disabled = (use_cooling == False) or (sizing_mode == "fixed_num_units")
+    disabled = (not use_cooling) or (sizing_mode == "fixed_num_units")
 
     return disabled
 

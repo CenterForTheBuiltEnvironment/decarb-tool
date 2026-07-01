@@ -897,15 +897,21 @@ def loads_to_site_energy(
 
             logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
 
-            # cap_total_c_W = awhp_cap_c * awhp_num
-
             # assuming that AWHPs all have 50% turndown (2 compressors)
-            num_compressors = awhp_num * 2
+            awhp_turndown = 0.5
+            num_compressors = awhp_num / awhp_turndown
             # calculate number of "compressors" used to serve heating load
-            num_compressors_h = np.ceil((df[Col.AWHP_HHW_W.value] / df[Col.AWHP_CAP_H_W.value]) * num_compressors)
+            num_compressors_h = np.maximum(0,
+                                    np.ceil(
+                                        num_compressors
+                                        * df[Col.AWHP_HHW_W.value] 
+                                        / df[Col.AWHP_CAP_H_W.value]
+                                    )
+                                )
+            num_compressors_h[np.isnan(num_compressors_h)] = 0 # for hours where AWHP heating capacity is 0
             # remaining compressors can serve cooling load
-            num_compressors_c = num_compressors - num_compressors_h
-            awhp_num_c = num_compressors_c / 2 # number of compressors available to operate in cooling
+            num_compressors_c = np.maximum(0, num_compressors - num_compressors_h)
+            awhp_num_c = num_compressors_c * awhp_turndown # number of compressors available to operate in cooling
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
             served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
