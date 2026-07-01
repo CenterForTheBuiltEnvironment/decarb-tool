@@ -740,6 +740,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -756,6 +757,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -772,6 +774,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -788,6 +791,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -804,6 +808,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -820,6 +825,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -836,6 +842,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -852,6 +859,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -868,6 +876,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -884,6 +893,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "chiller": "ch03"
     },
@@ -900,6 +910,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -916,6 +927,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -932,6 +944,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 52,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -948,6 +961,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     },
@@ -964,6 +978,7 @@
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 52,
       "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch03"
     }

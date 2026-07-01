@@ -34,6 +34,7 @@ class EquipmentTableRows(Enum):
         "awhp_sizing_value",
         "awhp_redundancy",
         "awhp_use_cooling",
+        "awhp_sizing_priority",
         "backup_heating",
         "chiller",
     )
@@ -99,8 +100,8 @@ class Columns(StrEnum):
     ELEC_HR_WH = "elec_hr_Wh"
 
     # --- Air-Water Heat Pump (Heating) ---
-    AWHP_NUM_H = "awhp_num_h"
-    AWHP_NUM_H_R = "awhp_num_h_redundant"
+    AWHP_NUM = "awhp_num"
+    AWHP_NUM_R = "awhp_num_redundant"
     AWHP_CAP_H_W = "awhp_cap_h_W"
     AWHP_COP_H = "awhp_cop_h"
     AWHP_HHW_W = "awhp_hhw_W"
