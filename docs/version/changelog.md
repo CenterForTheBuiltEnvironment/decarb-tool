@@ -6,8 +6,6 @@ metaLinks:
 
 # Changelog
 
-## Version X (2026-04-XX)
+## Version 1 (2026-04-17)
 
-Features:
-
-* X
+First draft of documentation.
