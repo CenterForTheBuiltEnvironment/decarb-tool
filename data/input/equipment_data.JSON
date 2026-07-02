@@ -839,7 +839,7 @@
       "nominal_capacity_W": 703400,
       "fuel": "electricity",
       "refrigerant": "R-134A",
-      "refrigerant_weight_g": 286000,
+      "refrigerant_weight_g": 186000,
       "refrigerant_gwp": 1430,
       "capacity_W": 703400,
       "dimensions": {

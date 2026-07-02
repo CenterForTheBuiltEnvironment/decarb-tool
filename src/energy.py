@@ -818,40 +818,41 @@ def loads_to_site_energy(
         # =========================
         # Phase 3 - Boiler (optional)
         # =========================
-        if scen.backup_heating and scen.backup_heating.fuel == "natural_gas":
+        if scen.backup_heating:
             backup_heating = library.get_equipment(scen.backup_heating)
 
-            eff = _constant_heating_efficiency(backup_heating)
-            logger.debug(f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}")
+            if backup_heating.fuel == "natural_gas":
+                eff = _constant_heating_efficiency(backup_heating)
+                logger.debug(f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}")
 
-            boiler_served_W = df[Col.HHW_REM_W].to_numpy()
-            gas_Wh = boiler_served_W / eff
+                boiler_served_W = df[Col.HHW_REM_W].to_numpy()
+                gas_Wh = boiler_served_W / eff
 
-            boiler_peak_served_W = np.nanmax(boiler_served_W)
-            # sizing logic
-            if backup_heating.eq_calc_type == "generic":
-                # generic equipment - do not account for space, electric capacity, etc.
-                boiler_num = 0
-            else:
-                # specific equipment model
-                boiler_cap = backup_heating.capacity_W
-                boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
-                boiler_num = max(boiler_num, 1)  # ensure at least one unit
+                boiler_peak_served_W = np.nanmax(boiler_served_W)
+                # sizing logic
+                if backup_heating.eq_calc_type == "generic":
+                    # generic equipment - do not account for space, electric capacity, etc.
+                    boiler_num = 0
+                else:
+                    # specific equipment model
+                    boiler_cap = backup_heating.capacity_W
+                    boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
+                    boiler_num = max(boiler_num, 1)  # ensure at least one unit
 
-                logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
+                    logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
 
-            df[Col.BOILER_HHW_W.value] = boiler_served_W
-            df[Col.GAS_BOILER_WH.value] = gas_Wh
-            df[Col.BOILER_EFF.value] = eff
-            df[Col.GAS_WH.value] += gas_Wh
-            df[Col.HHW_REM_W.value] = 0.0
+                df[Col.BOILER_HHW_W.value] = boiler_served_W
+                df[Col.GAS_BOILER_WH.value] = gas_Wh
+                df[Col.BOILER_EFF.value] = eff
+                df[Col.GAS_WH.value] += gas_Wh
+                df[Col.HHW_REM_W.value] = 0.0
 
-            boiler_coverage = (
-                (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
+                boiler_coverage = (
+                    (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
 
         # =========================
         # Phase 4 - Electric resistance (if heating remains)
