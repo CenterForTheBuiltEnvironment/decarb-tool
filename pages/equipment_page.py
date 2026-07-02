@@ -800,7 +800,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         equipment_list, "heat_pump", unit_mode, include_none=True
     )
     backup_heating_options = _build_equipment_options(
-        equipment_list, "backup_heating", unit_mode, include_none=False
+        equipment_list, "backup_heating", unit_mode, include_none=True
     )
     chiller_options = _build_equipment_options(
         equipment_list, "chiller", unit_mode, include_none=True
@@ -851,6 +851,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     sizing_priority = scenario.get("awhp_sizing_priority") or "heating"
 
     backup_heating_val = scenario.get("backup_heating")
+    if backup_heating_val is None:
+        backup_heating_val = "None"
 
     chiller_val = scenario.get("chiller")
     if chiller_val is None:
@@ -943,6 +945,8 @@ def save_edit_scenario(
         hr_wwhp_val = None
     if awhp_val == "None":
         awhp_val = None
+    if backup_heating_val == "None":
+        backup_heating_val = None
     if chiller_val == "None":
         chiller_val = None
 

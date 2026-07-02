@@ -1060,7 +1060,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": null
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_5",
@@ -1077,7 +1077,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": null
+      "chiller": "ch02"
     },
     {
       "eq_scen_id": "eq_scenario_6",

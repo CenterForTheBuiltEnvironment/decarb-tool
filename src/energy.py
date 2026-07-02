@@ -9,6 +9,7 @@ from src.metadata import Metadata
 from utils.interp import interp_vector, multi_interp_vector
 from utils.logging_config import get_logger
 from utils.units import cop_h_to_cop_c
+from utils.error_handling import create_warning_notification
 
 logger = get_logger(__name__)
 
@@ -231,21 +232,23 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                             f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (maximum t_out constraint for supply temperature {t})."
                         )
 
-        # boiler checks
-        backup_heating = library.get_equipment(scen.backup_heating)
-        if backup_heating.fuel == "natural_gas":
-            if not backup_heating.performance_heating:
-                raise ValueError(
-                    f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
-                )
+        if scen.backup_heating:
+            backup_heating = library.get_equipment(scen.backup_heating)
 
-            if (
-                backup_heating.performance_heating.efficiency is None
-                or backup_heating.performance_heating.efficiency <= 0
-            ):
-                raise ValueError(
-                    f"Equipment '{backup_heating.eq_id}' requires a positive 'efficiency'."
-                )
+            if backup_heating.fuel == "natural_gas":
+                # boiler checks
+                if not backup_heating.performance_heating:
+                    raise ValueError(
+                        f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
+                    )
+
+                if (
+                    backup_heating.performance_heating.efficiency is None
+                    or backup_heating.performance_heating.efficiency <= 0
+                ):
+                    raise ValueError(
+                        f"Equipment '{backup_heating.eq_id}' requires a positive 'efficiency'."
+                    )
 
 
 def _heat_recovery_plr_curve(e: Equipment, performance: PerformanceCurves) -> pd.DataFrame:
@@ -815,8 +818,9 @@ def loads_to_site_energy(
         # =========================
         # Phase 3 - Boiler (optional)
         # =========================
-        backup_heating = library.get_equipment(scen.backup_heating)
-        if backup_heating.fuel == "natural_gas":
+        if scen.backup_heating and scen.backup_heating.fuel == "natural_gas":
+            backup_heating = library.get_equipment(scen.backup_heating)
+
             eff = _constant_heating_efficiency(backup_heating)
             logger.debug(f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}")
 
@@ -855,8 +859,6 @@ def loads_to_site_energy(
         remaining_h_W = df[Col.HHW_REM_W.value].to_numpy()
         if np.any(remaining_h_W > 1e-9):
             elec_res_Wh = remaining_h_W  # COP = 1
-
-            # log warning if any heating remains
             remaining_kWh = np.nansum(remaining_h_W) / 1000
             elec_res_coverage = (
                 (np.nansum(remaining_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
@@ -869,6 +871,15 @@ def loads_to_site_energy(
             )
             if np.nansum(df[Col.GAS_BOILER_WH.value]) != 0:
                 logger.warning("Both gas and electric backup heating equipment are being used.")
+
+            if scen.backup_heating:
+                backup_heating = library.get_equipment(scen.backup_heating)
+            else:
+                generic_backup_heat_id = "res01"
+                backup_heating = library.get_equipment(generic_backup_heat_id)
+
+                logger.warning(f"{remaining_kWh:.1f} kWh remaining heating load not served. "
+                             f"Generic resistance heater {generic_backup_heat_id} added to equipment scenario {scen.eq_scen_id}.")
 
             resheater_peak_served_W = np.nanmax(elec_res_Wh)
             # sizing logic
@@ -938,89 +949,99 @@ def loads_to_site_energy(
         # =========================
         if df[Col.CHW_REM_W.value].sum() > 1e-9:
             remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
+            chiller_cop = 5.0  # default
 
             if scen.chiller:
-                chiller_cop = 5.0  # default
-
                 logger.debug(
                     f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
                 )
                 chl = library.get_equipment(scen.chiller)
-                # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
-                eff = _constant_cooling_efficiency(chl)
-                if eff and eff > 0:
-                    chiller_cop = eff
-                else:
-                    logger.warning(
-                        f"Phase 6: Using default chiller COP={chiller_cop} for {remaining_c_kWh:.1f} kWh - no chiller specified"
-                    )
-                    cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
-                    if not np.isnan(cop_curve).all():
-                        # if a curve exists, use the hourly values
-                        served_W = df[Col.CHW_REM_W.value].to_numpy()
-                        elec_Wh = served_W / cop_curve
-                        df[Col.CHILLER_CHW_W.value] = served_W
-                        df[Col.ELEC_CHILLER_WH.value] = elec_Wh
-                        df[Col.ELEC_WH.value] += elec_Wh
-                        df[Col.CHILLER_COP.value] = cop_curve
-                        df[Col.CHW_REM_W.value] = 0.0
-                        # finalize and return
-                        cols = _finalize_columns(df, detail)
-                        return df[cols]
+            else:
+                generic_chiller_id = "ch01"
+                chl = library.get_equipment(generic_chiller_id)
 
-                # scalar COP path
-                served_W = df[Col.CHW_REM_W.value].to_numpy()
-                elec_Wh = served_W / chiller_cop
-
-                chl_peak_served_W = np.nanmax(served_W)
-                # sizing logic
-                if chl.eq_calc_type == "generic":
-                    # generic equipment - do not account for refrigerant, space, electric capacity, etc.
-                    chl_num = 0
-                else:
-                    # specific equipment model
-                    # assumes fixed capacity, edit for curves later
-                    chl_cap = chl.capacity_W
-                    chl_num = np.ceil(chl_peak_served_W / chl_cap)
-                    chl_num = max(chl_num, 1)  # ensure at least one unit
-
-                    logger.debug(f"Chiller sizing: {chl_num:.0f} units")
-
-                # add refrigerant information
-                chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
-                num_hours = len(df)  # Use actual data length (handles leap years)
-
-                chiller_refrigerant_weight_kg = (
-                    chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
-                    if chl.refrigerant_weight_g
-                    else 0.0
+                logger.warning(f"{remaining_c_kWh:.1f} kWh remaining cooling load not served. "
+                             f"Generic chiller {generic_chiller_id} added to equipment scenario {scen.eq_scen_id}.")
+                # create_warning_notification(
+                #     "Unserved Cooling Load",
+                #     f"Generic chiller {generic_chiller_id} added to equipment scenario {scen.eq_scen_id}."
+                # )
+                
+            # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
+            eff = _constant_cooling_efficiency(chl)
+            if eff and eff > 0:
+                chiller_cop = eff
+            else: 
+                # not addressing for now but
+                # i think this logic skips the sizing/refrigerant calcs below
+                # which is not right. fix when curves are added for chillers
+                logger.warning(
+                    f"Phase 6: Using default chiller COP={chiller_cop} for {remaining_c_kWh:.1f} kWh - no chiller specified"
                 )
-
-                chiller_refrigerant_gwp_kg = (
-                    chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
-                )
-
-                # this will produce a warning if generic equipment is used
-                if chiller_refrigerant_gwp_kg == 0:
-                    if chiller_refrigerant_weight_kg == 0:
-                        logger.warning("Chiller refrigerant charge is 0.")
-                    else:
-                        logger.warning("Chiller refrigerant GWP is 0.")
-
-                if detail:
+                cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
+                if not np.isnan(cop_curve).all():
+                    # if a curve exists, use the hourly values
+                    served_W = df[Col.CHW_REM_W.value].to_numpy()
+                    elec_Wh = served_W / cop_curve
                     df[Col.CHILLER_CHW_W.value] = served_W
                     df[Col.ELEC_CHILLER_WH.value] = elec_Wh
-                    df[Col.CHILLER_COP.value] = chiller_cop
+                    df[Col.ELEC_WH.value] += elec_Wh
+                    df[Col.CHILLER_COP.value] = cop_curve
+                    df[Col.CHW_REM_W.value] = 0.0
+                    # finalize and return
+                    cols = _finalize_columns(df, detail)
+                    return df[cols]
 
-                df[Col.ELEC_WH.value] += elec_Wh
-                df[Col.CHW_REM_W.value] = 0.0
-                df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
-                df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
-                df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
-            
+            # scalar COP path
+            served_W = df[Col.CHW_REM_W.value].to_numpy()
+            elec_Wh = served_W / chiller_cop
+
+            chl_peak_served_W = np.nanmax(served_W)
+            # sizing logic
+            if chl.eq_calc_type == "generic":
+                # generic equipment - do not account for refrigerant, space, electric capacity, etc.
+                chl_num = 0
             else:
-                logger.error(f"{remaining_c_kWh:.1f} kWh remaining cooling load not served. "
-                             f"Add a backup chiller to equipment scenario {scen.eq_scen_id}")
+                # specific equipment model
+                # assumes fixed capacity, edit for curves later
+                chl_cap = chl.capacity_W
+                chl_num = np.ceil(chl_peak_served_W / chl_cap)
+                chl_num = max(chl_num, 1)  # ensure at least one unit
+
+                logger.debug(f"Chiller sizing: {chl_num:.0f} units")
+
+            # add refrigerant information
+            chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
+            num_hours = len(df)  # Use actual data length (handles leap years)
+
+            chiller_refrigerant_weight_kg = (
+                chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
+                if chl.refrigerant_weight_g
+                else 0.0
+            )
+
+            chiller_refrigerant_gwp_kg = (
+                chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
+            )
+
+            # this will produce a warning if generic equipment is used
+            if chiller_refrigerant_gwp_kg == 0:
+                if chiller_refrigerant_weight_kg == 0:
+                    logger.warning("Chiller refrigerant charge is 0.")
+                else:
+                    logger.warning("Chiller refrigerant GWP is 0.")
+
+            if detail:
+                df[Col.CHILLER_CHW_W.value] = served_W
+                df[Col.ELEC_CHILLER_WH.value] = elec_Wh
+                df[Col.CHILLER_COP.value] = chiller_cop
+
+            df[Col.ELEC_WH.value] += elec_Wh
+            df[Col.CHW_REM_W.value] = 0.0
+            df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
+            df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
+            df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
+                
 
         df = df.round(4)
 
