@@ -9,10 +9,10 @@
 
   <p align="center">
     <br />
-    <a href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/main/docs/documentation-short.md"><strong>Explore the docs »</strong></a>
+    <a href="https://cbe-berkeley.gitbook.io/decarb/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/CenterForTheBuiltEnvironment/cbe-tool-template">View Demo</a>
+    <a href="https://decarb.cbe.berkeley.edu">View Demo</a>
     ·
     <a href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool/issues/new?labels=bug&template=issue--bug-report.md">Report Bug</a>
     ·

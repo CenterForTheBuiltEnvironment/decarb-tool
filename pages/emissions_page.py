@@ -264,15 +264,15 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
-    default_ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH.value
+    default_ng_emission_rate = EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH.value
 
     # Define the variation values and default IDs
     year_values = [2025, 2035, 2045]
     leakage_values = [0.01, 0.05, 0.1]
     emission_types = ["Combustion only", "Includes pre-combustion"]
-    ng_leakage_values = [
-        EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value,
-        default_ng_leakage,
+    ng_emission_rate_values = [
+        EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH_COMBUSTION.value,
+        default_ng_emission_rate,
     ]
 
     # Create base scenario template from first existing scenario or defaults
@@ -286,7 +286,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             "emission_type": default_emission_type,
             "shortrun_weighting": 0,
             "annual_refrig_leakage_percent": default_leakage,
-            "annual_ng_leakage_g_per_kWh": default_ng_leakage,
+            "ng_emission_rate_gCO2e_per_kWh": default_ng_emission_rate,
             "year": default_year,
         }
     )
@@ -294,29 +294,30 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
-        # Generate default name from ID suffix (a -> A, b -> B, c -> C)
-        suffix = scen_id.replace("em_scenario_", "").upper()
-        scen_name = f"Scenario {suffix}"
-        scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": scen_name}
+        scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": ""}
 
         if group_id == "year":
             # Vary year, reset others to defaults
             scen["year"] = year_values[idx % len(year_values)]
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["emission_type"] = default_emission_type
-            scen["annual_ng_leakage_g_per_kWh"] = default_ng_leakage
+            scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
+            scen["em_scen_name"] = str(scen["year"])
         elif group_id == "refrigerant_leakage":
             # Vary leakage, reset others to defaults
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
-            scen["annual_ng_leakage_g_per_kWh"] = default_ng_leakage
+            scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
+            pct_leakage = scen["annual_refrig_leakage_percent"]*100
+            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
-            scen["annual_ng_leakage_g_per_kWh"] = ng_leakage_values[idx % len(ng_leakage_values)]
+            scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[idx % len(ng_emission_rate_values)]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
+            scen["em_scen_name"] = scen["emission_type"]
 
         updated_scenarios.append(scen)
 
@@ -561,7 +562,7 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     Output("edit-em-shortrun-weighting", "value"),
     Output("edit-em-year", "value"),
     Output("edit-em-refrig-leakage", "value"),
-    Output("edit-em-ng-leakage", "value"),
+    Output("edit-em-ng-emission-rate", "value"),
     Output("edit-em-scenario-error", "children"),
     Input({"type": "emission-edit-btn", "em_scen_id": ALL}, "n_clicks"),
     State("metadata-store", "data"),
@@ -634,24 +635,24 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             f"Scenario {em_scen_id!r} not found.",
         )
 
-    # Convert NG leakage for display based on unit mode
-    ng_leakage_base = scen.get("annual_ng_leakage_g_per_kWh")
-    if ng_leakage_base is not None and unit_mode == "IP":
+    # Convert NG emissions rate for display based on unit mode
+    ng_emission_rate_base = scen.get("ng_emission_rate_gCO2e_per_kWh")
+    if ng_emission_rate_base is not None and unit_mode == "IP":
         from utils.units import get_unit_converter
 
-        ng_converter = get_unit_converter("ng_leakage_rate", "IP")
-        ng_leakage_display = ng_converter(float(ng_leakage_base))
+        ng_converter = get_unit_converter("emissions_rate", "IP")
+        ng_emission_rate_display = ng_converter(float(ng_emission_rate_base))
     else:
-        ng_leakage_display = ng_leakage_base
+        ng_emission_rate_display = ng_emission_rate_base
 
     # Round refrigerant leakage to 2 decimal places for display
     refrig_leakage = scen.get("annual_refrig_leakage_percent")
     if refrig_leakage is not None:
         refrig_leakage = round(float(refrig_leakage), 2)
 
-    # Round NG leakage display to 2 decimal places
-    if ng_leakage_display is not None:
-        ng_leakage_display = round(float(ng_leakage_display), 2)
+    # Round NG emission rate display to 2 decimal places
+    if ng_emission_rate_display is not None:
+        ng_emission_rate_display = round(float(ng_emission_rate_display), 2)
 
     return (
         True,
@@ -664,7 +665,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
         scen.get("shortrun_weighting"),
         str(scen.get("year")) if scen.get("year") is not None else "",
         refrig_leakage,
-        ng_leakage_display,
+        ng_emission_rate_display,
         "",
     )
 
@@ -683,7 +684,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     State("edit-em-shortrun-weighting", "value"),
     State("edit-em-year", "value"),
     State("edit-em-refrig-leakage", "value"),
-    State("edit-em-ng-leakage", "value"),
+    State("edit-em-ng-emission-rate", "value"),
     State("metadata-store", "data"),
     State("unit-toggle", "value"),
     prevent_initial_call=True,
@@ -699,7 +700,7 @@ def save_edit_emission(
     shortrun_weighting,
     year,
     refrig_leakage,
-    ng_leakage,
+    ng_emission_rate,
     metadata_data,
     unit_mode,
 ):
@@ -729,18 +730,18 @@ def save_edit_emission(
         refrig_leakage = 0.0
 
     try:
-        ng_leakage = float(ng_leakage) if ng_leakage is not None else 0.0
+        ng_emission_rate = float(ng_emission_rate) if ng_emission_rate is not None else 0.0
     except (TypeError, ValueError):
-        ng_leakage = 0.0
+        ng_emission_rate = 0.0
 
-    # Convert NG leakage back to base units (g/kWh) if in IP mode
+    # Convert NG emissions rate back to base units (g/kWh) if in IP mode
     unit_mode = unit_mode or "SI"
-    if unit_mode == "IP" and ng_leakage > 0:
+    if unit_mode == "IP" and ng_emission_rate > 0:
         from utils.units import Wh_to_BTU, g_to_lb
 
         # IP unit is lb/kBTU, convert back to g/kWh
         # g/kWh = (lb/kBTU) / (g_to_lb / Wh_to_BTU)
-        ng_leakage = ng_leakage / (g_to_lb / Wh_to_BTU)
+        ng_emission_rate = ng_emission_rate / (g_to_lb / Wh_to_BTU)
 
     scenarios = metadata_data.get("emission_settings", [])
     updated = False
@@ -757,7 +758,7 @@ def save_edit_emission(
             new_scen["shortrun_weighting"] = shortrun_weighting
             new_scen["year"] = year
             new_scen["annual_refrig_leakage_percent"] = refrig_leakage
-            new_scen["annual_ng_leakage_g_per_kWh"] = ng_leakage
+            new_scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate
             new_scenarios.append(new_scen)
             updated = True
         else:
@@ -784,16 +785,16 @@ def cancel_edit_emission_modal(n_clicks):
 
 
 @callback(
-    Output("edit-em-ng-leakage-label", "children"),
+    Output("edit-em-ng-emission-rate-label", "children"),
     Input("unit-toggle", "value"),
 )
-def update_ng_leakage_label(unit_mode):
-    """Update NG leakage label based on unit mode."""
+def update_ng_emissions_rate_label(unit_mode):
+    """Update NG emissions rate label based on unit mode."""
     from utils.units import get_unit_label
 
     unit_mode = unit_mode or "SI"
-    ng_unit = get_unit_label("ng_leakage_rate", unit_mode)
-    return f"Annual NG leakage ({ng_unit})"
+    ng_unit = get_unit_label("emissions_rate", unit_mode)
+    return f"Gas emissions rate ({ng_unit})"
 
 
 @callback(
@@ -959,23 +960,23 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
 
 
 @callback(
-    Output("edit-em-ng-leakage", "value", allow_duplicate=True),
+    Output("edit-em-ng-emission-rate", "value", allow_duplicate=True),
     Input("edit-em-emission-type", "value"),
     State("unit-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_ng_leakage_on_emission_type_change(emission_type, unit_mode):
-    """Update NG leakage when emission type changes."""
+def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
+    """Update NG emissions rate when emission type changes."""
     from utils.units import format_value
 
     unit_mode = unit_mode or "SI"
 
     if emission_type == "Combustion only":
-        ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH_COMBUSTION.value
+        ng_emission_rate = EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH_COMBUSTION.value
     elif emission_type == "Includes pre-combustion":
-        ng_leakage = EmissionScenarioDefaults.NG_LEAKAGE_G_KWH.value
+        ng_emission_rate = EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH.value
 
     if unit_mode == "IP":
-        ng_leakage = format_value(ng_leakage, "annual_ng_leakage_g_per_kWh", unit_mode, decimals=2)
+        ng_emission_rate = format_value(ng_emission_rate, "ng_emission_rate_gCO2e_per_kWh", unit_mode, decimals=2)
 
-    return ng_leakage
+    return ng_emission_rate

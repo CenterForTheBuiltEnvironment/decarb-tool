@@ -179,8 +179,10 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
     from utils.units import (
+        AUTO_SCALE_CONFIG,
         get_auto_scale_for_values,
         get_category,
+        get_converter,
     )
 
     # Define desired columns with their base display names (without units)
@@ -235,9 +237,13 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
             # Scale value if it has a registered category
             if col in column_scales and raw_value is not None:
                 try:
-                    scale, _ = column_scales[col]
-                    # Divide base unit value by scale to get display value
-                    scaled = float(raw_value) / scale
+                    category = get_category(col)
+                    if category in AUTO_SCALE_CONFIG:
+                        scale, _ = column_scales[col]
+                        scaled = float(raw_value) / scale
+                    else:
+                        scaled = get_converter(category, unit_mode)(float(raw_value))
+
                     # Format based on magnitude of scaled value
                     if abs(scaled) >= 1000:
                         display_value = f"{scaled:,.0f}"
@@ -526,6 +532,7 @@ def build_equipment_table(
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
         ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
         ("chiller", "Backup Cooling"),
     ]
@@ -976,12 +983,38 @@ def edit_equipment_modal():
                             ],
                             grow=True,
                         ),
-                        dmc.Switch(
-                            id="edit-awhp-use-cooling",
-                            label="Use heat pump also for cooling",
-                            mt="xs",
+                        dmc.Group(
+                            [
+                                dmc.Switch(
+                                    id="edit-awhp-use-cooling",
+                                    label="Use heat pump also for cooling",
+                                    mt="xs",
+                                ),
+                                dmc.Select(
+                                    id="edit-awhp-sizing-priority",
+                                    label="Sizing priority",
+                                    placeholder="None",
+                                    data=[
+                                        {
+                                            "label": "Heating load",
+                                            "value": "heating",
+                                        },
+                                        {
+                                            "label": "Cooling load",
+                                            "value": "cooling",
+                                        },
+                                        {
+                                            "label": "Larger of heating and cooling load",
+                                            "value": "larger",
+                                        },
+                                    ],
+                                    clearable=True,
+                                    searchable=True,
+                                ),
+                            ],
+                            grow=True,
                         ),
-                    ]
+                    ],
                 ),
                 dmc.Divider(label="Backup equipment", labelPosition="center"),
                 dmc.SimpleGrid(
@@ -1071,8 +1104,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Get unit label for NG leakage (dynamic based on unit_mode)
-    ng_leakage_unit = get_unit_label("ng_leakage_rate", unit_mode)
+    # Get unit label for NG emission rate (dynamic based on unit_mode)
+    ng_emission_rate_unit = get_unit_label("emissions_rate", unit_mode)
 
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
@@ -1082,7 +1115,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("annual_ng_leakage_g_per_kWh", f"NG leakage ({ng_leakage_unit})"),
+        ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
         ("year", "Year"),
     ]
 
@@ -1206,8 +1239,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
-    # Get converter for NG leakage values
-    ng_leakage_converter = get_unit_converter("ng_leakage_rate", unit_mode)
+    # Get converter for NG emission rate values
+    ng_emission_rate_converter = get_unit_converter("emissions_rate", unit_mode)
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -1222,10 +1255,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for NG leakage
-            if field == "annual_ng_leakage_g_per_kWh" and raw_value is not None:
+            # Apply unit conversion for NG emission rate
+            if field == "ng_emission_rate_gCO2e_per_kWh" and raw_value is not None:
                 try:
-                    converted = ng_leakage_converter(float(raw_value))
+                    converted = ng_emission_rate_converter(float(raw_value))
                     display_value = f"{converted:.2f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1746,13 +1779,13 @@ def edit_emission_modal():
                         dmc.Stack(
                             [
                                 dmc.Text(
-                                    id="edit-em-ng-leakage-label",
-                                    children="Annual NG leakage (g/kWh)",
+                                    id="edit-em-ng-emission-rate-label",
+                                    children="Gas emissions rate (g/kWh)",
                                     size="sm",
                                     fw=500,
                                 ),
                                 dmc.NumberInput(
-                                    id="edit-em-ng-leakage",
+                                    id="edit-em-ng-emission-rate",
                                     min=0,
                                     step=1,
                                 ),
