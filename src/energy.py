@@ -476,11 +476,172 @@ def _awhp_reference_capacity(
 
     return cap_ref
 
+def grid_emissions(
+    df_loads: pd.DataFrame,
+    metadata: Metadata,
+) -> pd.DataFrame:
+    """
+    Compute annual electric grid emissions rates
+    using StandardEmissions data and user EmissionsScenario settings.
+    """
+    results = []
+
+    for em_scen_id in metadata.list_emission_scenarios():
+        logger.debug(
+            f"Processing emission scenario: {em_scen_id}, year={metadata[em_scen_id].year}"
+        )
+
+        emissions_data = get_emissions_data(metadata[em_scen_id])
+        logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
+
+        em_scen = metadata[em_scen_id]
+
+        shortrun_weighting = float(em_scen.shortrun_weighting)
+        # annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
+        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
+
+        # extract date components from loads (keep original year for timestamp reconstruction)
+        base = df_loads.copy()
+        base[Col.YEAR.value] = base.index.year  # Keep original load data year
+        base[Col.MONTH.value] = base.index.month
+        base[Col.DAY.value] = base.index.day
+        base[Col.HOUR.value] = base.index.hour
+        base[Col.DOY.value] = base.index.dayofyear
+
+        # collapse emissions to month-hour averages
+        emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
+        emissions_data.df[Col.HOUR.value] = emissions_data.df.index.hour
+        emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
+        group_cols = [Col.MONTH.value, Col.HOUR.value]
+
+        # all rates are in gCO2e/kWh
+        if em_scen.emission_type == "Combustion only":
+            emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+                emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
+            ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
+        elif em_scen.emission_type == "Includes pre-combustion":
+            emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+                (
+                    emissions_data.df[Col.LRMER_CO2E_C.value]
+                    + emissions_data.df[Col.LRMER_CO2E_P.value]
+                )
+                * (1 - shortrun_weighting)
+            ) + (
+                (
+                    emissions_data.df[Col.SRMER_CO2E_C.value]
+                    + emissions_data.df[Col.SRMER_CO2E_P.value]
+                )
+                * shortrun_weighting
+            )
+        else:
+            raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
+
+        df_em = (
+            emissions_data.df.groupby(group_cols)[
+                [
+                    Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
+                    Col.LRMER_CO2E_C.value,
+                    Col.LRMER_CO2E_P.value,
+                    Col.LRMER_CO2E.value,
+                    Col.SRMER_CO2E_C.value,
+                    Col.SRMER_CO2E_P.value,
+                    Col.SRMER_CO2E.value,
+                    Col.SHORTRUN_WEIGHTING.value,
+                ]
+            ]
+            .mean()
+            .reset_index()
+        )
+
+        # expand loads with this year's emissions
+        merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
+        #!! might want to add a gas emissions rate column
+        nan_count = merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH].isna().sum()
+        if nan_count > 0:
+            logger.warning(f"Merge produced {nan_count} rows with missing emission rates")
+
+        # Note: Keep original load data year (already extracted above) for timestamp
+        # reconstruction. This avoids Feb 29 errors when leap year load data is
+        # used with non-leap emission scenario years. Emissions are still correct
+        # because they're matched by month+hour pattern.
+
+        # # electricity emissions
+        # merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
+        #     merged[Col.ELEC_WH.value]
+        #     * merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
+        #     / 1_000_000  #! make cleaner
+        # )
+
+        # # gas emissions
+        # if Col.GAS_WH.value in merged.columns:
+        #     merged[Col.GAS_EMISSIONS_KG_CO2E.value] = (
+        #         gas_emissions_rate * merged[Col.GAS_WH.value] / 1_000_000
+        #     )
+        # else:
+        #     merged[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
+
+        # # refrigerant emissions
+        # refrig_cols = [
+        #     Col.HR_WWHP_REFRIGERANT_GWP.value,
+        #     Col.AWHP_REFRIGERANT_GWP.value,
+        #     Col.CHILLER_REFRIGERANT_GWP.value,
+        # ]
+
+        # existing_refrig_cols = [c for c in refrig_cols if c in merged.columns]
+
+        # if existing_refrig_cols:
+        #     # Compute the total refrigerant emissions inventory by summing available columns
+        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] = merged[existing_refrig_cols].sum(axis=1)
+        # else:
+        #     # If none exist, default to zero
+        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
+
+        # merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
+        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
+        # )
+
+        # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
+        # # 1. Build the same argument you pass into to_datetime
+        # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
+
+        # # 2. Try converting with errors="coerce" to get NaT for bad rows
+        # ts = pd.to_datetime(arg, errors="coerce")
+
+        # # 3. Find the rows that failed
+        # bad_rows = merged[ts.isna()]
+
+        # print(bad_rows[["year", "month", "day", "hour"]].head())
+
+        merged[Col.TIMESTAMP.value] = pd.to_datetime(
+            merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
+        )
+
+        merged = merged.drop(
+            columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
+        ).set_index(Col.TIMESTAMP.value)
+
+        # merged[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
+        #     merged[Col.ELEC_EMISSIONS_KG_CO2E.value]
+        #     + merged[Col.GAS_EMISSIONS_KG_CO2E.value]
+        #     + merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
+        # )
+
+        merged[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
+
+        results.append(merged)
+
+        # total_emissions_kg = sum(r[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum() for r in results)
+        logger.info(
+            f"Completed grid_emissions for {em_scen_id}"
+        )
+
+    return pd.concat(results, axis=0, ignore_index=False)
 
 def loads_to_site_energy(
     load: StandardLoad,
     library: EquipmentLibrary,
     scenario_ids: str | list[str],
+    metadata: Metadata,
     detail: bool = True,
 ) -> pd.DataFrame:
     """
@@ -499,13 +660,17 @@ def loads_to_site_energy(
     # ---- input data validation ----
     _equipment_data_validation(library, scenario_ids)
 
+    # ---- add grid emissions data ----
+    df_loads = load.df.copy()
+    df_grid_emissions = grid_emissions(df_loads, metadata)
+
     results = []
 
     for scenario_id in scenario_ids:
         logger.info(f"Processing scenario: {scenario_id}")
 
         # ---- pull inputs ----
-        df = load.df.copy()  # index = timestamp
+        df = df_grid_emissions.copy()  # index = timestamp
         temps = df[Col.T_OUT_C.value].to_numpy()
 
         df[Col.HHW_W.value] = df[Col.HEATING_W.value]
@@ -766,7 +931,16 @@ def loads_to_site_energy(
 
             # capacity calculations use the original sizing number
             cap_total_h_W = awhp_cap_h * awhp_num
-            served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
+            # served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
+
+            # i think best thing is to leave all calcs above this alone and just override/modify the served_h_W calc to go to zero if boiler is preferred
+            # will have to add other checks to ensure elec resistance doesn't operate
+            fuel_switching = False
+            if fuel_switching:
+                pass
+            else:
+                served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
+
             elec_h_Wh = served_h_W / awhp_cop_h
 
             # add refrigerant information
@@ -1082,6 +1256,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.CHILLER_REFRIGERANT.value,
         Col.CHILLER_REFRIGERANT_WEIGHT_KG.value,
         Col.CHILLER_REFRIGERANT_GWP.value,
+        Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value,
     ]
     # only include those that actually exist
     detail_cols = [c for c in detail_cols if c in df.columns]
@@ -1089,7 +1264,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
 
 
 def site_to_source(
-    df_loads: pd.DataFrame,
+    df_energy: pd.DataFrame,
     metadata: Metadata,
 ) -> pd.DataFrame:
     """
@@ -1098,7 +1273,7 @@ def site_to_source(
     """
 
     logger.info(
-        f"Starting site_to_source: {len(df_loads)} rows of site energy data, "
+        f"Starting site_to_source: {len(df_energy)} rows of site energy data, "
         f"{len(metadata.list_emission_scenarios())} emission scenarios"
     )
 
@@ -1109,79 +1284,79 @@ def site_to_source(
             f"Processing emission scenario: {em_scen_id}, year={metadata[em_scen_id].year}"
         )
 
-        emissions_data = get_emissions_data(metadata[em_scen_id])
-        logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
+        # emissions_data = get_emissions_data(metadata[em_scen_id])
+        # logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
 
         em_scen = metadata[em_scen_id]
 
-        shortrun_weighting = float(em_scen.shortrun_weighting)
+        # shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
         gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
 
-        # extract date components from loads (keep original year for timestamp reconstruction)
-        base = df_loads.copy()
-        base[Col.YEAR.value] = base.index.year  # Keep original load data year
-        base[Col.MONTH.value] = base.index.month
-        base[Col.DAY.value] = base.index.day
-        base[Col.HOUR.value] = base.index.hour
-        base[Col.DOY.value] = base.index.dayofyear
+        # # extract date components from loads (keep original year for timestamp reconstruction)
+        merged = df_energy.copy() # rename
+        # base[Col.YEAR.value] = base.index.year  # Keep original load data year
+        # base[Col.MONTH.value] = base.index.month
+        # base[Col.DAY.value] = base.index.day
+        # base[Col.HOUR.value] = base.index.hour
+        # base[Col.DOY.value] = base.index.dayofyear
 
-        # collapse emissions to month-hour averages
-        emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
-        emissions_data.df[Col.HOUR.value] = emissions_data.df.index.hour
-        emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
-        group_cols = [Col.MONTH.value, Col.HOUR.value]
+        # # collapse emissions to month-hour averages
+        # emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
+        # emissions_data.df[Col.HOUR.value] = emissions_data.df.index.hour
+        # emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
+        # group_cols = [Col.MONTH.value, Col.HOUR.value]
 
-        # all rates are in gCO2e/kWh
-        if em_scen.emission_type == "Combustion only":
-            emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-                emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
-            ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
-        elif em_scen.emission_type == "Includes pre-combustion":
-            emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-                (
-                    emissions_data.df[Col.LRMER_CO2E_C.value]
-                    + emissions_data.df[Col.LRMER_CO2E_P.value]
-                )
-                * (1 - shortrun_weighting)
-            ) + (
-                (
-                    emissions_data.df[Col.SRMER_CO2E_C.value]
-                    + emissions_data.df[Col.SRMER_CO2E_P.value]
-                )
-                * shortrun_weighting
-            )
-        else:
-            raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
+        # # all rates are in gCO2e/kWh
+        # if em_scen.emission_type == "Combustion only":
+        #     emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+        #         emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
+        #     ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
+        # elif em_scen.emission_type == "Includes pre-combustion":
+        #     emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+        #         (
+        #             emissions_data.df[Col.LRMER_CO2E_C.value]
+        #             + emissions_data.df[Col.LRMER_CO2E_P.value]
+        #         )
+        #         * (1 - shortrun_weighting)
+        #     ) + (
+        #         (
+        #             emissions_data.df[Col.SRMER_CO2E_C.value]
+        #             + emissions_data.df[Col.SRMER_CO2E_P.value]
+        #         )
+        #         * shortrun_weighting
+        #     )
+        # else:
+        #     raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
 
-        df_em = (
-            emissions_data.df.groupby(group_cols)[
-                [
-                    Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
-                    Col.LRMER_CO2E_C.value,
-                    Col.LRMER_CO2E_P.value,
-                    Col.LRMER_CO2E.value,
-                    Col.SRMER_CO2E_C.value,
-                    Col.SRMER_CO2E_P.value,
-                    Col.SRMER_CO2E.value,
-                    Col.SHORTRUN_WEIGHTING.value,
-                ]
-            ]
-            .mean()
-            .reset_index()
-        )
+        # df_em = (
+        #     emissions_data.df.groupby(group_cols)[
+        #         [
+        #             Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
+        #             Col.LRMER_CO2E_C.value,
+        #             Col.LRMER_CO2E_P.value,
+        #             Col.LRMER_CO2E.value,
+        #             Col.SRMER_CO2E_C.value,
+        #             Col.SRMER_CO2E_P.value,
+        #             Col.SRMER_CO2E.value,
+        #             Col.SHORTRUN_WEIGHTING.value,
+        #         ]
+        #     ]
+        #     .mean()
+        #     .reset_index()
+        # )
 
-        # expand loads with this year's emissions
-        merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
+        # # expand loads with this year's emissions
+        # merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
 
-        nan_count = merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH].isna().sum()
-        if nan_count > 0:
-            logger.warning(f"Merge produced {nan_count} rows with missing emission rates")
+        # nan_count = merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH].isna().sum()
+        # if nan_count > 0:
+        #     logger.warning(f"Merge produced {nan_count} rows with missing emission rates")
 
-        # Note: Keep original load data year (already extracted above) for timestamp
-        # reconstruction. This avoids Feb 29 errors when leap year load data is
-        # used with non-leap emission scenario years. Emissions are still correct
-        # because they're matched by month+hour pattern.
+        # # Note: Keep original load data year (already extracted above) for timestamp
+        # # reconstruction. This avoids Feb 29 errors when leap year load data is
+        # # used with non-leap emission scenario years. Emissions are still correct
+        # # because they're matched by month+hour pattern.
 
         # electricity emissions
         merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
@@ -1217,26 +1392,26 @@ def site_to_source(
         merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
             merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
         )
+        
+        # # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
+        # # # 1. Build the same argument you pass into to_datetime
+        # # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
 
-        # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
-        # # 1. Build the same argument you pass into to_datetime
-        # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
+        # # # 2. Try converting with errors="coerce" to get NaT for bad rows
+        # # ts = pd.to_datetime(arg, errors="coerce")
 
-        # # 2. Try converting with errors="coerce" to get NaT for bad rows
-        # ts = pd.to_datetime(arg, errors="coerce")
+        # # # 3. Find the rows that failed
+        # # bad_rows = merged[ts.isna()]
 
-        # # 3. Find the rows that failed
-        # bad_rows = merged[ts.isna()]
+        # # print(bad_rows[["year", "month", "day", "hour"]].head())
 
-        # print(bad_rows[["year", "month", "day", "hour"]].head())
+        # merged[Col.TIMESTAMP.value] = pd.to_datetime(
+        #     merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
+        # )
 
-        merged[Col.TIMESTAMP.value] = pd.to_datetime(
-            merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
-        )
-
-        merged = merged.drop(
-            columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
-        ).set_index(Col.TIMESTAMP.value)
+        # merged = merged.drop(
+        #     columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
+        # ).set_index(Col.TIMESTAMP.value)
 
         merged[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
             merged[Col.ELEC_EMISSIONS_KG_CO2E.value]

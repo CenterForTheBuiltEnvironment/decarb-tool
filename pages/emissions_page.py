@@ -804,6 +804,7 @@ def update_ng_emissions_rate_label(unit_mode):
     State("metadata-store", "data"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
+    State("selected-emissions-store", "data"),
     State("session-store", "data"),
     prevent_initial_call=True,
 )
@@ -812,6 +813,7 @@ def run_loads_to_site(
     metadata_json,
     equipment_json,
     selected_scenarios,
+    selected_emission_ids,
     session_data,
 ):
     # --- Guard clauses (no notification needed, just prevent update) ---
@@ -840,6 +842,12 @@ def run_loads_to_site(
             "No Scenarios Selected", "Please select at least one equipment scenario."
         )
         return no_update, [notification]
+    
+    if not selected_emission_ids:
+        notification = create_warning_notification(
+            "No Emission Scenarios", "Please select at least one emission scenario."
+        )
+        return no_update, [notification]
 
     # --- Main calculation with error handling ---
     try:
@@ -853,12 +861,22 @@ def run_loads_to_site(
         metadata = Metadata(**metadata_json)
         equipment = EquipmentLibrary(**equipment_json)
 
+        # filter emission scenarios
+        selected_emission_ids = selected_emission_ids or []
+        if selected_emission_ids:
+            metadata.emission_settings = [
+                scen
+                for scen in metadata.emission_settings
+                if scen.em_scen_id in selected_emission_ids
+            ]
+
         load_data = get_load_data(metadata)
 
         site_energy = loads_to_site_energy(
             load_data,
             equipment,
             scenario_ids=selected_scenarios,
+            metadata=metadata,
             detail=True,
         )
 
@@ -906,11 +924,11 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
     if not site_energy_path:
         raise dash.exceptions.PreventUpdate
 
-    if not selected_emission_ids:
-        notification = create_warning_notification(
-            "No Emission Scenarios", "Please select at least one emission scenario."
-        )
-        return no_update, [notification]
+    # if not selected_emission_ids:
+    #     notification = create_warning_notification(
+    #         "No Emission Scenarios", "Please select at least one emission scenario."
+    #     )
+    #     return no_update, [notification]
 
     try:
         logger.info(
@@ -923,16 +941,17 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
         site_energy = pd.read_pickle(site_energy_path)
         metadata = Metadata(**metadata_json)
 
-        # filter emission scenarios
-        selected_emission_ids = selected_emission_ids or []
-        if selected_emission_ids:
-            metadata.emission_settings = [
-                scen
-                for scen in metadata.emission_settings
-                if scen.em_scen_id in selected_emission_ids
-            ]
+        # # filter emission scenarios
+        # selected_emission_ids = selected_emission_ids or []
+        # if selected_emission_ids:
+        #     metadata.emission_settings = [
+        #         scen
+        #         for scen in metadata.emission_settings
+        #         if scen.em_scen_id in selected_emission_ids
+        #     ]
 
         source_energy = site_to_source(site_energy, metadata=metadata)
+        # does this need to be passed metadata now?
 
         source_path = folder / "source_energy.pkl"
         source_energy.to_pickle(source_path)
