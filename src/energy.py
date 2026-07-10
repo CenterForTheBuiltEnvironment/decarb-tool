@@ -497,7 +497,6 @@ def grid_emissions(
         em_scen = metadata[em_scen_id]
 
         shortrun_weighting = float(em_scen.shortrun_weighting)
-        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh) #!!
 
         # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()
@@ -629,6 +628,7 @@ def loads_to_site_energy(
         )
 
         df_emissions_scen = df_grid_emissions.copy()  # index = timestamp
+        # filter by current emissions scenario
         df_emissions_scen = df_emissions_scen[df_emissions_scen[Col.EM_SCEN_ID.value] == em_scen_id]
 
         for scenario_id in scenario_ids:
@@ -894,16 +894,7 @@ def loads_to_site_energy(
 
                 # capacity calculations use the original sizing number
                 cap_total_h_W = awhp_cap_h * awhp_num
-                # served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
-
-                # i think best thing is to leave all calcs above this alone and just override/modify the served_h_W calc to go to zero if boiler is preferred
-                # will have to add other checks to ensure elec resistance doesn't operate
-                fuel_switching = False
-                if fuel_switching:
-                    pass
-                else:
-                    served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
-
+                served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
                 elec_h_Wh = served_h_W / awhp_cop_h
 
                 # add refrigerant information
@@ -1153,7 +1144,7 @@ def loads_to_site_energy(
                 df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
                 df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
 
-                df = df.round(4)
+            df = df.round(4)
 
             # ---- finalize ----
             cols = _finalize_columns(df, detail)
@@ -1233,8 +1224,7 @@ def site_to_source(
     metadata: Metadata,
 ) -> pd.DataFrame:
     """
-    Convert site energy data (from loads_to_site) into source emissions
-    using StandardEmissions data and user EmissionsScenario settings.
+    Convert site energy data (from loads_to_site) into source emissions.
     """
 
     logger.info(
