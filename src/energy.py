@@ -492,13 +492,12 @@ def grid_emissions(
         )
 
         emissions_data = get_emissions_data(metadata[em_scen_id])
-        logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
+        logger.debug(f"Loaded {len(emissions_data.df)} grid emission data rows")
 
         em_scen = metadata[em_scen_id]
 
         shortrun_weighting = float(em_scen.shortrun_weighting)
-        # annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
-        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
+        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh) #!!
 
         # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()
@@ -565,41 +564,6 @@ def grid_emissions(
         # used with non-leap emission scenario years. Emissions are still correct
         # because they're matched by month+hour pattern.
 
-        # # electricity emissions
-        # merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
-        #     merged[Col.ELEC_WH.value]
-        #     * merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
-        #     / 1_000_000  #! make cleaner
-        # )
-
-        # # gas emissions
-        # if Col.GAS_WH.value in merged.columns:
-        #     merged[Col.GAS_EMISSIONS_KG_CO2E.value] = (
-        #         gas_emissions_rate * merged[Col.GAS_WH.value] / 1_000_000
-        #     )
-        # else:
-        #     merged[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
-
-        # # refrigerant emissions
-        # refrig_cols = [
-        #     Col.HR_WWHP_REFRIGERANT_GWP.value,
-        #     Col.AWHP_REFRIGERANT_GWP.value,
-        #     Col.CHILLER_REFRIGERANT_GWP.value,
-        # ]
-
-        # existing_refrig_cols = [c for c in refrig_cols if c in merged.columns]
-
-        # if existing_refrig_cols:
-        #     # Compute the total refrigerant emissions inventory by summing available columns
-        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] = merged[existing_refrig_cols].sum(axis=1)
-        # else:
-        #     # If none exist, default to zero
-        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
-
-        # merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
-        #     merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
-        # )
-
         # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
         # # 1. Build the same argument you pass into to_datetime
         # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
@@ -620,17 +584,10 @@ def grid_emissions(
             columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
         ).set_index(Col.TIMESTAMP.value)
 
-        # merged[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
-        #     merged[Col.ELEC_EMISSIONS_KG_CO2E.value]
-        #     + merged[Col.GAS_EMISSIONS_KG_CO2E.value]
-        #     + merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
-        # )
-
         merged[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
 
         results.append(merged)
 
-        # total_emissions_kg = sum(r[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum() for r in results)
         logger.info(
             f"Completed grid_emissions for {em_scen_id}"
         )
@@ -653,7 +610,7 @@ def loads_to_site_energy(
         scenario_ids = [scenario_ids]
 
     logger.info(
-        f"Starting loads_to_site_energy: {len(scenario_ids)} scenarios, "
+        f"Starting loads_to_site_energy: {len(scenario_ids)} equipment scenarios, "
         f"{len(load.df)} hours, detail={detail}"
     )
 
@@ -665,543 +622,550 @@ def loads_to_site_energy(
     df_grid_emissions = grid_emissions(df_loads, metadata)
 
     results = []
-
-    for scenario_id in scenario_ids:
-        logger.info(f"Processing scenario: {scenario_id}")
-
-        # ---- pull inputs ----
-        df = df_grid_emissions.copy()  # index = timestamp
-        temps = df[Col.T_OUT_C.value].to_numpy()
-
-        df[Col.HHW_W.value] = df[Col.HEATING_W.value]
-        df[Col.CHW_W.value] = df[Col.COOLING_W.value]
-
-        # Remainders in W_th
-        df[Col.HHW_REM_W.value] = df[Col.HHW_W.value].copy()
-        df[Col.CHW_REM_W.value] = df[Col.CHW_W.value].copy()
-
-        # Outputs
-        df[Col.ELEC_WH.value] = 0.0
-        df[Col.GAS_WH.value] = 0.0
-
-        # detail columns (create lazily; safer to pre-create as NaN for clarity)
-        if detail:
-            for c in [
-                # HR WWHP
-                Col.HR_HHW_W.value,
-                Col.HR_CHW_W.value,
-                Col.HR_COP_H.value,
-                Col.ELEC_HR_WH.value,
-                # AWHP Heating
-                Col.AWHP_HHW_W.value,
-                Col.AWHP_COP_H.value,
-                Col.AWHP_CAP_H_W.value,
-                Col.AWHP_NUM.value,
-                Col.AWHP_NUM_R.value,
-                Col.ELEC_AWHP_H_WH.value,
-                # Boiler
-                Col.BOILER_HHW_W.value,
-                Col.BOILER_EFF.value,
-                Col.GAS_BOILER_WH.value,
-                # Resistance heater
-                Col.RES_HHW_W.value,
-                Col.ELEC_RES_WH.value,
-                # AWHP Cooling
-                Col.AWHP_CHW_W.value,
-                Col.AWHP_COP_C.value,
-                Col.AWHP_CAP_C_W.value,
-                Col.AWHP_NUM_C.value,
-                Col.ELEC_AWHP_C_WH.value,
-                # Electric chiller
-                Col.CHILLER_CHW_W.value,
-                Col.CHILLER_COP.value,
-                Col.ELEC_CHILLER_WH.value,
-            ]:
-                df[c] = np.nan
-
-        # ---- scenario ----
-        scen = library.get_scenario(scenario_id)
-
-        # =========================
-        # Phase 1 - HR WWHP (optional)
-        # =========================
-        if scen.hr_wwhp:
-            logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
-            hr_wwhp = library.get_equipment(scen.hr_wwhp)
-
-            hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
-            logger.debug(f"HR WWHP performance calculation model: {hr_wwhp_h_performance_model}")
-
-            hr_wwhp_supply_t = np.array([scen.hr_wwhp_h_supply_t])
-
-            hr_wwhp_h_performance = _heating_supply_temp_performance(
-                hr_wwhp, hr_wwhp_supply_t, temps, hr_wwhp_h_performance_model
-            )
-
-            plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_h_performance)
-
-            plr_curve = plr_curve.sort_values(by="cap", ascending=False).reset_index(drop=True)
-            plr_curve["cap_h_to_cap_c"] = 1 - (
-                1 / plr_curve["cop"]
-            )  # conversion factor cooling capacity from heating_capacity
-            plr_curve["cap_c"] = (
-                plr_curve["cap"] * plr_curve["cap_h_to_cap_c"]
-            )  # cooling capacity from heating capacity
-            plr_curve["cop_c"] = cop_h_to_cop_c(
-                plr_curve["cop"]
-            )  # convert heating COP → cooling COP
-
-            num_units = 1
-            least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
-            max_cap_h = num_units * plr_curve["cap"].max()  # max heating capacity allowed by unit
-            min_cap_h = plr_curve["cap"].min()  # min heating capacity allowed by unit
-
-            # Simultaneous load potential (using least-waste-heat factor)
-            simult_h = np.minimum(
-                df[Col.HHW_REM_W.value].to_numpy(),
-                df[Col.CHW_REM_W.value].to_numpy()
-                / least_waste_heat[
-                    "cap_h_to_cap_c"
-                ],  # amount of simultaneous load that the WWHP can actually satisfy
-            )
-
-            # Actual heating served (within capacity limits)
-            hr_hhw = np.where(
-                np.minimum(max_cap_h, simult_h) > min_cap_h,
-                np.minimum(max_cap_h, simult_h),
-                0.0,
-            )
-
-            # Interpolate COP at part load
-            hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_hhw)
-
-            # Cooling served derived from heating & COP
-            hr_chw = np.where(hr_cop_h > 0, hr_hhw * (1 - (1 / hr_cop_h)), 0.0)  # same as R
-
-            # Electricity use
-            elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
-
-            # add refrigerant information
-            hr_wwhp_refrigerant = hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
-            num_hours = len(df)  # Use actual data length (handles leap years)
-            hr_wwhp_refrigerant_weight_kg = (
-                (hr_wwhp.refrigerant_weight_g * 0.001) / num_hours
-                if hr_wwhp.refrigerant_weight_g
-                else 0.0
-            )
-
-            # GWP in kgCO2e/kgRefrig * weightRefrig in kg = kgCO2e Emissions (potential)
-            hr_wwhp_refrigerant_gwp_kg = (  #! this is not effective emissions, just potential if leaked
-                hr_wwhp.refrigerant_gwp * hr_wwhp_refrigerant_weight_kg
-                if hr_wwhp.refrigerant_gwp
-                else 0.0
-            )
-
-            if hr_wwhp_refrigerant_gwp_kg == 0:
-                if hr_wwhp_refrigerant_weight_kg == 0:
-                    logger.warning("HR WWHP refrigerant charge is 0.")
-                else:
-                    logger.warning("HR WWHP refrigerant GWP is 0.")
-
-            # Apply results
-            df[Col.MAX_CAP_H_HR_W.value] = max_cap_h  #! remove
-            df[Col.MIN_CAP_H_HR_W.value] = min_cap_h  #! remove
-            df[Col.SIMULT_H_HR_W.value] = simult_h  #! remove
-            df[Col.HR_HHW_W.value] = hr_hhw
-            df[Col.HR_CHW_W.value] = hr_chw
-            df[Col.HR_COP_H.value] = hr_cop_h
-            df[Col.ELEC_HR_WH.value] = elec_hr
-            df[Col.ELEC_WH.value] += elec_hr
-            df[Col.HHW_REM_W.value] -= hr_hhw
-            df[Col.CHW_REM_W.value] -= hr_chw
-            df[Col.HR_WWHP_REFRIGERANT.value] = hr_wwhp_refrigerant
-            df[Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value] = hr_wwhp_refrigerant_weight_kg
-            df[Col.HR_WWHP_REFRIGERANT_GWP.value] = hr_wwhp_refrigerant_gwp_kg
-
-            hr_coverage_heating = (
-                (np.nansum(hr_hhw) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            hr_coverage_cooling = (
-                (np.nansum(hr_chw) / np.nansum(df[Col.CHW_W.value])) * 100
-                if np.nansum(df[Col.CHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(
-                f"Phase 1 complete: HR WWHP covers {hr_coverage_heating:.1f}% of heating load"
-                f" and {hr_coverage_cooling:.1f}% of cooling load"
-            )
-
-        # =========================
-        # Phase 2 - AWHP Heating
-        # =========================
-        if scen.awhp:
-            logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
-            awhp_h = library.get_equipment(scen.awhp)
-
-            awhp_h_performance_model = scen.awhp_performance_model
-            logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
-
-            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
-
-            awhp_h_performance = _heating_supply_temp_performance(
-                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
-            )
-
-            awhp_cap_h = _per_unit_heating_capacity_W(
-                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
-            )
-            awhp_cop_h = _per_unit_heating_cop(
-                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
-            )
-
-            # --- Sizing Logic ---
-            sizing_mode = scen.awhp_sizing_mode
-            sizing_value = scen.awhp_sizing_value
-            redundancy = scen.awhp_redundancy
-
-            if scen.awhp_use_cooling:
-                sizing_priority = scen.awhp_sizing_priority
-
-                awhp_c = library.get_equipment(scen.awhp)
-                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
-                # this extracts the first value and uses that performance data
-                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-                # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
-                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
-            else:
-                sizing_priority = "heating"
-
-            # Determine reference capacity
-            if sizing_priority == "heating":
-                sizing_load = "hhw_W"
-                cap_ref = _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating")
-                
-            elif sizing_priority == "cooling":
-                sizing_load = "chw_W"
-                cap_ref = _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
-            
-            elif sizing_priority == "larger" and sizing_mode in [
-                "integer_sizing_peak_load",
-                "fractional_sizing_peak_load",
-            ]:
-                cap_ref = {
-                    "hhw_W": _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"),
-                    "chw_W": _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
-                }
-                num = {
-                    "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
-                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"]
-                }
-                sizing_load = max(num, key = num.get)
-                cap_ref = cap_ref[sizing_load]
-
-                logger.debug(f"{sizing_load} drives AWHP sizing.")
-
-
-            # Determine number of units
-            if sizing_mode in [
-                "integer_sizing_peak_load",
-                "fractional_sizing_peak_load",
-            ]:
-                # Fraction of peak load at reference temperature
-                peak_load_W = float(df[sizing_load].max())
-                target_load_W = peak_load_W * sizing_value
-
-                if sizing_mode == "integer_sizing_peak_load":
-                    awhp_num = np.ceil(target_load_W / cap_ref)
-                    awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
-                else:
-                    awhp_num = target_load_W / cap_ref
-
-            elif sizing_mode == "fixed_num_units":
-                awhp_num = np.ceil(sizing_value)
-                awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
-
-            awhp_num = max(awhp_num, 0)
-
-            # --- Redundancy Logic ---
-            awhp_num_r = awhp_num + redundancy
-
-            logger.debug(
-                f"AWHP sizing: priority={sizing_priority}, mode={sizing_mode}, value={sizing_value}, "
-                f"units={awhp_num:.2f}, with {redundancy} redundant = {awhp_num_r:.2f} total"
-            )
-
-            # capacity calculations use the original sizing number
-            cap_total_h_W = awhp_cap_h * awhp_num
-            # served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
-
-            # i think best thing is to leave all calcs above this alone and just override/modify the served_h_W calc to go to zero if boiler is preferred
-            # will have to add other checks to ensure elec resistance doesn't operate
-            fuel_switching = False
-            if fuel_switching:
-                pass
-            else:
-                served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
-
-            elec_h_Wh = served_h_W / awhp_cop_h
-
-            # add refrigerant information
-            awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
-            num_hours = len(df)  # Use actual data length (handles leap years)
-            total_awhp_refrigerant_weight_kg = (
-                awhp_h.refrigerant_weight_g
-                * 0.001
-                * awhp_num_r
-                / num_hours  # emissions calculations use the redundancy sizing number
-                if awhp_h.refrigerant_weight_g
-                else 0.0
-            )
-
-            total_awhp_refrigerant_gwp_kg = (
-                awhp_h.refrigerant_gwp * total_awhp_refrigerant_weight_kg
-                if awhp_h.refrigerant_gwp
-                else 0.0
-            )
-
-            if total_awhp_refrigerant_gwp_kg == 0:
-                if total_awhp_refrigerant_weight_kg == 0:
-                    logger.warning("AWHP refrigerant charge is 0.")
-                else:
-                    logger.warning("AWHP refrigerant GWP is 0.")
-
-            df[Col.AWHP_HHW_W.value] = served_h_W
-            df[Col.AWHP_CAP_H_W.value] = cap_total_h_W
-            df[Col.AWHP_COP_H.value] = awhp_cop_h
-            df[Col.ELEC_AWHP_H_WH.value] = elec_h_Wh
-            df[Col.ELEC_WH.value] += elec_h_Wh
-            df[Col.HHW_REM_W.value] -= served_h_W
-            df[Col.AWHP_NUM.value] = float(awhp_num)
-            df[Col.AWHP_NUM_R.value] = float(awhp_num_r)
-            df[Col.AWHP_REFRIGERANT.value] = awhp_refrigerant
-            df[Col.AWHP_REFRIGERANT_WEIGHT_KG.value] = total_awhp_refrigerant_weight_kg
-            df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
-
-            awhp_h_coverage = (
-                (np.nansum(served_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 2 complete: AWHP covers {awhp_h_coverage:.1f}% of heating load")
-
-        # =========================
-        # Phase 3 - Boiler (optional)
-        # =========================
-        backup_heating = library.get_equipment(scen.backup_heating)
-        if backup_heating.fuel == "natural_gas":
-            eff = _constant_heating_efficiency(backup_heating)
-            logger.debug(f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}")
-
-            boiler_served_W = df[Col.HHW_REM_W].to_numpy()
-            gas_Wh = boiler_served_W / eff
-
-            boiler_peak_served_W = np.nanmax(boiler_served_W)
-            # sizing logic
-            if backup_heating.eq_calc_type == "generic":
-                # generic equipment - do not account for space, electric capacity, etc.
-                boiler_num = 0
-            else:
-                # specific equipment model
-                boiler_cap = backup_heating.capacity_W
-                boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
-                boiler_num = max(boiler_num, 1)  # ensure at least one unit
-
-                logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
-
-            df[Col.BOILER_HHW_W.value] = boiler_served_W
-            df[Col.GAS_BOILER_WH.value] = gas_Wh
-            df[Col.BOILER_EFF.value] = eff
-            df[Col.GAS_WH.value] += gas_Wh
-            df[Col.HHW_REM_W.value] = 0.0
-
-            boiler_coverage = (
-                (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
-
-        # =========================
-        # Phase 4 - Electric resistance (if heating remains)
-        # =========================
-        remaining_h_W = df[Col.HHW_REM_W.value].to_numpy()
-        if np.any(remaining_h_W > 1e-9):
-            elec_res_Wh = remaining_h_W  # COP = 1
-
-            # log warning if any heating remains
-            remaining_kWh = np.nansum(remaining_h_W) / 1000
-            elec_res_coverage = (
-                (np.nansum(remaining_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.warning(
-                f"Phase 4: Electric resistance backup required - "
-                f"{remaining_kWh:.1f} kWh ({elec_res_coverage:.1f}% of heating load) unmet by HR/AWHP/Boiler"
-            )
-            if np.nansum(df[Col.GAS_BOILER_WH.value]) != 0:
-                logger.warning("Both gas and electric backup heating equipment are being used.")
-
-            resheater_peak_served_W = np.nanmax(elec_res_Wh)
-            # sizing logic
-            if backup_heating.eq_calc_type == "generic":
-                # generic equipment - do not account for space, electric capacity, etc.
-                resheater_num = 0
-            else:
-                # specific equipment model
-                resheater_cap = backup_heating.capacity_W
-                resheater_num = np.ceil(resheater_peak_served_W / resheater_cap)
-                resheater_num = max(resheater_num, 1)  # ensure at least one unit
-
-                logger.debug(f"Electric resistance heater sizing: {resheater_num:.0f} units")
-
-            df[Col.RES_HHW_W.value] = remaining_h_W
-            df[Col.ELEC_RES_WH.value] = elec_res_Wh
-            df[Col.ELEC_WH.value] += elec_res_Wh
-            df[Col.HHW_REM_W.value] = 0.0
-
-        # =========================
-        # Phase 5 - AWHP Cooling
-        # =========================
-        if scen.awhp and scen.awhp_use_cooling:
-            awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
-            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
-
-            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
-
-            # assuming that AWHPs all have 50% turndown (2 compressors)
-            awhp_turndown = 0.5
-            num_compressors = awhp_num / awhp_turndown
-            # calculate number of "compressors" used to serve heating load
-            num_compressors_h = np.maximum(0,
-                                    np.ceil(
-                                        num_compressors
-                                        * df[Col.AWHP_HHW_W.value] 
-                                        / df[Col.AWHP_CAP_H_W.value]
-                                    )
-                                )
-            num_compressors_h[np.isnan(num_compressors_h)] = 0 # for hours where AWHP heating capacity is 0
-            # remaining compressors can serve cooling load
-            num_compressors_c = np.maximum(0, num_compressors - num_compressors_h)
-            awhp_num_c = num_compressors_c * awhp_turndown # number of compressors available to operate in cooling
-
-            cap_total_c_W = awhp_cap_c * awhp_num_c
-            served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
-
-            # Compute electricity only where cooling is served
-            elec_c_Wh = served_c_W / awhp_cop_c
-            df[Col.AWHP_CHW_W.value] = served_c_W
-            df[Col.AWHP_CAP_C_W.value] = cap_total_c_W
-            df[Col.AWHP_COP_C.value] = awhp_cop_c
-            df[Col.ELEC_AWHP_C_WH.value] = elec_c_Wh
-            df[Col.ELEC_WH.value] += elec_c_Wh
-            df[Col.CHW_REM_W.value] -= served_c_W
-            df[Col.AWHP_NUM_C] = awhp_num_c
-
-            awhp_c_coverage = (
-                (np.nansum(served_c_W) / np.nansum(df[Col.CHW_W.value])) * 100
-                if np.nansum(df[Col.CHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 5 complete: AWHP covers {awhp_c_coverage:.1f}% of cooling load")
-
-        # =========================
-        # Phase 6 - Electric chiller fallback
-        # =========================
-        if df[Col.CHW_REM_W.value].sum() > 1e-9:
-            remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
-            chiller_cop = 5.0  # default
-            if scen.chiller:
-                logger.debug(
-                    f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
-                )
-                chl = library.get_equipment(scen.chiller)
-                # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
-                eff = _constant_cooling_efficiency(chl)
-                if eff and eff > 0:
-                    chiller_cop = eff
-                else:
-                    logger.warning(
-                        f"Phase 6: Using default chiller COP={chiller_cop} for {remaining_c_kWh:.1f} kWh - no chiller specified"
-                    )
-                    cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
-                    if not np.isnan(cop_curve).all():
-                        # if a curve exists, use the hourly values
-                        served_W = df[Col.CHW_REM_W.value].to_numpy()
-                        elec_Wh = served_W / cop_curve
-                        df[Col.CHILLER_CHW_W.value] = served_W
-                        df[Col.ELEC_CHILLER_WH.value] = elec_Wh
-                        df[Col.ELEC_WH.value] += elec_Wh
-                        df[Col.CHILLER_COP.value] = cop_curve
-                        df[Col.CHW_REM_W.value] = 0.0
-                        # finalize and return
-                        cols = _finalize_columns(df, detail)
-                        return df[cols]
-
-            # scalar COP path
-            served_W = df[Col.CHW_REM_W.value].to_numpy()
-            elec_Wh = served_W / chiller_cop
-
-            chl_peak_served_W = np.nanmax(served_W)
-            # sizing logic
-            if chl.eq_calc_type == "generic":
-                # generic equipment - do not account for refrigerant, space, electric capacity, etc.
-                chl_num = 0
-            else:
-                # specific equipment model
-                # assumes fixed capacity, edit for curves later
-                chl_cap = chl.capacity_W
-                chl_num = np.ceil(chl_peak_served_W / chl_cap)
-                chl_num = max(chl_num, 1)  # ensure at least one unit
-
-                logger.debug(f"Chiller sizing: {chl_num:.0f} units")
-
-            # add refrigerant information
-            chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
-            num_hours = len(df)  # Use actual data length (handles leap years)
-
-            chiller_refrigerant_weight_kg = (
-                chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
-                if chl.refrigerant_weight_g
-                else 0.0
-            )
-
-            chiller_refrigerant_gwp_kg = (
-                chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
-            )
-
-            # this will produce a warning if generic equipment is used
-            if chiller_refrigerant_gwp_kg == 0:
-                if chiller_refrigerant_weight_kg == 0:
-                    logger.warning("Chiller refrigerant charge is 0.")
-                else:
-                    logger.warning("Chiller refrigerant GWP is 0.")
-
+    
+    for em_scen_id in metadata.list_emission_scenarios():
+        logger.info(
+            f"Processing equipment scenarios for emissions scenario: {em_scen_id}"
+        )
+
+        df_emissions_scen = df_grid_emissions.copy()  # index = timestamp
+        df_emissions_scen = df_emissions_scen[df_emissions_scen[Col.EM_SCEN_ID.value] == em_scen_id]
+
+        for scenario_id in scenario_ids:
+            # ---- pull inputs ----
+            df = df_emissions_scen.copy()  # index = timestamp
+            temps = df[Col.T_OUT_C.value].to_numpy()
+
+            df[Col.HHW_W.value] = df[Col.HEATING_W.value]
+            df[Col.CHW_W.value] = df[Col.COOLING_W.value]
+
+            # Remainders in W_th
+            df[Col.HHW_REM_W.value] = df[Col.HHW_W.value].copy()
+            df[Col.CHW_REM_W.value] = df[Col.CHW_W.value].copy()
+
+            # Outputs
+            df[Col.ELEC_WH.value] = 0.0
+            df[Col.GAS_WH.value] = 0.0
+
+            # detail columns (create lazily; safer to pre-create as NaN for clarity)
             if detail:
-                df[Col.CHILLER_CHW_W.value] = served_W
-                df[Col.ELEC_CHILLER_WH.value] = elec_Wh
-                df[Col.CHILLER_COP.value] = chiller_cop
+                for c in [
+                    # HR WWHP
+                    Col.HR_HHW_W.value,
+                    Col.HR_CHW_W.value,
+                    Col.HR_COP_H.value,
+                    Col.ELEC_HR_WH.value,
+                    # AWHP Heating
+                    Col.AWHP_HHW_W.value,
+                    Col.AWHP_COP_H.value,
+                    Col.AWHP_CAP_H_W.value,
+                    Col.AWHP_NUM.value,
+                    Col.AWHP_NUM_R.value,
+                    Col.ELEC_AWHP_H_WH.value,
+                    # Boiler
+                    Col.BOILER_HHW_W.value,
+                    Col.BOILER_EFF.value,
+                    Col.GAS_BOILER_WH.value,
+                    # Resistance heater
+                    Col.RES_HHW_W.value,
+                    Col.ELEC_RES_WH.value,
+                    # AWHP Cooling
+                    Col.AWHP_CHW_W.value,
+                    Col.AWHP_COP_C.value,
+                    Col.AWHP_CAP_C_W.value,
+                    Col.AWHP_NUM_C.value,
+                    Col.ELEC_AWHP_C_WH.value,
+                    # Electric chiller
+                    Col.CHILLER_CHW_W.value,
+                    Col.CHILLER_COP.value,
+                    Col.ELEC_CHILLER_WH.value,
+                ]:
+                    df[c] = np.nan
 
-            df[Col.ELEC_WH.value] += elec_Wh
-            df[Col.CHW_REM_W.value] = 0.0
-            df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
-            df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
-            df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
+            # ---- scenario ----
+            scen = library.get_scenario(scenario_id)
 
-            df = df.round(4)
+            # =========================
+            # Phase 1 - HR WWHP (optional)
+            # =========================
+            if scen.hr_wwhp:
+                logger.debug(f"Phase 1: HR WWHP using equipment '{scen.hr_wwhp}'")
+                hr_wwhp = library.get_equipment(scen.hr_wwhp)
 
-        # ---- finalize ----
-        cols = _finalize_columns(df, detail)
+                hr_wwhp_h_performance_model = scen.hr_wwhp_performance_model
+                logger.debug(f"HR WWHP performance calculation model: {hr_wwhp_h_performance_model}")
 
-        df = df[cols]
-        df[Col.EQ_SCEN_ID.value] = scenario_id  # tag scenario
-        df[Col.EQ_SCEN_NAME.value] = library.get_scenario(scenario_id).eq_scen_name
+                hr_wwhp_supply_t = np.array([scen.hr_wwhp_h_supply_t])
 
-        logger.info(f"Completed loads_to_site for {scenario_id}")
+                hr_wwhp_h_performance = _heating_supply_temp_performance(
+                    hr_wwhp, hr_wwhp_supply_t, temps, hr_wwhp_h_performance_model
+                )
 
-        results.append(df)
+                plr_curve = _heat_recovery_plr_curve(hr_wwhp, hr_wwhp_h_performance)
+
+                plr_curve = plr_curve.sort_values(by="cap", ascending=False).reset_index(drop=True)
+                plr_curve["cap_h_to_cap_c"] = 1 - (
+                    1 / plr_curve["cop"]
+                )  # conversion factor cooling capacity from heating_capacity
+                plr_curve["cap_c"] = (
+                    plr_curve["cap"] * plr_curve["cap_h_to_cap_c"]
+                )  # cooling capacity from heating capacity
+                plr_curve["cop_c"] = cop_h_to_cop_c(
+                    plr_curve["cop"]
+                )  # convert heating COP → cooling COP
+
+                num_units = 1
+                least_waste_heat = plr_curve.loc[plr_curve["cop"].idxmax()]
+                max_cap_h = num_units * plr_curve["cap"].max()  # max heating capacity allowed by unit
+                min_cap_h = plr_curve["cap"].min()  # min heating capacity allowed by unit
+
+                # Simultaneous load potential (using least-waste-heat factor)
+                simult_h = np.minimum(
+                    df[Col.HHW_REM_W.value].to_numpy(),
+                    df[Col.CHW_REM_W.value].to_numpy()
+                    / least_waste_heat[
+                        "cap_h_to_cap_c"
+                    ],  # amount of simultaneous load that the WWHP can actually satisfy
+                )
+
+                # Actual heating served (within capacity limits)
+                hr_hhw = np.where(
+                    np.minimum(max_cap_h, simult_h) > min_cap_h,
+                    np.minimum(max_cap_h, simult_h),
+                    0.0,
+                )
+
+                # Interpolate COP at part load
+                hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_hhw)
+
+                # Cooling served derived from heating & COP
+                hr_chw = np.where(hr_cop_h > 0, hr_hhw * (1 - (1 / hr_cop_h)), 0.0)  # same as R
+
+                # Electricity use
+                elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
+
+                # add refrigerant information
+                hr_wwhp_refrigerant = hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
+                num_hours = len(df)  # Use actual data length (handles leap years)
+                hr_wwhp_refrigerant_weight_kg = (
+                    (hr_wwhp.refrigerant_weight_g * 0.001) / num_hours
+                    if hr_wwhp.refrigerant_weight_g
+                    else 0.0
+                )
+
+                # GWP in kgCO2e/kgRefrig * weightRefrig in kg = kgCO2e Emissions (potential)
+                hr_wwhp_refrigerant_gwp_kg = (  #! this is not effective emissions, just potential if leaked
+                    hr_wwhp.refrigerant_gwp * hr_wwhp_refrigerant_weight_kg
+                    if hr_wwhp.refrigerant_gwp
+                    else 0.0
+                )
+
+                if hr_wwhp_refrigerant_gwp_kg == 0:
+                    if hr_wwhp_refrigerant_weight_kg == 0:
+                        logger.warning("HR WWHP refrigerant charge is 0.")
+                    else:
+                        logger.warning("HR WWHP refrigerant GWP is 0.")
+
+                # Apply results
+                df[Col.MAX_CAP_H_HR_W.value] = max_cap_h  #! remove
+                df[Col.MIN_CAP_H_HR_W.value] = min_cap_h  #! remove
+                df[Col.SIMULT_H_HR_W.value] = simult_h  #! remove
+                df[Col.HR_HHW_W.value] = hr_hhw
+                df[Col.HR_CHW_W.value] = hr_chw
+                df[Col.HR_COP_H.value] = hr_cop_h
+                df[Col.ELEC_HR_WH.value] = elec_hr
+                df[Col.ELEC_WH.value] += elec_hr
+                df[Col.HHW_REM_W.value] -= hr_hhw
+                df[Col.CHW_REM_W.value] -= hr_chw
+                df[Col.HR_WWHP_REFRIGERANT.value] = hr_wwhp_refrigerant
+                df[Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value] = hr_wwhp_refrigerant_weight_kg
+                df[Col.HR_WWHP_REFRIGERANT_GWP.value] = hr_wwhp_refrigerant_gwp_kg
+
+                hr_coverage_heating = (
+                    (np.nansum(hr_hhw) / np.nansum(df[Col.HHW_W.value])) * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                hr_coverage_cooling = (
+                    (np.nansum(hr_chw) / np.nansum(df[Col.CHW_W.value])) * 100
+                    if np.nansum(df[Col.CHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(
+                    f"Phase 1 complete: HR WWHP covers {hr_coverage_heating:.1f}% of heating load"
+                    f" and {hr_coverage_cooling:.1f}% of cooling load"
+                )
+
+            # =========================
+            # Phase 2 - AWHP Heating
+            # =========================
+            if scen.awhp:
+                logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
+                awhp_h = library.get_equipment(scen.awhp)
+
+                awhp_h_performance_model = scen.awhp_performance_model
+                logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
+
+                awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
+
+                awhp_h_performance = _heating_supply_temp_performance(
+                    awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
+                )
+
+                awhp_cap_h = _per_unit_heating_capacity_W(
+                    awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+                )
+                awhp_cop_h = _per_unit_heating_cop(
+                    awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+                )
+
+                # --- Sizing Logic ---
+                sizing_mode = scen.awhp_sizing_mode
+                sizing_value = scen.awhp_sizing_value
+                redundancy = scen.awhp_redundancy
+
+                if scen.awhp_use_cooling:
+                    sizing_priority = scen.awhp_sizing_priority
+
+                    awhp_c = library.get_equipment(scen.awhp)
+                    # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+                    # this extracts the first value and uses that performance data
+                    awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
+                    # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                    awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
+                else:
+                    sizing_priority = "heating"
+
+                # Determine reference capacity
+                if sizing_priority == "heating":
+                    sizing_load = "hhw_W"
+                    cap_ref = _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating")
+                    
+                elif sizing_priority == "cooling":
+                    sizing_load = "chw_W"
+                    cap_ref = _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
+                
+                elif sizing_priority == "larger" and sizing_mode in [
+                    "integer_sizing_peak_load",
+                    "fractional_sizing_peak_load",
+                ]:
+                    cap_ref = {
+                        "hhw_W": _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"),
+                        "chw_W": _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
+                    }
+                    num = {
+                        "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
+                        "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"]
+                    }
+                    sizing_load = max(num, key = num.get)
+                    cap_ref = cap_ref[sizing_load]
+
+                    logger.debug(f"{sizing_load} drives AWHP sizing.")
+
+
+                # Determine number of units
+                if sizing_mode in [
+                    "integer_sizing_peak_load",
+                    "fractional_sizing_peak_load",
+                ]:
+                    # Fraction of peak load at reference temperature
+                    peak_load_W = float(df[sizing_load].max())
+                    target_load_W = peak_load_W * sizing_value
+
+                    if sizing_mode == "integer_sizing_peak_load":
+                        awhp_num = np.ceil(target_load_W / cap_ref)
+                        awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
+                    else:
+                        awhp_num = target_load_W / cap_ref
+
+                elif sizing_mode == "fixed_num_units":
+                    awhp_num = np.ceil(sizing_value)
+                    awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
+
+                awhp_num = max(awhp_num, 0)
+
+                # --- Redundancy Logic ---
+                awhp_num_r = awhp_num + redundancy
+
+                logger.debug(
+                    f"AWHP sizing: priority={sizing_priority}, mode={sizing_mode}, value={sizing_value}, "
+                    f"units={awhp_num:.2f}, with {redundancy} redundant = {awhp_num_r:.2f} total"
+                )
+
+                # capacity calculations use the original sizing number
+                cap_total_h_W = awhp_cap_h * awhp_num
+                # served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
+
+                # i think best thing is to leave all calcs above this alone and just override/modify the served_h_W calc to go to zero if boiler is preferred
+                # will have to add other checks to ensure elec resistance doesn't operate
+                fuel_switching = False
+                if fuel_switching:
+                    pass
+                else:
+                    served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
+
+                elec_h_Wh = served_h_W / awhp_cop_h
+
+                # add refrigerant information
+                awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
+                num_hours = len(df)  # Use actual data length (handles leap years)
+                total_awhp_refrigerant_weight_kg = (
+                    awhp_h.refrigerant_weight_g
+                    * 0.001
+                    * awhp_num_r
+                    / num_hours  # emissions calculations use the redundancy sizing number
+                    if awhp_h.refrigerant_weight_g
+                    else 0.0
+                )
+
+                total_awhp_refrigerant_gwp_kg = (
+                    awhp_h.refrigerant_gwp * total_awhp_refrigerant_weight_kg
+                    if awhp_h.refrigerant_gwp
+                    else 0.0
+                )
+
+                if total_awhp_refrigerant_gwp_kg == 0:
+                    if total_awhp_refrigerant_weight_kg == 0:
+                        logger.warning("AWHP refrigerant charge is 0.")
+                    else:
+                        logger.warning("AWHP refrigerant GWP is 0.")
+
+                df[Col.AWHP_HHW_W.value] = served_h_W
+                df[Col.AWHP_CAP_H_W.value] = cap_total_h_W
+                df[Col.AWHP_COP_H.value] = awhp_cop_h
+                df[Col.ELEC_AWHP_H_WH.value] = elec_h_Wh
+                df[Col.ELEC_WH.value] += elec_h_Wh
+                df[Col.HHW_REM_W.value] -= served_h_W
+                df[Col.AWHP_NUM.value] = float(awhp_num)
+                df[Col.AWHP_NUM_R.value] = float(awhp_num_r)
+                df[Col.AWHP_REFRIGERANT.value] = awhp_refrigerant
+                df[Col.AWHP_REFRIGERANT_WEIGHT_KG.value] = total_awhp_refrigerant_weight_kg
+                df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
+
+                awhp_h_coverage = (
+                    (np.nansum(served_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(f"Phase 2 complete: AWHP covers {awhp_h_coverage:.1f}% of heating load")
+
+            # =========================
+            # Phase 3 - Boiler (optional)
+            # =========================
+            backup_heating = library.get_equipment(scen.backup_heating)
+            if backup_heating.fuel == "natural_gas":
+                eff = _constant_heating_efficiency(backup_heating)
+                logger.debug(f"Phase 3: Boiler '{backup_heating.eq_id}' with efficiency={eff}")
+
+                boiler_served_W = df[Col.HHW_REM_W].to_numpy()
+                gas_Wh = boiler_served_W / eff
+
+                boiler_peak_served_W = np.nanmax(boiler_served_W)
+                # sizing logic
+                if backup_heating.eq_calc_type == "generic":
+                    # generic equipment - do not account for space, electric capacity, etc.
+                    boiler_num = 0
+                else:
+                    # specific equipment model
+                    boiler_cap = backup_heating.capacity_W
+                    boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
+                    boiler_num = max(boiler_num, 1)  # ensure at least one unit
+
+                    logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
+
+                df[Col.BOILER_HHW_W.value] = boiler_served_W
+                df[Col.GAS_BOILER_WH.value] = gas_Wh
+                df[Col.BOILER_EFF.value] = eff
+                df[Col.GAS_WH.value] += gas_Wh
+                df[Col.HHW_REM_W.value] = 0.0
+
+                boiler_coverage = (
+                    (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
+
+            # =========================
+            # Phase 4 - Electric resistance (if heating remains)
+            # =========================
+            remaining_h_W = df[Col.HHW_REM_W.value].to_numpy()
+            if np.any(remaining_h_W > 1e-9):
+                elec_res_Wh = remaining_h_W  # COP = 1
+
+                # log warning if any heating remains
+                remaining_kWh = np.nansum(remaining_h_W) / 1000
+                elec_res_coverage = (
+                    (np.nansum(remaining_h_W) / np.nansum(df[Col.HHW_W.value])) * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.warning(
+                    f"Phase 4: Electric resistance backup required - "
+                    f"{remaining_kWh:.1f} kWh ({elec_res_coverage:.1f}% of heating load) unmet by HR/AWHP/Boiler"
+                )
+                if "gas_boiler_Wh" in df and np.nansum(df[Col.GAS_BOILER_WH.value]) != 0:
+                    logger.warning("Both gas and electric backup heating equipment are being used.")
+
+                resheater_peak_served_W = np.nanmax(elec_res_Wh)
+                # sizing logic
+                if backup_heating.eq_calc_type == "generic":
+                    # generic equipment - do not account for space, electric capacity, etc.
+                    resheater_num = 0
+                else:
+                    # specific equipment model
+                    resheater_cap = backup_heating.capacity_W
+                    resheater_num = np.ceil(resheater_peak_served_W / resheater_cap)
+                    resheater_num = max(resheater_num, 1)  # ensure at least one unit
+
+                    logger.debug(f"Electric resistance heater sizing: {resheater_num:.0f} units")
+
+                df[Col.RES_HHW_W.value] = remaining_h_W
+                df[Col.ELEC_RES_WH.value] = elec_res_Wh
+                df[Col.ELEC_WH.value] += elec_res_Wh
+                df[Col.HHW_REM_W.value] = 0.0
+
+            # =========================
+            # Phase 5 - AWHP Cooling
+            # =========================
+            if scen.awhp and scen.awhp_use_cooling:
+                awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
+                awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
+
+                logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
+
+                # assuming that AWHPs all have 50% turndown (2 compressors)
+                awhp_turndown = 0.5
+                num_compressors = awhp_num / awhp_turndown
+                # calculate number of "compressors" used to serve heating load
+                num_compressors_h = np.maximum(0,
+                                        np.ceil(
+                                            num_compressors
+                                            * df[Col.AWHP_HHW_W.value] 
+                                            / df[Col.AWHP_CAP_H_W.value]
+                                        )
+                                    )
+                num_compressors_h[np.isnan(num_compressors_h)] = 0 # for hours where AWHP heating capacity is 0
+                # remaining compressors can serve cooling load
+                num_compressors_c = np.maximum(0, num_compressors - num_compressors_h)
+                awhp_num_c = num_compressors_c * awhp_turndown # number of compressors available to operate in cooling
+
+                cap_total_c_W = awhp_cap_c * awhp_num_c
+                served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
+
+                # Compute electricity only where cooling is served
+                elec_c_Wh = served_c_W / awhp_cop_c
+                df[Col.AWHP_CHW_W.value] = served_c_W
+                df[Col.AWHP_CAP_C_W.value] = cap_total_c_W
+                df[Col.AWHP_COP_C.value] = awhp_cop_c
+                df[Col.ELEC_AWHP_C_WH.value] = elec_c_Wh
+                df[Col.ELEC_WH.value] += elec_c_Wh
+                df[Col.CHW_REM_W.value] -= served_c_W
+                df[Col.AWHP_NUM_C] = awhp_num_c
+
+                awhp_c_coverage = (
+                    (np.nansum(served_c_W) / np.nansum(df[Col.CHW_W.value])) * 100
+                    if np.nansum(df[Col.CHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(f"Phase 5 complete: AWHP covers {awhp_c_coverage:.1f}% of cooling load")
+
+            # =========================
+            # Phase 6 - Electric chiller fallback
+            # =========================
+            if df[Col.CHW_REM_W.value].sum() > 1e-9:
+                remaining_c_kWh = df[Col.CHW_REM_W.value].sum() / 1000
+                chiller_cop = 5.0  # default
+                if scen.chiller:
+                    logger.debug(
+                        f"Phase 6: Chiller '{scen.chiller}' handling {remaining_c_kWh:.1f} kWh remaining cooling"
+                    )
+                    chl = library.get_equipment(scen.chiller)
+                    # prefer explicit efficiency (treat as COP for chiller), otherwise try COP curve
+                    eff = _constant_cooling_efficiency(chl)
+                    if eff and eff > 0:
+                        chiller_cop = eff
+                    else:
+                        logger.warning(
+                            f"Phase 6: Using default chiller COP={chiller_cop} for {remaining_c_kWh:.1f} kWh - no chiller specified"
+                        )
+                        cop_curve = _per_unit_cooling_cop(chl, temps)  # could be array
+                        if not np.isnan(cop_curve).all():
+                            # if a curve exists, use the hourly values
+                            served_W = df[Col.CHW_REM_W.value].to_numpy()
+                            elec_Wh = served_W / cop_curve
+                            df[Col.CHILLER_CHW_W.value] = served_W
+                            df[Col.ELEC_CHILLER_WH.value] = elec_Wh
+                            df[Col.ELEC_WH.value] += elec_Wh
+                            df[Col.CHILLER_COP.value] = cop_curve
+                            df[Col.CHW_REM_W.value] = 0.0
+                            # finalize and return
+                            cols = _finalize_columns(df, detail)
+                            return df[cols]
+
+                # scalar COP path
+                served_W = df[Col.CHW_REM_W.value].to_numpy()
+                elec_Wh = served_W / chiller_cop
+
+                chl_peak_served_W = np.nanmax(served_W)
+                # sizing logic
+                if chl.eq_calc_type == "generic":
+                    # generic equipment - do not account for refrigerant, space, electric capacity, etc.
+                    chl_num = 0
+                else:
+                    # specific equipment model
+                    # assumes fixed capacity, edit for curves later
+                    chl_cap = chl.capacity_W
+                    chl_num = np.ceil(chl_peak_served_W / chl_cap)
+                    chl_num = max(chl_num, 1)  # ensure at least one unit
+
+                    logger.debug(f"Chiller sizing: {chl_num:.0f} units")
+
+                # add refrigerant information
+                chiller_refrigerant = chl.refrigerant if chl.refrigerant else "Unknown"
+                num_hours = len(df)  # Use actual data length (handles leap years)
+
+                chiller_refrigerant_weight_kg = (
+                    chl.refrigerant_weight_g * 0.001 * chl_num / num_hours
+                    if chl.refrigerant_weight_g
+                    else 0.0
+                )
+
+                chiller_refrigerant_gwp_kg = (
+                    chl.refrigerant_gwp * chiller_refrigerant_weight_kg if chl.refrigerant_gwp else 0.0
+                )
+
+                # this will produce a warning if generic equipment is used
+                if chiller_refrigerant_gwp_kg == 0:
+                    if chiller_refrigerant_weight_kg == 0:
+                        logger.warning("Chiller refrigerant charge is 0.")
+                    else:
+                        logger.warning("Chiller refrigerant GWP is 0.")
+
+                if detail:
+                    df[Col.CHILLER_CHW_W.value] = served_W
+                    df[Col.ELEC_CHILLER_WH.value] = elec_Wh
+                    df[Col.CHILLER_COP.value] = chiller_cop
+
+                df[Col.ELEC_WH.value] += elec_Wh
+                df[Col.CHW_REM_W.value] = 0.0
+                df[Col.CHILLER_REFRIGERANT.value] = chiller_refrigerant
+                df[Col.CHILLER_REFRIGERANT_WEIGHT_KG.value] = chiller_refrigerant_weight_kg
+                df[Col.CHILLER_REFRIGERANT_GWP.value] = chiller_refrigerant_gwp_kg
+
+                df = df.round(4)
+
+            # ---- finalize ----
+            cols = _finalize_columns(df, detail)
+
+            df = df[cols]
+            df[Col.EQ_SCEN_ID.value] = scenario_id  # tag scenario
+            df[Col.EQ_SCEN_NAME.value] = library.get_scenario(scenario_id).eq_scen_name
+
+            logger.info(f"Completed loads_to_site for "
+                        f"emissions scenario {em_scen_id}, equipment scenario {scenario_id}")
+
+            results.append(df)
 
     return pd.concat(results, axis=0, ignore_index=False)
 
@@ -1214,6 +1178,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.COOLING_W.value,
         Col.ELEC_WH.value,
         Col.GAS_WH.value,
+        Col.EM_SCEN_ID.value,
+        Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value,
     ]
     if not detail:
         return base
@@ -1256,7 +1222,6 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.CHILLER_REFRIGERANT.value,
         Col.CHILLER_REFRIGERANT_WEIGHT_KG.value,
         Col.CHILLER_REFRIGERANT_GWP.value,
-        Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value,
     ]
     # only include those that actually exist
     detail_cols = [c for c in detail_cols if c in df.columns]
@@ -1284,94 +1249,28 @@ def site_to_source(
             f"Processing emission scenario: {em_scen_id}, year={metadata[em_scen_id].year}"
         )
 
-        # emissions_data = get_emissions_data(metadata[em_scen_id])
-        # logger.debug(f"Loaded {len(emissions_data.df)} emission data rows")
-
         em_scen = metadata[em_scen_id]
 
-        # shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
         gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
 
-        # # extract date components from loads (keep original year for timestamp reconstruction)
-        merged = df_energy.copy() # rename
-        # base[Col.YEAR.value] = base.index.year  # Keep original load data year
-        # base[Col.MONTH.value] = base.index.month
-        # base[Col.DAY.value] = base.index.day
-        # base[Col.HOUR.value] = base.index.hour
-        # base[Col.DOY.value] = base.index.dayofyear
-
-        # # collapse emissions to month-hour averages
-        # emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
-        # emissions_data.df[Col.HOUR.value] = emissions_data.df.index.hour
-        # emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
-        # group_cols = [Col.MONTH.value, Col.HOUR.value]
-
-        # # all rates are in gCO2e/kWh
-        # if em_scen.emission_type == "Combustion only":
-        #     emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-        #         emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
-        #     ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
-        # elif em_scen.emission_type == "Includes pre-combustion":
-        #     emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-        #         (
-        #             emissions_data.df[Col.LRMER_CO2E_C.value]
-        #             + emissions_data.df[Col.LRMER_CO2E_P.value]
-        #         )
-        #         * (1 - shortrun_weighting)
-        #     ) + (
-        #         (
-        #             emissions_data.df[Col.SRMER_CO2E_C.value]
-        #             + emissions_data.df[Col.SRMER_CO2E_P.value]
-        #         )
-        #         * shortrun_weighting
-        #     )
-        # else:
-        #     raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
-
-        # df_em = (
-        #     emissions_data.df.groupby(group_cols)[
-        #         [
-        #             Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
-        #             Col.LRMER_CO2E_C.value,
-        #             Col.LRMER_CO2E_P.value,
-        #             Col.LRMER_CO2E.value,
-        #             Col.SRMER_CO2E_C.value,
-        #             Col.SRMER_CO2E_P.value,
-        #             Col.SRMER_CO2E.value,
-        #             Col.SHORTRUN_WEIGHTING.value,
-        #         ]
-        #     ]
-        #     .mean()
-        #     .reset_index()
-        # )
-
-        # # expand loads with this year's emissions
-        # merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
-
-        # nan_count = merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH].isna().sum()
-        # if nan_count > 0:
-        #     logger.warning(f"Merge produced {nan_count} rows with missing emission rates")
-
-        # # Note: Keep original load data year (already extracted above) for timestamp
-        # # reconstruction. This avoids Feb 29 errors when leap year load data is
-        # # used with non-leap emission scenario years. Emissions are still correct
-        # # because they're matched by month+hour pattern.
+        df = df_energy.copy()
+        df = df[df[Col.EM_SCEN_ID.value] == em_scen_id]
 
         # electricity emissions
-        merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.ELEC_WH.value]
-            * merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
+        df[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
+            df[Col.ELEC_WH.value]
+            * df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
             / 1_000_000  #! make cleaner
         )
 
         # gas emissions
-        if Col.GAS_WH.value in merged.columns:
-            merged[Col.GAS_EMISSIONS_KG_CO2E.value] = (
-                gas_emissions_rate * merged[Col.GAS_WH.value] / 1_000_000
+        if Col.GAS_WH.value in df.columns:
+            df[Col.GAS_EMISSIONS_KG_CO2E.value] = (
+                gas_emissions_rate * df[Col.GAS_WH.value] / 1_000_000
             )
         else:
-            merged[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
+            df[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
 
         # refrigerant emissions
         refrig_cols = [
@@ -1380,50 +1279,28 @@ def site_to_source(
             Col.CHILLER_REFRIGERANT_GWP.value,
         ]
 
-        existing_refrig_cols = [c for c in refrig_cols if c in merged.columns]
+        existing_refrig_cols = [c for c in refrig_cols if c in df.columns]
 
         if existing_refrig_cols:
             # Compute the total refrigerant emissions inventory by summing available columns
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] = merged[existing_refrig_cols].sum(axis=1)
+            df[Col.TOTAL_REFRIG_GWP_KG.value] = df[existing_refrig_cols].sum(axis=1)
         else:
             # If none exist, default to zero
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
+            df[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
 
-        merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
-        )
-        
-        # # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
-        # # # 1. Build the same argument you pass into to_datetime
-        # # arg = merged[["year", "month", "day", "hour"]].copy()  # adjust cols as needed
-
-        # # # 2. Try converting with errors="coerce" to get NaT for bad rows
-        # # ts = pd.to_datetime(arg, errors="coerce")
-
-        # # # 3. Find the rows that failed
-        # # bad_rows = merged[ts.isna()]
-
-        # # print(bad_rows[["year", "month", "day", "hour"]].head())
-
-        # merged[Col.TIMESTAMP.value] = pd.to_datetime(
-        #     merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
-        # )
-
-        # merged = merged.drop(
-        #     columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
-        # ).set_index(Col.TIMESTAMP.value)
-
-        merged[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.ELEC_EMISSIONS_KG_CO2E.value]
-            + merged[Col.GAS_EMISSIONS_KG_CO2E.value]
-            + merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
+        df[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
+            df[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
         )
 
-        merged[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
+        df[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
+            df[Col.ELEC_EMISSIONS_KG_CO2E.value]
+            + df[Col.GAS_EMISSIONS_KG_CO2E.value]
+            + df[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
+        )
 
-        results.append(merged)
+        results.append(df)
 
-        total_emissions_kg = sum(r[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum() for r in results)
+        total_emissions_kg = df[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum()
         logger.info(
             f"Completed site_to_source for {em_scen_id}, "
             f"total emissions={total_emissions_kg:.0f} kg CO2e"

@@ -924,12 +924,6 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
     if not site_energy_path:
         raise dash.exceptions.PreventUpdate
 
-    # if not selected_emission_ids:
-    #     notification = create_warning_notification(
-    #         "No Emission Scenarios", "Please select at least one emission scenario."
-    #     )
-    #     return no_update, [notification]
-
     try:
         logger.info(
             f"Converting from site energy to source emissions for following em_scenarios: {selected_emission_ids}"
@@ -941,17 +935,7 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
         site_energy = pd.read_pickle(site_energy_path)
         metadata = Metadata(**metadata_json)
 
-        # # filter emission scenarios
-        # selected_emission_ids = selected_emission_ids or []
-        # if selected_emission_ids:
-        #     metadata.emission_settings = [
-        #         scen
-        #         for scen in metadata.emission_settings
-        #         if scen.em_scen_id in selected_emission_ids
-        #     ]
-
         source_energy = site_to_source(site_energy, metadata=metadata)
-        # does this need to be passed metadata now?
 
         source_path = folder / "source_energy.pkl"
         source_energy.to_pickle(source_path)
