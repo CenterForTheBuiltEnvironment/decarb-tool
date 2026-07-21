@@ -28,11 +28,10 @@ class DisplayRegistry:
     def _build_equipment_lookup(cls):
         """Build the equipment ID to manufacturer+model name lookup dictionary."""
         library = load_library("data/input/equipment_data.JSON")
-        cls._equipment_lookup = {eq.eq_id:
-                                    eq.model if eq.eq_manufacturer is None
-                                    else f"{eq.eq_manufacturer} {eq.model}" 
-                                    for eq in library.equipment
-                                }
+        cls._equipment_lookup = {
+            eq.eq_id: eq.model if eq.eq_manufacturer is None else f"{eq.eq_manufacturer} {eq.model}"
+            for eq in library.equipment
+        }
 
     @classmethod
     def clear_cache(cls):

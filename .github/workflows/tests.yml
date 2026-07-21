@@ -1,11 +1,11 @@
-name: Tests (Tier 1 + 2)
+name: Unit & Regression Tests
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  pytest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
