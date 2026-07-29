@@ -218,19 +218,25 @@ Change to `0.005` for ±0.5% if floating-point differences across Python version
 
 ### Updating regression snapshots (Tier 2)
 
-Run after any deliberate change that alters `loads_to_site_energy()` output (bug fix, equipment data update, scenario parameter change):
+Run after any deliberate change that alters `loads_to_site_energy()` output (bug fix, equipment data update, scenario parameter change).
+
+**Step 1 — Review first, update second.** Run the tests without updating to see syrupy's diff in the terminal:
+
+```bash
+pytest -m regression
+```
+
+Syrupy prints a readable diff of what changed (which rows, which columns, which values). This is the review step. If the changes look correct and proportionate to what you changed, proceed.
+
+**Step 2 — Update and commit.**
 
 ```bash
 pytest -m regression --snapshot-update
-git diff tests/__snapshots__/
-```
-
-The diff shows exactly which values changed, in which columns, at which hours. Review it — if the changes look correct and proportionate to what you changed, commit the snapshot alongside the code change:
-
-```bash
 git add tests/__snapshots__/ tests/test_energy_regression.py  # plus your code change
 git commit -m "fix: <description of fix>; update regression snapshots"
 ```
+
+> Note: `git diff tests/__snapshots__/` is not useful for review — syrupy stores snapshots as a single long string, making the raw diff illegible. Always use the pytest terminal output (step 1) to review changes.
 
 Never update snapshots without reviewing the diff.
 
@@ -253,13 +259,13 @@ git commit -m "fix: <description>; update integration golden values"
 ### Adding a new equipment scenario to the regression suite
 
 1. Add the scenario ID to `SCENARIOS` in `tests/test_energy_regression.py`
-2. Run `pytest -m regression --snapshot-update`
-3. Review the new snapshot entry in `tests/__snapshots__/test_energy_regression.ambr`
+2. Run `pytest -m regression` — the new scenario will fail with "snapshot does not exist"; inspect the printed output to confirm it looks sensible
+3. Run `pytest -m regression --snapshot-update` to write the new snapshot
 4. Commit both files
 
 ### Adding a new building/scenario to the integration suite
 
-1. Add the `(building_id, scenario_id)` tuple to `INTEGRATION_CASES` in `tests/test_energy_integration.py`
+1. Add the `(building_id, scenario_id, source)` tuple to `SIMULATION_CASES` or `MEASURED_CASES` in `tests/test_energy_integration.py`
 2. Run `pytest -m integration --generate-golden`
 3. Review the new entry in `tests/snapshots/integration_annual_totals.json`
 4. Commit both files
