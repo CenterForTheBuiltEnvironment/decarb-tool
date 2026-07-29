@@ -324,7 +324,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     if "vintage" in metadata_updates:
         v = metadata_updates["vintage"]
         if pd.notna(v) and v != "":
-            metadata_updates["vintage"] = int(v)
+            metadata_updates["vintage"] = v
         else:
             metadata_updates.pop("vintage", None)
 
@@ -588,7 +588,7 @@ def handle_completeness_confirm(
         if metadata:
             metadata["building_id"] = building_id.strip()
             metadata["building_type"] = building_type if building_type else None
-            metadata["vintage"] = int(vintage) if vintage else None
+            metadata["vintage"] = vintage if vintage else None
             metadata["area_sqm"] = float(area_sqm)
 
             # Also populate LoadData fields with computed stats

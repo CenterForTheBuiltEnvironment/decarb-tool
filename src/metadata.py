@@ -53,7 +53,7 @@ class Metadata(DotAccessMixin, BaseModel):
     building_id: str | None = None
     location: str | None = None
     building_type: str | None = None
-    vintage: int | None = None
+    vintage: str | None = None
     ashrae_climate_zone: str | None = None
     climate_zone_output: str | None = None
     area_sqm: float | None
