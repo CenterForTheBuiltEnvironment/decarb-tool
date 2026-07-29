@@ -77,22 +77,34 @@ class TestStandardLoad:
 class TestLoadDataValidation:
     """Tests for edge cases in load data validation."""
 
-    def test_negative_loads_allowed(self):
-        """Test that negative load values are allowed (heat recovery scenarios)."""
+    def test_negative_heating_raises(self):
+        """Test that negative heating load values are rejected."""
         df = pd.DataFrame(
             {
                 "timestamp": pd.date_range("2025-01-01", periods=100, freq="h"),
                 "t_out_C": [20] * 100,
-                "heating_W": [-1000] * 100,  # Negative heating (unusual but valid)
+                "heating_W": [-1000] * 100,
                 "cooling_W": [500] * 100,
             }
         )
-        # Should not raise an error
-        load = StandardLoad(df)
-        assert load is not None
+        with pytest.raises(ValueError, match="negative"):
+            StandardLoad(df)
+
+    def test_negative_cooling_raises(self):
+        """Test that negative cooling load values are rejected."""
+        df = pd.DataFrame(
+            {
+                "timestamp": pd.date_range("2025-01-01", periods=100, freq="h"),
+                "t_out_C": [20] * 100,
+                "heating_W": [1000] * 100,
+                "cooling_W": [-500] * 100,
+            }
+        )
+        with pytest.raises(ValueError, match="negative"):
+            StandardLoad(df)
 
     def test_zero_loads_allowed(self):
-        """Test that zero load values are allowed."""
+        """Zero is the valid lower bound for load values."""
         df = pd.DataFrame(
             {
                 "timestamp": pd.date_range("2025-01-01", periods=100, freq="h"),
