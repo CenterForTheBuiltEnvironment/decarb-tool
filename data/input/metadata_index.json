@@ -36,7 +36,7 @@
       "3C"
     ],
     "load_type": [
-      "simulation",
+      "simulated",
       "measured"
     ],
     "area_sqm": [
@@ -56,10 +56,10 @@
   },
   "equipment": {
     "equipment_type": [
-      "heat_pump",
+      "hr_heat_pump",
       "chiller",
       "backup_heating",
-      "hr_heat_pump"
+      "heat_pump"
     ]
   },
   "emissions": {

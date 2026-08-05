@@ -1413,12 +1413,15 @@ def build_completeness_modal():
                                 clearable=True,
                                 searchable=True,
                             ),
-                            dmc.Select(
+                            dmc.NumberInput(
                                 id="custom-vintage",
-                                label="Vintage (Decade Built)",
-                                placeholder="Select decade (optional)",
-                                data=["1960s", "1980s", "1990s", "2000s", "2010s", "2020s"],
-                                clearable=True,
+                                label="Construction Year",
+                                placeholder="e.g. 2010 (optional)",
+                                min=1900,
+                                max=2100,
+                                step=1,
+                                decimalScale=0,
+                                hideControls=False,
                             ),
                             dmc.Stack(
                                 gap=4,

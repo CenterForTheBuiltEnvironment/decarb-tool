@@ -324,7 +324,10 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     if "vintage" in metadata_updates:
         v = metadata_updates["vintage"]
         if pd.notna(v) and v != "":
-            metadata_updates["vintage"] = v
+            try:
+                metadata_updates["vintage"] = int(v)
+            except (TypeError, ValueError):
+                metadata_updates.pop("vintage", None)
         else:
             metadata_updates.pop("vintage", None)
 
@@ -335,8 +338,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     for field, value in metadata_updates.items():
         setattr(metadata, field, value)
 
-    for field, value in load_updates.items():
-        setattr(metadata.load_data, field, value)
+    metadata.load_data = LoadData.model_validate(
+        {**metadata.load_data.model_dump(), **load_updates}
+    )
 
     # gea grid region
     region = building.get("gea_grid_region")
@@ -588,7 +592,7 @@ def handle_completeness_confirm(
         if metadata:
             metadata["building_id"] = building_id.strip()
             metadata["building_type"] = building_type if building_type else None
-            metadata["vintage"] = vintage if vintage else None
+            metadata["vintage"] = int(vintage) if vintage is not None else None
             metadata["area_sqm"] = float(area_sqm)
 
             # Also populate LoadData fields with computed stats
