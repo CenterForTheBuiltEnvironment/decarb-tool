@@ -188,10 +188,13 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     # Define desired columns with their base display names (without units)
     # Format: (column_name, display_name)
     column_config = [
+        ("building_id", "ID"),
         ("location", "Location"),
         ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
-        ("load_type", "Source"),
+        ("vintage", "Vintage"),
+        ("load_type", "Load Type"),
+        ("load_source_ref", "Load Data Reference"),
         ("area_sqm", "Area"),
         ("hhw_max_load", "Peak HHW Load"),
         ("chw_max_load", "Peak CHW Load"),
@@ -254,7 +257,11 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
                 except (TypeError, ValueError):
                     display_value = str(raw_value)
             else:
-                display_value = str(raw_value) if raw_value is not None else "—"
+                display_value = (
+                    "—"
+                    if raw_value is None or raw_value == "" or pd.isna(raw_value)
+                    else str(raw_value)
+                )
 
             cells.append(dmc.TableTd(display_value))
 
@@ -318,9 +325,10 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                 gap="xl",
                 children=[
                     dmc.Group(
-                        align="space-between",
-                        justify="space-around",
-                        gap="lg",
+                        align="center",
+                        justify="space-between",
+                        gap="sm",
+                        wrap="nowrap",
                         children=[
                             # Load type
                             dmc.Select(
@@ -352,10 +360,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 value=None,
                                 clearable=True,
                                 searchable=True,
-                                style={"width": 220},
+                                style={"width": 180},
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="area-slider-label",
                                         children="Area (m²)",
@@ -372,12 +382,13 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": area_min, "label": str(area_min)},
                                             {"value": area_max, "label": str(area_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="hhw-slider-label",
                                         children="HHW Peak Load [kW]",
@@ -394,12 +405,13 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": hhw_min, "label": str(hhw_min)},
                                             {"value": hhw_max, "label": str(hhw_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="chw-slider-label",
                                         children="CHW Peak Load [kW]",
@@ -416,7 +428,6 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": chw_min, "label": str(chw_min)},
                                             {"value": chw_max, "label": str(chw_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
@@ -452,7 +463,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
             dcc.Store(id="selected-building-store"),
         ],
         id="modal-load-data",
-        size="80%",
+        size="90%",
         radius="md",
         centered=True,
         withCloseButton=True,
