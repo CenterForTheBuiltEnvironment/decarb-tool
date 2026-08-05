@@ -1179,6 +1179,7 @@ def update_sizing_priority(use_cooling, sizing_mode):
 
 # helper to build equipment options for Selects
 
+
 def _build_equipment_options(
     equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
 ):

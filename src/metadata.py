@@ -64,6 +64,7 @@ class Metadata(DotAccessMixin, BaseModel):
     units: str
     last_updated: str
     custom_load_path: str | None = None  # Path to custom load data file if load_type='load_custom'
+    session_load_path: str | None = None  # Overrides central parquet when set (e.g. after scaling)
 
     @property
     def base_gea_grid_region(self) -> str | None:

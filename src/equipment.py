@@ -11,6 +11,7 @@ from src.mixins import DotAccessMixin
 # --- Models ---
 class PerformanceCurves(BaseModel):
     """Equipment performance curves: coefficient of performance (COP), capacity, and outdoor air temperature constraints."""
+
     cop: list[float] | None = None
     capacity_W: list[float] | None = None
     constraints: dict[str, float] | None = None
@@ -21,7 +22,8 @@ class Performance(BaseModel):
     Leaving supply water temperatures, associated performance curves, and supply water temperature constraints.
     Outdoor air temperature curve for AWHPs, capacity curve for WWHPs, constant efficiency for boilers/chillers.
     """
-    t_out_C: list[float] | None = None 
+
+    t_out_C: list[float] | None = None
     capacity_W: list[float] | None = None
     leaving_supply_t: dict[str, PerformanceCurves] | None = None
     efficiency: float | None = None
@@ -29,20 +31,26 @@ class Performance(BaseModel):
 
 
 class Emissions(BaseModel):
-    """"Equipment emissions data."""
+    """ "Equipment emissions data."""
+
     co2_kg_per_mwh: float
+
 
 class Dimensions(BaseModel):
     """Equipment physical dimensions in metres."""
+
     length: float | None = None
     height: float | None = None
     width: float | None = None
 
+
 class Electrical(BaseModel):
     """Equipment electrical characteristics: minimum circuit amperage (MCA), voltage, and phase."""
+
     mca: float | None = None
     voltage: float | None = None
     phase: int | None = None
+
 
 class Equipment(BaseModel):
     eq_id: str
@@ -95,9 +103,7 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
-    awhp_sizing_priority: (
-        Literal["heating", "cooling", "larger"] | None
-    ) = None
+    awhp_sizing_priority: Literal["heating", "cooling", "larger"] | None = None
     backup_heating: str | None = None
     chiller: str | None = None
 

@@ -1487,6 +1487,61 @@ def build_completeness_modal():
     )
 
 
+def build_scale_load_modal():
+    """Modal for scaling/normalizing a library load profile."""
+    return dmc.Modal(
+        title="Scale Load Profile",
+        id="scale-load-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            dmc.Text(
+                "Scale the library load profile to match your building. "
+                "Every hourly heating and cooling load will be multiplied by the computed scale factor.",
+                size="sm",
+                c="dimmed",
+            ),
+            dmc.Space(h="md"),
+            html.Div(id="scale-reference-info"),
+            dmc.Space(h="md"),
+            dmc.Text("Scaling options", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="scale-method-select",
+                value="area",
+                data=[
+                    {"label": "Building Area", "value": "area"},
+                    {"label": "Peak Heating Load", "value": "peak_heating"},
+                    {"label": "Peak Cooling Load", "value": "peak_cooling"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            dmc.Text(id="scale-target-label", size="sm", fw=500),
+            dmc.NumberInput(
+                id="scale-target-value",
+                placeholder="Enter value",
+                min=0,
+                decimalScale=2,
+                mt=4,
+            ),
+            dmc.Space(h="sm"),
+            dmc.Text(id="scale-preview-text", c="blue", size="sm", fw=500),
+            dmc.Text(id="scale-error-text", c="red", size="sm"),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id="scale-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id="scale-apply-btn", color="blue"),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
 def build_completeness_summary(data_summary: dict, source_type: str = "measured") -> html.Div:
     """
     Build the summary content from StandardLoad.get_data_summary().
