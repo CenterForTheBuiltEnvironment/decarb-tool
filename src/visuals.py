@@ -21,6 +21,33 @@ berkeley_blue = "#002676"
 berkeley_gold = "#FDB515"
 rose_medium = "#E7115E"
 
+# Load profiles carry a placeholder year: the simulated profiles are typical-year
+# EnergyPlus output stamped 2001, so the year says nothing about the results and is
+# easily confused with the emission scenario year. Date labels therefore show month,
+# day and - where the aggregation is finer than a day - time of day, but never the
+# year. The stops keep the year off the axis at every zoom level.
+DATE_TICKFORMATSTOPS = (
+    dict(dtickrange=[None, 3600000], value="%b %d, %H:%M"),  # up to hourly ticks
+    dict(dtickrange=[3600000, 86400000], value="%b %d, %H:%M"),  # hourly to daily
+    dict(dtickrange=[86400000, "M1"], value="%b %d"),  # daily to monthly
+    dict(dtickrange=["M1", None], value="%b"),  # monthly and coarser
+)
+
+# Hover date format per resampling frequency (see plot_meter_timeseries).
+_HOVER_DATE_FORMATS = {
+    "H": "%b %d, %H:%M",
+    "D": "%b %d",
+    "W": "%b %d",
+    "M": "%B",
+    "MS": "%B",
+    "ME": "%B",
+}
+
+
+def hover_date_format(freq):
+    """Return a year-free hover date format matching the aggregation frequency."""
+    return _HOVER_DATE_FORMATS.get(str(freq).upper(), "%b %d")
+
 
 def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
     # Keep existing annotations (like subplot titles)
@@ -533,6 +560,9 @@ def plot_meter_timeseries(
     # Rename columns to user-friendly display names
     df_resampled = df_resampled.rename(columns=format_meter_name)
 
+    # Date format for hover, matched to the aggregation (no year - see comment above)
+    date_format = hover_date_format(freq)
+
     if not stacked:
         # Melt for line chart
         df_melt = df_resampled.reset_index().melt(
@@ -561,7 +591,7 @@ def plot_meter_timeseries(
             meter_name = tr.name  # px sets this
             tr.meta = meter_name  # so we can use %{meta}
             tr.hovertemplate = (
-                "Time: %{x|%Y-%m-%d %H:%M}<br>"
+                f"Time: %{{x|{date_format}}}<br>"
                 "Meter: %{meta}<br>"
                 f"{usage_label}: " + f"%{{y:,.2f}} {hover_unit}"
                 "<extra></extra>"
@@ -607,11 +637,14 @@ def plot_meter_timeseries(
             meter_name = tr.name
             tr.meta = meter_name
             tr.hovertemplate = (
-                "Time: %{x|%Y-%m-%d %H:%M}<br>"
+                f"Time: %{{x|{date_format}}}<br>"
                 "Meter: %{meta}<br>"
                 f"{usage_label}: " + f"%{{y:,.2f}} {hover_unit}"
                 "<extra></extra>"
             )
+
+    # Keep the placeholder year off the date axis, including when the user zooms in
+    fig.update_xaxes(tickformatstops=DATE_TICKFORMATSTOPS)
 
     return fig
 
