@@ -535,7 +535,7 @@ def loads_to_site_energy(
                 Col.AWHP_NUM.value,
                 Col.AWHP_NUM_R.value,
                 Col.ELEC_AWHP_H_WH.value,
-                Col.HHW_REM_W_NG_MODE.value,  # for fuel switching
+                Col.HHW_REM_W_NG_MODE.value,
                 # Boiler
                 Col.BOILER_NUM.value,
                 Col.BOILER_HHW_W.value,
@@ -543,8 +543,9 @@ def loads_to_site_energy(
                 Col.BOILER_EQ_CALC.value,
                 Col.BOILER_CAP_W.value,
                 Col.GAS_BOILER_WH.value,
-                Col.BOILER_HHW_W_NG_MODE.value,  # for fuel switching
-                Col.GAS_BOILER_WH_NG_MODE.value,  # for fuel switching
+                Col.BOILER_HHW_W_NG_MODE.value,
+                Col.GAS_BOILER_WH_NG_MODE.value,
+                Col.FUEL_SWITCHING.value,
                 # Resistance heater
                 Col.RES_HHW_W.value,
                 Col.ELEC_RES_WH.value,
@@ -783,10 +784,12 @@ def loads_to_site_energy(
             served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
 
-            fuel_switching = True
-            if fuel_switching:
+            if scen.fuel_switching:
+                df[Col.FUEL_SWITCHING.value] = True
                 df[Col.HHW_REM_W_NG_MODE.value] = df[Col.HHW_REM_W.value].to_numpy()
                 # store remaining HHW load before it gets updated (in case there is heat recovery preceding)
+            else:
+                df[Col.FUEL_SWITCHING.value] = False
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
@@ -842,7 +845,7 @@ def loads_to_site_energy(
             boiler_served_W = df[Col.HHW_REM_W].to_numpy()
             gas_Wh = boiler_served_W / eff
 
-            if fuel_switching:
+            if scen.fuel_switching:
                 # create intermediate columns to store boiler HHW and gas usage if AWHP did not operate (i.e., NG mode)
                 df[Col.BOILER_HHW_W_NG_MODE.value] = df[Col.HHW_REM_W_NG_MODE.value]
                 gas_Wh_NG_mode = df[Col.HHW_REM_W_NG_MODE.value] / eff
@@ -1089,6 +1092,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.BOILER_CAP_W.value,
         Col.GAS_BOILER_WH.value,
         Col.GAS_BOILER_WH_NG_MODE.value,
+        Col.FUEL_SWITCHING.value,
         Col.RES_HHW_W.value,
         Col.ELEC_RES_WH.value,
         Col.AWHP_NUM_C.value,
@@ -1204,33 +1208,45 @@ def site_to_source(
         # because they're matched by month+hour pattern.
 
         ## fuel switching logic
-        fuel_switching = True
-        if fuel_switching:
-            emissions_intensity_HP = (
-                merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value] / merged[Col.AWHP_COP_H.value]
-            )
-            emissions_intensity_NG = gas_emissions_rate / merged[Col.BOILER_EFF.value]
-            NG_mode = (
+        emissions_intensity_HP = (
+            merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value] / merged[Col.AWHP_COP_H.value]
+        )
+        emissions_intensity_NG = gas_emissions_rate / merged[Col.BOILER_EFF.value]
+        NG_mode = (
+            merged[Col.FUEL_SWITCHING.value].to_numpy()  # only evaluate if fuel switching is true
+            & (
                 emissions_intensity_HP > emissions_intensity_NG
             )  # disable HP if electricity emissions intensity is higher
+        )
 
-            # update AWHP and electricity total
-            merged.loc[NG_mode, Col.ELEC_WH.value] -= merged[Col.ELEC_AWHP_H_WH.value][NG_mode]
-            merged.loc[NG_mode, Col.ELEC_AWHP_H_WH.value] = 0.0
-            merged.loc[NG_mode, Col.AWHP_HHW_W.value] = 0.0
+        # print number of fuel switching hours
+        df_fuel_switching = merged
+        df_fuel_switching["NG_mode"] = NG_mode
+        df_fuel_switching = (
+            df_fuel_switching[[Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, "NG_mode"]]
+            .groupby([Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value])
+            .agg(NG_mode_hours=("NG_mode", "sum"), total_hours=("NG_mode", "size"))
+            .reset_index()
+        )
+        logger.debug(f"Fuel switching operation:\n {df_fuel_switching}")
 
-            # update boiler and gas total
-            merged.loc[NG_mode, Col.GAS_WH.value] += (
-                merged[Col.GAS_BOILER_WH_NG_MODE.value][NG_mode]
-                - merged[Col.GAS_BOILER_WH.value][NG_mode]
-            )
-            # boilers are the only gas consuming equipment, but this logic included for consistency
-            merged.loc[NG_mode, Col.BOILER_HHW_W.value] = merged[Col.BOILER_HHW_W_NG_MODE.value][
-                NG_mode
-            ]
-            merged.loc[NG_mode, Col.GAS_BOILER_WH.value] = merged[Col.GAS_BOILER_WH_NG_MODE.value][
-                NG_mode
-            ]
+        # update AWHP and electricity total
+        merged.loc[NG_mode, Col.ELEC_WH.value] -= merged[Col.ELEC_AWHP_H_WH.value][NG_mode]
+        merged.loc[NG_mode, Col.ELEC_AWHP_H_WH.value] = 0.0
+        merged.loc[NG_mode, Col.AWHP_HHW_W.value] = 0.0
+
+        # update boiler and gas total
+        merged.loc[NG_mode, Col.GAS_WH.value] += (
+            merged[Col.GAS_BOILER_WH_NG_MODE.value][NG_mode]
+            - merged[Col.GAS_BOILER_WH.value][NG_mode]
+        )
+        # boilers are the only gas consuming equipment, but this logic included for consistency
+        merged.loc[NG_mode, Col.BOILER_HHW_W.value] = merged[Col.BOILER_HHW_W_NG_MODE.value][
+            NG_mode
+        ]
+        merged.loc[NG_mode, Col.GAS_BOILER_WH.value] = merged[Col.GAS_BOILER_WH_NG_MODE.value][
+            NG_mode
+        ]
 
         ## boiler sizing, after gas has been updated
         # determine peak boiler load for each equipment scenario
@@ -1259,6 +1275,7 @@ def site_to_source(
                 Col.BOILER_HHW_W_NG_MODE.value,
                 Col.GAS_BOILER_WH_NG_MODE.value,
                 Col.BOILER_EQ_CALC.value,
+                Col.FUEL_SWITCHING.value,
                 "boiler_peak_hhw_W",
             ],
             axis=1,

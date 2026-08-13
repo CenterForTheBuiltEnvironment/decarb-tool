@@ -542,9 +542,10 @@ def build_equipment_table(
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
-        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_use_cooling", "Use AWHP for Cooling"),
         ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
+        ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Backup Cooling"),
     ]
 
@@ -998,7 +999,7 @@ def edit_equipment_modal():
                             [
                                 dmc.Switch(
                                     id="edit-awhp-use-cooling",
-                                    label="Use heat pump also for cooling",
+                                    label="Use AWHP for cooling",
                                     mt="xs",
                                 ),
                                 dmc.Select(
@@ -1049,6 +1050,11 @@ def edit_equipment_modal():
                             searchable=True,
                         ),
                     ],
+                ),
+                dmc.Switch(
+                    id="edit-fuel-switching",
+                    label="Use optimal heating fuel",
+                    mt="xs",
                 ),
                 dmc.Text(
                     id="edit-scenario-error",

@@ -36,6 +36,7 @@ class EquipmentTableRows(Enum):
         "awhp_use_cooling",
         "awhp_sizing_priority",
         "backup_heating",
+        "fuel_switching",
         "chiller",
     )
 
@@ -117,6 +118,7 @@ class Columns(StrEnum):
     GAS_BOILER_WH = "gas_boiler_Wh"
     BOILER_HHW_W_NG_MODE = "boiler_hhw_W_ng_mode"
     GAS_BOILER_WH_NG_MODE = "gas_boiler_Wh_ng_mode"
+    FUEL_SWITCHING = "fuel_switching"
 
     # --- Resistance heater backup ---
     RES_HHW_W = "res_hhw_W"

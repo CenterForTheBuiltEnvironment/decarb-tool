@@ -684,6 +684,7 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-awhp-sizing-priority", "value"),
     Output("edit-backup-heating-select", "data"),
     Output("edit-backup-heating-select", "value"),
+    Output("edit-fuel-switching", "checked"),
     Output("edit-chiller-select", "data"),
     Output("edit-chiller-select", "value"),
     Output("edit-scenario-error", "children"),
@@ -698,7 +699,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 21
+        return (no_update,) * 22
 
     if not equipment_data:
         return (
@@ -720,6 +721,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             "No equipment data.",
@@ -730,7 +732,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 21
+        return (no_update,) * 22
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -757,6 +759,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             "Failed to parse button id.",
@@ -787,6 +790,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             f"Scenario {eq_scen_id!r} not found.",
@@ -849,6 +853,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     redundancy = scenario.get("awhp_redundancy", 1)
     use_cooling = scenario.get("awhp_use_cooling", False)
     sizing_priority = scenario.get("awhp_sizing_priority") or "heating"
+    fuel_switching = scenario.get("fuel_switching", False)
 
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
@@ -872,6 +877,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         sizing_priority,
         backup_heating_options,
         backup_heating_val,
+        fuel_switching,
         chiller_options,
         chiller_val,
         "",
@@ -897,6 +903,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-awhp-use-cooling", "checked"),
     State("edit-awhp-sizing-priority", "value"),
     State("edit-backup-heating-select", "value"),
+    State("edit-fuel-switching", "checked"),
     State("edit-chiller-select", "value"),
     State("equipment-store", "data"),
     State("unit-toggle", "value"),
@@ -918,6 +925,7 @@ def save_edit_scenario(
     use_cooling,
     sizing_priority,
     backup_heating_val,
+    fuel_switching,
     chiller_val,
     equipment_data,
     unit_mode,
@@ -969,6 +977,7 @@ def save_edit_scenario(
         redundancy = 1
 
     use_cooling = bool(use_cooling)
+    fuel_switching = bool(fuel_switching)
 
     scenarios = equipment_data["equipment_scenarios"]
     updated = False
@@ -990,6 +999,7 @@ def save_edit_scenario(
             new_scen["awhp_use_cooling"] = use_cooling
             new_scen["awhp_sizing_priority"] = sizing_priority
             new_scen["backup_heating"] = backup_heating_val
+            new_scen["fuel_switching"] = fuel_switching
             new_scen["chiller"] = chiller_val
             new_scenarios.append(new_scen)
             updated = True
@@ -1177,7 +1187,34 @@ def update_sizing_priority(use_cooling, sizing_mode):
     return disabled
 
 
+@callback(
+    Output("edit-fuel-switching", "disabled"),
+    Output("edit-fuel-switching", "checked", allow_duplicate=True),
+    Input("edit-awhp-select", "value"),
+    Input("edit-backup-heating-select", "value"),
+    State("edit-fuel-switching", "checked"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_data):
+    """Enable/disable fuel switching input and update value when AWHP or backup heating selection changes."""
+    # get backup heating fuel
+    equipment_list = equipment_data.get("equipment", []) if equipment_data else []
+    backup_heating = next((e for e in equipment_list if e.get("eq_id") == backup_heating_id), None)
+    backup_heating_fuel = backup_heating.get("fuel", "")
+
+    # Disable input if AWHP is not selected, or if backup heating option is electric
+    awhp_selected = awhp_id and awhp_id != "None"
+    disabled = (not awhp_selected) or (backup_heating_fuel != "natural_gas")
+
+    # Set value to unchecked if disabled condition is met, otherwise preserve last value
+    checked = False if disabled else fuel_switching
+
+    return (disabled, checked)
+
+
 # helper to build equipment options for Selects
+
 
 def _build_equipment_options(
     equipment_list, eq_type, unit_mode, include_none=False, none_label="None"
