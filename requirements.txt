@@ -19,6 +19,7 @@ dash_mantine_components==2.4.0
 debugpy==1.8.15
 decorator==5.2.1
 distlib==0.4.0
+et_xmlfile==2.0.0
 executing==2.2.0
 fastjsonschema==2.21.1
 filelock==3.25.2
@@ -50,6 +51,7 @@ nbformat==5.10.4
 nest-asyncio==1.6.0
 nodeenv==1.10.0
 numpy==2.3.0
+openpyxl==3.1.5
 packaging==25.0
 pandas==2.3.0
 parso==0.8.4
@@ -90,6 +92,7 @@ SQLAlchemy==2.0.41
 sqlalchemy_mate==2.0.0.3
 stack-data==0.6.3
 statsmodels==0.14.5
+syrupy==5.5.3
 tornado==6.5.1
 traitlets==5.14.3
 typing-inspection==0.4.1
