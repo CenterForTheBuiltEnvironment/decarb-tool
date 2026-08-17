@@ -175,6 +175,11 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
             if scen.awhp_use_cooling:
                 awhp_c = library.get_equipment(scen.awhp)
 
+                if scen.awhp_sizing_priority is None:
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'."
+                    )
+
                 if not awhp_c.performance_cooling:
                     raise ValueError(f"Equipment '{awhp_c.eq_id}' lacks cooling performance data.")
 
@@ -321,12 +326,8 @@ def _heating_supply_temp_performance(
                 [interp_vector(equip_supply_temps, x, supply_t) for x in zip(*caps, strict=False)]
             ).T
         interp_perf.constraints = {
-            "min_temp_C": np.array(
-                [interp_vector(equip_supply_temps, constraints["min"], supply_t)]
-            ),
-            "max_temp_C": np.array(
-                [interp_vector(equip_supply_temps, constraints["max"], supply_t)]
-            ),
+            "min_temp_C": interp_vector(equip_supply_temps, constraints["min"], supply_t),
+            "max_temp_C": interp_vector(equip_supply_temps, constraints["max"], supply_t),
         }
     else:
         # for WWHPs
@@ -439,6 +440,44 @@ def _capacity_constraints(
     return cap
 
 
+def _awhp_reference_capacity(
+    e: Equipment,
+    performance: PerformanceCurves,
+    supply_t: float,
+    load_type: str,
+) -> float:
+    """AWHP reference capacity [W] for sizing."""
+
+    cap_type = {"heating": np.ndarray, "cooling": list}
+
+    if isinstance(performance.capacity_W, cap_type[load_type]):
+        if load_type == "heating":
+            ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
+
+            # closest supply temperature to input (for reset, this defaults to the lowest)
+            awhp_h_supply_temps_str = list(e.performance_heating.leaving_supply_t.keys())
+            awhp_h_supply_temps = np.array(awhp_h_supply_temps_str, dtype=float)
+            ref_supply_temp = awhp_h_supply_temps_str[
+                np.argmin(np.abs(awhp_h_supply_temps - supply_t))
+            ]
+
+        elif load_type == "cooling":
+            ref_temp_C = 30.0  # Conservative outdoor temperature for sizing
+            ref_supply_temp = supply_t
+
+        ref_capacity_W = e.performance[load_type].leaving_supply_t[ref_supply_temp].capacity_W
+
+        cap_ref = interp_vector(
+            e.performance[load_type].t_out_C,
+            ref_capacity_W,
+            np.array([ref_temp_C]),
+        )[0]
+    else:
+        cap_ref = float(e.capacity_W)
+
+    return cap_ref
+
+
 def loads_to_site_energy(
     load: StandardLoad,
     library: EquipmentLibrary,
@@ -493,8 +532,8 @@ def loads_to_site_energy(
                 Col.AWHP_HHW_W.value,
                 Col.AWHP_COP_H.value,
                 Col.AWHP_CAP_H_W.value,
-                Col.AWHP_NUM_H.value,
-                Col.AWHP_NUM_H_R.value,
+                Col.AWHP_NUM.value,
+                Col.AWHP_NUM_R.value,
                 Col.ELEC_AWHP_H_WH.value,
                 # Boiler
                 Col.BOILER_HHW_W.value,
@@ -653,63 +692,88 @@ def loads_to_site_energy(
                 awhp_h, temps, awhp_h_performance, awhp_h_performance_model
             )
 
-            # Determine number of units
+            # --- Sizing Logic ---
             sizing_mode = scen.awhp_sizing_mode
             sizing_value = scen.awhp_sizing_value
             redundancy = scen.awhp_redundancy
 
-            ref_temp_C = 0.0  # Conservative outdoor temperature for sizing
-            if isinstance(awhp_h_performance.capacity_W, np.ndarray):
-                # closest supply temperature to input (for reset, this defaults to the lowest)
-                awhp_h_supply_temps_str = list(awhp_h.performance_heating.leaving_supply_t.keys())
-                awhp_h_supply_temps = np.array(awhp_h_supply_temps_str, dtype=float)
-                ref_supply_temp = awhp_h_supply_temps_str[
-                    np.argmin(np.abs(awhp_h_supply_temps - awhp_h_supply_t))
-                ]
-                ref_capacity_W = awhp_h.performance_heating.leaving_supply_t[
-                    ref_supply_temp
-                ].capacity_W
+            if scen.awhp_use_cooling:
+                sizing_priority = scen.awhp_sizing_priority
 
-                cap_ref = interp_vector(
-                    awhp_h.performance_heating.t_out_C,
-                    ref_capacity_W,
-                    np.array([ref_temp_C]),
-                )[0]
-
+                awhp_c = library.get_equipment(scen.awhp)
+                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+                # this extracts the first value and uses that performance data
+                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
+                # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
             else:
-                cap_ref = float(awhp_h_performance.capacity_W)
+                sizing_priority = "heating"
 
-            # --- Sizing Logic ---
+            # Determine reference capacity
+            if sizing_priority == "heating":
+                sizing_load = "hhw_W"
+                cap_ref = _awhp_reference_capacity(
+                    awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
+                )
+
+            elif sizing_priority == "cooling":
+                sizing_load = "chw_W"
+                cap_ref = _awhp_reference_capacity(
+                    awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
+                )
+
+            elif sizing_priority == "larger" and sizing_mode in [
+                "integer_sizing_peak_load",
+                "fractional_sizing_peak_load",
+            ]:
+                cap_ref = {
+                    "hhw_W": _awhp_reference_capacity(
+                        awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
+                    ),
+                    "chw_W": _awhp_reference_capacity(
+                        awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
+                    ),
+                }
+                num = {
+                    "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
+                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"],
+                }
+                sizing_load = max(num, key=num.get)
+                cap_ref = cap_ref[sizing_load]
+
+                logger.debug(f"{sizing_load} drives AWHP sizing.")
+
+            # Determine number of units
             if sizing_mode in [
                 "integer_sizing_peak_load",
                 "fractional_sizing_peak_load",
             ]:
-                # Fraction of peak HHW load at reference temperature
-                peak_hhw_W = float(df["hhw_W"].max())
-                target_load_W = peak_hhw_W * sizing_value
+                # Fraction of peak load at reference temperature
+                peak_load_W = float(df[sizing_load].max())
+                target_load_W = peak_load_W * sizing_value
 
                 if sizing_mode == "integer_sizing_peak_load":
-                    awhp_num_h = np.ceil(target_load_W / cap_ref)
-                    awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
+                    awhp_num = np.ceil(target_load_W / cap_ref)
+                    awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
                 else:
-                    awhp_num_h = target_load_W / cap_ref
+                    awhp_num = target_load_W / cap_ref
 
             elif sizing_mode == "fixed_num_units":
-                awhp_num_h = np.ceil(sizing_value)
-                awhp_num_h = int(max(1, awhp_num_h))  # Ensure at least one unit
+                awhp_num = np.ceil(sizing_value)
+                awhp_num = int(max(1, awhp_num))  # Ensure at least one unit
 
-            awhp_num_h = max(awhp_num_h, 0)
+            awhp_num = max(awhp_num, 0)
 
             # --- Redundancy Logic ---
-            awhp_num_h_r = awhp_num_h + redundancy
+            awhp_num_r = awhp_num + redundancy
 
             logger.debug(
-                f"AWHP sizing: mode={sizing_mode}, value={sizing_value}, "
-                f"units={awhp_num_h:.2f}, with {redundancy} redundant = {awhp_num_h_r:.2f} total"
+                f"AWHP sizing: priority={sizing_priority}, mode={sizing_mode}, value={sizing_value}, "
+                f"units={awhp_num:.2f}, with {redundancy} redundant = {awhp_num_r:.2f} total"
             )
 
             # capacity calculations use the original sizing number
-            cap_total_h_W = awhp_cap_h * awhp_num_h
+            cap_total_h_W = awhp_cap_h * awhp_num
             served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
 
@@ -719,7 +783,7 @@ def loads_to_site_energy(
             total_awhp_refrigerant_weight_kg = (
                 awhp_h.refrigerant_weight_g
                 * 0.001
-                * awhp_num_h_r
+                * awhp_num_r
                 / num_hours  # emissions calculations use the redundancy sizing number
                 if awhp_h.refrigerant_weight_g
                 else 0.0
@@ -743,8 +807,8 @@ def loads_to_site_energy(
             df[Col.ELEC_AWHP_H_WH.value] = elec_h_Wh
             df[Col.ELEC_WH.value] += elec_h_Wh
             df[Col.HHW_REM_W.value] -= served_h_W
-            df[Col.AWHP_NUM_H.value] = float(awhp_num_h)
-            df[Col.AWHP_NUM_H_R.value] = float(awhp_num_h_r)
+            df[Col.AWHP_NUM.value] = float(awhp_num)
+            df[Col.AWHP_NUM_R.value] = float(awhp_num_r)
             df[Col.AWHP_REFRIGERANT.value] = awhp_refrigerant
             df[Col.AWHP_REFRIGERANT_WEIGHT_KG.value] = total_awhp_refrigerant_weight_kg
             df[Col.AWHP_REFRIGERANT_GWP.value] = total_awhp_refrigerant_gwp_kg
@@ -836,30 +900,29 @@ def loads_to_site_energy(
         # Phase 5 - AWHP Cooling
         # =========================
         if scen.awhp and scen.awhp_use_cooling:
-            awhp_c = library.get_equipment(scen.awhp)
-
-            # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
-            # this extracts the first value and uses that performance data
-            awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-            # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
-            awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
-
             awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
             awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
 
-            awhp_num_c = awhp_num_h  # use same number of units as heating
+            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
 
-            logger.debug(f"Phase 5: AWHP Cooling with {awhp_num_c:.2f} units")
+            # assuming that AWHPs all have 50% turndown (2 compressors)
+            awhp_turndown = 0.5
+            num_compressors = awhp_num / awhp_turndown
+            # calculate number of "compressors" used to serve heating load
+            num_compressors_h = np.maximum(
+                0, np.ceil(num_compressors * df[Col.AWHP_HHW_W.value] / df[Col.AWHP_CAP_H_W.value])
+            )
+            num_compressors_h[np.isnan(num_compressors_h)] = (
+                0  # for hours where AWHP heating capacity is 0
+            )
+            # remaining compressors can serve cooling load
+            num_compressors_c = np.maximum(0, num_compressors - num_compressors_h)
+            awhp_num_c = (
+                num_compressors_c * awhp_turndown
+            )  # number of compressors available to operate in cooling
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
-
-            mask = (
-                df[Col.AWHP_HHW_W.value] == 0
-            )  # create a mask for hours when no heating is served by AWHP
-            served_c_W = np.zeros(len(df))  # Initialize served_c_W as zeros
-            served_c_W[mask] = np.minimum(
-                df.loc[mask, Col.CHW_REM_W.value].to_numpy(), cap_total_c_W[mask]
-            )  # Compute only where mask is True
+            served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)
 
             # Compute electricity only where cooling is served
             elec_c_Wh = served_c_W / awhp_cop_c
@@ -869,7 +932,7 @@ def loads_to_site_energy(
             df[Col.ELEC_AWHP_C_WH.value] = elec_c_Wh
             df[Col.ELEC_WH.value] += elec_c_Wh
             df[Col.CHW_REM_W.value] -= served_c_W
-            df[Col.AWHP_NUM_C] = float(awhp_num_c)
+            df[Col.AWHP_NUM_C] = awhp_num_c
 
             awhp_c_coverage = (
                 (np.nansum(served_c_W) / np.nansum(df[Col.CHW_W.value])) * 100
@@ -1002,8 +1065,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.HR_WWHP_REFRIGERANT.value,
         Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value,
         Col.HR_WWHP_REFRIGERANT_GWP.value,
-        Col.AWHP_NUM_H.value,
-        Col.AWHP_NUM_H_R.value,
+        Col.AWHP_NUM.value,
+        Col.AWHP_NUM_R.value,
         Col.AWHP_CAP_H_W.value,
         Col.AWHP_COP_H.value,
         Col.AWHP_HHW_W.value,
@@ -1061,7 +1124,7 @@ def site_to_source(
 
         shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
-        gas_emissions_rate = float(em_scen.annual_ng_leakage_g_per_kWh)
+        gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
 
         # extract date components from loads (keep original year for timestamp reconstruction)
         base = df_loads.copy()

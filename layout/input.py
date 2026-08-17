@@ -179,17 +179,22 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
     Supports unit conversion with auto-scaling via unit_mode ("SI" or "IP").
     """
     from utils.units import (
+        AUTO_SCALE_CONFIG,
         get_auto_scale_for_values,
         get_category,
+        get_converter,
     )
 
     # Define desired columns with their base display names (without units)
     # Format: (column_name, display_name)
     column_config = [
+        ("building_id", "ID"),
         ("location", "Location"),
         ("ashrae_climate_zone", "Climate Zone"),
         ("building_type", "Building Type"),
-        ("load_type", "Source"),
+        ("vintage", "Vintage"),
+        ("load_type", "Load Type"),
+        ("load_source_ref", "Load Data Reference"),
         ("area_sqm", "Area"),
         ("hhw_max_load", "Peak HHW Load"),
         ("chw_max_load", "Peak CHW Load"),
@@ -235,9 +240,13 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
             # Scale value if it has a registered category
             if col in column_scales and raw_value is not None:
                 try:
-                    scale, _ = column_scales[col]
-                    # Divide base unit value by scale to get display value
-                    scaled = float(raw_value) / scale
+                    category = get_category(col)
+                    if category in AUTO_SCALE_CONFIG:
+                        scale, _ = column_scales[col]
+                        scaled = float(raw_value) / scale
+                    else:
+                        scaled = get_converter(category, unit_mode)(float(raw_value))
+
                     # Format based on magnitude of scaled value
                     if abs(scaled) >= 1000:
                         display_value = f"{scaled:,.0f}"
@@ -248,7 +257,11 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
                 except (TypeError, ValueError):
                     display_value = str(raw_value)
             else:
-                display_value = str(raw_value) if raw_value is not None else "—"
+                display_value = (
+                    "—"
+                    if raw_value is None or raw_value == "" or pd.isna(raw_value)
+                    else str(raw_value)
+                )
 
             cells.append(dmc.TableTd(display_value))
 
@@ -312,9 +325,10 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                 gap="xl",
                 children=[
                     dmc.Group(
-                        align="space-between",
-                        justify="space-around",
-                        gap="lg",
+                        align="center",
+                        justify="space-between",
+                        gap="sm",
+                        wrap="nowrap",
                         children=[
                             # Load type
                             dmc.Select(
@@ -346,10 +360,12 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                 value=None,
                                 clearable=True,
                                 searchable=True,
-                                style={"width": 220},
+                                style={"width": 180},
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="area-slider-label",
                                         children="Area (m²)",
@@ -366,12 +382,13 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": area_min, "label": str(area_min)},
                                             {"value": area_max, "label": str(area_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="hhw-slider-label",
                                         children="HHW Peak Load [kW]",
@@ -388,12 +405,13 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": hhw_min, "label": str(hhw_min)},
                                             {"value": hhw_max, "label": str(hhw_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
                             dmc.Stack(
-                                [
+                                gap=4,
+                                style={"width": 180},
+                                children=[
                                     dmc.Text(
                                         id="chw-slider-label",
                                         children="CHW Peak Load [kW]",
@@ -410,7 +428,6 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                                             {"value": chw_min, "label": str(chw_min)},
                                             {"value": chw_max, "label": str(chw_max)},
                                         ],
-                                        style={"width": 250},
                                     ),
                                 ],
                             ),
@@ -446,7 +463,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
             dcc.Store(id="selected-building-store"),
         ],
         id="modal-load-data",
-        size="80%",
+        size="90%",
         radius="md",
         centered=True,
         withCloseButton=True,
@@ -526,6 +543,7 @@ def build_equipment_table(
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
         ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
         ("chiller", "Backup Cooling"),
     ]
@@ -976,12 +994,38 @@ def edit_equipment_modal():
                             ],
                             grow=True,
                         ),
-                        dmc.Switch(
-                            id="edit-awhp-use-cooling",
-                            label="Use heat pump also for cooling",
-                            mt="xs",
+                        dmc.Group(
+                            [
+                                dmc.Switch(
+                                    id="edit-awhp-use-cooling",
+                                    label="Use heat pump also for cooling",
+                                    mt="xs",
+                                ),
+                                dmc.Select(
+                                    id="edit-awhp-sizing-priority",
+                                    label="Sizing priority",
+                                    placeholder="None",
+                                    data=[
+                                        {
+                                            "label": "Heating load",
+                                            "value": "heating",
+                                        },
+                                        {
+                                            "label": "Cooling load",
+                                            "value": "cooling",
+                                        },
+                                        {
+                                            "label": "Larger of heating and cooling load",
+                                            "value": "larger",
+                                        },
+                                    ],
+                                    clearable=True,
+                                    searchable=True,
+                                ),
+                            ],
+                            grow=True,
                         ),
-                    ]
+                    ],
                 ),
                 dmc.Divider(label="Backup equipment", labelPosition="center"),
                 dmc.SimpleGrid(
@@ -1071,8 +1115,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Get unit label for NG leakage (dynamic based on unit_mode)
-    ng_leakage_unit = get_unit_label("ng_leakage_rate", unit_mode)
+    # Get unit label for NG emission rate (dynamic based on unit_mode)
+    ng_emission_rate_unit = get_unit_label("emissions_rate", unit_mode)
 
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
@@ -1082,7 +1126,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("annual_ng_leakage_g_per_kWh", f"NG leakage ({ng_leakage_unit})"),
+        ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
         ("year", "Year"),
     ]
 
@@ -1206,8 +1250,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
-    # Get converter for NG leakage values
-    ng_leakage_converter = get_unit_converter("ng_leakage_rate", unit_mode)
+    # Get converter for NG emission rate values
+    ng_emission_rate_converter = get_unit_converter("emissions_rate", unit_mode)
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -1222,10 +1266,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for NG leakage
-            if field == "annual_ng_leakage_g_per_kWh" and raw_value is not None:
+            # Apply unit conversion for NG emission rate
+            if field == "ng_emission_rate_gCO2e_per_kWh" and raw_value is not None:
                 try:
-                    converted = ng_leakage_converter(float(raw_value))
+                    converted = ng_emission_rate_converter(float(raw_value))
                     display_value = f"{converted:.2f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1382,10 +1426,13 @@ def build_completeness_modal():
                             ),
                             dmc.NumberInput(
                                 id="custom-vintage",
-                                label="Vintage (Year Built)",
-                                placeholder="e.g., 1990",
-                                min=1800,
+                                label="Construction Year",
+                                placeholder="e.g. 2010 (optional)",
+                                min=1900,
                                 max=2100,
+                                step=1,
+                                decimalScale=0,
+                                hideControls=False,
                             ),
                             dmc.Stack(
                                 gap=4,
@@ -1432,6 +1479,131 @@ def build_completeness_modal():
                         id="completeness-confirm-btn",
                         color="blue",
                     ),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
+def build_scale_load_modal():
+    """Modal for scaling/normalizing a library load profile."""
+    return dmc.Modal(
+        title="Scale Load Profile",
+        id="scale-load-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            dmc.Text(
+                "Scale the library load profile to match your building. "
+                "Every hourly heating and cooling load will be multiplied by the computed scale factor.",
+                size="sm",
+                c="dimmed",
+            ),
+            dmc.Space(h="md"),
+            html.Div(id="scale-reference-info"),
+            dmc.Space(h="md"),
+            dmc.Text("Scaling options", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="scale-method-select",
+                value="area",
+                data=[
+                    {"label": "Building Area", "value": "area"},
+                    {"label": "Peak Heating Load", "value": "peak_heating"},
+                    {"label": "Peak Cooling Load", "value": "peak_cooling"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            dmc.Text(id="scale-target-label", size="sm", fw=500),
+            dmc.NumberInput(
+                id="scale-target-value",
+                placeholder="Enter value",
+                min=0,
+                decimalScale=2,
+                mt=4,
+            ),
+            dmc.Space(h="sm"),
+            dmc.Text(id="scale-preview-text", c="blue", size="sm", fw=500),
+            dmc.Text(id="scale-error-text", c="red", size="sm"),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id="scale-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id="scale-apply-btn", color="blue"),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
+def build_base_load_modal():
+    """Modal for adding a minimum floor or constant offset to the load profile."""
+    return dmc.Modal(
+        title="Modify Base Load",
+        id="base-load-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            dmc.Text(
+                "Add a minimum floor or a constant offset to model process loads or "
+                "minimum baseline consumption.",
+                size="sm",
+                c="dimmed",
+            ),
+            dmc.Space(h="md"),
+            html.Div(id="base-load-current-values"),
+            dmc.Space(h="md"),
+            dmc.Text("Mode", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="base-load-method-select",
+                value="floor",
+                data=[
+                    {"label": "Floor (minimum)", "value": "floor"},
+                    {"label": "Constant offset", "value": "offset"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="xs"),
+            dmc.Text(id="base-load-method-desc", size="sm", c="dimmed"),
+            dmc.Space(h="md"),
+            dmc.Text("Apply to", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="base-load-apply-select",
+                value="heating",
+                data=[
+                    {"label": "Heating", "value": "heating"},
+                    {"label": "Cooling", "value": "cooling"},
+                    {"label": "Both", "value": "both"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            dmc.Text(id="base-load-value-label", size="sm", fw=500),
+            dmc.NumberInput(
+                id="base-load-value",
+                placeholder="Enter value",
+                min=0,
+                decimalScale=2,
+                mt=4,
+            ),
+            dmc.Space(h="sm"),
+            dmc.Text(id="base-load-preview-text", c="blue", size="sm", fw=500),
+            dmc.Text(id="base-load-error-text", c="red", size="sm"),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id="base-load-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id="base-load-apply-btn", color="blue"),
                 ],
                 justify="flex-end",
                 mt="md",
@@ -1746,13 +1918,13 @@ def edit_emission_modal():
                         dmc.Stack(
                             [
                                 dmc.Text(
-                                    id="edit-em-ng-leakage-label",
-                                    children="Annual NG leakage (g/kWh)",
+                                    id="edit-em-ng-emission-rate-label",
+                                    children="Gas emissions rate (g/kWh)",
                                     size="sm",
                                     fw=500,
                                 ),
                                 dmc.NumberInput(
-                                    id="edit-em-ng-leakage",
+                                    id="edit-em-ng-emission-rate",
                                     min=0,
                                     step=1,
                                 ),

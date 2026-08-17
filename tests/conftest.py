@@ -60,6 +60,6 @@ def emission_scenario():
         emission_type="Includes pre-combustion",
         shortrun_weighting=0.0,
         annual_refrig_leakage_percent=0.05,
-        annual_ng_leakage_g_per_kWh=239.2,
+        ng_emission_rate_gCO2e_per_kWh=239.2,
         year=2025,
     )

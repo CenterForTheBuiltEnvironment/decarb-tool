@@ -8,15 +8,6 @@ def shell_header():
         opened=True,
     )
 
-    # ---- alpha badge ----
-    alpha_badge = dmc.Badge(
-        "Alpha Version",
-        color="red",
-        variant="filled",
-        radius="sm",
-        style={"marginTop": 10},
-    )
-
     logo = dmc.Image(
         src="../assets/img/logo-preliminary.png",
         alt="tool-logo",
@@ -34,7 +25,7 @@ def shell_header():
     )
 
     return dmc.Group(
-        [header_group, alpha_badge],
+        [header_group],
         justify="space-between",
         align="center",
         gap="md",

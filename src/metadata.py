@@ -11,6 +11,7 @@ from src.mixins import DotAccessMixin
 
 class LoadData(BaseModel):
     load_type: str | None = None
+    load_source_ref: str | None = None
     max_temp: float | None = None
     median_temp: float | None = None
     min_temp: float | None = None
@@ -63,6 +64,7 @@ class Metadata(DotAccessMixin, BaseModel):
     units: str
     last_updated: str
     custom_load_path: str | None = None  # Path to custom load data file if load_type='load_custom'
+    session_load_path: str | None = None  # Overrides central parquet when set (e.g. after scaling)
 
     @property
     def base_gea_grid_region(self) -> str | None:
@@ -94,38 +96,38 @@ class Metadata(DotAccessMixin, BaseModel):
             emission_settings=[
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
-                    em_scen_name="Scenario A",
+                    em_scen_name="2025",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
                     annual_refrig_leakage_percent=0.05,
-                    annual_ng_leakage_g_per_kWh=239.2,
+                    ng_emission_rate_gCO2e_per_kWh=239.2,
                     year=2025,
                 ),
                 EmissionScenario(
                     em_scen_id="em_scenario_b",
-                    em_scen_name="Scenario B",
+                    em_scen_name="2035",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
                     annual_refrig_leakage_percent=0.05,
-                    annual_ng_leakage_g_per_kWh=239.2,
+                    ng_emission_rate_gCO2e_per_kWh=239.2,
                     year=2035,
                 ),
                 EmissionScenario(
                     em_scen_id="em_scenario_c",
-                    em_scen_name="Scenario C",
+                    em_scen_name="2045",
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
                     emission_type="Includes pre-combustion",
                     shortrun_weighting=0,
                     annual_refrig_leakage_percent=0.05,
-                    annual_ng_leakage_g_per_kWh=239.2,
+                    ng_emission_rate_gCO2e_per_kWh=239.2,
                     year=2045,
                 ),
             ],

@@ -16,7 +16,7 @@ class DisplayRegistry:
             eq_id: The equipment ID (e.g., "hr01", "awhp_1", "b01")
 
         Returns:
-            The equipment model name, or the original ID if not found
+            The equipment manufacturer+model name, or the original ID if not found
         """
         if eq_id is None:
             return None
@@ -26,9 +26,12 @@ class DisplayRegistry:
 
     @classmethod
     def _build_equipment_lookup(cls):
-        """Build the equipment ID to model name lookup dictionary."""
+        """Build the equipment ID to manufacturer+model name lookup dictionary."""
         library = load_library("data/input/equipment_data.JSON")
-        cls._equipment_lookup = {eq.eq_id: eq.model for eq in library.equipment}
+        cls._equipment_lookup = {
+            eq.eq_id: eq.model if eq.eq_manufacturer is None else f"{eq.eq_manufacturer} {eq.model}"
+            for eq in library.equipment
+        }
 
     @classmethod
     def clear_cache(cls):

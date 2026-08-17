@@ -2,13 +2,20 @@
   "load_data_full": {
     "building_type": [
       "Hospital",
-      "Hotel",
-      "Office",
+      "HotelLarge",
+      "OfficeLarge",
       "OutPatientHealthCare",
       "Academic",
-      "Other",
+      "Manufacturing",
+      "Office",
+      "Warehouse",
+      "Other/Gymnasium",
       "Lab",
-      "Medical Office"
+      "Academic/Lab",
+      "Medical Office",
+      "Academic/Office",
+      "Lab/Office",
+      "Tech HQ"
     ],
     "ashrae_climate_zone": [
       "5B",
@@ -29,30 +36,30 @@
       "3C"
     ],
     "load_type": [
-      "simulation",
+      "simulated",
       "measured"
     ],
     "area_sqm": [
-      500,
+      1000,
       70000
     ],
     "hhw_max_load": [
       5000,
-      7092000
+      3360000
     ],
     "chw_max_load": [
       35000,
       5375000
     ],
     "min_temp": -38,
-    "max_temp": 97
+    "max_temp": 49
   },
   "equipment": {
     "equipment_type": [
+      "hr_heat_pump",
       "chiller",
       "backup_heating",
-      "heat_pump",
-      "hr_heat_pump"
+      "heat_pump"
     ]
   },
   "emissions": {

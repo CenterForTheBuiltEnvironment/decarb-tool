@@ -154,7 +154,7 @@ The centralized unit conversion system is implemented in `utils/units.py` with:
 | LRMER pre-combustion | `lrmer_co2e_p` | g CO₂e/kWh | g CO₂e/kWh | lb CO₂e/kBTU | ✅ |
 | SRMER combustion | `srmer_co2e_c` | g CO₂e/kWh | g CO₂e/kWh | lb CO₂e/kBTU | ✅ |
 | SRMER pre-combustion | `srmer_co2e_p` | g CO₂e/kWh | g CO₂e/kWh | lb CO₂e/kBTU | ✅ |
-| NG leakage rate | `annual_ng_leakage_g_per_kWh` | g/kWh | g/kWh | lb/kBTU | ✅ |
+| Natural gas emission rate | `ng_emission_rate_gCO2e_per_kWh` | g CO₂e/kWh | g CO₂e/kWh | lb CO₂e/kBTU | ✅ |
 
 ---
 
@@ -198,7 +198,6 @@ UNIT_MAP = {
     "area":            {"base": "m²",  "SI": "m²",        "IP": "ft²"},
     "emissions":       {"base": "kg",  "SI": "kg CO₂e",   "IP": "lb CO₂e"},
     "emissions_rate":  {"base": "g/kWh", "SI": "g CO₂e/kWh", "IP": "lb CO₂e/kBTU"},
-    "ng_leakage_rate": {"base": "g/kWh", "SI": "g/kWh",   "IP": "lb/kBTU"},
     "gas_emission_factor": {"base": "g/kWh", "SI": "g CO₂e/kWh", "IP": "lb CO₂e/kBTU"},
     "mass":            {"base": "kg",  "SI": "kg",        "IP": "lb"},
     "mass_g":          {"base": "g",   "SI": "kg",        "IP": "lb"},

@@ -38,7 +38,7 @@ TOOLTIPS = {
 }
 
 
-def with_tooltip(component, text: str, text_props: dict = None, **overrides):
+def with_tooltip(component, text: str, text_props: dict | None = None, **overrides):
     """Wrap a Dash Mantine Component with a Tooltip.
     Args:
         component: Dash Mantine Component to wrap.
