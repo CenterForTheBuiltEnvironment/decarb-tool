@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/decarb-tool
+  IMAGE: gcr.io/decarb-460017/decarb-tool
 
 jobs:
   test:
@@ -32,7 +32,6 @@ jobs:
     name: Build & deploy to Cloud Run
     needs: test
     runs-on: ubuntu-latest
-    # Only deploy on pushes to main (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -46,25 +45,16 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            --tag ${{ env.IMAGE }}:${{ github.sha }} \
-            --tag ${{ env.IMAGE }}:latest \
-            .
-
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.IMAGE }}:${{ github.sha }}
-          docker push ${{ env.IMAGE }}:latest
+      - name: Build image with Cloud Build
+        run: gcloud builds submit --tag ${{ env.IMAGE }}
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
-            --image ${{ env.IMAGE }}:${{ github.sha }} \
-            --region ${{ secrets.GCP_REGION }} \
-            --platform managed \
-            --quiet
+          gcloud run deploy decarb-tool \
+            --image ${{ env.IMAGE }} \
+            --region us-central1 \
+            --session-affinity \
+            --cpu=2 \
+            --memory=4Gi \
+            --concurrency=8 \
+            --max-instances=1
