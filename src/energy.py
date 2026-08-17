@@ -176,8 +176,10 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                 awhp_c = library.get_equipment(scen.awhp)
 
                 if scen.awhp_sizing_priority is None:
-                    raise ValueError(f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'.")
-                
+                    raise ValueError(
+                        f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'."
+                    )
+
                 if not awhp_c.performance_cooling:
                     raise ValueError(f"Equipment '{awhp_c.eq_id}' lacks cooling performance data.")
 
@@ -437,6 +439,7 @@ def _capacity_constraints(
 
     return cap
 
+
 def _awhp_reference_capacity(
     e: Equipment,
     performance: PerformanceCurves,
@@ -462,10 +465,8 @@ def _awhp_reference_capacity(
             ref_temp_C = 30.0  # Conservative outdoor temperature for sizing
             ref_supply_temp = supply_t
 
-        ref_capacity_W = e.performance[load_type].leaving_supply_t[
-            ref_supply_temp
-        ].capacity_W
-        
+        ref_capacity_W = e.performance[load_type].leaving_supply_t[ref_supply_temp].capacity_W
+
         cap_ref = interp_vector(
             e.performance[load_type].t_out_C,
             ref_capacity_W,
@@ -711,29 +712,36 @@ def loads_to_site_energy(
             # Determine reference capacity
             if sizing_priority == "heating":
                 sizing_load = "hhw_W"
-                cap_ref = _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating")
-                
+                cap_ref = _awhp_reference_capacity(
+                    awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
+                )
+
             elif sizing_priority == "cooling":
                 sizing_load = "chw_W"
-                cap_ref = _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
-            
+                cap_ref = _awhp_reference_capacity(
+                    awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
+                )
+
             elif sizing_priority == "larger" and sizing_mode in [
                 "integer_sizing_peak_load",
                 "fractional_sizing_peak_load",
             ]:
                 cap_ref = {
-                    "hhw_W": _awhp_reference_capacity(awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"),
-                    "chw_W": _awhp_reference_capacity(awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling")
+                    "hhw_W": _awhp_reference_capacity(
+                        awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
+                    ),
+                    "chw_W": _awhp_reference_capacity(
+                        awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
+                    ),
                 }
                 num = {
                     "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
-                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"]
+                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"],
                 }
-                sizing_load = max(num, key = num.get)
+                sizing_load = max(num, key=num.get)
                 cap_ref = cap_ref[sizing_load]
 
                 logger.debug(f"{sizing_load} drives AWHP sizing.")
-
 
             # Determine number of units
             if sizing_mode in [
@@ -901,17 +909,17 @@ def loads_to_site_energy(
             awhp_turndown = 0.5
             num_compressors = awhp_num / awhp_turndown
             # calculate number of "compressors" used to serve heating load
-            num_compressors_h = np.maximum(0,
-                                    np.ceil(
-                                        num_compressors
-                                        * df[Col.AWHP_HHW_W.value] 
-                                        / df[Col.AWHP_CAP_H_W.value]
-                                    )
-                                )
-            num_compressors_h[np.isnan(num_compressors_h)] = 0 # for hours where AWHP heating capacity is 0
+            num_compressors_h = np.maximum(
+                0, np.ceil(num_compressors * df[Col.AWHP_HHW_W.value] / df[Col.AWHP_CAP_H_W.value])
+            )
+            num_compressors_h[np.isnan(num_compressors_h)] = (
+                0  # for hours where AWHP heating capacity is 0
+            )
             # remaining compressors can serve cooling load
             num_compressors_c = np.maximum(0, num_compressors - num_compressors_h)
-            awhp_num_c = num_compressors_c * awhp_turndown # number of compressors available to operate in cooling
+            awhp_num_c = (
+                num_compressors_c * awhp_turndown
+            )  # number of compressors available to operate in cooling
 
             cap_total_c_W = awhp_cap_c * awhp_num_c
             served_c_W = np.minimum(df[Col.CHW_REM_W.value].to_numpy(), cap_total_c_W)

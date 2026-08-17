@@ -16,6 +16,7 @@ from layout.input import (
     build_building_table,
     build_completeness_modal,
     build_completeness_summary,
+    build_scale_load_modal,
     get_load_index,  # slider min/max values in base SI units (lazy-loaded)
     modal_load_data_selection,
     select_load_type,
@@ -78,6 +79,28 @@ def layout():
                         select_load_type(),
                         modal_load_data_selection(buildings_df=get_buildings_df()),
                         build_completeness_modal(),
+                        build_scale_load_modal(),
+                        html.Div(
+                            style={"marginTop": "20px"},
+                            children=[
+                                dmc.Tooltip(
+                                    dmc.Button(
+                                        "Scale Loads",
+                                        id="open-scale-load-modal",
+                                        variant="outline",
+                                        color="blue",
+                                        size="sm",
+                                        n_clicks=0,
+                                        disabled=True,
+                                    ),
+                                    id="scale-load-btn-tooltip",
+                                    label="Select a load from the library first",
+                                    withArrow=True,
+                                    position="right",
+                                ),
+                            ],
+                        ),
+                        html.Div(id="scale-confirmation-alert", style={"marginTop": "8px"}),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -252,6 +275,49 @@ def update_metadata(
     return metadata.model_dump()
 
 
+def _build_summary_payload(load_obj: "StandardLoad") -> dict:
+    """Build monthly_peaks + temp_bins summary payload from a StandardLoad."""
+    df = load_obj.df.sort_index()
+
+    monthly = df.copy()
+    monthly["month"] = monthly.index.month
+    peaks = monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]].max().reset_index()
+    monthly_summary = [
+        {
+            "month": int(row["month"]),
+            "HHW_W": float(row["heating_W"]),
+            "CHW_W": float(row["cooling_W"]),
+        }
+        for _, row in peaks.iterrows()
+    ]
+
+    temp_df = df.copy()
+    bin_width = 5
+    half = bin_width / 2
+    t_min = temp_df["t_out_C"].min()
+    t_max = temp_df["t_out_C"].max()
+    center_start = np.floor(t_min / bin_width) * bin_width
+    center_end = np.ceil(t_max / bin_width) * bin_width
+    centers = np.arange(center_start, center_end + bin_width, bin_width)
+    bin_edges = np.arange(center_start - half, center_end + half + bin_width, bin_width)
+    temp_df["t_bin"] = pd.cut(
+        temp_df["t_out_C"], bins=bin_edges, labels=centers, include_lowest=True
+    )
+    bin_stats = (
+        temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]].mean().reset_index()
+    )
+    temp_summary = [
+        {
+            "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
+            "HHW_W": float(row["heating_W"]),
+            "CHW_W": float(row["cooling_W"]),
+        }
+        for _, row in bin_stats.iterrows()
+    ]
+
+    return {"monthly_peaks": monthly_summary, "temp_bins": temp_summary}
+
+
 @callback(
     [
         Output("selected-building-store", "data"),
@@ -262,6 +328,8 @@ def update_metadata(
         Output("data-completeness-modal", "opened"),
         Output("completeness-summary-content", "children"),
         Output("pending-load-data-store", "data"),
+        Output("scale-info-store", "data", allow_duplicate=True),
+        Output("scale-confirmation-alert", "children", allow_duplicate=True),
     ],
     Input("confirm-building-button", "n_clicks"),
     State("building-radio-group", "value"),
@@ -285,11 +353,12 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         None,
     )
     if building is None:
-        # 8 outputs
         return (
             no_update,
             no_update,
             metadata_data,
+            no_update,
+            no_update,
             no_update,
             no_update,
             no_update,
@@ -351,6 +420,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     if building.get("load_file_path"):
         metadata.custom_load_path = building["load_file_path"]
 
+    # Clear any previous scaling override so the fresh selection starts unscaled
+    metadata.session_load_path = None
+
     # ------------------------------------------------------------------
     # Load data once, save parquet path, and compute summary payload
     # ------------------------------------------------------------------
@@ -382,65 +454,11 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         load_data_path = str(path)
         logger.info(f"Using load dataset with ID {metadata.building_id}, saved to {path}")
 
-        # -------------------------
         # Build summary for charts
-        # -------------------------
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("Expected DatetimeIndex in StandardLoad.df")
 
-        # Monthly peaks (HHW & CHW) - keep in base units (W)
-        monthly = df.copy()
-        monthly["month"] = monthly.index.month
-        peaks = (
-            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]].max().reset_index()
-        )
-
-        monthly_summary = [
-            {
-                "month": int(row["month"]),
-                "HHW_W": float(row["heating_W"]),
-                "CHW_W": float(row["cooling_W"]),
-            }
-            for _, row in peaks.iterrows()
-        ]
-
-        # Temp bins: centered 5°C bins
-        temp_df = df.copy()
-        bin_width = 5
-        half = bin_width / 2
-
-        t_min = temp_df["t_out_C"].min()
-        t_max = temp_df["t_out_C"].max()
-
-        center_start = np.floor(t_min / bin_width) * bin_width
-        center_end = np.ceil(t_max / bin_width) * bin_width
-        centers = np.arange(center_start, center_end + bin_width, bin_width)
-        bin_edges = np.arange(center_start - half, center_end + half + bin_width, bin_width)
-
-        temp_df["t_bin"] = pd.cut(
-            temp_df["t_out_C"],
-            bins=bin_edges,
-            labels=centers,
-            include_lowest=True,
-        )
-
-        bin_stats = (
-            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]].mean().reset_index()
-        )
-
-        temp_summary = [
-            {
-                "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
-                "HHW_W": float(row["heating_W"]),
-                "CHW_W": float(row["cooling_W"]),
-            }
-            for _, row in bin_stats.iterrows()
-        ]
-
-        summary_payload = {
-            "monthly_peaks": monthly_summary,
-            "temp_bins": temp_summary,
-        }
+        summary_payload = _build_summary_payload(load_obj)
 
     except Exception as e:
         logger.error(
@@ -507,6 +525,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             True,  # data-completeness-modal opened
             completeness_content,  # completeness-summary-content
             pending_data,  # pending-load-data-store
+            no_update,  # scale-info-store
+            no_update,  # scale-confirmation-alert
         )
 
     # For simulated data, proceed directly
@@ -519,6 +539,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         False,  # Don't open completeness modal
         no_update,  # completeness-summary-content
         None,  # Clear pending data
+        None,  # Clear scale-info-store
+        [],  # Clear scale-confirmation-alert
     )
 
 
@@ -535,6 +557,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         Output("data-completeness-modal", "opened", allow_duplicate=True),
         Output("pending-load-data-store", "data", allow_duplicate=True),
         Output("custom-metadata-error", "children"),
+        Output("scale-info-store", "data", allow_duplicate=True),
+        Output("scale-confirmation-alert", "children", allow_duplicate=True),
     ],
     Input("completeness-confirm-btn", "n_clicks"),
     State("pending-load-data-store", "data"),
@@ -626,6 +650,8 @@ def handle_completeness_confirm(
         False,  # Close completeness modal
         None,  # Clear pending data
         "",  # Clear error message
+        None,  # Clear scale-info-store
+        [],  # Clear scale-confirmation-alert
     )
 
 
@@ -678,8 +704,9 @@ def toggle_custom_metadata_inputs(pending_data, unit_mode):
     Output("summary-selection-info", "children"),
     Input("metadata-store", "data"),
     Input("unit-toggle", "value"),
+    Input("scale-info-store", "data"),
 )
-def show_metadata(data, unit_mode):
+def show_metadata(data, unit_mode, scale_info):
     if not data:
         return "No metadata yet"
 
@@ -689,7 +716,7 @@ def show_metadata(data, unit_mode):
     return (
         building_characteristics_card(metadata, unit_mode=unit_mode),
         dmc.Space(h=10),
-        load_characteristics_card(metadata, unit_mode=unit_mode),
+        load_characteristics_card(metadata, unit_mode=unit_mode, is_scaled=bool(scale_info)),
     )
 
 
@@ -730,56 +757,7 @@ def parse_custom_load_data(contents, filename, session_id="default"):
         temp_file = folder / f"custom_load_{Path(filename).stem}.parquet"
         load_obj.to_parquet(temp_file)
 
-        # Build summary payload for charts (same logic as confirm_selection)
-        df_sorted = load_obj.df.sort_index()
-
-        # Monthly peaks
-        monthly = df_sorted.copy()
-        monthly["month"] = monthly.index.month
-        peaks = (
-            monthly.groupby("month", observed=True)[["heating_W", "cooling_W"]].max().reset_index()
-        )
-        monthly_summary = [
-            {
-                "month": int(row["month"]),
-                "HHW_W": float(row["heating_W"]),
-                "CHW_W": float(row["cooling_W"]),
-            }
-            for _, row in peaks.iterrows()
-        ]
-
-        # Temp bins
-        temp_df = df_sorted.copy()
-        bin_width = 5
-        half = bin_width / 2
-        t_min = temp_df["t_out_C"].min()
-        t_max = temp_df["t_out_C"].max()
-        center_start = np.floor(t_min / bin_width) * bin_width
-        center_end = np.ceil(t_max / bin_width) * bin_width
-        centers = np.arange(center_start, center_end + bin_width, bin_width)
-        bin_edges = np.arange(center_start - half, center_end + half + bin_width, bin_width)
-        temp_df["t_bin"] = pd.cut(
-            temp_df["t_out_C"],
-            bins=bin_edges,
-            labels=centers,
-            include_lowest=True,
-        )
-        bin_stats = (
-            temp_df.groupby("t_bin", observed=True)[["heating_W", "cooling_W"]].mean().reset_index()
-        )
-        temp_summary = [
-            {
-                "center": float(row["t_bin"]) if row["t_bin"] is not None else None,
-                "HHW_W": float(row["heating_W"]),
-                "CHW_W": float(row["cooling_W"]),
-            }
-            for _, row in bin_stats.iterrows()
-        ]
-
-        summary_payload = {
-            "monthly_peaks": monthly_summary,
-            "temp_bins": temp_summary,
-        }
+        summary_payload = _build_summary_payload(load_obj)
 
         # Compute load statistics for LoadData fields
         load_stats = load_obj.compute_load_stats()
@@ -1431,3 +1409,264 @@ def update_load_visualization(summary_data, pathname, unit_mode):
                 icon="ph:warning-circle",
             )
         ]
+
+
+# -------------------------------------------------------------------
+# Scale loads feature
+# -------------------------------------------------------------------
+
+
+@callback(
+    Output("open-scale-load-modal", "disabled"),
+    Output("scale-load-btn-tooltip", "disabled"),
+    Input("metadata-store", "data"),
+)
+def update_scale_btn_state(metadata_data):
+    """Disable the 'Scale Loads' button when no library load is selected."""
+    if not metadata_data:
+        return True, False
+    metadata = Metadata(**metadata_data)
+    if metadata.load_data.load_type not in ("simulated", "measured"):
+        return True, False
+    return False, True  # button enabled, tooltip hidden
+
+
+@callback(
+    Output("scale-load-modal", "opened", allow_duplicate=True),
+    Output("scale-reference-info", "children"),
+    Input("open-scale-load-modal", "n_clicks"),
+    Input("scale-cancel-btn", "n_clicks"),
+    State("metadata-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def toggle_scale_modal(open_clicks, cancel_clicks, metadata_data, unit_mode):
+    """Open or close the scale load modal."""
+    from utils.units import W_to_BTUh, W_to_kW, W_to_tons, sqm_to_sqft
+
+    if ctx.triggered_id == "scale-cancel-btn":
+        return False, no_update
+
+    if not metadata_data:
+        return False, no_update
+
+    unit_mode = unit_mode or "SI"
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+
+    def _fmt(val, decimals=1):
+        return f"{val:,.{decimals}f}" if val is not None else "—"
+
+    if unit_mode == "IP":
+        area_val = sqm_to_sqft(metadata.area_sqm) if metadata.area_sqm else None
+        area_unit = "ft²"
+        hhw_val = ld.hhw_max_load * W_to_BTUh if ld.hhw_max_load is not None else None
+        hhw_unit = "BTU/h"
+        chw_val = W_to_tons(ld.chw_max_load) if ld.chw_max_load is not None else None
+        chw_unit = "TR"
+    else:
+        area_val = metadata.area_sqm
+        area_unit = "m²"
+        hhw_val = W_to_kW(ld.hhw_max_load) if ld.hhw_max_load is not None else None
+        hhw_unit = "kW"
+        chw_val = W_to_kW(ld.chw_max_load) if ld.chw_max_load is not None else None
+        chw_unit = "kW"
+
+    ref_info = dmc.Stack(
+        gap=4,
+        children=[
+            dmc.Text("Library building reference values:", size="sm", fw=600),
+            dmc.Text(f"Area: {_fmt(area_val, 0)} {area_unit}", size="sm"),
+            dmc.Text(f"Peak heating: {_fmt(hhw_val)} {hhw_unit}", size="sm"),
+            dmc.Text(f"Peak cooling: {_fmt(chw_val)} {chw_unit}", size="sm"),
+        ],
+    )
+
+    return True, ref_info
+
+
+@callback(
+    Output("scale-preview-text", "children"),
+    Output("scale-target-label", "children"),
+    Output("scale-error-text", "children"),
+    Input("scale-method-select", "value"),
+    Input("scale-target-value", "value"),
+    State("metadata-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_scale_preview(method, target_value, metadata_data, unit_mode):
+    """Update the input label and live scale-factor preview."""
+    from utils.units import BTUh_to_W, ton_to_W
+
+    unit_mode = unit_mode or "SI"
+
+    labels = {
+        "area": f"Your building area [{'ft²' if unit_mode == 'IP' else 'm²'}]",
+        "peak_heating": f"Your peak heating load [{'BTU/h' if unit_mode == 'IP' else 'kW'}]",
+        "peak_cooling": f"Your peak cooling load [{'TR' if unit_mode == 'IP' else 'kW'}]",
+    }
+    label = labels.get(method, "Enter value")
+
+    try:
+        target_value = float(target_value)
+    except (TypeError, ValueError):
+        return "", label, ""
+
+    if not metadata_data or target_value <= 0:
+        return "", label, ""
+
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+
+    try:
+        if method == "area":
+            ref_si = metadata.area_sqm
+            target_si = target_value / 10.7639 if unit_mode == "IP" else target_value
+        elif method == "peak_heating":
+            ref_si = ld.hhw_max_load
+            target_si = target_value * BTUh_to_W if unit_mode == "IP" else target_value * 1000
+        else:  # peak_cooling
+            ref_si = ld.chw_max_load
+            target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
+
+        if not ref_si or ref_si <= 0:
+            return "", label, f"Reference value for '{method}' not available in library data."
+
+        scale_factor = target_si / ref_si
+        if scale_factor <= 0:
+            return "", label, "Scale factor must be positive."
+
+        return f"Scale factor: {scale_factor:.3f}x", label, ""
+
+    except Exception as e:
+        return "", label, str(e)
+
+
+@callback(
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("load-summary-store", "data", allow_duplicate=True),
+    Output("scale-load-modal", "opened", allow_duplicate=True),
+    Output("scale-info-store", "data"),
+    Output("scale-confirmation-alert", "children"),
+    Input("scale-apply-btn", "n_clicks"),
+    State("scale-method-select", "value"),
+    State("scale-target-value", "value"),
+    State("metadata-store", "data"),
+    State("load-data-path-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def apply_scale(n_clicks, method, target_value, metadata_data, load_data_path, unit_mode):
+    """Apply load scaling: multiply every hourly heating_W and cooling_W by scale_factor."""
+    from utils.units import BTUh_to_W, W_to_BTUh, W_to_kW, W_to_tons, ton_to_W
+
+    no_change = (no_update, no_update, no_update, no_update, no_update)
+
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
+
+    if not metadata_data or not load_data_path:
+        return no_change
+
+    try:
+        target_value = float(target_value)
+    except (TypeError, ValueError):
+        return no_change
+
+    if target_value <= 0:
+        return no_change
+
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+
+    # Compute scale factor
+    try:
+        if method == "area":
+            ref_si = metadata.area_sqm
+            target_si = target_value / 10.7639 if unit_mode == "IP" else target_value
+            method_label = "building area"
+        elif method == "peak_heating":
+            ref_si = ld.hhw_max_load
+            target_si = target_value * BTUh_to_W if unit_mode == "IP" else target_value * 1000
+            method_label = "peak heating load"
+        else:  # peak_cooling
+            ref_si = ld.chw_max_load
+            target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
+            method_label = "peak cooling load"
+
+        if not ref_si or ref_si <= 0:
+            return no_change
+
+        scale_factor = target_si / ref_si
+        if scale_factor <= 0:
+            return no_change
+
+    except Exception as e:
+        logger.error(f"Scale factor computation failed: {e}")
+        return no_change
+
+    # Load, scale, and save parquet
+    try:
+        load_obj = StandardLoad.from_parquet(load_data_path)
+
+        orig_hhw_max = float(load_obj.df["heating_W"].max())
+        orig_chw_max = float(load_obj.df["cooling_W"].max())
+
+        scaled_df = load_obj.df.copy()
+        scaled_df["heating_W"] = scaled_df["heating_W"] * scale_factor
+        scaled_df["cooling_W"] = scaled_df["cooling_W"] * scale_factor
+        scaled_load = StandardLoad(scaled_df.reset_index())
+        scaled_load.to_parquet(load_data_path)
+
+    except Exception as e:
+        logger.error(f"Error scaling load data: {e}")
+        return no_change
+
+    # Recompute stats and update metadata
+    new_stats = scaled_load.compute_load_stats()
+    if method == "area":
+        metadata.area_sqm = target_si
+    metadata.load_data = LoadData.model_validate({**ld.model_dump(), **new_stats})
+    metadata.session_load_path = load_data_path
+
+    # Rebuild summary payload for charts
+    summary_payload = _build_summary_payload(scaled_load)
+
+    # Build confirmation alert
+    def _display_power(w_val):
+        if w_val is None:
+            return "—"
+        if unit_mode == "IP":
+            if method == "peak_cooling":
+                return f"{W_to_tons(w_val):.1f} TR"
+            return f"{w_val * W_to_BTUh:,.0f} BTU/h"
+        return f"{W_to_kW(w_val):.1f} kW"
+
+    new_hhw = new_stats["hhw_max_load"]
+    new_chw = new_stats["chw_max_load"]
+
+    alert = dmc.Alert(
+        title=f"Load scaled* by {scale_factor:.3f}x",
+        color="blue",
+        variant="light",
+        withCloseButton=True,
+        children=dmc.Text(f"(based on {method_label})", size="sm", fw=400),
+    )
+
+    scale_info = {
+        "method": method_label,
+        "scale_factor": round(scale_factor, 6),
+        "orig_hhw_max_W": orig_hhw_max,
+        "orig_chw_max_W": orig_chw_max,
+        "new_hhw_max_W": new_hhw,
+        "new_chw_max_W": new_chw,
+    }
+
+    logger.info(
+        f"Applied load scale factor {scale_factor:.4f} (method={method_label}) to {load_data_path}"
+    )
+
+    return metadata.model_dump(), summary_payload, False, scale_info, alert

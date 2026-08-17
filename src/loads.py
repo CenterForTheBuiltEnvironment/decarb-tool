@@ -271,7 +271,12 @@ def get_load_data(metadata: Metadata) -> StandardLoad:
 
     - simulated / measured: from a single parquet, filtered by building_id + load_type
     - custom: from user-uploaded csv at metadata.custom_load_path
+    - session_load_path takes priority over all of the above (e.g. after scaling)
     """
+    if metadata.session_load_path:
+        logger.info(f"Loading session load from {metadata.session_load_path}")
+        return StandardLoad.from_parquet(metadata.session_load_path)
+
     load_type = metadata.load_data.load_type
 
     if load_type in ("simulated", "measured"):
