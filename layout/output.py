@@ -99,7 +99,9 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
     )
 
 
-def load_characteristics_card(metadata: Metadata, unit_mode="SI", is_scaled=False):
+def load_characteristics_card(
+    metadata: Metadata, unit_mode="SI", is_scaled=False, is_base_loaded=False
+):
     load_fields = [
         ("load_data.load_type", "Load Type"),
         ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
@@ -109,7 +111,9 @@ def load_characteristics_card(metadata: Metadata, unit_mode="SI", is_scaled=Fals
         ("load_data.median_temp", "Median Outdoor Temp.", "temperature"),
         ("load_data.min_temp", "Min. Outdoor Temp.", "temperature"),
     ]
-    starred = {"load_data.hhw_max_load", "load_data.chw_max_load"} if is_scaled else set()
+    starred = set()
+    if is_scaled or is_base_loaded:
+        starred = {"load_data.hhw_max_load", "load_data.chw_max_load"}
 
     return make_metadata_card(
         metadata,

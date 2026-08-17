@@ -13,6 +13,7 @@ from dash import Input, Output, State, callback, ctx, dcc, html, no_update
 from dash_iconify import DashIconify
 
 from layout.input import (
+    build_base_load_modal,
     build_building_table,
     build_completeness_modal,
     build_completeness_summary,
@@ -31,6 +32,7 @@ from src import paths
 from src.config import URLS
 from src.loads import STANDARD_COLUMNS, StandardLoad, get_load_data
 from src.metadata import LoadData, Metadata
+from utils.error_handling import create_success_notification
 from utils.logging_config import get_logger
 from utils.tooltips import TOOLTIPS, with_icon, with_tooltip
 
@@ -80,27 +82,67 @@ def layout():
                         modal_load_data_selection(buildings_df=get_buildings_df()),
                         build_completeness_modal(),
                         build_scale_load_modal(),
+                        build_base_load_modal(),
                         html.Div(
                             style={"marginTop": "20px"},
                             children=[
-                                dmc.Tooltip(
-                                    dmc.Button(
-                                        "Scale Loads",
-                                        id="open-scale-load-modal",
-                                        variant="outline",
-                                        color="blue",
-                                        size="sm",
-                                        n_clicks=0,
-                                        disabled=True,
-                                    ),
-                                    id="scale-load-btn-tooltip",
-                                    label="Select a load from the library first",
-                                    withArrow=True,
-                                    position="right",
+                                dmc.Group(
+                                    [
+                                        dmc.Indicator(
+                                            dmc.Tooltip(
+                                                dmc.Button(
+                                                    "Scale Loads",
+                                                    id="open-scale-load-modal",
+                                                    variant="outline",
+                                                    color="blue",
+                                                    size="sm",
+                                                    n_clicks=0,
+                                                    disabled=True,
+                                                ),
+                                                id="scale-load-btn-tooltip",
+                                                label="Select a load from the library first",
+                                                withArrow=True,
+                                                position="right",
+                                            ),
+                                            id="scale-load-btn-indicator",
+                                            color="green",
+                                            label=DashIconify(icon="mdi:check-bold", width=10),
+                                            size=18,
+                                            position="top-end",
+                                            disabled=True,
+                                            inline=True,
+                                            withBorder=True,
+                                        ),
+                                        dmc.Indicator(
+                                            dmc.Tooltip(
+                                                dmc.Button(
+                                                    "Base Load",
+                                                    id="open-base-load-modal",
+                                                    variant="outline",
+                                                    color="blue",
+                                                    size="sm",
+                                                    n_clicks=0,
+                                                    disabled=True,
+                                                ),
+                                                id="base-load-btn-tooltip",
+                                                label="Select a load from the library first",
+                                                withArrow=True,
+                                                position="right",
+                                            ),
+                                            id="base-load-btn-indicator",
+                                            color="green",
+                                            label=DashIconify(icon="mdi:check-bold", width=10),
+                                            size=18,
+                                            position="top-end",
+                                            disabled=True,
+                                            inline=True,
+                                            withBorder=True,
+                                        ),
+                                    ],
+                                    gap="xs",
                                 ),
                             ],
                         ),
-                        html.Div(id="scale-confirmation-alert", style={"marginTop": "8px"}),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -329,7 +371,7 @@ def _build_summary_payload(load_obj: "StandardLoad") -> dict:
         Output("completeness-summary-content", "children"),
         Output("pending-load-data-store", "data"),
         Output("scale-info-store", "data", allow_duplicate=True),
-        Output("scale-confirmation-alert", "children", allow_duplicate=True),
+        Output("base-load-info-store", "data", allow_duplicate=True),
     ],
     Input("confirm-building-button", "n_clicks"),
     State("building-radio-group", "value"),
@@ -526,7 +568,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
             completeness_content,  # completeness-summary-content
             pending_data,  # pending-load-data-store
             no_update,  # scale-info-store
-            no_update,  # scale-confirmation-alert
+            no_update,  # base-load-info-store
         )
 
     # For simulated data, proceed directly
@@ -540,7 +582,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         no_update,  # completeness-summary-content
         None,  # Clear pending data
         None,  # Clear scale-info-store
-        [],  # Clear scale-confirmation-alert
+        None,  # Clear base-load-info-store
     )
 
 
@@ -558,7 +600,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         Output("pending-load-data-store", "data", allow_duplicate=True),
         Output("custom-metadata-error", "children"),
         Output("scale-info-store", "data", allow_duplicate=True),
-        Output("scale-confirmation-alert", "children", allow_duplicate=True),
+        Output("base-load-info-store", "data", allow_duplicate=True),
     ],
     Input("completeness-confirm-btn", "n_clicks"),
     State("pending-load-data-store", "data"),
@@ -651,7 +693,7 @@ def handle_completeness_confirm(
         None,  # Clear pending data
         "",  # Clear error message
         None,  # Clear scale-info-store
-        [],  # Clear scale-confirmation-alert
+        None,  # Clear base-load-info-store
     )
 
 
@@ -705,8 +747,9 @@ def toggle_custom_metadata_inputs(pending_data, unit_mode):
     Input("metadata-store", "data"),
     Input("unit-toggle", "value"),
     Input("scale-info-store", "data"),
+    Input("base-load-info-store", "data"),
 )
-def show_metadata(data, unit_mode, scale_info):
+def show_metadata(data, unit_mode, scale_info, base_load_info):
     if not data:
         return "No metadata yet"
 
@@ -716,7 +759,12 @@ def show_metadata(data, unit_mode, scale_info):
     return (
         building_characteristics_card(metadata, unit_mode=unit_mode),
         dmc.Space(h=10),
-        load_characteristics_card(metadata, unit_mode=unit_mode, is_scaled=bool(scale_info)),
+        load_characteristics_card(
+            metadata,
+            unit_mode=unit_mode,
+            is_scaled=bool(scale_info),
+            is_base_loaded=bool(base_load_info),
+        ),
     )
 
 
@@ -1418,17 +1466,25 @@ def update_load_visualization(summary_data, pathname, unit_mode):
 
 @callback(
     Output("open-scale-load-modal", "disabled"),
+    Output("open-scale-load-modal", "color"),
     Output("scale-load-btn-tooltip", "disabled"),
+    Output("scale-load-btn-indicator", "disabled"),
     Input("metadata-store", "data"),
+    Input("scale-info-store", "data"),
 )
-def update_scale_btn_state(metadata_data):
-    """Disable the 'Scale Loads' button when no library load is selected."""
-    if not metadata_data:
-        return True, False
-    metadata = Metadata(**metadata_data)
-    if metadata.load_data.load_type not in ("simulated", "measured"):
-        return True, False
-    return False, True  # button enabled, tooltip hidden
+def update_scale_btn_state(metadata_data, scale_info):
+    """Enable/disable the Scale Loads button and show active state when scaling is applied."""
+    load_selected = metadata_data and Metadata(**metadata_data).load_data.load_type in (
+        "simulated",
+        "measured",
+    )
+    is_active = bool(scale_info)
+    return (
+        not load_selected,  # button disabled
+        "green" if is_active else "blue",  # button color
+        load_selected,  # tooltip disabled (hidden when button is enabled)
+        not is_active,  # indicator disabled (shown when active)
+    )
 
 
 @callback(
@@ -1548,7 +1604,7 @@ def update_scale_preview(method, target_value, metadata_data, unit_mode):
     Output("load-summary-store", "data", allow_duplicate=True),
     Output("scale-load-modal", "opened", allow_duplicate=True),
     Output("scale-info-store", "data"),
-    Output("scale-confirmation-alert", "children"),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
     Input("scale-apply-btn", "n_clicks"),
     State("scale-method-select", "value"),
     State("scale-target-value", "value"),
@@ -1648,14 +1704,6 @@ def apply_scale(n_clicks, method, target_value, metadata_data, load_data_path, u
     new_hhw = new_stats["hhw_max_load"]
     new_chw = new_stats["chw_max_load"]
 
-    alert = dmc.Alert(
-        title=f"Load scaled* by {scale_factor:.3f}x",
-        color="blue",
-        variant="light",
-        withCloseButton=True,
-        children=dmc.Text(f"(based on {method_label})", size="sm", fw=400),
-    )
-
     scale_info = {
         "method": method_label,
         "scale_factor": round(scale_factor, 6),
@@ -1665,8 +1713,281 @@ def apply_scale(n_clicks, method, target_value, metadata_data, load_data_path, u
         "new_chw_max_W": new_chw,
     }
 
+    notification = create_success_notification(
+        "Load scaled",
+        f"Scale factor {scale_factor:.3f}x (based on {method_label})",
+        notification_id="scale-load-notification",
+    )
+
     logger.info(
         f"Applied load scale factor {scale_factor:.4f} (method={method_label}) to {load_data_path}"
     )
 
-    return metadata.model_dump(), summary_payload, False, scale_info, alert
+    return metadata.model_dump(), summary_payload, False, scale_info, [notification]
+
+
+# -------------------------------------------------------------------
+# Base Load callbacks
+# -------------------------------------------------------------------
+
+
+@callback(
+    Output("open-base-load-modal", "disabled"),
+    Output("open-base-load-modal", "color"),
+    Output("base-load-btn-tooltip", "disabled"),
+    Output("base-load-btn-indicator", "disabled"),
+    Input("metadata-store", "data"),
+    Input("base-load-info-store", "data"),
+)
+def update_base_load_btn_state(metadata_data, base_load_info):
+    """Enable/disable the Base Load button and show active state when a base load is applied."""
+    load_selected = metadata_data and Metadata(**metadata_data).load_data.load_type in (
+        "simulated",
+        "measured",
+    )
+    is_active = bool(base_load_info)
+    return (
+        not load_selected,
+        "green" if is_active else "blue",
+        load_selected,
+        not is_active,
+    )
+
+
+@callback(
+    Output("base-load-modal", "opened", allow_duplicate=True),
+    Output("base-load-current-values", "children"),
+    Input("open-base-load-modal", "n_clicks"),
+    Input("base-load-cancel-btn", "n_clicks"),
+    State("metadata-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def toggle_base_load_modal(open_clicks, cancel_clicks, metadata_data, unit_mode):
+    """Open or close the base load modal, showing current peak values for reference."""
+    from utils.units import W_to_BTUh, W_to_kW, W_to_tons
+
+    if ctx.triggered_id == "base-load-cancel-btn":
+        return False, no_update
+
+    if not metadata_data:
+        return False, no_update
+
+    unit_mode = unit_mode or "SI"
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+
+    def _fmt(val, decimals=1):
+        return f"{val:,.{decimals}f}" if val is not None else "—"
+
+    if unit_mode == "IP":
+        hhw_val = ld.hhw_max_load * W_to_BTUh if ld.hhw_max_load is not None else None
+        hhw_unit = "BTU/h"
+        chw_val = W_to_tons(ld.chw_max_load) if ld.chw_max_load is not None else None
+        chw_unit = "TR"
+    else:
+        hhw_val = W_to_kW(ld.hhw_max_load) if ld.hhw_max_load is not None else None
+        hhw_unit = "kW"
+        chw_val = W_to_kW(ld.chw_max_load) if ld.chw_max_load is not None else None
+        chw_unit = "kW"
+
+    current_values = dmc.Stack(
+        gap=4,
+        children=[
+            dmc.Text("Current peak loads:", size="sm", fw=600),
+            dmc.Text(f"Peak heating: {_fmt(hhw_val)} {hhw_unit}", size="sm"),
+            dmc.Text(f"Peak cooling: {_fmt(chw_val)} {chw_unit}", size="sm"),
+        ],
+    )
+
+    return True, current_values
+
+
+@callback(
+    Output("base-load-preview-text", "children"),
+    Output("base-load-value-label", "children"),
+    Output("base-load-error-text", "children"),
+    Output("base-load-method-desc", "children"),
+    Input("base-load-method-select", "value"),
+    Input("base-load-apply-select", "value"),
+    Input("base-load-value", "value"),
+    State("metadata-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_base_load_preview(method, apply_to, value, metadata_data, unit_mode):
+    """Update label, method description, and live preview text."""
+    from utils.units import BTUh_to_W, W_to_BTUh, W_to_kW
+
+    unit_mode = unit_mode or "SI"
+    power_unit = "BTU/h" if unit_mode == "IP" else "kW"
+
+    method_descs = {
+        "floor": (
+            "Raises any hour whose load falls below the specified value up to that minimum. "
+            "Hours already at or above the floor are unchanged."
+        ),
+        "offset": (
+            "Adds a fixed amount to every hourly load value, including the peak. "
+            "Useful for modelling a year-round process load."
+        ),
+    }
+    method_desc = method_descs.get(method, "")
+
+    apply_labels = {
+        "heating": f"Heating base load [{power_unit}]",
+        "cooling": f"Cooling base load [{power_unit}]",
+        "both": f"Base load [{power_unit}] (applied to heating and cooling)",
+    }
+    label = apply_labels.get(apply_to, f"Value [{power_unit}]")
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "", label, "", method_desc
+
+    if not metadata_data or value <= 0:
+        return "", label, "", method_desc
+
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+
+    # Convert input to Watts
+    value_W = value * BTUh_to_W if unit_mode == "IP" else value * 1000
+
+    def _peak_display(w_val):
+        if w_val is None:
+            return "—"
+        if unit_mode == "IP":
+            return f"{w_val * W_to_BTUh:,.0f} BTU/h"
+        return f"{W_to_kW(w_val):.1f} kW"
+
+    lines = []
+    applies_to_heating = apply_to in ("heating", "both")
+    applies_to_cooling = apply_to in ("cooling", "both")
+
+    if method == "floor":
+        if applies_to_heating and ld.hhw_max_load is not None:
+            if value_W > ld.hhw_max_load:
+                lines.append(
+                    f"Heating: floor ({_peak_display(value_W)}) exceeds current peak — all hours will be set to floor"
+                )
+            else:
+                lines.append(f"Heating peak unchanged at {_peak_display(ld.hhw_max_load)}")
+        if applies_to_cooling and ld.chw_max_load is not None:
+            if value_W > ld.chw_max_load:
+                lines.append(
+                    f"Cooling: floor ({_peak_display(value_W)}) exceeds current peak — all hours will be set to floor"
+                )
+            else:
+                lines.append(f"Cooling peak unchanged at {_peak_display(ld.chw_max_load)}")
+    else:  # offset
+        if applies_to_heating and ld.hhw_max_load is not None:
+            new_hhw = ld.hhw_max_load + value_W
+            lines.append(f"New peak heating: {_peak_display(new_hhw)} (+{_peak_display(value_W)})")
+        if applies_to_cooling and ld.chw_max_load is not None:
+            new_chw = ld.chw_max_load + value_W
+            lines.append(f"New peak cooling: {_peak_display(new_chw)} (+{_peak_display(value_W)})")
+
+    preview = " · ".join(lines) if lines else ""
+    return preview, label, "", method_desc
+
+
+@callback(
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("load-summary-store", "data", allow_duplicate=True),
+    Output("base-load-modal", "opened", allow_duplicate=True),
+    Output("base-load-info-store", "data"),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("base-load-apply-btn", "n_clicks"),
+    State("base-load-method-select", "value"),
+    State("base-load-apply-select", "value"),
+    State("base-load-value", "value"),
+    State("metadata-store", "data"),
+    State("load-data-path-store", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def apply_base_load(n_clicks, method, apply_to, value, metadata_data, load_data_path, unit_mode):
+    """Apply base load modification: floor or offset on heating and/or cooling loads."""
+    from utils.units import BTUh_to_W
+
+    no_change = (no_update, no_update, no_update, no_update, no_update)
+
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    unit_mode = unit_mode or "SI"
+
+    if not metadata_data or not load_data_path:
+        return no_change
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return no_change
+
+    if value <= 0:
+        return no_change
+
+    # Convert to Watts
+    value_W = value * BTUh_to_W if unit_mode == "IP" else value * 1000
+
+    applies_to_heating = apply_to in ("heating", "both")
+    applies_to_cooling = apply_to in ("cooling", "both")
+
+    try:
+        load_obj = StandardLoad.from_parquet(load_data_path)
+        modified_df = load_obj.df.copy()
+
+        if method == "floor":
+            if applies_to_heating:
+                modified_df["heating_W"] = modified_df["heating_W"].clip(lower=value_W)
+            if applies_to_cooling:
+                modified_df["cooling_W"] = modified_df["cooling_W"].clip(lower=value_W)
+        else:  # offset
+            if applies_to_heating:
+                modified_df["heating_W"] = modified_df["heating_W"] + value_W
+            if applies_to_cooling:
+                modified_df["cooling_W"] = modified_df["cooling_W"] + value_W
+
+        modified_load = StandardLoad(modified_df.reset_index())
+        modified_load.to_parquet(load_data_path)
+
+    except Exception as e:
+        logger.error(f"Error applying base load modification: {e}")
+        return no_change
+
+    # Recompute stats and update metadata
+    metadata = Metadata(**metadata_data)
+    ld = metadata.load_data
+    new_stats = modified_load.compute_load_stats()
+    metadata.load_data = LoadData.model_validate({**ld.model_dump(), **new_stats})
+    metadata.session_load_path = load_data_path
+
+    summary_payload = _build_summary_payload(modified_load)
+
+    apply_to_label = {"heating": "heating", "cooling": "cooling", "both": "heating + cooling"}[
+        apply_to
+    ]
+    method_label = "floor" if method == "floor" else "offset"
+    value_display = f"{value:,.0f} BTU/h" if unit_mode == "IP" else f"{value:.1f} kW"
+
+    base_load_info = {
+        "method": method_label,
+        "apply_to": apply_to,
+        "value_W": value_W,
+        "value_display": value_display,
+    }
+
+    notification = create_success_notification(
+        "Base load applied",
+        f"{method_label.capitalize()} of {value_display} applied to {apply_to_label}",
+        notification_id="base-load-notification",
+    )
+
+    logger.info(
+        f"Applied base load {method_label} of {value_W:.1f} W to {apply_to} loads in {load_data_path}"
+    )
+
+    return metadata.model_dump(), summary_payload, False, base_load_info, [notification]
