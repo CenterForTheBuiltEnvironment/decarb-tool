@@ -565,6 +565,11 @@ def loads_to_site_energy(
         # ---- scenario ----
         scen = library.get_scenario(scenario_id)
 
+        if scen.fuel_switching:
+            df[Col.FUEL_SWITCHING.value] = True
+        else:
+            df[Col.FUEL_SWITCHING.value] = False
+
         # =========================
         # Phase 1 - HR WWHP (optional)
         # =========================
@@ -718,13 +723,13 @@ def loads_to_site_energy(
 
             # Determine reference capacity
             if sizing_priority == "heating":
-                sizing_load = "hhw_W"
+                sizing_load = Col.HHW_REM_W.value
                 cap_ref = _awhp_reference_capacity(
                     awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
                 )
 
             elif sizing_priority == "cooling":
-                sizing_load = "chw_W"
+                sizing_load = Col.CHW_REM_W.value
                 cap_ref = _awhp_reference_capacity(
                     awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
                 )
@@ -734,16 +739,20 @@ def loads_to_site_energy(
                 "fractional_sizing_peak_load",
             ]:
                 cap_ref = {
-                    "hhw_W": _awhp_reference_capacity(
+                    Col.HHW_REM_W.value: _awhp_reference_capacity(
                         awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
                     ),
-                    "chw_W": _awhp_reference_capacity(
+                    Col.CHW_REM_W.value: _awhp_reference_capacity(
                         awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
                     ),
                 }
                 num = {
-                    "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
-                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"],
+                    Col.HHW_REM_W.value: float(df[Col.HHW_REM_W.value].max())
+                    * sizing_value
+                    / cap_ref[Col.HHW_REM_W.value],
+                    Col.CHW_REM_W.value: float(df[Col.CHW_REM_W.value].max())
+                    * sizing_value
+                    / cap_ref[Col.CHW_REM_W.value],
                 }
                 sizing_load = max(num, key=num.get)
                 cap_ref = cap_ref[sizing_load]
@@ -785,11 +794,8 @@ def loads_to_site_energy(
             elec_h_Wh = served_h_W / awhp_cop_h
 
             if scen.fuel_switching:
-                df[Col.FUEL_SWITCHING.value] = True
                 df[Col.HHW_REM_W_NG_MODE.value] = df[Col.HHW_REM_W.value].to_numpy()
                 # store remaining HHW load before it gets updated (in case there is heat recovery preceding)
-            else:
-                df[Col.FUEL_SWITCHING.value] = False
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
@@ -860,12 +866,22 @@ def loads_to_site_energy(
             df[Col.BOILER_EQ_CALC.value] = backup_heating.eq_calc_type
             df[Col.BOILER_CAP_W.value] = backup_heating.capacity_W
 
-            boiler_coverage = (
-                (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
+            if scen.fuel_switching:
+                logger.debug("Phase 3 complete")
+                # boiler coverage calculation would be incorrect for fuel switching so skipped here
+            else:
+                boiler_coverage = (
+                    (
+                        np.nansum(np.nansum(df[Col.BOILER_HHW_W.value]))
+                        / np.nansum(df[Col.HHW_W.value])
+                    )
+                    * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(
+                    f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load"
+                )
 
         # =========================
         # Phase 4 - Electric resistance (if heating remains)
@@ -1223,8 +1239,10 @@ def site_to_source(
         df_fuel_switching = merged
         df_fuel_switching["NG_mode"] = NG_mode
         df_fuel_switching = (
-            df_fuel_switching[[Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, "NG_mode"]]
-            .groupby([Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value])
+            df_fuel_switching[
+                [Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, Col.FUEL_SWITCHING.value, "NG_mode"]
+            ]
+            .groupby([Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, Col.FUEL_SWITCHING.value])
             .agg(NG_mode_hours=("NG_mode", "sum"), total_hours=("NG_mode", "size"))
             .reset_index()
         )
@@ -1277,6 +1295,7 @@ def site_to_source(
                 Col.BOILER_EQ_CALC.value,
                 Col.FUEL_SWITCHING.value,
                 "boiler_peak_hhw_W",
+                "NG_mode",
             ],
             axis=1,
         )
