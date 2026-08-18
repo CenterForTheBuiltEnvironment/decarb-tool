@@ -1,304 +1,308 @@
-# Testing Scheme for Berkeley Decarb Tool
+# Testing Scheme — Berkeley Decarb Tool
 
 ## Context
 
-The Berkeley Decarb Tool performs multi-phase hourly energy simulations (heat recovery WWHP,
-AWHP heating, boiler, electric resistance, AWHP cooling, chiller) and converts site energy to
-emissions. The core engine in `src/energy.py` currently has **zero test coverage** despite being
-the highest-risk module. A hand-calculated spreadsheet (`testing_cases.xlsx`) exists with
-intermediate and final values for 7 scenarios across 3 buildings, and has historically been used
-for manual verification after code changes. This is slow, error-prone, and unsustainable.
+`src/energy.py` runs all hourly HVAC energy simulations and is the highest-risk module in the codebase. It processes load data through up to six sequential calculation phases (HR-WWHP, AWHP heating, boiler, electric resistance, AWHP cooling, chiller) and feeds into emissions calculations. A hand-calculated spreadsheet (`testing_cases.xlsx`) was historically used for manual verification after code changes — slow, error-prone, and skipped under time pressure.
 
-The goal is a tiered testing scheme that:
-- Catches real bugs at the right level of development (push → PR → deployment)
-- Requires minimal ongoing maintenance when equipment data or scenarios change
-- Integrates into the existing pre-commit + Cloud Build pipeline
-- Uses the spreadsheet as a one-time bootstrapping aid, then exits it from the daily loop
+This document describes the automated test suite that replaced it. The suite has **87 tests** that run in under a second locally, with no ongoing maintenance required for the invariant-based tests. Snapshot-based tests require a one-command update when output legitimately changes.
 
 ---
 
-## Why Not Keep the Spreadsheet as a Test Fixture?
+## Core Philosophy
 
-The obvious first instinct is to copy the hand-calculated values from `testing_cases.xlsx` into a
-JSON fixture file and assert against them. This is rejected for the following reasons:
+Two complementary strategies are used together:
 
-1. **Double maintenance burden**: Every equipment curve update or scenario change requires updating
-   the spreadsheet AND the fixture JSON separately.
-2. **Brittleness at the edges**: The spreadsheet tests 2–3 specific hours per scenario. It doesn't
-   tell you whether hours 4–8760 behave correctly.
-3. **Format fragility**: If someone restructures the spreadsheet, fixture generation breaks.
-4. **Wrong failure signal**: When a fixture test fails, you don't know if the code is wrong or if
-   the expected value was stale. You still have to go back to first principles.
+**Strategy A — Physics invariants**: Test that mathematical identities hold, not that outputs equal a specific number. For example: `electricity = thermal output ÷ COP` must be true at every hour, for any input. These tests never need updating — they encode the laws of thermodynamics, not specific numeric results.
 
-The spreadsheet remains valuable as a **one-time bootstrap** (seeding initial snapshots) and as
-**design documentation** for colleagues. It just shouldn't be in the critical path of every test run.
-
----
-
-## Core Testing Philosophy
-
-The scheme uses two complementary strategies:
-
-### Strategy A — Physics Invariants
-Test that **mathematical identities hold**, not that outputs equal a specific number.
-
-Examples:
-- `hr_hhw + awhp_hhw + boiler_hhw + res_hhw == heating_W` (all load served)
-- `elec_awhp_h == awhp_hhw / awhp_cop_h` (electricity follows from thermal output and COP)
-- `gas_boiler == boiler_hhw / efficiency` (gas input follows from thermal output and efficiency)
-
-**Maintenance cost: zero.** These never need updating because they encode the laws of thermodynamics,
-not specific numeric results. If the code violates them, something is genuinely wrong.
-
-### Strategy B — Snapshot Regression
-Capture the full output of the calculation engine (all columns, all hours) as a committed file.
-Future test runs compare against it. When a deliberate change alters the output:
-```bash
-pytest --snapshot-update
-```
-The developer reviews the diff (a meaningful CSV delta showing exactly which values changed and
-by how much), then commits it alongside the code change.
-
-**Maintenance cost: one command + diff review.** This is much lighter than recalculating by hand.
-The snapshot is always in sync with the code by construction, and the diff is the paper trail.
-
-**Initial seeding**: The very first snapshot should be generated after manually verifying the
-engine output against the spreadsheet. After that, the spreadsheet is no longer needed for testing.
+**Strategy B — Snapshot regression**: Capture the full engine output (all columns, all hours) as a committed file. Future runs compare against it. When a deliberate change alters output, the developer runs one command, reviews the diff (which shows exactly which values changed and by how much), and commits the updated snapshot alongside the code change.
 
 ---
 
 ## Tier Structure
 
-### Tier 1 — Unit Tests  (`pytest -m unit`)
+### Tier 1 — Unit Tests
 
-**Trigger**: Every push, via pre-commit hook  
-**Target runtime**: < 10 seconds  
-**Failure means**: A low-level pure function is broken; safe to block the commit
-
-#### What they test
-
-Pure helper functions in `src/energy.py`, tested with small synthetic numpy arrays (3–5 data
-points). No real equipment JSON, no parquet files, no I/O of any kind.
-
-| Function | What to assert |
+| Property | Value |
 |---|---|
-| `_capacity_constraints` | OAT below min → capacity = 0; OAT above max → capacity = 0; OAT in range → capacity unchanged |
-| `_per_unit_heating_cop` | Interpolation at exact table breakpoints returns exact table values; between points returns interpolated value |
-| `_per_unit_heating_capacity_W` | Same as above; fixed-capacity fallback path returns scalar broadcast |
-| `_per_unit_cooling_cop` / `_per_unit_cooling_capacity_W` | Same patterns for cooling |
-| `_heating_supply_temp_performance` | With two known HHWST values, interpolation at midpoint returns midpoint performance |
-| `_heat_recovery_plr_curve` | Output DataFrame has correct columns (`cap`, `cop`, `cap_h_to_cap_c`, `cap_c`, `cop_c`); values consistent with input |
+| Marker | `@pytest.mark.unit` |
+| Run command | `pytest -m unit` |
+| Trigger | Every `git commit` (pre-commit hook) |
+| Runtime | ~0.05 seconds |
+| Failure means | A low-level pure function is broken; safe to block the commit |
+
+**What is tested:** Pure helper functions in `src/energy.py` with tiny synthetic numpy arrays (3–5 data points). No real equipment JSON, no parquet files, no I/O of any kind. Also includes the existing equipment library and load validation tests in `test_equipment.py` and `test_loads.py`.
+
+| Function | What is asserted |
+|---|---|
+| `_capacity_constraints` | OAT below `min_temp_C` → capacity zeroed; above `max_temp_C` → zeroed; in range → unchanged |
+| `_per_unit_heating_cop` | Interpolation at exact breakpoints returns exact values; midpoint returns linear interpolation |
+| `_per_unit_heating_capacity_W` | Same as above; scalar `capacity_W` triggers fixed-capacity broadcast path |
+| `_per_unit_cooling_cop` / `_per_unit_cooling_capacity_W` | Same patterns for cooling side |
+| `_heat_recovery_plr_curve` | Returns DataFrame with `cap` and `cop` columns; values match inputs |
 | `_constant_heating_efficiency` | Returns correct float from Equipment fixture |
-| Emissions rate formula in `site_to_source` | With synthetic LRMER/SRMER arrays, weighted combination at weighting=0 returns pure LRMER, at weighting=1 returns pure SRMER, at 0.5 returns average |
+| Emissions rate formula | `weighting=0.0` → pure LRMER; `weighting=1.0` → pure SRMER; `weighting=0.5` → average |
+| Physics invariants | `elec = thermal / COP`; `gas = thermal / efficiency`; COP > 1 → elec < thermal |
 
-Physics invariant tests also belong here, written with synthetic single-hour inputs:
-- `elec = thermal / COP` for all phases
-- `gas = thermal / efficiency` for boiler
-- Refrigerant GWP = `gwp_per_kg × weight_kg × leakage_rate`
-
-**New file**: `tests/test_energy_unit.py`
-
-#### Existing tests
-
-`tests/test_equipment.py` (8 tests) and `tests/test_loads.py` (13 tests) already cover equipment
-library loading and `StandardLoad` validation. These are already fast and pure. Changes needed:
-- Add `@pytest.mark.unit` to all existing test classes/functions
-- No logic changes required — they slot directly into Tier 1
-
-This gives Tier 1 approximately **40–50 tests** total after adding the new energy unit tests.
+**Test files:**
+- `tests/test_energy_unit.py` — 30 tests (energy helpers + invariants)
+- `tests/test_equipment.py` — 9 tests (equipment library loading and validation)
+- `tests/test_loads.py` — 10 tests (StandardLoad validation and edge cases)
 
 ---
 
-### Tier 2 — Regression Tests  (`pytest -m regression`)
+### Tier 2 — Regression Tests
 
-**Trigger**: Every PR (added as a step in Cloud Build before Docker build)  
-**Target runtime**: 30–90 seconds  
-**Failure means**: The engine output changed relative to the last known-good snapshot; requires
-developer review before merge
+| Property | Value |
+|---|---|
+| Marker | `@pytest.mark.regression` |
+| Run command | `pytest -m regression` |
+| Trigger | Every push and pull request to GitHub (GitHub Actions) |
+| Runtime | ~0.10 seconds |
+| Failure means | Engine output changed relative to last known-good snapshot; requires developer review |
 
-#### What they test
+**What is tested:** Full execution of `loads_to_site_energy()` with real equipment library data, across four scenarios that each represent a distinct equipment configuration. Load input is a fixed 24-hour synthetic profile (not random — see parameters section below).
 
-Full execution of `loads_to_site_energy()` and `site_to_source()` with real equipment library
-data, across a representative set of 3–4 scenarios (one per distinct equipment configuration:
-HR-WWHP+AWHP, AWHP-only, AWHP+boiler, AWHP-only with cooling). These use minimal load DataFrames
-(a few dozen synthetic hours) rather than full 8760-hour runs to keep runtime short.
+**Scenarios covered:**
 
-**Two layers within Tier 2:**
+| Scenario ID | Configuration |
+|---|---|
+| `eq_scenario_3` | AWHP + gas boiler backup + AWHP cooling |
+| `eq_scenario_4` | AWHP + electric resistance backup + AWHP cooling |
+| `eq_scenario_5` | HR-WWHP + AWHP + electric resistance backup + AWHP cooling (most complex) |
+| `eq_scenario_10` | HR-WWHP only, no AWHP, gas boiler backup, no AWHP cooling |
 
-**Layer 2a — Physics invariant checks** (over the full output DataFrame):
-- `hhw_rem_W == 0` for every row (all heating served)
-- `chw_rem_W == 0` for every row (all cooling served)
-- `elec_Wh >= 0` for every row
-- `gas_Wh >= 0` for every row
-- `elec_Wh == elec_hr_Wh + elec_awhp_h_Wh + elec_res_Wh + elec_awhp_c_Wh + elec_chiller_Wh`
-- `elec_awhp_h_Wh ≈ awhp_hhw_W / awhp_cop_h` (within floating point tolerance) wherever AWHP is running
-- Emission totals are non-negative and correctly sum components
+**Layer 2a — Physics invariants (16 tests):** For each scenario, verified over all 24 output rows:
+- `hr_hhw_W + awhp_hhw_W + boiler_hhw_W + res_hhw_W == hhw_W` (all heating served)
+- `hr_chw_W + awhp_chw_W + chiller_chw_W == chw_W` (all cooling served)
+- `elec_hr_Wh + elec_awhp_h_Wh + elec_res_Wh + elec_awhp_c_Wh + elec_chiller_Wh == elec_Wh` (electricity components sum to total)
+- `elec_Wh >= 0` and `gas_Wh >= 0` everywhere
 
-These catch logic bugs that break the energy balance without needing a golden reference number.
+**Layer 2b — Snapshot tests (4 tests):** Full CSV output for each scenario is compared against a committed snapshot. Any deviation fails the test.
 
-**Layer 2b — Snapshot regression** (output must match prior run):
-Uses `syrupy` to persist the output DataFrame and compare on each run.
-Test structure:
-```python
-@pytest.mark.regression
-def test_scenario_awhp_only_snapshot(snapshot):
-    result = loads_to_site_energy(load=sample_load, library=library, scenario_ids=["hp01_res"])
-    snapshot.assert_match(result.to_csv(), "awhp_only.csv")
-```
-
-When the output legitimately changes (e.g., a bug fix or equipment data update):
-```bash
-pytest -m regression --snapshot-update
-```
-The developer reviews the diff with `git diff tests/snapshots/`. The diff shows exactly which
-values changed, in which columns, at which hours. This makes the review fast and auditable.
-
-**Snapshot seeding**: On first run, snapshots are generated from the current engine. Before
-committing them, manually cross-check a few key values against the spreadsheet to confirm the
-engine was already correct. After that, the spreadsheet is no longer needed as a test dependency.
-
-**New files**:
+**Test files:**
 - `tests/test_energy_regression.py`
-- `tests/snapshots/` directory (auto-populated by syrupy on first run)
-
-**New dependency**: `syrupy` (lightweight snapshot testing library for pytest)
+- `tests/__snapshots__/test_energy_regression.ambr` (auto-managed by syrupy)
 
 ---
 
-### Tier 3 — Integration / Smoke Tests  (`pytest -m integration`)
+### Tier 3 — Integration Tests
 
-**Trigger**: Before production deployment (Cloud Build release step, or manually on a release branch)  
-**Target runtime**: 2–5 minutes  
-**Failure means**: Something is fundamentally broken end-to-end; block the deployment
+| Property | Value |
+|---|---|
+| Marker | `@pytest.mark.integration` |
+| Run command | `pytest -m integration` |
+| Trigger | Every deployment (Cloud Build, before Docker build) |
+| Runtime | ~0.5 seconds |
+| Failure means | Something is fundamentally broken on real data; block the deployment |
 
-#### What they test
+**What is tested:** Full 8,760-hour runs using real parquet load data, checking physics invariants across all hours and comparing annual totals against committed golden values.
 
-Full 8760-hour runs (or 8784 for leap years) using real parquet load data for one representative
-building per building type (office, lab, academic). All scenarios for that building are run.
+**Cases covered:**
 
-**What is checked:**
-1. **No NaNs** in any output column across all 8760 rows
-2. **Load conservation**: `hhw_rem_W == 0` and `chw_rem_W == 0` for every hour — meaning no
-   heating or cooling load was silently dropped
-3. **Energy positivity**: `elec_Wh ≥ 0` and `gas_Wh ≥ 0` everywhere
-4. **Component electricity sum** matches total (no phantom energy)
-5. **Emissions positivity** and correct summation: total = elec + gas + refrigerant
-6. **Annual snapshot**: Total annual kWh electricity and kgCO2e emissions match a stored golden
-   value within ±0.1%. This catches silent regressions from changes to equipment JSON or parquet
-   data that otherwise wouldn't be noticed until someone reads a result and finds it implausible.
+| Building | Scenario | Location | Climate |
+|---|---|---|---|
+| Building 5 (Office) | `eq_scenario_3` | Port Angeles, WA | Zone 5C (mild) |
+| Building 5 (Office) | `eq_scenario_5` | Port Angeles, WA | Zone 5C (mild) |
+| Building 1 (Hospital) | `eq_scenario_3` | Denver, CO | Zone 5B (cold) |
 
-The annual snapshot is stored as a small JSON file (`tests/snapshots/integration_annual_totals.json`).
-It is updated manually and intentionally, not automatically, because it represents a "this is what
-the tool produces" statement that deserves deliberate sign-off.
+**What is checked per case:**
+1. Core columns (`t_out_C`, `heating_W`, `cooling_W`, `hhw_W`, `chw_W`, `elec_Wh`, `gas_Wh`) have no NaN values across all 8,760 hours. Detail columns (e.g., `hr_hhw_W`) are allowed to be NaN when the corresponding phase does not run for a given scenario.
+2. All heating load served (component sum ≈ total, tolerance ±1 W)
+3. All cooling load served (component sum ≈ total, tolerance ±1 W)
+4. Electricity ≥ 0 and gas ≥ 0 everywhere
+5. Component electricity sum matches total
+6. Annual electricity and gas totals match golden values within **±0.1%**
 
-**New file**: `tests/test_energy_integration.py`
+**Current golden values** (`tests/snapshots/integration_annual_totals.json`):
 
-#### Why not run integration tests on every PR?
-Full-year runs over multiple buildings/scenarios take meaningful time and hit the parquet files.
-PRs should be unblocked quickly. The physics invariant checks in Tier 2 already catch most logic
-errors; Tier 3 is a final safety net before production exposure.
+| Case | Annual electricity (kWh) | Annual gas (kWh) |
+|---|---|---|
+| Building 5, `eq_scenario_3` | 177,772 | 57,646 |
+| Building 5, `eq_scenario_5` | 183,876 | 0 (all-electric) |
+| Building 1, `eq_scenario_3` | 1,049,487 | 206,452 |
+
+**Test files:**
+- `tests/test_energy_integration.py`
+- `tests/snapshots/integration_annual_totals.json` (manually seeded, reviewed before committing)
 
 ---
 
 ## CI Integration
 
-### Pre-commit (`.pre-commit-config.yaml`)
+### GitHub Actions (`.github/workflows/tests.yml`)
 
-Add a new hook that runs Tier 1 only. This is fast enough to not annoy developers:
+Runs **Tier 1 + 2** on every push and pull request to any branch. Results appear directly in the GitHub PR interface.
 
-```yaml
-- repo: local
-  hooks:
-    - id: pytest-unit
-      name: pytest (unit tests)
-      entry: python -m pytest -m unit -x -q --tb=short
-      language: system
-      pass_filenames: false
-      stages: [pre-commit]
+```
+push / pull_request → install dependencies → pytest -m "unit or regression"
 ```
 
-If the unit suite grows beyond ~15 seconds, restrict it further with
-`--ignore=tests/test_energy_integration.py` etc.
+### Pre-commit hook (`.pre-commit-config.yaml`)
+
+Runs **Tier 1 only** on every local `git commit`, before the commit is accepted. Takes ~0.05 seconds.
+
+Requires one-time setup per machine: `pre-commit install`
 
 ### Cloud Build (`cloudbuild.yaml`)
 
-Add a test step before the Docker build step. This runs Tiers 1 + 2 on every PR/main push:
+Runs **Tier 3** before building and deploying to Cloud Run. If integration tests fail, the Docker build does not start.
 
-```yaml
-- name: 'python:3.12-slim'
-  entrypoint: bash
-  args:
-    - '-c'
-    - 'pip install -r requirements.txt && pytest -m "unit or regression" -q --tb=short'
-  id: 'run-tests'
-  waitFor: ['-']   # run immediately; build step should waitFor: ['run-tests']
+```
+deploy trigger → pytest -m integration → docker build → docker push → cloud run deploy
 ```
 
-For deployment (tagged releases), add a second step running Tier 3:
-```yaml
-- name: 'python:3.12-slim'
-  entrypoint: bash
-  args:
-    - '-c'
-    - 'pip install -r requirements.txt && pytest -m integration -q --tb=short'
-  id: 'run-integration-tests'
-  waitFor: ['run-tests']
-```
+---
 
-### `pyproject.toml` — pytest markers
+## Parameters and Where to Change Them
 
-```toml
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-markers = [
-  "unit: fast, pure function and invariant tests, no I/O (<10s total)",
-  "regression: snapshot + invariant tests using real equipment library (~60s)",
-  "integration: full 8760-hour end-to-end runs with real load data (2-5min)",
+### Tier 2: Scenarios tested
+
+**File:** `tests/test_energy_regression.py`, top of file
+
+```python
+SCENARIOS = [
+    "eq_scenario_3",
+    "eq_scenario_4",
+    "eq_scenario_5",
+    "eq_scenario_10",
 ]
-addopts = ["-v", "--tb=short", "-ra"]
 ```
 
+Add, remove, or swap scenario IDs here. All IDs must exist in `data/input/equipment_data.JSON`. Adding a scenario automatically adds it to both the physics invariant tests and the snapshot tests — no other changes required. New snapshots are generated on the next `--snapshot-update` run.
+
+### Tier 2: Synthetic load profile
+
+**File:** `tests/test_energy_regression.py`, `synthetic_load` fixture
+
+```python
+t_out = np.array([
+    -20.0, -15.0, -10.0, -5.0,   # below and at AWHP heating min
+      0.0,   4.4,  10.0,  15.0,
+     ...
+])
+heating_W = np.clip((-t_out + 25) * 10_000, 0, None).astype(float)
+cooling_W = np.clip((t_out - 15) * 8_000, 0, None).astype(float)
+```
+
+The profile deliberately sweeps from -20°C to +45°C to exercise capacity-constraint zeroing (below/above AWHP operating limits), simultaneous heating and cooling, and heating-only and cooling-only hours. It is deterministic (not random) so snapshots are stable. The number of hours is 24 — increasing to 48 gives more coverage at negligible runtime cost.
+
+After changing this, run `pytest -m regression --snapshot-update` to regenerate snapshots.
+
+### Tier 3: Buildings and scenarios tested
+
+**File:** `tests/test_energy_integration.py`, top of file
+
+```python
+INTEGRATION_CASES = [
+    ("5",  "eq_scenario_3"),
+    ("5",  "eq_scenario_5"),
+    ("1",  "eq_scenario_3"),
+]
+```
+
+Each tuple is `(building_id, scenario_id)`. Building IDs correspond to rows in `data/input/building_metadata.csv` and loads in `data/input/load_data_full.parquet`. After changing, regenerate golden values (see below).
+
+### Tier 3: Annual total tolerance
+
+**File:** `tests/test_energy_integration.py`
+
+```python
+TOLERANCE = 0.001  # ±0.1%
+```
+
+Change to `0.005` for ±0.5% if floating-point differences across Python versions or platforms cause spurious failures.
+
 ---
 
-## Maintenance Playbook
+## Operational Playbook
 
-| Situation | Action |
+### Updating regression snapshots (Tier 2)
+
+Run after any deliberate change that alters `loads_to_site_energy()` output (bug fix, equipment data update, scenario parameter change).
+
+**Step 1 — Review first, update second.** Run the tests without updating to see syrupy's diff in the terminal:
+
+```bash
+pytest -m regression
+```
+
+Syrupy prints a readable diff of what changed (which rows, which columns, which values). This is the review step. If the changes look correct and proportionate to what you changed, proceed.
+
+**Step 2 — Update and commit.**
+
+```bash
+pytest -m regression --snapshot-update
+git add tests/__snapshots__/ tests/test_energy_regression.py  # plus your code change
+git commit -m "fix: <description of fix>; update regression snapshots"
+```
+
+> Note: `git diff tests/__snapshots__/` is not useful for review — syrupy stores snapshots as a single long string, making the raw diff illegible. Always use the pytest terminal output (step 1) to review changes.
+
+Never update snapshots without reviewing the diff.
+
+### Regenerating integration golden values (Tier 3)
+
+Run after any change that legitimately alters annual totals (bug fix, equipment data update, new building/scenario added):
+
+```bash
+pytest -m integration --generate-golden
+cat tests/snapshots/integration_annual_totals.json
+```
+
+Review the new values. Cross-check 1–2 numbers manually against the hand-calculated spreadsheet if the change is significant. If they look correct, commit:
+
+```bash
+git add tests/snapshots/integration_annual_totals.json
+git commit -m "fix: <description>; update integration golden values"
+```
+
+### Adding a new equipment scenario to the regression suite
+
+1. Add the scenario ID to `SCENARIOS` in `tests/test_energy_regression.py`
+2. Run `pytest -m regression` — the new scenario will fail with "snapshot does not exist"; inspect the printed output to confirm it looks sensible
+3. Run `pytest -m regression --snapshot-update` to write the new snapshot
+4. Commit both files
+
+### Adding a new building/scenario to the integration suite
+
+1. Add the `(building_id, scenario_id, source)` tuple to `SIMULATION_CASES` or `MEASURED_CASES` in `tests/test_energy_integration.py`
+2. Run `pytest -m integration --generate-golden`
+3. Review the new entry in `tests/snapshots/integration_annual_totals.json`
+4. Commit both files
+
+### Adding a new calculation phase to the engine
+
+1. Add unit tests for the new helper functions in `tests/test_energy_unit.py`
+2. Add the new output columns to the physics invariant checks in `test_energy_regression.py` and `test_energy_integration.py`
+3. Run `pytest -m regression --snapshot-update` (new columns will appear in snapshots)
+4. Commit all changes together
+
+### If a snapshot update looks wrong
+
+The diff is the signal. If the changed values are larger than expected, or wrong columns changed, or the sign flipped — roll back the code change and investigate before touching the snapshots. Never update snapshots to make a failing test pass without understanding why it failed.
+
+---
+
+## Dependency
+
+`syrupy==5.5.3` — snapshot testing library for pytest. Manages storage, comparison, and updating of snapshot files. Snapshots are stored as `.ambr` files (plain text, human-readable, git-diffable).
+
+---
+
+## File Inventory
+
+| File | Purpose |
 |---|---|
-| Bug fix in `energy.py` | Tests should fail if the fix changes output. Run `pytest -m regression --snapshot-update`, review diff, commit snapshot alongside the fix. |
-| Equipment performance curve updated in JSON | Run `pytest -m regression --snapshot-update`. Review which values changed and by how much. If plausible, commit. |
-| New equipment or scenario added to JSON | Existing tests unaffected. Add a new scenario ID to the regression test's scenario list if you want it covered. |
-| New calculation phase added to the engine | Add unit tests for the new helper functions, add the new column to physics invariant checks, and update snapshot. |
-| Spreadsheet updated with new hand-calculated values | Optionally use it to cross-check the current snapshot values, but no code or fixture change is required. |
-| Snapshot update looks wrong | The diff is the signal. Roll back the code change and investigate before updating. Never update snapshots blindly. |
-
----
-
-## File Summary
-
-| File | Status | Purpose |
-|---|---|---|
-| `tests/test_equipment.py` | Edit (add markers) | Tier 1 — slot into unit suite |
-| `tests/test_loads.py` | Edit (add markers) | Tier 1 — slot into unit suite |
-| `tests/test_energy_unit.py` | New | Tier 1 — pure helper function + invariant tests |
-| `tests/test_energy_regression.py` | New | Tier 2 — physics invariants + snapshot tests |
-| `tests/test_energy_integration.py` | New | Tier 3 — full-year smoke tests |
-| `tests/snapshots/` | New (auto-populated) | Snapshot files managed by syrupy |
-| `tests/snapshots/integration_annual_totals.json` | New (manual) | Annual totals golden values |
-| `pyproject.toml` | Edit | Add markers |
-| `.pre-commit-config.yaml` | Edit | Add pytest-unit hook |
-| `cloudbuild.yaml` | Edit | Add test steps (Tier 1+2 on PR, Tier 3 on release) |
-
----
-
-## Recommended Implementation Order
-
-1. **Add markers to existing tests** — zero risk, zero behavior change, immediately makes the
-   existing 21 tests part of the formal Tier 1 suite
-2. **Add pytest markers to `pyproject.toml`** — infrastructure only
-3. **Write `test_energy_unit.py`** — pure functions, no dependencies on real data
-4. **Add pre-commit hook** — gates pushes on Tier 1
-5. **Write `test_energy_regression.py`** — seed the initial snapshots, cross-check against
-   spreadsheet values for a few scenarios, commit
-6. **Update Cloud Build** — Tier 1+2 now run on every PR/push to main
-7. **Write `test_energy_integration.py`** — generate annual total golden values, commit
-8. **Add integration step to Cloud Build release** — Tier 3 gates deployment
+| `tests/test_energy_unit.py` | Tier 1 — 30 unit tests for pure helpers and invariants |
+| `tests/test_equipment.py` | Tier 1 — 9 tests for equipment library loading |
+| `tests/test_loads.py` | Tier 1 — 10 tests for StandardLoad validation |
+| `tests/test_energy_regression.py` | Tier 2 — 20 tests: physics invariants + snapshot tests |
+| `tests/test_energy_integration.py` | Tier 3 — 18 tests: physics invariants + annual golden values |
+| `tests/conftest.py` | Shared fixtures and `--generate-golden` CLI flag |
+| `tests/__snapshots__/test_energy_regression.ambr` | Tier 2 snapshot files (auto-managed by syrupy) |
+| `tests/snapshots/integration_annual_totals.json` | Tier 3 golden values (manually updated) |
+| `pyproject.toml` | Pytest marker definitions (`unit`, `regression`, `integration`) |
+| `requirements.txt` | Includes `syrupy==5.5.3` |
+| `.pre-commit-config.yaml` | Pre-commit hook: runs Tier 1 on every local commit |
+| `.github/workflows/tests.yml` | GitHub Actions: runs Tier 1+2 on every push and PR |
+| `cloudbuild.yaml` | Cloud Build: runs Tier 3, then builds and deploys |

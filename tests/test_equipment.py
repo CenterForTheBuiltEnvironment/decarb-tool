@@ -9,6 +9,7 @@ from src.equipment import (
 )
 
 
+@pytest.mark.unit
 class TestEquipmentLibrary:
     """Tests for equipment library loading and manipulation."""
 
@@ -43,6 +44,7 @@ class TestEquipmentLibrary:
             equipment_library.get_scenario("nonexistent_id")
 
 
+@pytest.mark.unit
 class TestEquipmentScenario:
     """Tests for equipment scenario model."""
 
@@ -71,6 +73,7 @@ class TestEquipmentScenario:
             assert has_heating, f"Scenario {scenario.eq_scen_id} has no heating source"
 
 
+@pytest.mark.unit
 class TestEquipment:
     """Tests for individual equipment models."""
 

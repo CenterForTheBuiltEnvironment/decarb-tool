@@ -34,4 +34,9 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = [
+  "unit: fast pure-function and invariant tests, no I/O (<10s total)",
+  "regression: snapshot + invariant tests using real equipment library (~60s)",
+  "integration: full 8760-hour end-to-end runs with real load data (2-5min)",
+]
 addopts = ["-v", "--tb=short", "-ra"]

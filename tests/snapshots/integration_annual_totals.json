@@ -1,0 +1,18 @@
+{
+  "building_5_eq_scenario_3_simulation": {
+    "total_elec_kWh": 177772.68,
+    "total_gas_kWh": 57646.24
+  },
+  "building_5_eq_scenario_5_simulation": {
+    "total_elec_kWh": 183876.64,
+    "total_gas_kWh": 0.0
+  },
+  "building_1_eq_scenario_3_simulation": {
+    "total_elec_kWh": 1049487.14,
+    "total_gas_kWh": 206452.7
+  },
+  "building_180_eq_scenario_3_measured": {
+    "total_elec_kWh": 10497.92,
+    "total_gas_kWh": 0.0
+  }
+}

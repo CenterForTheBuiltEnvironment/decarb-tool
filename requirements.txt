@@ -75,6 +75,7 @@ Pygments==2.19.2
 pyparsing==3.2.3
 pytest==9.0.2
 pytest-cov==7.1.0
+syrupy==5.5.3
 python-dateutil==2.9.0.post0
 python-discovery==1.2.0
 pytz==2025.2

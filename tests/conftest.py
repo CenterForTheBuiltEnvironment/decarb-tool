@@ -1,5 +1,3 @@
-"""Shared pytest fixtures for Berkeley Decarb Tool tests."""
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,6 +7,17 @@ from src.emissions import EmissionScenario
 from src.equipment import load_library
 from src.loads import StandardLoad
 from src.metadata import Metadata
+
+"""Shared pytest fixtures and hooks for Berkeley Decarb Tool tests."""
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--generate-golden",
+        action="store_true",
+        default=False,
+        help="Regenerate integration_annual_totals.json golden values (Tier 3)",
+    )
 
 
 @pytest.fixture

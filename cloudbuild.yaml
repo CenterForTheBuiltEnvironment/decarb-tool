@@ -1,7 +1,17 @@
 steps:
+  # Run integration tests (Tier 3) — full 8760h runs, gated before deployment
+  - name: 'python:3.13-slim'
+    entrypoint: bash
+    args:
+      - '-c'
+      - 'pip install -r requirements.txt -q && python -m pytest -m integration -q --tb=short'
+    id: 'run-integration-tests'
+    waitFor: ['-']
+
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/decarb-tool', '.']
+    waitFor: ['run-integration-tests']
 
   # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
