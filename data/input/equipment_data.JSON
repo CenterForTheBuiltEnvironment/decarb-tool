@@ -207,6 +207,88 @@
       }
     },
     {
+      "eq_id": "hr06",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "York",
+      "model": "YVWH",
+      "nominal_capacity_W": 1320000,
+      "fuel": "electricity",
+      "refrigerant": "R-515B",
+      "refrigerant_weight_g": 420000,
+      "refrigerant_gwp": 292,
+      "dimensions": {
+        "length": 4.2, 
+        "width": 2.2, 
+        "height": 2.5
+      },
+      "operating_weight_g": 10792000,
+      "electrical": {
+        "mca": 1100,
+        "voltage": 460,
+        "phase": 3
+      },
+      "performance": {
+        "heating": {
+          "capacity_W": [373400, 439600, 549500, 586200, 732700, 879200, 1025800, 1099000, 1172300, 1318900, 1377500],
+          "leaving_supply_t": {
+            "57.2": {
+              "cop": [4.374, 4.374, 4.374, 4.176, 4.176, 4.176, 4.176, 4.176, 4.072, 4.072, 4.072]
+            },
+            "76.7": {
+              "cop": [2.327, 2.473, 2.43, 2.43, 2.54, 2.685, 2.736, 2.738, 2.738, 2.736, 2.754]
+            }
+          },
+          "constraints": {
+            "min_temp_C": 57.2,
+            "max_temp_C": 76.7
+          }
+        }
+      }        
+    },
+    {
+      "eq_id": "hr07",
+      "eq_type": "hr_heat_pump",
+      "eq_subtype": "water_to_water",
+      "eq_calc_type": "specific",
+      "eq_manufacturer": "York",
+      "model": "YVWH",
+      "nominal_capacity_W": 1320000,
+      "fuel": "electricity",
+      "refrigerant": "R-1234ze",
+      "refrigerant_weight_g": 420000,
+      "refrigerant_gwp": 1,
+      "dimensions": {
+        "length": 4.2, 
+        "width": 2.2, 
+        "height": 2.5
+      },
+      "operating_weight_g": 10792000,
+      "electrical": {
+        "mca": 1100,
+        "voltage": 460,
+        "phase": 3
+      },
+      "performance": {
+        "heating": {
+          "capacity_W": [373400, 439600, 549500, 586200, 732700, 879200, 1025800, 1099000, 1172300, 1318900, 1377500],
+          "leaving_supply_t": {
+            "57.2": {
+              "cop": [4.374, 4.374, 4.374, 4.176, 4.176, 4.176, 4.176, 4.176, 4.072, 4.072, 4.072]
+            },
+            "76.7": {
+              "cop": [2.327, 2.473, 2.43, 2.43, 2.54, 2.685, 2.736, 2.738, 2.738, 2.736, 2.754]
+            }
+          },
+          "constraints": {
+            "min_temp_C": 57.2,
+            "max_temp_C": 76.7
+          }
+        }
+      }        
+    },
+    {
       "eq_id": "hp01",
       "eq_type": "heat_pump",
       "eq_subtype": "air_to_water",
