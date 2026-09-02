@@ -1414,6 +1414,91 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_18",
+      "eq_scen_name": "100% R410A AWHP (H+C)+Elec Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp04",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 50,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_19",
+      "eq_scen_name": "100% R454B AWHP (H+C)+Elec Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp06",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 50,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_20",
+      "eq_scen_name": "100% CO2 AWHP (H+C)+Elec Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp08",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 40,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_21",
+      "eq_scen_name": "R-515B HR WWHP+100% AWHP (H+C)+Elec Backup",
+      "hr_wwhp": "hr06",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 57.2,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_22",
+      "eq_scen_name": "R-1234ze HR WWHP+100% AWHP (H+C)+Elec Backup",
+      "hr_wwhp": "hr07",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 57.2,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
     }
   ],
   "scenario_groups": [
@@ -1436,6 +1521,16 @@
       "group_id": "hhw_supply_temps",
       "group_name": "HHW Supply Temps",
       "scenario_ids": ["eq_scenario_4", "eq_scenario_13", "eq_scenario_14", "eq_scenario_5", "eq_scenario_15"]
+    },
+    {
+      "group_id": "awhp_refrigerant_types",
+      "group_name": "Varying AWHP Refrigerant",
+      "scenario_ids": ["eq_scenario_18", "eq_scenario_19", "eq_scenario_20"]
+    },
+    {
+      "group_id": "wwhp_refrigerant_types",
+      "group_name": "Varying WWHP Refrigerant",
+      "scenario_ids": ["eq_scenario_21", "eq_scenario_22"]
     }
   ]
 }
