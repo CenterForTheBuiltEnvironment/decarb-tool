@@ -193,7 +193,7 @@ def build_navbar_content():
             html.Div(
                 id="legend-container",
                 children=scenario_legend_accordion(),
-                style={"display": "none"},  # Hidden by default
+                style={"display": "block"},
             ),
             dmc.Divider(),
             dmc.Stack(  # external resources section
