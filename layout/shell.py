@@ -70,6 +70,7 @@ def build_shell(page_content):
         # Scenario group selections (persisted across page navigation)
         dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
+        dcc.Download(id="download-data"),
     ]
 
     header = dmc.AppShellHeader(
@@ -177,6 +178,16 @@ def build_navbar_content():
             dmc.Stack(page_links, gap="sm"),
             dmc.Divider(),
             unit_toggle(),
+            dmc.Button(
+                "Download data",
+                rightSection=DashIconify(icon="material-symbols-light:download", width=18),
+                variant="outline",
+                color="blue",
+                styles={"root": {"borderColor": "var(--mantine-color-gray-3)"}},
+                id="download-button",
+                n_clicks=0,
+                size="xs",
+            ),
             dmc.Divider(),
             legend_toggle(),
             html.Div(

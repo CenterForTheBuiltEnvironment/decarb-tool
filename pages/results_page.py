@@ -9,7 +9,6 @@ import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
 from dash import Input, Output, State, callback, dcc
-from dash_iconify import DashIconify
 
 from layout.charts import chart_tabs
 from layout.output import summary_project_info
@@ -51,17 +50,6 @@ def layout():
                 ],
                 gutter="md",
             ),
-            dmc.Button(
-                "Download data ",
-                rightSection=DashIconify(icon="material-symbols-light:download", width=20),
-                variant="outline",
-                color="blue",
-                id="download-button",
-                n_clicks=0,
-                style={"float": "right"},
-                mr="md",
-            ),
-            dcc.Download(id="download-data"),
         ],
         fluid=True,
     )
