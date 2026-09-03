@@ -1273,7 +1273,24 @@
     },
     {
       "eq_scen_id": "eq_scenario_15",
-      "eq_scen_name": "Gas Boiler+AC Chiller",
+      "eq_scen_name": "High HHWST HR WWHP+100% AWHP (H+C)+Elec Backup",
+      "hr_wwhp": "hr03",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 60,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 52,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_16",
+      "eq_scen_name": "90% Eff. Gas Boiler+AC Chiller",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 48.9,
@@ -1290,7 +1307,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_16",
+      "eq_scen_id": "eq_scenario_17",
       "eq_scen_name": "50% AWHP (H+C)+Gas Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1308,7 +1325,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_17",
+      "eq_scen_id": "eq_scenario_18",
       "eq_scen_name": "100% AWHP (H+C)+Fuel Switching",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1350,7 +1367,7 @@
     {
       "group_id": "fuel_switching",
       "group_name": "Dynamic Fuel Switching",
-      "scenario_ids": ["eq_scenario_15", "eq_scenario_16", "eq_scenario_4", "eq_scenario_17"]
+      "scenario_ids": ["eq_scenario_16", "eq_scenario_17", "eq_scenario_4", "eq_scenario_18"]
     }
   ]
 }

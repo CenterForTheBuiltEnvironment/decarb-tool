@@ -1201,7 +1201,7 @@ def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_
     # get backup heating fuel
     equipment_list = equipment_data.get("equipment", []) if equipment_data else []
     backup_heating = next((e for e in equipment_list if e.get("eq_id") == backup_heating_id), None)
-    backup_heating_fuel = backup_heating.get("fuel", "")
+    backup_heating_fuel = backup_heating.get("fuel", "") if backup_heating else ""
 
     # Disable input if AWHP is not selected, or if backup heating option is electric
     awhp_selected = awhp_id and awhp_id != "None"

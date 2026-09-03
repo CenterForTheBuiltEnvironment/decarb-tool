@@ -1236,7 +1236,7 @@ def site_to_source(
         )
 
         # print number of fuel switching hours
-        df_fuel_switching = merged
+        df_fuel_switching = merged.copy()
         df_fuel_switching["NG_mode"] = NG_mode
         df_fuel_switching = (
             df_fuel_switching[
@@ -1295,7 +1295,6 @@ def site_to_source(
                 Col.BOILER_EQ_CALC.value,
                 Col.FUEL_SWITCHING.value,
                 "boiler_peak_hhw_W",
-                "NG_mode",
             ],
             axis=1,
         )

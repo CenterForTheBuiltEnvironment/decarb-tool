@@ -105,7 +105,7 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
     awhp_use_cooling: bool
     awhp_sizing_priority: Literal["heating", "cooling", "larger"] | None = None
     backup_heating: str | None = None
-    fuel_switching: bool
+    fuel_switching: bool = False
     chiller: str | None = None
 
 
