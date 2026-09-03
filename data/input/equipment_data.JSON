@@ -1416,7 +1416,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_18",
+      "eq_scen_id": "eq_scenario_19",
       "eq_scen_name": "100% R410A AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1433,7 +1433,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_19",
+      "eq_scen_id": "eq_scenario_20",
       "eq_scen_name": "100% R454B AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1450,7 +1450,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_20",
+      "eq_scen_id": "eq_scenario_21",
       "eq_scen_name": "100% CO2 AWHP (H+C)+Elec Backup",
       "hr_wwhp": null,
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1467,7 +1467,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_21",
+      "eq_scen_id": "eq_scenario_22",
       "eq_scen_name": "R-515B HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr06",
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1484,7 +1484,7 @@
       "chiller": "ch02"
     },
     {
-      "eq_scen_id": "eq_scenario_22",
+      "eq_scen_id": "eq_scenario_23",
       "eq_scen_name": "R-1234ze HR WWHP+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr07",
       "hr_wwhp_performance_model": "interpolate_HHWST",
@@ -1525,12 +1525,12 @@
     {
       "group_id": "awhp_refrigerant_types",
       "group_name": "Varying AWHP Refrigerant",
-      "scenario_ids": ["eq_scenario_18", "eq_scenario_19", "eq_scenario_20"]
+      "scenario_ids": ["eq_scenario_19", "eq_scenario_20", "eq_scenario_21"]
     },
     {
       "group_id": "wwhp_refrigerant_types",
       "group_name": "Varying WWHP Refrigerant",
-      "scenario_ids": ["eq_scenario_21", "eq_scenario_22"]
+      "scenario_ids": ["eq_scenario_22", "eq_scenario_23"]
     }
   ]
 }
