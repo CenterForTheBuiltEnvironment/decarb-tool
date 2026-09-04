@@ -309,12 +309,14 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            pct_leakage = scen["annual_refrig_leakage_percent"]*100
+            pct_leakage = scen["annual_refrig_leakage_percent"] * 100
             scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
-            scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[idx % len(ng_emission_rate_values)]
+            scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[
+                idx % len(ng_emission_rate_values)
+            ]
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["em_scen_name"] = scen["emission_type"]
@@ -977,6 +979,8 @@ def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
         ng_emission_rate = EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH.value
 
     if unit_mode == "IP":
-        ng_emission_rate = format_value(ng_emission_rate, "ng_emission_rate_gCO2e_per_kWh", unit_mode, decimals=2)
+        ng_emission_rate = format_value(
+            ng_emission_rate, "ng_emission_rate_gCO2e_per_kWh", unit_mode, decimals=2
+        )
 
     return ng_emission_rate

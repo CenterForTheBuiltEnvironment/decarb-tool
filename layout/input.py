@@ -1493,6 +1493,131 @@ def build_completeness_modal():
     )
 
 
+def build_scale_load_modal():
+    """Modal for scaling/normalizing a library load profile."""
+    return dmc.Modal(
+        title="Scale Load Profile",
+        id="scale-load-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            dmc.Text(
+                "Scale the library load profile to match your building. "
+                "Every hourly heating and cooling load will be multiplied by the computed scale factor.",
+                size="sm",
+                c="dimmed",
+            ),
+            dmc.Space(h="md"),
+            html.Div(id="scale-reference-info"),
+            dmc.Space(h="md"),
+            dmc.Text("Scaling options", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="scale-method-select",
+                value="area",
+                data=[
+                    {"label": "Building Area", "value": "area"},
+                    {"label": "Peak Heating Load", "value": "peak_heating"},
+                    {"label": "Peak Cooling Load", "value": "peak_cooling"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            dmc.Text(id="scale-target-label", size="sm", fw=500),
+            dmc.NumberInput(
+                id="scale-target-value",
+                placeholder="Enter value",
+                min=0,
+                decimalScale=2,
+                mt=4,
+            ),
+            dmc.Space(h="sm"),
+            dmc.Text(id="scale-preview-text", c="blue", size="sm", fw=500),
+            dmc.Text(id="scale-error-text", c="red", size="sm"),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id="scale-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id="scale-apply-btn", color="blue"),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
+def build_base_load_modal():
+    """Modal for adding a minimum floor or constant offset to the load profile."""
+    return dmc.Modal(
+        title="Modify Base Load",
+        id="base-load-modal",
+        size="lg",
+        centered=True,
+        withCloseButton=True,
+        children=[
+            dmc.Text(
+                "Add a minimum floor or a constant offset to model process loads or "
+                "minimum baseline consumption.",
+                size="sm",
+                c="dimmed",
+            ),
+            dmc.Space(h="md"),
+            html.Div(id="base-load-current-values"),
+            dmc.Space(h="md"),
+            dmc.Text("Mode", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="base-load-method-select",
+                value="floor",
+                data=[
+                    {"label": "Floor (minimum)", "value": "floor"},
+                    {"label": "Constant offset", "value": "offset"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="xs"),
+            dmc.Text(id="base-load-method-desc", size="sm", c="dimmed"),
+            dmc.Space(h="md"),
+            dmc.Text("Apply to", size="sm", fw=600),
+            dmc.Space(h="xs"),
+            dmc.SegmentedControl(
+                id="base-load-apply-select",
+                value="heating",
+                data=[
+                    {"label": "Heating", "value": "heating"},
+                    {"label": "Cooling", "value": "cooling"},
+                    {"label": "Both", "value": "both"},
+                ],
+                fullWidth=True,
+                size="sm",
+            ),
+            dmc.Space(h="md"),
+            dmc.Text(id="base-load-value-label", size="sm", fw=500),
+            dmc.NumberInput(
+                id="base-load-value",
+                placeholder="Enter value",
+                min=0,
+                decimalScale=2,
+                mt=4,
+            ),
+            dmc.Space(h="sm"),
+            dmc.Text(id="base-load-preview-text", c="blue", size="sm", fw=500),
+            dmc.Text(id="base-load-error-text", c="red", size="sm"),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id="base-load-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id="base-load-apply-btn", color="blue"),
+                ],
+                justify="flex-end",
+                mt="md",
+            ),
+        ],
+    )
+
+
 def build_completeness_summary(data_summary: dict, source_type: str = "measured") -> html.Div:
     """
     Build the summary content from StandardLoad.get_data_summary().
