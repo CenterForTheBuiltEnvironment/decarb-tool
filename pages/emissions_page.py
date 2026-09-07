@@ -261,6 +261,8 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         default_ids.append("em_scenario_c")
 
     # Get defaults
+    default_elec_emission_source = EmissionScenarioDefaults.ELEC_EMISSION_SOURCE.value
+    default_elec_avg_emission_rate = EmissionScenarioDefaults.ELEC_AVG_EMISSION_RATE_G_KWH.value
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
@@ -280,6 +282,8 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         existing_scenarios[0].copy()
         if existing_scenarios
         else {
+            "elec_emission_source": default_elec_emission_source,
+            "elec_avg_emission_rate_gCO2e_per_kWh": default_elec_avg_emission_rate,
             "grid_scenario": "MidCase",
             "gea_grid_region": None,
             "time_zone": "America/Los_Angeles",
@@ -557,6 +561,8 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     Output("emissions-edit-modal", "opened"),
     Output("edit-em-scenario-id-input", "value"),
     Output("edit-em-scenario-name-input", "value"),
+    Output("edit-em-elec-source", "value"),
+    Output("edit-em-elec-avg-emission-rate", "value"),
     Output("edit-em-grid-scenario", "value"),
     Output("edit-em-gea-grid-region", "value"),
     Output("edit-em-time-zone", "value"),
@@ -573,13 +579,15 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
 )
 def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     if not any(edit_clicks or []):
-        return (no_update,) * 12
+        return (no_update,) * 14
 
     if not metadata_data or "emission_settings" not in metadata_data:
         return (
             False,
             "",
             "",
+            "",
+            None,
             "",
             "",
             "",
@@ -595,7 +603,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 12
+        return (no_update,) * 14
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -607,6 +615,8 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             False,
             "",
             "",
+            "",
+            None,
             "",
             "",
             "",
@@ -627,6 +637,8 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             "",
+            None,
+            "",
             "",
             "",
             "",
@@ -637,29 +649,40 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             f"Scenario {em_scen_id!r} not found.",
         )
 
-    # Convert NG emissions rate for display based on unit mode
+    # Convert emissions rates for display based on unit mode
+    from utils.units import get_converter
+
     ng_emission_rate_base = scen.get("ng_emission_rate_gCO2e_per_kWh")
     if ng_emission_rate_base is not None and unit_mode == "IP":
-        from utils.units import get_unit_converter
-
-        ng_converter = get_unit_converter("emissions_rate", "IP")
+        ng_converter = get_converter("gas_emission_factor", "IP")
         ng_emission_rate_display = ng_converter(float(ng_emission_rate_base))
     else:
         ng_emission_rate_display = ng_emission_rate_base
+
+    elec_avg_emission_rate_base = scen.get("elec_avg_emission_rate_gCO2e_per_kWh")
+    if elec_avg_emission_rate_base is not None and unit_mode == "IP":
+        elec_converter = get_converter("emissions_rate", "IP")
+        elec_avg_emission_rate_display = elec_converter(float(elec_avg_emission_rate_base))
+    else:
+        elec_avg_emission_rate_display = elec_avg_emission_rate_base
 
     # Round refrigerant leakage to 2 decimal places for display
     refrig_leakage = scen.get("annual_refrig_leakage_percent")
     if refrig_leakage is not None:
         refrig_leakage = round(float(refrig_leakage), 2)
 
-    # Round NG emission rate display to 2 decimal places
+    # Round emission rate display to 2 decimal places
     if ng_emission_rate_display is not None:
         ng_emission_rate_display = round(float(ng_emission_rate_display), 2)
+    if elec_avg_emission_rate_display is not None:
+        elec_avg_emission_rate_display = round(float(elec_avg_emission_rate_display), 2)
 
     return (
         True,
         scen.get("em_scen_id"),
         scen.get("em_scen_name", ""),
+        scen.get("elec_emission_source", ""),
+        elec_avg_emission_rate_display,
         scen.get("grid_scenario", ""),
         scen.get("gea_grid_region", ""),
         scen.get("time_zone", ""),
@@ -679,6 +702,8 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     Input("edit-em-scenario-save-btn", "n_clicks"),
     State("edit-em-scenario-id-input", "value"),
     State("edit-em-scenario-name-input", "value"),
+    State("edit-em-elec-source", "value"),
+    State("edit-em-elec-avg-emission-rate", "value"),
     State("edit-em-grid-scenario", "value"),
     State("edit-em-gea-grid-region", "value"),
     State("edit-em-time-zone", "value"),
@@ -695,6 +720,8 @@ def save_edit_emission(
     n_clicks,
     scen_id,
     scen_name,
+    elec_emission_source,
+    elec_avg_emission_rate,
     grid_scenario,
     gea_grid_region,
     time_zone,
@@ -736,6 +763,14 @@ def save_edit_emission(
     except (TypeError, ValueError):
         ng_emission_rate = 0.0
 
+    try:
+        elec_avg_emission_rate = (
+            float(elec_avg_emission_rate) if elec_avg_emission_rate is not None else None
+        )
+    except (TypeError, ValueError):
+        elec_avg_emission_rate = None
+    # default avg emission rate is None to generate an error if calculation is run without a valid input
+
     # Convert NG emissions rate back to base units (g/kWh) if in IP mode
     unit_mode = unit_mode or "SI"
     if unit_mode == "IP" and ng_emission_rate > 0:
@@ -745,6 +780,13 @@ def save_edit_emission(
         # g/kWh = (lb/kBTU) / (g_to_lb / Wh_to_BTU)
         ng_emission_rate = ng_emission_rate / (g_to_lb / Wh_to_BTU)
 
+    if unit_mode == "IP" and elec_avg_emission_rate is not None:
+        from utils.units import g_to_lb
+
+        # IP unit is lb/kWh, convert back to g/kWh
+        # g/kWh = (lb/kWh) / (g_to_lb)
+        elec_avg_emission_rate = elec_avg_emission_rate / (g_to_lb)
+
     scenarios = metadata_data.get("emission_settings", [])
     updated = False
     new_scenarios = []
@@ -753,6 +795,8 @@ def save_edit_emission(
         if scen.get("em_scen_id") == scen_id:
             new_scen = scen.copy()
             new_scen["em_scen_name"] = scen_name or scen.get("em_scen_name", "")
+            new_scen["elec_emission_source"] = elec_emission_source
+            new_scen["elec_avg_emission_rate_gCO2e_per_kWh"] = elec_avg_emission_rate
             new_scen["grid_scenario"] = grid_scenario
             new_scen["gea_grid_region"] = gea_grid_region
             new_scen["time_zone"] = time_zone
@@ -788,15 +832,18 @@ def cancel_edit_emission_modal(n_clicks):
 
 @callback(
     Output("edit-em-ng-emission-rate-label", "children"),
+    Output("edit-em-elec-emission-rate-label", "children"),
     Input("unit-toggle", "value"),
 )
-def update_ng_emissions_rate_label(unit_mode):
-    """Update NG emissions rate label based on unit mode."""
-    from utils.units import get_unit_label
+def update_emissions_rate_label(unit_mode):
+    """Update NG/elec emissions rate label based on unit mode."""
+    from utils.units import get_display_unit
 
     unit_mode = unit_mode or "SI"
-    ng_unit = get_unit_label("emissions_rate", unit_mode)
-    return f"Gas emissions rate ({ng_unit})"
+    ng_unit = get_display_unit("gas_emission_factor", unit_mode)
+    elec_unit = get_display_unit("emissions_rate", unit_mode)
+
+    return f"Gas emissions rate ({ng_unit})", f"Average grid emissions rate ({elec_unit})"
 
 
 @callback(
@@ -984,3 +1031,15 @@ def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
         )
 
     return ng_emission_rate
+
+
+@callback(
+    Output("edit-em-elec-avg-emission-rate", "disabled"),
+    Input("edit-em-elec-source", "value"),
+    prevent_initial_call=True,
+)
+def update_avg_emission_on_source_change(emission_source):
+    """Enable/disable average grid emissions input when emission source changes."""
+    disable_avg = emission_source != "Average"
+
+    return disable_avg

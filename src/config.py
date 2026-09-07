@@ -44,8 +44,17 @@ class EquipmentTableRows(Enum):
 class EmissionTableRows(Enum):
     """Row configurations for emission table view modes."""
 
-    SIMPLE = ("grid_scenario", "gea_grid_region", "emission_type", "year")
+    SIMPLE = (
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
+        "year",
+    )
     ADVANCED = (
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
         "grid_scenario",
         "gea_grid_region",
         "emission_type",
@@ -59,6 +68,8 @@ class EmissionTableRows(Enum):
 class EmissionScenarioDefaults(Enum):
     """Default values for emission scenario parameters."""
 
+    ELEC_EMISSION_SOURCE: str = "Marginal"
+    ELEC_AVG_EMISSION_RATE_G_KWH: float = None
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"

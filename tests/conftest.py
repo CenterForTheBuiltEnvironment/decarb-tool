@@ -54,6 +54,8 @@ def emission_scenario():
     """Create a sample emission scenario for testing."""
     return EmissionScenario(
         em_scen_id="test_em_1",
+        elec_emission_source="Marginal",
+        elec_avg_emission_rate_gCO2e_per_kWh=None,
         grid_scenario="MidCase",
         gea_grid_region="CAMX",
         time_zone="America/Los_Angeles",

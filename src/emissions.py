@@ -10,6 +10,8 @@ from src.mixins import DotAccessMixin
 class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_id: str
     em_scen_name: str
+    elec_emission_source: str
+    elec_avg_emission_rate_gCO2e_per_kWh: float | None = None
     grid_scenario: str
     gea_grid_region: str | None = None
     time_zone: str

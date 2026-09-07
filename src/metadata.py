@@ -97,6 +97,8 @@ class Metadata(DotAccessMixin, BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_a",
                     em_scen_name="2025",
+                    elec_emission_source="Marginal",
+                    elec_avg_emission_rate_gCO2e_per_kWh=None,
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
@@ -109,6 +111,8 @@ class Metadata(DotAccessMixin, BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_b",
                     em_scen_name="2035",
+                    elec_emission_source="Marginal",
+                    elec_avg_emission_rate_gCO2e_per_kWh=None,
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",
@@ -121,6 +125,8 @@ class Metadata(DotAccessMixin, BaseModel):
                 EmissionScenario(
                     em_scen_id="em_scenario_c",
                     em_scen_name="2045",
+                    elec_emission_source="Marginal",
+                    elec_avg_emission_rate_gCO2e_per_kWh=None,
                     grid_scenario="MidCase",
                     gea_grid_region=None,
                     time_zone="America/Los_Angeles",

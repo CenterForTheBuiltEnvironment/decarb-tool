@@ -63,6 +63,10 @@
     ]
   },
   "emissions": {
+    "elec_emission_source" : [
+      "Marginal",
+      "Average"
+    ],
     "year": [
       2025,
       2030,

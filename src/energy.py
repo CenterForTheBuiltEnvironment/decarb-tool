@@ -1163,11 +1163,10 @@ def site_to_source(
         base[Col.HOUR.value] = base.index.hour
         base[Col.DOY.value] = base.index.dayofyear
 
-        elec_emissions_source = "average"  # em_scen.elec_emissions_source
-        if elec_emissions_source == "marginal":  # replace direct with em_scen.elec_emissions_source
+        if em_scen.elec_emission_source == "Marginal":
             emissions_data = get_emissions_data(metadata[em_scen_id])
             logger.debug(
-                f"Marginal electricity emissions: Loaded {len(emissions_data.df)} emission data rows"
+                f"Marginal grid emissions: Loaded {len(emissions_data.df)} emission data rows"
             )
 
             # collapse emissions to month-hour averages
@@ -1227,15 +1226,18 @@ def site_to_source(
             # used with non-leap emission scenario years. Emissions are still correct
             # because they're matched by month+hour pattern.
 
-        elif elec_emissions_source == "average":
-            # elec_emissions_rate = float(em_scen.elec_emission_rate_gCO2e_per_kWh)
-            elec_emissions_rate = 500
-            logger.debug(f"Average electricity emissions: {elec_emissions_rate} gCO2e/kWh")
+        elif em_scen.elec_emission_source == "Average":
+            elec_avg_emission_rate = em_scen.elec_avg_emission_rate_gCO2e_per_kWh
+            if elec_avg_emission_rate is not None:
+                logger.debug(f"Average grid emissions: {elec_avg_emission_rate} gCO2e/kWh")
 
-            merged = base.copy()
-            merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = elec_emissions_rate
+                merged = base.copy()
+                merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = float(elec_avg_emission_rate)
+            else:
+                raise ValueError("Provide a valid input value for average grid emissions rate.")
+
         else:
-            raise ValueError(f"Invalid elec_emissions_source: {em_scen.elec_emissions_source}")
+            raise ValueError(f"Invalid elec_emissions_source: {em_scen.elec_emission_source}")
 
         ## fuel switching logic
         emissions_intensity_HP = (

@@ -185,7 +185,7 @@ UNIT_MAP = {
     "emissions_rate": {
         "base": "g CO₂e/kWh",
         "SI": {"unit": "g CO₂e/kWh", "func": lambda x: x},
-        "IP": {"unit": "lb CO₂e/kBTU", "func": lambda x: x * g_to_lb / Wh_to_BTU},
+        "IP": {"unit": "lb CO₂e/kWh", "func": lambda x: x * g_to_lb},
     },
     # --- Gas emission factor ---
     "gas_emission_factor": {
