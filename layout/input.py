@@ -1128,6 +1128,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
+        ("em_scen_name", "Scenario"),
         ("elec_emission_source", "Grid emissions source"),
         (
             "elec_avg_emission_rate_gCO2e_per_kWh",

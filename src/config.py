@@ -45,6 +45,7 @@ class EmissionTableRows(Enum):
     """Row configurations for emission table view modes."""
 
     SIMPLE = (
+        "em_scen_name",
         "elec_emission_source",
         "elec_avg_emission_rate_gCO2e_per_kWh",
         "grid_scenario",
@@ -53,6 +54,7 @@ class EmissionTableRows(Enum):
         "year",
     )
     ADVANCED = (
+        "em_scen_name",
         "elec_emission_source",
         "elec_avg_emission_rate_gCO2e_per_kWh",
         "grid_scenario",
