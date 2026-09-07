@@ -73,6 +73,7 @@ class EmissionScenarioDefaults(Enum):
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
+    SHORTRUN_WEIGHTING: float = 0.0
     NG_EMISSION_RATE_G_KWH: float = 239.2
     NG_EMISSION_RATE_G_KWH_COMBUSTION: float = 181
 

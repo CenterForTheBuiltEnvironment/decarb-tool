@@ -102,6 +102,10 @@ def layout():
                                                 "label": "Combustion vs pre-combustion",
                                                 "value": "emission_types",
                                             },
+                                            {
+                                                "label": "Average vs marginal emissions",
+                                                "value": "emission_sources",
+                                            },
                                         ],
                                         value=None,
                                         placeholder="Select a scenario group",
@@ -237,6 +241,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     - year: Varies years (2025, 2035, 2045), others reset to defaults
     - refrigerant_leakage: Varies leakage (0.01, 0.05, 0.1), others reset to defaults
     - emission_types: Varies emission type ("Includes pre-combustion" vs "Combustion only"), others reset to defaults
+    - emission_sources: Varies emission source (average and marginal) and associated values for emissions rate and short-run weighting, others reset to defaults
     """
     # When dropdown is cleared, clear the stored group to allow re-selecting
     if not group_id:
@@ -259,6 +264,8 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     default_ids = ["em_scenario_a", "em_scenario_b"]
     if group_id != "emission_types":  # only two scenarios for comparing emission types
         default_ids.append("em_scenario_c")
+    if group_id == "emission_sources":  # fourth scenario for comparing emission sources
+        default_ids.append("em_scenario_d")
 
     # Get defaults
     default_elec_emission_source = EmissionScenarioDefaults.ELEC_EMISSION_SOURCE.value
@@ -266,6 +273,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
+    default_shortrun_weighting = EmissionScenarioDefaults.SHORTRUN_WEIGHTING.value
     default_ng_emission_rate = EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH.value
 
     # Define the variation values and default IDs
@@ -275,6 +283,15 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     ng_emission_rate_values = [
         EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH_COMBUSTION.value,
         default_ng_emission_rate,
+    ]
+    elec_emission_source_values = ["Average", "Average", "Marginal", "Marginal"]
+    elec_avg_emission_rate_values = [400, 0, None, None]
+    shortun_weighting_values = [0, 0, 1, 0]
+    emission_sources_names = [
+        "Average Emissions (Typical)",
+        "Average Emissions (Zero)",
+        "Marginal Emissions (Short-run)",
+        "Marginal Emissions (Long-run)",
     ]
 
     # Create base scenario template from first existing scenario or defaults
@@ -288,14 +305,14 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             "gea_grid_region": None,
             "time_zone": "America/Los_Angeles",
             "emission_type": default_emission_type,
-            "shortrun_weighting": 0,
+            "shortrun_weighting": default_shortrun_weighting,
             "annual_refrig_leakage_percent": default_leakage,
             "ng_emission_rate_gCO2e_per_kWh": default_ng_emission_rate,
             "year": default_year,
         }
     )
 
-    # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
+    # Reset to default 2/3/4 scenarios (a, b, optionally c & d) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
         scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": ""}
@@ -303,27 +320,56 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         if group_id == "year":
             # Vary year, reset others to defaults
             scen["year"] = year_values[idx % len(year_values)]
+            scen["em_scen_name"] = str(scen["year"])
+
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            scen["em_scen_name"] = str(scen["year"])
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
+            scen["shortrun_weighting"] = default_shortrun_weighting
         elif group_id == "refrigerant_leakage":
             # Vary leakage, reset others to defaults
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
+            pct_leakage = scen["annual_refrig_leakage_percent"] * 100
+            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
+
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            pct_leakage = scen["annual_refrig_leakage_percent"] * 100
-            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
+            scen["shortrun_weighting"] = default_shortrun_weighting
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
             scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[
                 idx % len(ng_emission_rate_values)
             ]
+            scen["em_scen_name"] = scen["emission_type"]
+
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
-            scen["em_scen_name"] = scen["emission_type"]
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
+            scen["shortrun_weighting"] = default_shortrun_weighting
+        elif group_id == "emission_sources":
+            # Vary source, avg emissions rate, and short-run weighting, reset others to defaults
+            scen["elec_emission_source"] = elec_emission_source_values[
+                idx % len(elec_emission_source_values)
+            ]
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = elec_avg_emission_rate_values[
+                idx % len(elec_avg_emission_rate_values)
+            ]
+            scen["shortrun_weighting"] = shortun_weighting_values[
+                idx % len(shortun_weighting_values)
+            ]
+            scen["em_scen_name"] = emission_sources_names[idx % len(emission_sources_names)]
+
+            scen["year"] = default_year
+            scen["annual_refrig_leakage_percent"] = default_leakage
+            scen["emission_type"] = default_emission_type
+            scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
 
         updated_scenarios.append(scen)
 
