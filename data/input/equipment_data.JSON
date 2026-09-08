@@ -1253,7 +1253,7 @@
   "scenario_groups": [
     {
       "group_id": "default",
-      "group_name": "Default",
+      "group_name": "Example Equipment",
       "scenario_ids": ["eq_scenario_1", "eq_scenario_2", "eq_scenario_3", "eq_scenario_4", "eq_scenario_5"]
     },
     {
