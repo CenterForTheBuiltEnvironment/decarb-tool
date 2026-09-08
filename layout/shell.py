@@ -73,6 +73,7 @@ def build_shell(page_content):
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
         dcc.Store(id="results-ready-store", storage_type="session", data=False),
         dcc.Store(id="results-calculating-store", storage_type="memory", data=False),
+        dcc.Location(id="nav-location", refresh=True),
         dcc.Download(id="download-data"),
     ]
 
@@ -157,6 +158,9 @@ def build_navbar_content():
             href=page["path"],
             id={"type": "navbar-link", "path": page["path"]},
             active=False,  # will be controlled by callback
+            rightSection=DashIconify(icon="ic:baseline-autorenew", width=16)
+            if page["path"] == "/results"
+            else None,
         )
         for page in pages
     ]
