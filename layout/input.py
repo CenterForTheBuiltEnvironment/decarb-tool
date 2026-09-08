@@ -104,11 +104,23 @@ def select_location():
     return html.Div(
         [
             dbc.Label(
-                "Building Location",
+                [
+                    "Building Location ",
+                    html.Span(
+                        "(OPTIONAL)",
+                        style={
+                            "fontSize": "0.75em",
+                            "color": "#6c757d",
+                            "fontWeight": "normal",
+                            "marginLeft": "5px",
+                        },
+                    ),
+                ],
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
+            html.Br(),
             html.P(
-                "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
+                "Overwrites GEA grid region for emissions. If skipped, information is inferred from the selected load data."
             ),
             dcc.Dropdown(
                 id="location-input",
@@ -129,7 +141,7 @@ def select_load_type():
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
-            html.P("Select the type of load data you want to use for analysis."),
+            html.P("Select the load dataset you want to use for analysis."),
             dbc.Accordion(
                 [
                     dbc.AccordionItem(
@@ -1132,7 +1144,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
+        (
+            "ng_emission_rate_gCO2e_per_kWh",
+            f"Gas emissions rate ({ng_emission_rate_unit})",
+        ),
         ("year", "Year"),
     ]
 

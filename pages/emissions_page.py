@@ -19,9 +19,7 @@ from dash_iconify import DashIconify
 
 from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
 from src.config import URLS, EmissionScenarioDefaults
-from src.energy import loads_to_site_energy, site_to_source
-from src.equipment import EquipmentLibrary
-from src.loads import get_load_data
+from src.energy import site_to_source
 from src.metadata import Metadata
 from utils.error_handling import (
     create_error_notification,
@@ -800,36 +798,33 @@ def update_ng_emissions_rate_label(unit_mode):
 
 
 @callback(
-    Output("site-energy-store", "data"),
+    Output("nav-location", "pathname"),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
     Input("button-calculate", "n_clicks"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
-    State("session-store", "data"),
     prevent_initial_call=True,
 )
-def run_loads_to_site(
-    n_clicks,
-    metadata_json,
-    equipment_json,
-    selected_scenarios,
-    session_data,
-):
-    # --- Guard clauses (no notification needed, just prevent update) ---
+def navigate_to_results(n_clicks, metadata_json, equipment_json, selected_scenarios):
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
-    # --- Validation with user feedback ---
     if not metadata_json:
-        logger.warning("Calculation attempted without load selection")
         notification = create_warning_notification(
             "Missing Selection", "Please select a load dataset on the Loads page first."
         )
         return no_update, [notification]
 
+    metadata = Metadata(**metadata_json)
+    if not metadata.base_gea_grid_region:
+        notification = create_warning_notification(
+            "Missing Grid Region",
+            "Could not determine grid region. Please select a location or choose a load with a known city.",
+        )
+        return no_update, [notification]
+
     if not equipment_json:
-        logger.warning("Calculation attempted without equipment data")
         notification = create_error_notification(
             "Missing Data",
             "No equipment library data available. Please refresh the page.",
@@ -837,68 +832,19 @@ def run_loads_to_site(
         return no_update, [notification]
 
     if not selected_scenarios:
-        logger.warning("Calculation attempted without equipment scenarios")
         notification = create_warning_notification(
             "No Scenarios Selected", "Please select at least one equipment scenario."
         )
         return no_update, [notification]
 
-    # --- Main calculation with error handling ---
-    try:
-        logger.info(
-            f"Starting site energy calculation for following eq scenarios {selected_scenarios}"
-        )
-
-        folder = Path(f"/tmp/{session_data['session_id']}")
-        folder.mkdir(parents=True, exist_ok=True)
-
-        metadata = Metadata(**metadata_json)
-        equipment = EquipmentLibrary(**equipment_json)
-
-        load_data = get_load_data(metadata)
-
-        site_energy = loads_to_site_energy(
-            load_data,
-            equipment,
-            scenario_ids=selected_scenarios,
-            detail=True,
-        )
-
-        site_path = folder / "site_energy.pkl"
-        site_energy.to_pickle(site_path)
-        logger.info(f"Saved site energy to: {site_path}")
-
-        return str(site_path), no_update
-
-    except ValueError as e:
-        logger.error(f"Calculation validation error: {e}")
-        notification = create_error_notification(
-            "Calculation Error",
-            str(e),  # ValueError messages from energy.py
-        )
-        return no_update, [notification]
-
-    except FileNotFoundError as e:
-        logger.error(f"Load data file not found: {e}")
-        notification = create_error_notification(
-            "Data Not Found",
-            "Could not find load data for this building. Please re-select on Loads page.",
-        )
-        return no_update, [notification]
-
-    except Exception as e:
-        logger.exception(f"Unexpected calculation error: {e}")
-        notification = create_error_notification(
-            "Unexpected Error",
-            "Calculation failed. Please make sure have a selected a load dataset and at least one equipment and emission scenario.",
-        )
-        return no_update, [notification]
+    return URLS.RESULTS.value, no_update
 
 
 @callback(
     Output("source-energy-store", "children"),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
     Output("results-ready-store", "data"),
+    Output("nav-location", "pathname", allow_duplicate=True),
     Input("site-energy-store", "data"),
     State("metadata-store", "data"),
     State("selected-emissions-store", "data"),
@@ -913,7 +859,7 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
         notification = create_warning_notification(
             "No Emission Scenarios", "Please select at least one emission scenario."
         )
-        return no_update, [notification], no_update
+        return no_update, [notification], no_update, no_update
 
     try:
         logger.info(
@@ -947,19 +893,24 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
             "Source emissions calculation finished successfully.",
         )
 
-        return dcc.Store(id="source-energy-store", data=str(source_path)), [success], True
+        return (
+            dcc.Store(id="source-energy-store", data=str(source_path)),
+            [success],
+            True,
+            URLS.RESULTS.value,
+        )
 
     except ValueError as e:
         logger.error(f"Emissions calculation error: {e}")
         notification = create_error_notification("Calculation Error", str(e))
-        return no_update, [notification], no_update
+        return no_update, [notification], no_update, no_update
 
     except Exception as e:
         logger.exception(f"Unexpected emissions error: {e}")
         notification = create_error_notification(
             "Unexpected Error", "Emissions calculation failed."
         )
-        return no_update, [notification], no_update
+        return no_update, [notification], no_update, no_update
 
 
 @callback(
