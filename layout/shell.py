@@ -72,6 +72,7 @@ def build_shell(page_content):
         dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
         dcc.Store(id="results-ready-store", storage_type="session", data=False),
+        dcc.Store(id="results-calculating-store", storage_type="memory", data=False),
         dcc.Download(id="download-data"),
     ]
 

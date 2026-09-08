@@ -377,9 +377,10 @@ def _build_summary_payload(load_obj: "StandardLoad") -> dict:
     State("building-radio-group", "value"),
     State("metadata-store", "data"),
     State("session-store", "data"),
+    State("location-input", "value"),
     prevent_initial_call=True,
 )
-def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
+def confirm_selection(n_clicks, current_choice, metadata_data, session_data, selected_zip):
     """
     Handle library selection confirm.
     - For simulated data: proceed directly (update metadata, close modal)
@@ -418,6 +419,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     metadata_updates = {}
     load_updates = {}
 
+    location_explicit = bool(selected_zip)
+    location_fields = {"location", "ashrae_climate_zone"}
+
     for key, value in building.items():
         if key == "building_id":
             continue
@@ -429,6 +433,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         if key in load_fields:
             load_updates[key] = value
         elif key in meta_fields and key != "load_data":
+            if location_explicit and key in location_fields:
+                continue  # preserve explicit location selection
             metadata_updates[key] = value
 
     # type fixes
@@ -453,10 +459,32 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         {**metadata.load_data.model_dump(), **load_updates}
     )
 
-    # gea grid region
-    region = building.get("gea_grid_region")
-    if region:
-        metadata.set_gea_grid_region_for_all(region)
+    # gea grid region + climate zone output: infer from building metadata if no explicit location
+    if not location_explicit:
+        # Prefer pre-computed column in building metadata over city-based lookup
+        region = building.get("gea_grid_region")
+        if not region:
+            # Fallback: look up from locations.csv by city, preferring CA entries
+            building_city = building.get("location")
+            if building_city:
+                locs = get_locations_df()
+                all_matches = locs.loc[locs["city"] == building_city][
+                    ["state_id", "gea_grid_region", "ASHRAE", "ca_climate"]
+                ].drop_duplicates(subset=["state_id"])
+                ca_matches = all_matches[all_matches["state_id"] == "CA"]
+                loc_row = (
+                    ca_matches.iloc[0]
+                    if not ca_matches.empty
+                    else (all_matches.iloc[0] if not all_matches.empty else None)
+                )
+                if loc_row is not None:
+                    region = loc_row["gea_grid_region"]
+
+        if region:
+            metadata.set_gea_grid_region_for_all(region)
+            if metadata.climate_zone_output is None:
+                metadata.climate_zone_output = metadata.ashrae_climate_zone
+            logger.info(f"Inferred grid region from load: {building.get('location')} → {region}")
 
     # optional: path column in buildings_df
     if building.get("load_file_path"):

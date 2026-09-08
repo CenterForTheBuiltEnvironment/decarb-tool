@@ -104,11 +104,11 @@ def select_location():
     return html.Div(
         [
             dbc.Label(
-                "Building Location",
+                "Building Location (optional)",
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.P(
-                "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
+                "Recommended. If skipped, location is inferred from the selected load. Sets ASHRAE climate zone and grid region for emissions."
             ),
             dcc.Dropdown(
                 id="location-input",

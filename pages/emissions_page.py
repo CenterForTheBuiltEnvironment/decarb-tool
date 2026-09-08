@@ -828,6 +828,15 @@ def run_loads_to_site(
         )
         return no_update, [notification]
 
+    metadata = Metadata(**metadata_json)
+    if not metadata.base_gea_grid_region:
+        logger.warning("Calculation attempted without grid region")
+        notification = create_warning_notification(
+            "Missing Grid Region",
+            "Could not determine grid region. Please select a location or choose a load with a known city.",
+        )
+        return no_update, [notification]
+
     if not equipment_json:
         logger.warning("Calculation attempted without equipment data")
         notification = create_error_notification(
@@ -852,7 +861,6 @@ def run_loads_to_site(
         folder = Path(f"/tmp/{session_data['session_id']}")
         folder.mkdir(parents=True, exist_ok=True)
 
-        metadata = Metadata(**metadata_json)
         equipment = EquipmentLibrary(**equipment_json)
 
         load_data = get_load_data(metadata)
