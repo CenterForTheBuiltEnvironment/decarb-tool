@@ -27,6 +27,10 @@ TOOLTIPS = {
     "loads": {
         "specify_equipment_button": "Specify equipment configurations for this load scenario.",
     },
+    # --- Results Page ---
+    "results": {
+        "download_button": "Run the calculation first to enable the download.",
+    },
     # --- Equipment Page ---
     "equipment": {
         "add_eq_scenario": "Create a new equipment configuration based on an existing scenario.",
