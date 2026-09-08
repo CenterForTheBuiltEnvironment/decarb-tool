@@ -120,10 +120,10 @@ def layout():
                                         id="emissions-view-mode",
                                         data=[
                                             {"label": "Simple", "value": "simple"},
-                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Detailed", "value": "advanced"},
                                             {"label": "Differences", "value": "differences"},
                                         ],
-                                        value="simple",
+                                        value="differences",
                                         size="sm",
                                     ),
                                 ],
@@ -194,7 +194,7 @@ def update_emissions_table(metadata_data, selected_emissions, view_mode, unit_mo
     return build_emissions_table(
         scenarios,
         active_ids=active_ids,
-        view_mode=view_mode or "simple",
+        view_mode=view_mode or "differences",
         unit_mode=unit_mode or "SI",
     )
 
