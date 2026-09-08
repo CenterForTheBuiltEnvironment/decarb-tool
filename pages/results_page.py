@@ -293,9 +293,21 @@ def show_download_notification(n_clicks, unit_mode):
     Input("download-button", "n_clicks"),
     State("session-store", "data"),
     State("unit-toggle", "value"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    State("selected-emissions-store", "data"),
     prevent_initial_call=True,
 )
-def download_results(n_clicks, session_data, unit_mode):
+def download_results(
+    n_clicks,
+    session_data,
+    unit_mode,
+    metadata_json,
+    equipment_json,
+    selected_eq_ids,
+    selected_em_ids,
+):
     """Download the entire results dataframe as a .csv file with unit conversion."""
     import numpy as np
 
@@ -354,9 +366,41 @@ def download_results(n_clicks, session_data, unit_mode):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"results_{timestamp}.csv", csv_string)
+        _add_metadata_files(
+            zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+        )
 
     buf.seek(0)
     return dcc.send_bytes(buf.getvalue(), f"results_{timestamp}.zip")
+
+
+def _add_metadata_files(
+    zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+):
+    import json as _json
+
+    from src.equipment import EquipmentLibrary
+    from src.export import build_metadata_summary, build_settings_bundle
+    from src.metadata import Metadata
+
+    if not metadata_json or not equipment_json:
+        return
+
+    try:
+        metadata = Metadata(**metadata_json)
+        equipment_library = EquipmentLibrary(**equipment_json)
+        selected_eq = list(selected_eq_ids) if selected_eq_ids else []
+        selected_em = list(selected_em_ids) if selected_em_ids else []
+
+        summary = build_metadata_summary(
+            metadata, equipment_library, selected_eq, selected_em, unit_mode
+        )
+        zf.writestr("settings_summary.txt", summary)
+
+        bundle = build_settings_bundle(metadata, equipment_library, selected_eq, selected_em)
+        zf.writestr("settings.json", _json.dumps(bundle, indent=2, default=str))
+    except Exception:
+        pass  # never block the download for a metadata failure
 
 
 @callback(
