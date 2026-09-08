@@ -18,7 +18,7 @@ from layout.input import (
     build_completeness_modal,
     build_completeness_summary,
     build_scale_load_modal,
-    get_load_index,  # slider min/max values in base SI units (lazy-loaded)
+    get_load_index,
     modal_load_data_selection,
     select_load_type,
     select_location,
@@ -75,8 +75,6 @@ def layout():
                             icon="basil:book-open-outline",
                             href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
                         ),
-                        html.Hr(),
-                        select_location(),
                         html.Hr(),
                         select_load_type(),
                         modal_load_data_selection(buildings_df=get_buildings_df()),
@@ -143,6 +141,8 @@ def layout():
                                 ),
                             ],
                         ),
+                        html.Hr(),
+                        select_location(),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -1615,7 +1615,11 @@ def update_scale_preview(method, target_value, metadata_data, unit_mode):
             target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
 
         if not ref_si or ref_si <= 0:
-            return "", label, f"Reference value for '{method}' not available in library data."
+            return (
+                "",
+                label,
+                f"Reference value for '{method}' not available in library data.",
+            )
 
         scale_factor = target_si / ref_si
         if scale_factor <= 0:
@@ -1995,9 +1999,11 @@ def apply_base_load(n_clicks, method, apply_to, value, metadata_data, load_data_
 
     summary_payload = _build_summary_payload(modified_load)
 
-    apply_to_label = {"heating": "heating", "cooling": "cooling", "both": "heating + cooling"}[
-        apply_to
-    ]
+    apply_to_label = {
+        "heating": "heating",
+        "cooling": "cooling",
+        "both": "heating + cooling",
+    }[apply_to]
     method_label = "floor" if method == "floor" else "offset"
     value_display = f"{value:,.0f} BTU/h" if unit_mode == "IP" else f"{value:.1f} kW"
 
