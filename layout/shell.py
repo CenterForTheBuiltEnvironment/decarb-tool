@@ -14,6 +14,7 @@ from src import paths
 from src.config import DEFAULT_SELECTIONS, LINKS
 from src.equipment import load_library  # adjust if path differs
 from utils.display_registry import format_emission_scenario_id_short
+from utils.tooltips import with_tooltip
 
 
 @lru_cache(maxsize=1)
@@ -70,6 +71,7 @@ def build_shell(page_content):
         # Scenario group selections (persisted across page navigation)
         dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
+        dcc.Store(id="results-ready-store", storage_type="session", data=False),
         dcc.Download(id="download-data"),
     ]
 
@@ -178,15 +180,21 @@ def build_navbar_content():
             dmc.Stack(page_links, gap="sm"),
             dmc.Divider(),
             unit_toggle(),
-            dmc.Button(
-                "Download data",
-                rightSection=DashIconify(icon="material-symbols-light:download", width=18),
-                variant="outline",
-                color="blue",
-                styles={"root": {"borderColor": "var(--mantine-color-gray-3)"}},
-                id="download-button",
-                n_clicks=0,
-                size="xs",
+            with_tooltip(
+                dmc.Button(
+                    "Download data",
+                    rightSection=DashIconify(icon="material-symbols-light:download", width=18),
+                    variant="outline",
+                    color="blue",
+                    styles={"root": {"borderColor": "var(--mantine-color-gray-3)"}},
+                    id="download-button",
+                    n_clicks=0,
+                    size="xs",
+                    disabled=True,
+                ),
+                "results.download_button",
+                id="download-tooltip",
+                position="right",
             ),
             dmc.Divider(),
             legend_toggle(),
@@ -340,3 +348,13 @@ def update_equipment_number_map(selected_ids):
     if not selected_ids:
         return {}
     return {scen_id: i + 1 for i, scen_id in enumerate(selected_ids)}
+
+
+@callback(
+    Output("download-button", "disabled"),
+    Output("download-tooltip", "disabled"),
+    Input("results-ready-store", "data"),
+)
+def toggle_download_button(results_ready):
+    has_results = bool(results_ready)
+    return not has_results, has_results

@@ -898,6 +898,7 @@ def run_loads_to_site(
 @callback(
     Output("source-energy-store", "children"),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Output("results-ready-store", "data"),
     Input("site-energy-store", "data"),
     State("metadata-store", "data"),
     State("selected-emissions-store", "data"),
@@ -912,7 +913,7 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
         notification = create_warning_notification(
             "No Emission Scenarios", "Please select at least one emission scenario."
         )
-        return no_update, [notification]
+        return no_update, [notification], no_update
 
     try:
         logger.info(
@@ -946,19 +947,19 @@ def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, s
             "Source emissions calculation finished successfully.",
         )
 
-        return dcc.Store(id="source-energy-store", data=str(source_path)), [success]
+        return dcc.Store(id="source-energy-store", data=str(source_path)), [success], True
 
     except ValueError as e:
         logger.error(f"Emissions calculation error: {e}")
         notification = create_error_notification("Calculation Error", str(e))
-        return no_update, [notification]
+        return no_update, [notification], no_update
 
     except Exception as e:
         logger.exception(f"Unexpected emissions error: {e}")
         notification = create_error_notification(
             "Unexpected Error", "Emissions calculation failed."
         )
-        return no_update, [notification]
+        return no_update, [notification], no_update
 
 
 @callback(
