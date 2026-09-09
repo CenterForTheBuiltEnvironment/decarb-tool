@@ -58,7 +58,7 @@ def legend_toggle():
         id="legend-toggle",
         label="Show Scenario Legend",
         size="sm",
-        checked=False,
+        checked=True,
     )
 
 
@@ -104,11 +104,23 @@ def select_location():
     return html.Div(
         [
             dbc.Label(
-                "Building Location",
+                [
+                    "Building Location ",
+                    html.Span(
+                        "(OPTIONAL)",
+                        style={
+                            "fontSize": "0.75em",
+                            "color": "#6c757d",
+                            "fontWeight": "normal",
+                            "marginLeft": "5px",
+                        },
+                    ),
+                ],
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
+            html.Br(),
             html.P(
-                "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
+                "Overwrites GEA grid region for emissions. If skipped, information is inferred from the selected load data."
             ),
             dcc.Dropdown(
                 id="location-input",
@@ -129,7 +141,7 @@ def select_load_type():
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
-            html.P("Select the type of load data you want to use for analysis."),
+            html.P("Select the load dataset you want to use for analysis."),
             dbc.Accordion(
                 [
                     dbc.AccordionItem(
@@ -172,7 +184,13 @@ def select_load_type():
     )
 
 
-def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"):
+def build_building_table(
+    buildings_data,
+    selected_id=None,
+    unit_mode: str = "SI",
+    sort_col: str = "building_id",
+    sort_dir: str = "asc",
+):
     """
     Build a table from a DataFrame with predefined columns.
     Only displays columns that exist in the data.
@@ -267,15 +285,33 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
 
         body_rows.append(dmc.TableTr(cells))
 
-    # Build header (use normal case, not uppercase)
-    header_style = {"textTransform": "none", "fontWeight": 500}
-    header_cells = [dmc.TableTh("", style=header_style)]  # radio column
-    header_cells.extend(
-        [
-            dmc.TableTh(get_header_label(col, label), style=header_style)
-            for col, label in available_columns
-        ]
-    )
+    # Build header with clickable sort indicators
+    def make_sort_header(col_name, label):
+        is_active = col_name == sort_col
+        if is_active:
+            icon = "mdi:arrow-up" if sort_dir == "asc" else "mdi:arrow-down"
+            icon_color = "blue"
+        else:
+            icon = "mdi:unfold-more-horizontal"
+            icon_color = "gray"
+        return dmc.TableTh(
+            dmc.UnstyledButton(
+                dmc.Group(
+                    [
+                        dmc.Text(get_header_label(col_name, label), size="sm", fw=500),
+                        DashIconify(icon=icon, width=14, color=icon_color),
+                    ],
+                    gap=4,
+                    wrap="nowrap",
+                ),
+                id={"type": "building-sort-th", "col": col_name},
+                style={"cursor": "pointer", "userSelect": "none", "width": "100%"},
+            ),
+            style={"textTransform": "none"},
+        )
+
+    header_cells = [dmc.TableTh("", style={"textTransform": "none"})]  # radio column
+    header_cells.extend([make_sort_header(col, label) for col, label in available_columns])
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -314,16 +350,33 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
     return dmc.Modal(
         title="Load Data Library",
         children=[
-            dmc.Text(
-                "Select simulated or measured load data from library.",
-                fw=400,
-                size="sm",
+            dmc.TextInput(
+                id="building-search-input",
+                placeholder="Search by location, building type, climate zone, vintage…",
+                leftSection=DashIconify(icon="mdi:magnify", width=20),
+                debounce=300,
+                size="md",
+                variant="filled",
+                radius="lg",
+                style={"width": "100%"},
+                styles={"input": {"backgroundColor": "rgba(34, 139, 230, 0.06)"}},
             ),
             dmc.Space(h="md"),
             # ------------------ FILTER CONTROLS ----------------------------
-            dmc.Stack(
-                gap="xl",
+            dmc.Paper(
+                withBorder=False,
+                radius="md",
+                p="md",
+                shadow="xs",
                 children=[
+                    dmc.Text(
+                        "Filters",
+                        size="xs",
+                        fw=600,
+                        c="dimmed",
+                        tt="uppercase",
+                        mb="sm",
+                    ),
                     dmc.Group(
                         align="center",
                         justify="space-between",
@@ -436,7 +489,14 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                 ],
             ),
             dmc.Space(h="xl"),
-            # ------------------ TABLE + CONFIRM ----------------------------
+            # ------------------ TABLE + CONFIRM ---------------------------
+            dmc.Text(
+                id="building-table-result-count",
+                children="",
+                size="sm",
+                c="dimmed",
+                mb="xs",
+            ),
             html.Div(
                 id="building-table-container",
                 children=build_building_table(buildings_df, selected_id=None),
@@ -1138,7 +1198,10 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("gea_grid_region", "GEA Grid Region"),
         ("emission_type", "Emission Type"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
+        (
+            "ng_emission_rate_gCO2e_per_kWh",
+            f"Gas emissions rate ({ng_emission_rate_unit})",
+        ),
         ("year", "Year"),
     ]
 

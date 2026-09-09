@@ -111,10 +111,10 @@ def layout():
                                         id="equipment-view-mode",
                                         data=[
                                             {"label": "Simple", "value": "simple"},
-                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Detailed", "value": "advanced"},
                                             {"label": "Differences", "value": "differences"},
                                         ],
-                                        value="simple",
+                                        value="differences",
                                         size="sm",
                                     ),
                                 ],
@@ -197,7 +197,7 @@ def update_equipment_table(
         scenarios,
         displayed_ids=displayed_ids,
         active_ids=selected_ids,
-        view_mode=view_mode or "simple",
+        view_mode=view_mode or "differences",
         unit_mode=unit_mode or "SI",
     )
 
