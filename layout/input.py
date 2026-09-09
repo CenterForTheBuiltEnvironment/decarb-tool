@@ -1916,12 +1916,6 @@ def edit_emission_modal():
                     cols=2,
                     spacing="md",
                     children=[
-                        dmc.TextInput(
-                            id="edit-em-time-zone",
-                            label="Time zone",
-                            placeholder="e.g. America/Los_Angeles",
-                            disabled=True,
-                        ),
                         dmc.Select(
                             id="edit-em-emission-type",
                             label="Emission type",
@@ -1930,12 +1924,6 @@ def edit_emission_modal():
                             searchable=False,
                             clearable=False,
                         ),
-                    ],
-                ),
-                dmc.SimpleGrid(
-                    cols=2,
-                    spacing="md",
-                    children=[
                         dmc.Select(
                             id="edit-em-year",
                             label="Year",

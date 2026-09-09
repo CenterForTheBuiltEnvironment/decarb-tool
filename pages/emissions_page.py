@@ -306,7 +306,6 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             "elec_avg_emission_rate_gCO2e_per_kWh": default_elec_avg_emission_rate,
             "grid_scenario": "MidCase",
             "gea_grid_region": None,
-            "time_zone": "America/Los_Angeles",
             "emission_type": default_emission_type,
             "annual_refrig_leakage_percent": default_leakage,
             "ng_emission_rate_gCO2e_per_kWh": default_ng_emission_rate,
@@ -607,7 +606,6 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     Output("edit-em-elec-avg-emission-rate", "value"),
     Output("edit-em-grid-scenario", "value"),
     Output("edit-em-gea-grid-region", "value"),
-    Output("edit-em-time-zone", "value"),
     Output("edit-em-emission-type", "value"),
     Output("edit-em-year", "value"),
     Output("edit-em-refrig-leakage", "value"),
@@ -620,7 +618,7 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
 )
 def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     if not any(edit_clicks or []):
-        return (no_update,) * 13
+        return (no_update,) * 12
 
     if not metadata_data or "emission_settings" not in metadata_data:
         return (
@@ -629,7 +627,6 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             None,
-            "",
             "",
             "",
             "",
@@ -643,7 +640,7 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 13
+        return (no_update,) * 12
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -657,7 +654,6 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             None,
-            "",
             "",
             "",
             "",
@@ -677,7 +673,6 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             None,
-            "",
             "",
             "",
             "",
@@ -723,7 +718,6 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
         elec_avg_emission_rate_display,
         scen.get("grid_scenario", ""),
         scen.get("gea_grid_region", ""),
-        scen.get("time_zone", ""),
         scen.get("emission_type", ""),
         str(scen.get("year")) if scen.get("year") is not None else "",
         refrig_leakage,
@@ -743,7 +737,6 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     State("edit-em-elec-avg-emission-rate", "value"),
     State("edit-em-grid-scenario", "value"),
     State("edit-em-gea-grid-region", "value"),
-    State("edit-em-time-zone", "value"),
     State("edit-em-emission-type", "value"),
     State("edit-em-year", "value"),
     State("edit-em-refrig-leakage", "value"),
@@ -760,7 +753,6 @@ def save_edit_emission(
     elec_avg_emission_rate,
     grid_scenario,
     gea_grid_region,
-    time_zone,
     emission_type,
     year,
     refrig_leakage,
@@ -829,7 +821,6 @@ def save_edit_emission(
             new_scen["elec_avg_emission_rate_gCO2e_per_kWh"] = elec_avg_emission_rate
             new_scen["grid_scenario"] = grid_scenario
             new_scen["gea_grid_region"] = gea_grid_region
-            new_scen["time_zone"] = time_zone
             new_scen["emission_type"] = emission_type
             new_scen["year"] = year
             new_scen["annual_refrig_leakage_percent"] = refrig_leakage

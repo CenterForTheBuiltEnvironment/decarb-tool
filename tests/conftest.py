@@ -58,7 +58,6 @@ def emission_scenario():
         elec_avg_emission_rate_gCO2e_per_kWh=None,
         grid_scenario="MidCase",
         gea_grid_region="CAMX",
-        time_zone="America/Los_Angeles",
         emission_type="Includes pre-combustion",
         annual_refrig_leakage_percent=0.05,
         ng_emission_rate_gCO2e_per_kWh=239.2,

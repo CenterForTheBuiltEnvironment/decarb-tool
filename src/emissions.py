@@ -14,7 +14,6 @@ class EmissionScenario(DotAccessMixin, BaseModel):
     elec_avg_emission_rate_gCO2e_per_kWh: float | None = None
     grid_scenario: str
     gea_grid_region: str | None = None
-    time_zone: str
     emission_type: str
     annual_refrig_leakage_percent: float
     ng_emission_rate_gCO2e_per_kWh: float
@@ -25,7 +24,7 @@ class StandardEmissions:
     """
     Unified interface for emissions data.
     Canonical schema:
-        emission_scenario | gea_grid_region | time_zone | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p | aer_load_co2e_c | aer_load_co2e_p
+        emission_scenario | gea_grid_region | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p | aer_load_co2e_c | aer_load_co2e_p
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -37,7 +36,6 @@ class StandardEmissions:
             "emission_scenario",
             "gea_grid_region",
             "year",
-            "time_zone",
             "timestamp",
             "lrmer_co2e_c",
             "lrmer_co2e_p",
@@ -117,7 +115,6 @@ def get_emissions_data(
             "em_scen_id": scenario.em_scen_id,
             "emission_scenario": scenario.grid_scenario,
             "gea_grid_region": scenario.gea_grid_region,
-            "time_zone": scenario.time_zone,
             "emission_type": scenario.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],
