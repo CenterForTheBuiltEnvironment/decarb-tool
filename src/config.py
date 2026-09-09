@@ -44,12 +44,22 @@ class EquipmentTableRows(Enum):
 class EmissionTableRows(Enum):
     """Row configurations for emission table view modes."""
 
-    SIMPLE = ("grid_scenario", "gea_grid_region", "emission_type", "year")
-    ADVANCED = (
+    SIMPLE = (
+        "em_scen_name",
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
         "grid_scenario",
         "gea_grid_region",
         "emission_type",
-        "shortrun_weighting",
+        "year",
+    )
+    ADVANCED = (
+        "em_scen_name",
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
         "annual_refrig_leakage_percent",
         "ng_emission_rate_gCO2e_per_kWh",
         "year",
@@ -59,6 +69,8 @@ class EmissionTableRows(Enum):
 class EmissionScenarioDefaults(Enum):
     """Default values for emission scenario parameters."""
 
+    ELEC_EMISSION_SOURCE: str = "Marginal (Cambium, Long-run)"
+    ELEC_AVG_EMISSION_RATE_G_KWH: float = None
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
@@ -158,6 +170,9 @@ class Columns(StrEnum):
     SRMER_CO2E_C = "srmer_co2e_c"
     SRMER_CO2E_P = "srmer_co2e_p"
     SRMER_CO2E = "srmer_co2e"
+    AER_LOAD_CO2E_C = "aer_load_co2e_c"
+    AER_LOAD_CO2E_P = "aer_load_co2e_p"
+    AER_LOAD_CO2E = "aer_load_co2e"
     SHORTRUN_WEIGHTING = "shortrun_weighting"
     ELEC_EMISSIONS_RATE_G_PER_KWH = "elec_emissions_rate_gCO2e_per_kWh"
 

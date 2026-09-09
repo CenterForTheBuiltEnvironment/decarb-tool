@@ -100,6 +100,10 @@ def layout():
                                                 "label": "Combustion vs pre-combustion",
                                                 "value": "emission_types",
                                             },
+                                            {
+                                                "label": "Different electricity emission factors",
+                                                "value": "emission_sources",
+                                            },
                                         ],
                                         value=None,
                                         placeholder="Select a scenario group",
@@ -235,6 +239,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     - year: Varies years (2025, 2035, 2045), others reset to defaults
     - refrigerant_leakage: Varies leakage (0.01, 0.05, 0.1), others reset to defaults
     - emission_types: Varies emission type ("Includes pre-combustion" vs "Combustion only"), others reset to defaults
+    - emission_sources: Varies emission source (average and marginal) and associated values, others reset to defaults
     """
     # When dropdown is cleared, clear the stored group to allow re-selecting
     if not group_id:
@@ -257,8 +262,12 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     default_ids = ["em_scenario_a", "em_scenario_b"]
     if group_id != "emission_types":  # only two scenarios for comparing emission types
         default_ids.append("em_scenario_c")
+    if group_id == "emission_sources":  # fourth scenario for comparing emission sources
+        default_ids.append("em_scenario_d")
 
     # Get defaults
+    default_elec_emission_source = EmissionScenarioDefaults.ELEC_EMISSION_SOURCE.value
+    default_elec_avg_emission_rate = EmissionScenarioDefaults.ELEC_AVG_EMISSION_RATE_G_KWH.value
     default_year = EmissionScenarioDefaults.YEAR.value
     default_leakage = EmissionScenarioDefaults.REFRIGERANT_LEAKAGE.value
     default_emission_type = EmissionScenarioDefaults.EMISSION_TYPE.value
@@ -272,24 +281,37 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         EmissionScenarioDefaults.NG_EMISSION_RATE_G_KWH_COMBUSTION.value,
         default_ng_emission_rate,
     ]
+    elec_emission_source_values = [
+        "Average (Cambium)",
+        "Constant (User-provided)",
+        "Marginal (Cambium, Long-run)",
+        "Marginal (Cambium, Short-run)",
+    ]
+    elec_avg_emission_rate_values = [None, 0, None, None]
+    emission_sources_names = [
+        "Cambium Average Emissions",
+        "Constant (Zero) Emissions",
+        "Long-run Marginal Emissions",
+        "Short-run Marginal Emissions",
+    ]
 
     # Create base scenario template from first existing scenario or defaults
     base_scenario = (
         existing_scenarios[0].copy()
         if existing_scenarios
         else {
+            "elec_emission_source": default_elec_emission_source,
+            "elec_avg_emission_rate_gCO2e_per_kWh": default_elec_avg_emission_rate,
             "grid_scenario": "MidCase",
             "gea_grid_region": None,
-            "time_zone": "America/Los_Angeles",
             "emission_type": default_emission_type,
-            "shortrun_weighting": 0,
             "annual_refrig_leakage_percent": default_leakage,
             "ng_emission_rate_gCO2e_per_kWh": default_ng_emission_rate,
             "year": default_year,
         }
     )
 
-    # Reset to default 2/3 scenarios (a, b, optionally c) with group-specific values
+    # Reset to default 2/3/4 scenarios (a, b, optionally c & d) with group-specific values
     updated_scenarios = []
     for idx, scen_id in enumerate(default_ids):
         scen = {**base_scenario, "em_scen_id": scen_id, "em_scen_name": ""}
@@ -297,27 +319,53 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
         if group_id == "year":
             # Vary year, reset others to defaults
             scen["year"] = year_values[idx % len(year_values)]
+            scen["em_scen_name"] = str(scen["year"])
+
             scen["annual_refrig_leakage_percent"] = default_leakage
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            scen["em_scen_name"] = str(scen["year"])
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
         elif group_id == "refrigerant_leakage":
             # Vary leakage, reset others to defaults
             scen["annual_refrig_leakage_percent"] = leakage_values[idx % len(leakage_values)]
+            pct_leakage = scen["annual_refrig_leakage_percent"] * 100
+            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
+
             scen["year"] = default_year
             scen["emission_type"] = default_emission_type
             scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
-            pct_leakage = scen["annual_refrig_leakage_percent"] * 100
-            scen["em_scen_name"] = f"{pct_leakage:.0f}% leakage"
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
         elif group_id == "emission_types":
             # Set emission type, reset others to defaults
             scen["emission_type"] = emission_types[idx % len(emission_types)]
             scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate_values[
                 idx % len(ng_emission_rate_values)
             ]
+            scen["em_scen_name"] = scen["emission_type"]
+
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
-            scen["em_scen_name"] = scen["emission_type"]
+            scen["elec_emission_source"] = default_elec_emission_source
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = default_elec_avg_emission_rate
+        elif group_id == "emission_sources":
+            # Vary source, avg emissions rate, and short-run weighting, reset others to defaults
+            scen["elec_emission_source"] = elec_emission_source_values[
+                idx % len(elec_emission_source_values)
+            ]
+            scen["elec_avg_emission_rate_gCO2e_per_kWh"] = elec_avg_emission_rate_values[
+                idx % len(elec_avg_emission_rate_values)
+            ]
+            scen["em_scen_name"] = emission_sources_names[idx % len(emission_sources_names)]
+            if scen["elec_emission_source"] == "Constant (User-provided)":
+                scen["grid_scenario"] = None
+                scen["gea_grid_region"] = None
+
+            scen["year"] = default_year
+            scen["annual_refrig_leakage_percent"] = default_leakage
+            scen["emission_type"] = default_emission_type
+            scen["ng_emission_rate_gCO2e_per_kWh"] = default_ng_emission_rate
 
         updated_scenarios.append(scen)
 
@@ -555,11 +603,11 @@ def remove_emission_scenario(remove_clicks, metadata_data, selected_em_ids):
     Output("emissions-edit-modal", "opened"),
     Output("edit-em-scenario-id-input", "value"),
     Output("edit-em-scenario-name-input", "value"),
+    Output("edit-em-elec-source", "value"),
+    Output("edit-em-elec-avg-emission-rate", "value"),
     Output("edit-em-grid-scenario", "value"),
     Output("edit-em-gea-grid-region", "value"),
-    Output("edit-em-time-zone", "value"),
     Output("edit-em-emission-type", "value"),
-    Output("edit-em-shortrun-weighting", "value"),
     Output("edit-em-year", "value"),
     Output("edit-em-refrig-leakage", "value"),
     Output("edit-em-ng-emission-rate", "value"),
@@ -579,10 +627,10 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             "",
-            "",
-            "",
-            "",
             None,
+            "",
+            "",
+            "",
             None,
             None,
             None,
@@ -606,10 +654,10 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             "",
-            "",
-            "",
-            "",
             None,
+            "",
+            "",
+            "",
             None,
             None,
             None,
@@ -625,44 +673,53 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
             "",
             "",
             "",
-            "",
-            "",
-            "",
             None,
+            "",
+            "",
+            "",
             None,
             None,
             None,
             f"Scenario {em_scen_id!r} not found.",
         )
 
-    # Convert NG emissions rate for display based on unit mode
+    # Convert emissions rates for display based on unit mode
+    from utils.units import get_converter
+
     ng_emission_rate_base = scen.get("ng_emission_rate_gCO2e_per_kWh")
     if ng_emission_rate_base is not None and unit_mode == "IP":
-        from utils.units import get_unit_converter
-
-        ng_converter = get_unit_converter("emissions_rate", "IP")
+        ng_converter = get_converter("gas_emission_factor", "IP")
         ng_emission_rate_display = ng_converter(float(ng_emission_rate_base))
     else:
         ng_emission_rate_display = ng_emission_rate_base
+
+    elec_avg_emission_rate_base = scen.get("elec_avg_emission_rate_gCO2e_per_kWh")
+    if elec_avg_emission_rate_base is not None and unit_mode == "IP":
+        elec_converter = get_converter("emissions_rate", "IP")
+        elec_avg_emission_rate_display = elec_converter(float(elec_avg_emission_rate_base))
+    else:
+        elec_avg_emission_rate_display = elec_avg_emission_rate_base
 
     # Round refrigerant leakage to 2 decimal places for display
     refrig_leakage = scen.get("annual_refrig_leakage_percent")
     if refrig_leakage is not None:
         refrig_leakage = round(float(refrig_leakage), 2)
 
-    # Round NG emission rate display to 2 decimal places
+    # Round emission rate display to 2 decimal places
     if ng_emission_rate_display is not None:
         ng_emission_rate_display = round(float(ng_emission_rate_display), 2)
+    if elec_avg_emission_rate_display is not None:
+        elec_avg_emission_rate_display = round(float(elec_avg_emission_rate_display), 2)
 
     return (
         True,
         scen.get("em_scen_id"),
         scen.get("em_scen_name", ""),
+        scen.get("elec_emission_source", ""),
+        elec_avg_emission_rate_display,
         scen.get("grid_scenario", ""),
         scen.get("gea_grid_region", ""),
-        scen.get("time_zone", ""),
         scen.get("emission_type", ""),
-        scen.get("shortrun_weighting"),
         str(scen.get("year")) if scen.get("year") is not None else "",
         refrig_leakage,
         ng_emission_rate_display,
@@ -677,11 +734,11 @@ def open_edit_emission_modal(edit_clicks, metadata_data, unit_mode):
     Input("edit-em-scenario-save-btn", "n_clicks"),
     State("edit-em-scenario-id-input", "value"),
     State("edit-em-scenario-name-input", "value"),
+    State("edit-em-elec-source", "value"),
+    State("edit-em-elec-avg-emission-rate", "value"),
     State("edit-em-grid-scenario", "value"),
     State("edit-em-gea-grid-region", "value"),
-    State("edit-em-time-zone", "value"),
     State("edit-em-emission-type", "value"),
-    State("edit-em-shortrun-weighting", "value"),
     State("edit-em-year", "value"),
     State("edit-em-refrig-leakage", "value"),
     State("edit-em-ng-emission-rate", "value"),
@@ -693,11 +750,11 @@ def save_edit_emission(
     n_clicks,
     scen_id,
     scen_name,
+    elec_emission_source,
+    elec_avg_emission_rate,
     grid_scenario,
     gea_grid_region,
-    time_zone,
     emission_type,
-    shortrun_weighting,
     year,
     refrig_leakage,
     ng_emission_rate,
@@ -715,11 +772,6 @@ def save_edit_emission(
 
     # basic type cleaning
     try:
-        shortrun_weighting = float(shortrun_weighting) if shortrun_weighting is not None else 0.0
-    except (TypeError, ValueError):
-        shortrun_weighting = 0.0
-
-    try:
         year = int(year) if year is not None and year != "" else 2025
     except (TypeError, ValueError):
         year = 2025
@@ -734,6 +786,14 @@ def save_edit_emission(
     except (TypeError, ValueError):
         ng_emission_rate = 0.0
 
+    try:
+        elec_avg_emission_rate = (
+            float(elec_avg_emission_rate) if elec_avg_emission_rate is not None else None
+        )
+    except (TypeError, ValueError):
+        elec_avg_emission_rate = None
+    # default avg emission rate is None to generate an error if calculation is run without a valid input
+
     # Convert NG emissions rate back to base units (g/kWh) if in IP mode
     unit_mode = unit_mode or "SI"
     if unit_mode == "IP" and ng_emission_rate > 0:
@@ -743,6 +803,13 @@ def save_edit_emission(
         # g/kWh = (lb/kBTU) / (g_to_lb / Wh_to_BTU)
         ng_emission_rate = ng_emission_rate / (g_to_lb / Wh_to_BTU)
 
+    if unit_mode == "IP" and elec_avg_emission_rate is not None:
+        from utils.units import g_to_lb
+
+        # IP unit is lb/kWh, convert back to g/kWh
+        # g/kWh = (lb/kWh) / (g_to_lb)
+        elec_avg_emission_rate = elec_avg_emission_rate / (g_to_lb)
+
     scenarios = metadata_data.get("emission_settings", [])
     updated = False
     new_scenarios = []
@@ -751,11 +818,11 @@ def save_edit_emission(
         if scen.get("em_scen_id") == scen_id:
             new_scen = scen.copy()
             new_scen["em_scen_name"] = scen_name or scen.get("em_scen_name", "")
+            new_scen["elec_emission_source"] = elec_emission_source
+            new_scen["elec_avg_emission_rate_gCO2e_per_kWh"] = elec_avg_emission_rate
             new_scen["grid_scenario"] = grid_scenario
             new_scen["gea_grid_region"] = gea_grid_region
-            new_scen["time_zone"] = time_zone
             new_scen["emission_type"] = emission_type
-            new_scen["shortrun_weighting"] = shortrun_weighting
             new_scen["year"] = year
             new_scen["annual_refrig_leakage_percent"] = refrig_leakage
             new_scen["ng_emission_rate_gCO2e_per_kWh"] = ng_emission_rate
@@ -786,15 +853,18 @@ def cancel_edit_emission_modal(n_clicks):
 
 @callback(
     Output("edit-em-ng-emission-rate-label", "children"),
+    Output("edit-em-elec-emission-rate-label", "children"),
     Input("unit-toggle", "value"),
 )
-def update_ng_emissions_rate_label(unit_mode):
-    """Update NG emissions rate label based on unit mode."""
-    from utils.units import get_unit_label
+def update_emissions_rate_label(unit_mode):
+    """Update NG/elec emissions rate label based on unit mode."""
+    from utils.units import get_display_unit
 
     unit_mode = unit_mode or "SI"
-    ng_unit = get_unit_label("emissions_rate", unit_mode)
-    return f"Gas emissions rate ({ng_unit})"
+    ng_unit = get_display_unit("gas_emission_factor", unit_mode)
+    elec_unit = get_display_unit("emissions_rate", unit_mode)
+
+    return f"Gas emissions rate ({ng_unit})", f"Constant grid emissions rate ({elec_unit})"
 
 
 @callback(
@@ -936,3 +1006,26 @@ def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
         )
 
     return ng_emission_rate
+
+
+@callback(
+    Output("edit-em-elec-avg-emission-rate", "disabled"),
+    Output("edit-em-grid-scenario", "value", allow_duplicate=True),
+    Output("edit-em-gea-grid-region", "value", allow_duplicate=True),
+    Input("edit-em-elec-source", "value"),
+    State("edit-em-grid-scenario", "value"),
+    State("edit-em-gea-grid-region", "value"),
+    prevent_initial_call=True,
+)
+def update_emission_inputs_on_source_change(emission_source, grid_scenario, grid_region):
+    """Update emissions inputs when emission source changes to fixed user-provided value."""
+
+    # disable average emissions rate input
+    disable_avg = emission_source != "Constant (User-provided)"
+
+    # blank out cambium-related inputs
+    if not disable_avg:
+        grid_scenario = None
+        grid_region = None
+
+    return disable_avg, grid_scenario, grid_region
