@@ -291,10 +291,10 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     ]
     elec_avg_emission_rate_values = [None, 0, None, None]
     emission_sources_names = [
-        "Average Emissions (Cambium)",
-        "Average Emissions (Zero)",
-        "Marginal Emissions (Cambium Long-run)",
-        "Marginal Emissions (Cambium Short-run)",
+        "Cambium Average Emissions",
+        "Zero Emissions",
+        "Long-run Marginal Emissions",
+        "Short-run Marginal Emissions",
     ]
 
     # Create base scenario template from first existing scenario or defaults

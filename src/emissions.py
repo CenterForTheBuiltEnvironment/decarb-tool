@@ -25,7 +25,7 @@ class StandardEmissions:
     """
     Unified interface for emissions data.
     Canonical schema:
-        emission_scenario | gea_grid_region | time_zone | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p
+        emission_scenario | gea_grid_region | time_zone | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p | aer_load_co2e_c | aer_load_co2e_p
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -43,6 +43,8 @@ class StandardEmissions:
             "lrmer_co2e_p",
             "srmer_co2e_c",
             "srmer_co2e_p",
+            "aer_load_co2e_c",
+            "aer_load_co2e_p",
         ]
         missing = [c for c in required if c not in df.columns]
         if missing:
@@ -55,7 +57,14 @@ class StandardEmissions:
         df = df.sort_values("timestamp").set_index("timestamp")
 
         # enforce numeric
-        for col in ["lrmer_co2e_c", "lrmer_co2e_p", "srmer_co2e_c", "srmer_co2e_p"]:
+        for col in [
+            "lrmer_co2e_c",
+            "lrmer_co2e_p",
+            "srmer_co2e_c",
+            "srmer_co2e_p",
+            "aer_load_co2e_c",
+            "aer_load_co2e_p",
+        ]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             if df[col].isnull().any():
                 raise ValueError(f"Invalid numeric values in column {col}")
@@ -118,6 +127,9 @@ def get_emissions_data(
             "srmer_co2e_c": df["srmer_co2e_c"],
             "srmer_co2e_p": df["srmer_co2e_p"],
             "srmer_co2e": df["srmer_co2e"],
+            "aer_load_co2e_c": df["aer_load_co2e_c"],
+            "aer_load_co2e_p": df["aer_load_co2e_p"],
+            "aer_load_co2e": df["aer_load_co2e"],
         }
     )
 

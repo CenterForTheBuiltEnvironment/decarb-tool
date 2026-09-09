@@ -1164,61 +1164,89 @@ def site_to_source(
         if em_scen.elec_emission_source in [
             "Marginal (Cambium, Long-run)",
             "Marginal (Cambium, Short-run)",
+            "Average (Cambium)",
         ]:
             emissions_data = get_emissions_data(metadata[em_scen_id])
             logger.debug(
-                f"Marginal grid emissions: Loaded {len(emissions_data.df)} emission data rows"
+                f"Cambium grid emissions: Loaded {len(emissions_data.df)} emission data rows"
             )
-
-            if em_scen.elec_emission_source == "Marginal (Cambium, Long-run)":
-                shortrun_weighting = 0
-            elif em_scen.elec_emission_source == "Marginal (Cambium, Short-run)":
-                shortrun_weighting = 1
 
             # collapse emissions to month-hour averages
             emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
             emissions_data.df[Col.HOUR.value] = emissions_data.df.index.hour
-            emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
             group_cols = [Col.MONTH.value, Col.HOUR.value]
 
-            # all rates are in gCO2e/kWh
-            if em_scen.emission_type == "Combustion only":
-                emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-                    emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
-                ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
-            elif em_scen.emission_type == "Includes pre-combustion":
-                emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
-                    (
-                        emissions_data.df[Col.LRMER_CO2E_C.value]
-                        + emissions_data.df[Col.LRMER_CO2E_P.value]
+            if em_scen.elec_emission_source == "Average (Cambium)":
+                # all rates are in gCO2e/kWh
+                if em_scen.emission_type == "Combustion only":
+                    emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = emissions_data.df[
+                        Col.AER_LOAD_CO2E_C.value
+                    ]
+                elif em_scen.emission_type == "Includes pre-combustion":
+                    emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+                        emissions_data.df[Col.AER_LOAD_CO2E_C.value]
+                        + emissions_data.df[Col.AER_LOAD_CO2E_P.value]
                     )
-                    * (1 - shortrun_weighting)
-                ) + (
-                    (
-                        emissions_data.df[Col.SRMER_CO2E_C.value]
-                        + emissions_data.df[Col.SRMER_CO2E_P.value]
-                    )
-                    * shortrun_weighting
+                else:
+                    raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
+
+                df_em = (
+                    emissions_data.df.groupby(group_cols)[
+                        [
+                            Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
+                            Col.AER_LOAD_CO2E_C.value,
+                            Col.AER_LOAD_CO2E_P.value,
+                            Col.AER_LOAD_CO2E.value,
+                        ]
+                    ]
+                    .mean()
+                    .reset_index()
                 )
             else:
-                raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
+                if em_scen.elec_emission_source == "Marginal (Cambium, Long-run)":
+                    shortrun_weighting = 0
+                elif em_scen.elec_emission_source == "Marginal (Cambium, Short-run)":
+                    shortrun_weighting = 1
+                emissions_data.df[Col.SHORTRUN_WEIGHTING.value] = shortrun_weighting
 
-            df_em = (
-                emissions_data.df.groupby(group_cols)[
-                    [
-                        Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
-                        Col.LRMER_CO2E_C.value,
-                        Col.LRMER_CO2E_P.value,
-                        Col.LRMER_CO2E.value,
-                        Col.SRMER_CO2E_C.value,
-                        Col.SRMER_CO2E_P.value,
-                        Col.SRMER_CO2E.value,
-                        Col.SHORTRUN_WEIGHTING.value,
+                # all rates are in gCO2e/kWh
+                if em_scen.emission_type == "Combustion only":
+                    emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+                        emissions_data.df[Col.LRMER_CO2E_C.value] * (1 - shortrun_weighting)
+                    ) + (emissions_data.df[Col.SRMER_CO2E_C.value] * shortrun_weighting)
+                elif em_scen.emission_type == "Includes pre-combustion":
+                    emissions_data.df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = (
+                        (
+                            emissions_data.df[Col.LRMER_CO2E_C.value]
+                            + emissions_data.df[Col.LRMER_CO2E_P.value]
+                        )
+                        * (1 - shortrun_weighting)
+                    ) + (
+                        (
+                            emissions_data.df[Col.SRMER_CO2E_C.value]
+                            + emissions_data.df[Col.SRMER_CO2E_P.value]
+                        )
+                        * shortrun_weighting
+                    )
+                else:
+                    raise ValueError(f"Invalid emissions_type: {em_scen.emission_type}")
+
+                df_em = (
+                    emissions_data.df.groupby(group_cols)[
+                        [
+                            Col.ELEC_EMISSIONS_RATE_G_PER_KWH,
+                            Col.LRMER_CO2E_C.value,
+                            Col.LRMER_CO2E_P.value,
+                            Col.LRMER_CO2E.value,
+                            Col.SRMER_CO2E_C.value,
+                            Col.SRMER_CO2E_P.value,
+                            Col.SRMER_CO2E.value,
+                            Col.SHORTRUN_WEIGHTING.value,
+                        ]
                     ]
-                ]
-                .mean()
-                .reset_index()
-            )
+                    .mean()
+                    .reset_index()
+                )
 
             # expand loads with this year's emissions
             merged = base.merge(df_em, on=[Col.MONTH.value, Col.HOUR.value], how="left")
@@ -1235,7 +1263,7 @@ def site_to_source(
         elif em_scen.elec_emission_source == "Average (User-provided)":
             elec_avg_emission_rate = em_scen.elec_avg_emission_rate_gCO2e_per_kWh
             if elec_avg_emission_rate is not None:
-                logger.debug(f"Average grid emissions: {elec_avg_emission_rate} gCO2e/kWh")
+                logger.debug(f"Fixed average grid emissions: {elec_avg_emission_rate} gCO2e/kWh")
 
                 merged = base.copy()
                 merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = float(elec_avg_emission_rate)

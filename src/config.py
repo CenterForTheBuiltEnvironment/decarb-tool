@@ -170,6 +170,9 @@ class Columns(StrEnum):
     SRMER_CO2E_C = "srmer_co2e_c"
     SRMER_CO2E_P = "srmer_co2e_p"
     SRMER_CO2E = "srmer_co2e"
+    AER_LOAD_CO2E_C = "aer_load_co2e_c"
+    AER_LOAD_CO2E_P = "aer_load_co2e_p"
+    AER_LOAD_CO2E = "aer_load_co2e"
     SHORTRUN_WEIGHTING = "shortrun_weighting"
     ELEC_EMISSIONS_RATE_G_PER_KWH = "elec_emissions_rate_gCO2e_per_kWh"
 

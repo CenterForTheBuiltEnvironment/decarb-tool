@@ -298,6 +298,8 @@ COLUMN_CONFIG = {
     "lrmer_co2e_p": ("emissions_rate", "LRMER Pre-combustion"),
     "srmer_co2e_c": ("emissions_rate", "SRMER Combustion"),
     "srmer_co2e_p": ("emissions_rate", "SRMER Pre-combustion"),
+    "aer_load_co2e_c": ("emissions_rate", "AER Load Combustion"),
+    "aer_load_co2e_p": ("emissions_rate", "AER Load Pre-combustion"),
     "ng_emission_rate_gCO2e_per_kWh": ("gas_emission_factor", "Gas Emissions Rate"),
     # === Refrigerant Mass (kg) ===
     "hr_wwhp_refrigerant_weight_kg": ("mass", "HR-WWHP Refrig Weight"),
@@ -327,6 +329,7 @@ COLUMN_CONFIG = {
     # === Emission Scenario Parameters ===
     "lrmer_co2e": (None, "LRMER CO₂e"),
     "srmer_co2e": (None, "SRMER CO₂e"),
+    "aer_load_co2e": (None, "AER Load CO₂e"),
     "shortrun_weighting": (None, "Short-run Weighting"),
     "year": (None, "Year"),
     # === Scenario Identifiers ===
