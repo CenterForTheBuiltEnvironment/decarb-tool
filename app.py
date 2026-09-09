@@ -10,8 +10,8 @@ from layout.shell import build_shell
 from utils.logging_config import get_logger, setup_logging
 
 # Read level from environment variable (or default to INFO)
-log_level_name = os.environ.get("LOG_LEVEL", "DEBUG")
-log_level = getattr(logging, log_level_name.upper(), logging.DEBUG)
+log_level_name = os.environ.get("LOG_LEVEL", "INFO")
+log_level = getattr(logging, log_level_name.upper(), logging.INFO)
 setup_logging(level=log_level)
 
 # Get a logger for this module
