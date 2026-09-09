@@ -12,7 +12,7 @@ class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_name: str
     elec_emission_source: str
     elec_avg_emission_rate_gCO2e_per_kWh: float | None = None
-    grid_scenario: str
+    grid_scenario: str | None = None
     gea_grid_region: str | None = None
     emission_type: str
     annual_refrig_leakage_percent: float

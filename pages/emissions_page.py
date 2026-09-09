@@ -1055,11 +1055,22 @@ def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
 
 @callback(
     Output("edit-em-elec-avg-emission-rate", "disabled"),
+    Output("edit-em-grid-scenario", "value", allow_duplicate=True),
+    Output("edit-em-gea-grid-region", "value", allow_duplicate=True),
     Input("edit-em-elec-source", "value"),
+    State("edit-em-grid-scenario", "value"),
+    State("edit-em-gea-grid-region", "value"),
     prevent_initial_call=True,
 )
-def update_avg_emission_on_source_change(emission_source):
-    """Enable/disable fixed average grid emissions input when emission source changes."""
+def update_emission_inputs_on_source_change(emission_source, grid_scenario, grid_region):
+    """Update emissions inputs when emission source changes to fixed user-provided value."""
+
+    # disable average emissions rate input
     disable_avg = emission_source != "Average (Constant)"
 
-    return disable_avg
+    # blank out cambium-related inputs
+    if not disable_avg:
+        grid_scenario = None
+        grid_region = None
+
+    return disable_avg, grid_scenario, grid_region
