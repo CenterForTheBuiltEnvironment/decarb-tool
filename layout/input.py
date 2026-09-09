@@ -1137,7 +1137,6 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("grid_scenario", "Grid Scenario"),
         ("gea_grid_region", "GEA Grid Region"),
         ("emission_type", "Emission Type"),
-        ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
         ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
         ("year", "Year"),
@@ -1937,13 +1936,6 @@ def edit_emission_modal():
                     cols=2,
                     spacing="md",
                     children=[
-                        dmc.NumberInput(
-                            id="edit-em-shortrun-weighting",
-                            label="Short-run weighting",
-                            min=0,
-                            max=1,
-                            step=0.1,
-                        ),
                         dmc.Select(
                             id="edit-em-year",
                             label="Year",

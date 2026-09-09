@@ -64,8 +64,10 @@
   },
   "emissions": {
     "elec_emission_source" : [
-      "Marginal",
-      "Average"
+      "Marginal (Cambium, Long-run)",
+      "Marginal (Cambium, Short-run)",
+      "Average (Cambium)",
+      "Average (User-provided)"
     ],
     "year": [
       2025,

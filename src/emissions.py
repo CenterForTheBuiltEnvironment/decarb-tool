@@ -16,7 +16,6 @@ class EmissionScenario(DotAccessMixin, BaseModel):
     gea_grid_region: str | None = None
     time_zone: str
     emission_type: str
-    shortrun_weighting: float
     annual_refrig_leakage_percent: float
     ng_emission_rate_gCO2e_per_kWh: float
     year: int

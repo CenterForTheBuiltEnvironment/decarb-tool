@@ -1150,8 +1150,6 @@ def site_to_source(
         )
 
         em_scen = metadata[em_scen_id]
-
-        shortrun_weighting = float(em_scen.shortrun_weighting)
         annual_refrig_leakage_percent = float(em_scen.annual_refrig_leakage_percent)
         gas_emissions_rate = float(em_scen.ng_emission_rate_gCO2e_per_kWh)
 
@@ -1163,11 +1161,19 @@ def site_to_source(
         base[Col.HOUR.value] = base.index.hour
         base[Col.DOY.value] = base.index.dayofyear
 
-        if em_scen.elec_emission_source == "Marginal":
+        if em_scen.elec_emission_source in [
+            "Marginal (Cambium, Long-run)",
+            "Marginal (Cambium, Short-run)",
+        ]:
             emissions_data = get_emissions_data(metadata[em_scen_id])
             logger.debug(
                 f"Marginal grid emissions: Loaded {len(emissions_data.df)} emission data rows"
             )
+
+            if em_scen.elec_emission_source == "Marginal (Cambium, Long-run)":
+                shortrun_weighting = 0
+            elif em_scen.elec_emission_source == "Marginal (Cambium, Short-run)":
+                shortrun_weighting = 1
 
             # collapse emissions to month-hour averages
             emissions_data.df[Col.MONTH.value] = emissions_data.df.index.month
@@ -1226,7 +1232,7 @@ def site_to_source(
             # used with non-leap emission scenario years. Emissions are still correct
             # because they're matched by month+hour pattern.
 
-        elif em_scen.elec_emission_source == "Average":
+        elif em_scen.elec_emission_source == "Average (User-provided)":
             elec_avg_emission_rate = em_scen.elec_avg_emission_rate_gCO2e_per_kWh
             if elec_avg_emission_rate is not None:
                 logger.debug(f"Average grid emissions: {elec_avg_emission_rate} gCO2e/kWh")

@@ -60,7 +60,6 @@ class EmissionTableRows(Enum):
         "grid_scenario",
         "gea_grid_region",
         "emission_type",
-        "shortrun_weighting",
         "annual_refrig_leakage_percent",
         "ng_emission_rate_gCO2e_per_kWh",
         "year",
@@ -70,12 +69,11 @@ class EmissionTableRows(Enum):
 class EmissionScenarioDefaults(Enum):
     """Default values for emission scenario parameters."""
 
-    ELEC_EMISSION_SOURCE: str = "Marginal"
+    ELEC_EMISSION_SOURCE: str = "Marginal (Cambium, Long-run)"
     ELEC_AVG_EMISSION_RATE_G_KWH: float = None
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
-    SHORTRUN_WEIGHTING: float = 0.0
     NG_EMISSION_RATE_G_KWH: float = 239.2
     NG_EMISSION_RATE_G_KWH_COMBUSTION: float = 181
 
