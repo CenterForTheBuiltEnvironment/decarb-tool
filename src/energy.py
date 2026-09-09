@@ -1260,15 +1260,15 @@ def site_to_source(
             # used with non-leap emission scenario years. Emissions are still correct
             # because they're matched by month+hour pattern.
 
-        elif em_scen.elec_emission_source == "Average (Constant)":
+        elif em_scen.elec_emission_source == "Constant (User-provided)":
             elec_avg_emission_rate = em_scen.elec_avg_emission_rate_gCO2e_per_kWh
             if elec_avg_emission_rate is not None and elec_avg_emission_rate >= 0:
-                logger.debug(f"Fixed average grid emissions: {elec_avg_emission_rate} gCO2e/kWh")
+                logger.debug(f"Constant grid emissions rate: {elec_avg_emission_rate} gCO2e/kWh")
 
                 merged = base.copy()
                 merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH] = float(elec_avg_emission_rate)
             else:
-                raise ValueError("Provide a valid input value for average grid emissions rate.")
+                raise ValueError("Provide a valid input value for constant grid emissions rate.")
 
         else:
             raise ValueError(f"Invalid elec_emissions_source: {em_scen.elec_emission_source}")

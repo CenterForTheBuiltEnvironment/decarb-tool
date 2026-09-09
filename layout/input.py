@@ -1192,7 +1192,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         ("elec_emission_source", "Grid emissions source"),
         (
             "elec_avg_emission_rate_gCO2e_per_kWh",
-            f"Average grid emissions rate ({elec_emission_rate_unit})",
+            f"Constant grid emissions rate ({elec_emission_rate_unit})",
         ),
         ("grid_scenario", "Grid Scenario"),
         ("gea_grid_region", "GEA Grid Region"),
@@ -1939,7 +1939,7 @@ def edit_emission_modal():
                             [
                                 dmc.Text(
                                     id="edit-em-elec-emission-rate-label",
-                                    children="Average grid emissions rate (g/kWh)",
+                                    children="Constant grid emissions rate (g/kWh)",
                                     size="sm",
                                     fw=500,
                                 ),

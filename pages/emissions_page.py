@@ -101,7 +101,7 @@ def layout():
                                                 "value": "emission_types",
                                             },
                                             {
-                                                "label": "Average vs marginal emissions",
+                                                "label": "Different electricity emission factors",
                                                 "value": "emission_sources",
                                             },
                                         ],
@@ -283,7 +283,7 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     ]
     elec_emission_source_values = [
         "Average (Cambium)",
-        "Average (Constant)",
+        "Constant (User-provided)",
         "Marginal (Cambium, Long-run)",
         "Marginal (Cambium, Short-run)",
     ]
@@ -358,6 +358,9 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
                 idx % len(elec_avg_emission_rate_values)
             ]
             scen["em_scen_name"] = emission_sources_names[idx % len(emission_sources_names)]
+            if scen["elec_emission_source"] == "Constant (User-provided)":
+                scen["grid_scenario"] = None
+                scen["gea_grid_region"] = None
 
             scen["year"] = default_year
             scen["annual_refrig_leakage_percent"] = default_leakage
@@ -861,7 +864,7 @@ def update_emissions_rate_label(unit_mode):
     ng_unit = get_display_unit("gas_emission_factor", unit_mode)
     elec_unit = get_display_unit("emissions_rate", unit_mode)
 
-    return f"Gas emissions rate ({ng_unit})", f"Average grid emissions rate ({elec_unit})"
+    return f"Gas emissions rate ({ng_unit})", f"Constant grid emissions rate ({elec_unit})"
 
 
 @callback(
@@ -1018,7 +1021,7 @@ def update_emission_inputs_on_source_change(emission_source, grid_scenario, grid
     """Update emissions inputs when emission source changes to fixed user-provided value."""
 
     # disable average emissions rate input
-    disable_avg = emission_source != "Average (Constant)"
+    disable_avg = emission_source != "Constant (User-provided)"
 
     # blank out cambium-related inputs
     if not disable_avg:
