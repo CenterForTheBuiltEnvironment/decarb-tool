@@ -285,14 +285,14 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
     ]
     elec_emission_source_values = [
         "Average (Cambium)",
-        "Average (User-provided)",
+        "Average (Constant)",
         "Marginal (Cambium, Long-run)",
         "Marginal (Cambium, Short-run)",
     ]
     elec_avg_emission_rate_values = [None, 0, None, None]
     emission_sources_names = [
         "Cambium Average Emissions",
-        "Zero Emissions",
+        "Constant (Zero) Emissions",
         "Long-run Marginal Emissions",
         "Short-run Marginal Emissions",
     ]
@@ -1069,6 +1069,6 @@ def update_ng_rate_on_emission_type_change(emission_type, unit_mode):
 )
 def update_avg_emission_on_source_change(emission_source):
     """Enable/disable fixed average grid emissions input when emission source changes."""
-    disable_avg = emission_source != "Average (User-provided)"
+    disable_avg = emission_source != "Average (Constant)"
 
     return disable_avg
