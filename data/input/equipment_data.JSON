@@ -984,6 +984,31 @@
       }
     },
     {
+      "eq_id": "bo05",
+      "eq_type": "backup_heating",
+      "eq_subtype": "hot_water",
+      "eq_calc_type": "specific",
+      "model": "GenericBoiler",
+      "fuel": "natural_gas",
+      "capacity_W": 190500,
+      "dimensions": {
+        "length": 1.06, 
+        "width": 0.833, 
+        "height": 2.01
+      },
+      "operating_weight_g": 305000,
+      "electrical": {
+        "mca": 10,
+        "voltage": 120,
+        "phase": 1
+      },
+      "performance": {
+        "heating": {
+          "efficiency": 0.6
+        }
+      }
+    },
+    {
       "eq_id": "ch01",
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",
@@ -1175,6 +1200,7 @@
       "awhp_use_cooling": false,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1192,6 +1218,7 @@
       "awhp_use_cooling": false,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1209,6 +1236,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1226,6 +1254,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1243,6 +1272,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1260,6 +1290,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1277,6 +1308,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1294,6 +1326,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1311,6 +1344,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1328,6 +1362,7 @@
       "awhp_use_cooling": false,
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1345,6 +1380,7 @@
       "awhp_use_cooling": false,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1362,6 +1398,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1379,6 +1416,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1396,6 +1434,7 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "fuel_switching": false,
       "chiller": "ch02"
     },
     {
@@ -1413,6 +1452,60 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_16",
+      "eq_scen_name": "90% Eff. Gas Boiler+AC Chiller",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": null,
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "bo02",
+      "fuel_switching": false,
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_17",
+      "eq_scen_name": "50% AWHP (H+C)+Gas Backup",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 0.5,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "bo02",
+      "fuel_switching": false,
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_18",
+      "eq_scen_name": "100% AWHP (H+C)+Fuel Switching",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "bo02",
+      "fuel_switching": true,
       "chiller": "ch02"
     },
     {
@@ -1504,7 +1597,7 @@
   "scenario_groups": [
     {
       "group_id": "default",
-      "group_name": "Default",
+      "group_name": "Example Equipment",
       "scenario_ids": ["eq_scenario_1", "eq_scenario_2", "eq_scenario_3", "eq_scenario_4", "eq_scenario_5"]
     },
     {
@@ -1521,6 +1614,11 @@
       "group_id": "hhw_supply_temps",
       "group_name": "HHW Supply Temps",
       "scenario_ids": ["eq_scenario_4", "eq_scenario_13", "eq_scenario_14", "eq_scenario_5", "eq_scenario_15"]
+    },
+    {
+      "group_id": "fuel_switching",
+      "group_name": "Dynamic Fuel Switching",
+      "scenario_ids": ["eq_scenario_16", "eq_scenario_17", "eq_scenario_4", "eq_scenario_18"]
     },
     {
       "group_id": "awhp_refrigerant_types",
