@@ -88,7 +88,12 @@ The second step is to convert the electricity and gas site energy, and any refri
 
 * The electricity emissions data is taken from Cambium (see further information in [Emissions](emissions.md)) in month-hour average format (data is provided for each hour of a representative day for every month). This is expanded to match with the full 8,760-hour resolution of the site energy data.
 
-**Step 3: Calculate emissions**
+**Step 3: Calculate fuel switching (**[**if enabled**](equipment.md#backup-equipment)**)**
+
+* The hourly carbon emissions intensity for electric and gas heating is calculated using the corresponding emissions factor and equipment operating efficiency.
+* For hours where electricity carbon intensity is higher than gas, the HHW load served by the AWHP is switched to the gas boiler.
+
+**Step 4: Calculate emissions**
 
 * The total emissions for each fuel is calculated using the total usage and fuel emissions rate.
 * The total emissions associated with refrigerant leakage is calculated using the type, weight, and annual leakage rate for the the refrigerant in each equipment. Leakage is assumed to be spread evenly over the year.
@@ -110,8 +115,7 @@ The second step is to convert the electricity and gas site energy, and any refri
 3. Add functionality for water cooled chillers.
 4. Add cooling tower water use calculations.
 5. Add functionality for chiller performance tables and/or curves instead of fixed COP.
-6. Add fuel switching evaluation (based on grid emissions and equipment COP).
-7. Add load shifting evaluation (thermal energy storage).
-8. Add exhaust air heat recovery as an optional heat source for WWHPs.
-9. Add functionality for AWHP models with heat recovery.
-10. Add utility cost calculations.
+6. Add load shifting evaluation (thermal energy storage).
+7. Add exhaust air heat recovery as an optional heat source for WWHPs.
+8. Add functionality for AWHP models with heat recovery.
+9. Add utility cost calculations.

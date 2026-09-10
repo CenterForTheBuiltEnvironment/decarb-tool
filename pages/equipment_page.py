@@ -111,10 +111,10 @@ def layout():
                                         id="equipment-view-mode",
                                         data=[
                                             {"label": "Simple", "value": "simple"},
-                                            {"label": "Advanced", "value": "advanced"},
+                                            {"label": "Detailed", "value": "advanced"},
                                             {"label": "Differences", "value": "differences"},
                                         ],
-                                        value="simple",
+                                        value="differences",
                                         size="sm",
                                     ),
                                 ],
@@ -197,7 +197,7 @@ def update_equipment_table(
         scenarios,
         displayed_ids=displayed_ids,
         active_ids=selected_ids,
-        view_mode=view_mode or "simple",
+        view_mode=view_mode or "differences",
         unit_mode=unit_mode or "SI",
     )
 
@@ -225,7 +225,6 @@ def populate_group_dropdown(pathname, equipment_data):
 @callback(
     Output("displayed-equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
-    Output("equipment-checkbox-group", "value", allow_duplicate=True),
     Output("equipment-scenario-group-store", "data", allow_duplicate=True),
     Output("equipment-store", "data", allow_duplicate=True),
     Input("scenario-group-select", "value"),
@@ -244,21 +243,21 @@ def handle_group_selection(group_id, equipment_data, initial_data, stored_group)
     # When dropdown is cleared, clear the stored group to allow re-selecting
     if not group_id:
         if stored_group is not None:
-            return no_update, no_update, no_update, None, no_update
-        return no_update, no_update, no_update, no_update, no_update
+            return no_update, no_update, None, no_update
+        return no_update, no_update, no_update, no_update
 
     if not equipment_data:
-        return no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     # Skip if this is just restoring the same group (don't overwrite manual edits)
     if group_id == stored_group:
-        return no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     groups = equipment_data.get("scenario_groups", [])
     selected_group = next((g for g in groups if g.get("group_id") == group_id), None)
 
     if not selected_group:
-        return no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     scenario_ids = selected_group.get("scenario_ids", [])
     scenario_ids_set = set(scenario_ids)
@@ -298,8 +297,8 @@ def handle_group_selection(group_id, equipment_data, initial_data, stored_group)
         "equipment_scenarios": updated_scenarios,
     }
 
-    # Update displayed, selected, checkbox group, persist group selection, and equipment store
-    return scenario_ids, scenario_ids, scenario_ids, group_id, updated_equipment
+    # Update displayed, selected, persist group selection, and equipment store
+    return scenario_ids, scenario_ids, group_id, updated_equipment
 
 
 @callback(
@@ -486,7 +485,6 @@ def sync_active_equipment(selected_values, displayed_ids):
     Output("displayed-equipment-store", "data"),
     Output("equipment-store", "data", allow_duplicate=True),
     Output("selected-equipment-store", "data", allow_duplicate=True),
-    Output("equipment-checkbox-group", "value", allow_duplicate=True),
     Input({"type": "equipment-column-dropdown", "column": ALL}, "value"),
     State("displayed-equipment-store", "data"),
     State("equipment-store", "data"),
@@ -499,11 +497,11 @@ def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data
     If selected scenario is already displayed elsewhere, create a copy.
     """
     if not dropdown_values or not displayed_ids or not equipment_data:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     ctx = callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     # Find which dropdown triggered the callback
     triggered = ctx.triggered[0]
@@ -515,21 +513,21 @@ def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data
         btn_id = json.loads(id_str)
         column_idx = btn_id.get("column")
     except (json.JSONDecodeError, AttributeError):
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     if column_idx is None:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     # Get the newly selected scenario ID
     new_scen_id = dropdown_values[column_idx]
 
     if not new_scen_id:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     # Exit early if the selection hasn't actually changed
     old_scen_id = displayed_ids[column_idx] if column_idx < len(displayed_ids) else None
     if new_scen_id == old_scen_id:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     # Check if this scenario is already displayed in another column
     new_displayed = list(displayed_ids)
@@ -544,7 +542,7 @@ def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data
         base_scenario = next((s for s in scenarios if s.get("eq_scen_id") == new_scen_id), None)
 
         if base_scenario is None:
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
 
         # Generate new ID
         copy_id = _next_scenario_id(equipment_data)
@@ -578,7 +576,7 @@ def handle_column_dropdown_change(dropdown_values, displayed_ids, equipment_data
         old_index = new_selected.index(old_scen_id)
         new_selected[old_index] = new_displayed[column_idx]
 
-    return new_displayed, updated_equipment, new_selected, new_selected
+    return new_displayed, updated_equipment, new_selected
 
 
 @callback(
@@ -684,6 +682,7 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-awhp-sizing-priority", "value"),
     Output("edit-backup-heating-select", "data"),
     Output("edit-backup-heating-select", "value"),
+    Output("edit-fuel-switching", "checked"),
     Output("edit-chiller-select", "data"),
     Output("edit-chiller-select", "value"),
     Output("edit-scenario-error", "children"),
@@ -698,7 +697,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 21
+        return (no_update,) * 22
 
     if not equipment_data:
         return (
@@ -720,6 +719,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             "No equipment data.",
@@ -730,7 +730,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 21
+        return (no_update,) * 22
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -757,6 +757,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             "Failed to parse button id.",
@@ -787,6 +788,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             [],
             None,
+            False,
             [],
             None,
             f"Scenario {eq_scen_id!r} not found.",
@@ -849,6 +851,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     redundancy = scenario.get("awhp_redundancy", 1)
     use_cooling = scenario.get("awhp_use_cooling", False)
     sizing_priority = scenario.get("awhp_sizing_priority") or "heating"
+    fuel_switching = scenario.get("fuel_switching", False)
 
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
@@ -872,6 +875,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         sizing_priority,
         backup_heating_options,
         backup_heating_val,
+        fuel_switching,
         chiller_options,
         chiller_val,
         "",
@@ -897,6 +901,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-awhp-use-cooling", "checked"),
     State("edit-awhp-sizing-priority", "value"),
     State("edit-backup-heating-select", "value"),
+    State("edit-fuel-switching", "checked"),
     State("edit-chiller-select", "value"),
     State("equipment-store", "data"),
     State("unit-toggle", "value"),
@@ -918,6 +923,7 @@ def save_edit_scenario(
     use_cooling,
     sizing_priority,
     backup_heating_val,
+    fuel_switching,
     chiller_val,
     equipment_data,
     unit_mode,
@@ -969,6 +975,7 @@ def save_edit_scenario(
         redundancy = 1
 
     use_cooling = bool(use_cooling)
+    fuel_switching = bool(fuel_switching)
 
     scenarios = equipment_data["equipment_scenarios"]
     updated = False
@@ -990,6 +997,7 @@ def save_edit_scenario(
             new_scen["awhp_use_cooling"] = use_cooling
             new_scen["awhp_sizing_priority"] = sizing_priority
             new_scen["backup_heating"] = backup_heating_val
+            new_scen["fuel_switching"] = fuel_switching
             new_scen["chiller"] = chiller_val
             new_scenarios.append(new_scen)
             updated = True
@@ -1175,6 +1183,32 @@ def update_sizing_priority(use_cooling, sizing_mode):
     disabled = (not use_cooling) or (sizing_mode == "fixed_num_units")
 
     return disabled
+
+
+@callback(
+    Output("edit-fuel-switching", "disabled"),
+    Output("edit-fuel-switching", "checked", allow_duplicate=True),
+    Input("edit-awhp-select", "value"),
+    Input("edit-backup-heating-select", "value"),
+    State("edit-fuel-switching", "checked"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_data):
+    """Enable/disable fuel switching input and update value when AWHP or backup heating selection changes."""
+    # get backup heating fuel
+    equipment_list = equipment_data.get("equipment", []) if equipment_data else []
+    backup_heating = next((e for e in equipment_list if e.get("eq_id") == backup_heating_id), None)
+    backup_heating_fuel = backup_heating.get("fuel", "") if backup_heating else ""
+
+    # Disable input if AWHP is not selected, or if backup heating option is electric
+    awhp_selected = awhp_id and awhp_id != "None"
+    disabled = (not awhp_selected) or (backup_heating_fuel != "natural_gas")
+
+    # Set value to unchecked if disabled condition is met, otherwise preserve last value
+    checked = False if disabled else fuel_switching
+
+    return (disabled, checked)
 
 
 # helper to build equipment options for Selects

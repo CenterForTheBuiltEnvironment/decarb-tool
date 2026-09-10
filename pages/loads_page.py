@@ -9,7 +9,7 @@ import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
-from dash import Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
 from dash_iconify import DashIconify
 
 from layout.input import (
@@ -18,7 +18,7 @@ from layout.input import (
     build_completeness_modal,
     build_completeness_summary,
     build_scale_load_modal,
-    get_load_index,  # slider min/max values in base SI units (lazy-loaded)
+    get_load_index,
     modal_load_data_selection,
     select_load_type,
     select_location,
@@ -75,8 +75,6 @@ def layout():
                             icon="basil:book-open-outline",
                             href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
                         ),
-                        html.Hr(),
-                        select_location(),
                         html.Hr(),
                         select_load_type(),
                         modal_load_data_selection(buildings_df=get_buildings_df()),
@@ -143,6 +141,8 @@ def layout():
                                 ),
                             ],
                         ),
+                        html.Hr(),
+                        select_location(),
                     ],
                     bg="gray.0",
                     radius="md",
@@ -377,9 +377,10 @@ def _build_summary_payload(load_obj: "StandardLoad") -> dict:
     State("building-radio-group", "value"),
     State("metadata-store", "data"),
     State("session-store", "data"),
+    State("location-input", "value"),
     prevent_initial_call=True,
 )
-def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
+def confirm_selection(n_clicks, current_choice, metadata_data, session_data, selected_zip):
     """
     Handle library selection confirm.
     - For simulated data: proceed directly (update metadata, close modal)
@@ -418,6 +419,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     metadata_updates = {}
     load_updates = {}
 
+    location_explicit = bool(selected_zip)
+    location_fields = {"location", "ashrae_climate_zone"}
+
     for key, value in building.items():
         if key == "building_id":
             continue
@@ -429,6 +433,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         if key in load_fields:
             load_updates[key] = value
         elif key in meta_fields and key != "load_data":
+            if location_explicit and key in location_fields:
+                continue  # preserve explicit location selection
             metadata_updates[key] = value
 
     # type fixes
@@ -453,10 +459,32 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         {**metadata.load_data.model_dump(), **load_updates}
     )
 
-    # gea grid region
-    region = building.get("gea_grid_region")
-    if region:
-        metadata.set_gea_grid_region_for_all(region)
+    # gea grid region + climate zone output: infer from building metadata if no explicit location
+    if not location_explicit:
+        # Prefer pre-computed column in building metadata over city-based lookup
+        region = building.get("gea_grid_region")
+        if not region:
+            # Fallback: look up from locations.csv by city, preferring CA entries
+            building_city = building.get("location")
+            if building_city:
+                locs = get_locations_df()
+                all_matches = locs.loc[locs["city"] == building_city][
+                    ["state_id", "gea_grid_region", "ASHRAE", "ca_climate"]
+                ].drop_duplicates(subset=["state_id"])
+                ca_matches = all_matches[all_matches["state_id"] == "CA"]
+                loc_row = (
+                    ca_matches.iloc[0]
+                    if not ca_matches.empty
+                    else (all_matches.iloc[0] if not all_matches.empty else None)
+                )
+                if loc_row is not None:
+                    region = loc_row["gea_grid_region"]
+
+        if region:
+            metadata.set_gea_grid_region_for_all(region)
+            if metadata.climate_zone_output is None:
+                metadata.climate_zone_output = metadata.ashrae_climate_zone
+            logger.info(f"Inferred grid region from load: {building.get('location')} → {region}")
 
     # optional: path column in buildings_df
     if building.get("load_file_path"):
@@ -923,10 +951,33 @@ def process_upload(contents, filename, metadata_data, session_data):
 
 
 # -------------------------------------------------------------------
+# Callback: handle column header clicks → update sort store
+# -------------------------------------------------------------------
+@callback(
+    Output("building-table-sort-store", "data"),
+    Input({"type": "building-sort-th", "col": ALL}, "n_clicks"),
+    State("building-table-sort-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_sort_header_click(n_clicks_list, current_sort):
+    if not any(n for n in n_clicks_list if n):
+        raise dash.exceptions.PreventUpdate
+    triggered = ctx.triggered_id
+    if not triggered:
+        raise dash.exceptions.PreventUpdate
+    clicked_col = triggered["col"]
+    current_col = (current_sort or {}).get("col", "building_type")
+    current_dir = (current_sort or {}).get("dir", "asc")
+    new_dir = "desc" if clicked_col == current_col and current_dir == "asc" else "asc"
+    return {"col": clicked_col, "dir": new_dir}
+
+
+# -------------------------------------------------------------------
 # Callback: filter and rebuild table
 # -------------------------------------------------------------------
 @callback(
     Output("building-table-container", "children"),
+    Output("building-table-result-count", "children"),
     [
         Input("load-type-filter", "value"),
         Input("climate-filter", "value"),
@@ -934,9 +985,9 @@ def process_upload(contents, filename, metadata_data, session_data):
         Input("area-range-slider", "value"),
         Input("hhw-range-slider", "value"),
         Input("chw-range-slider", "value"),
-        # Input("temp-range-slider", "value"),
-        Input("metadata-store", "data"),  # re-sort when metadata changes
-        Input("unit-toggle", "value"),  # unit mode for table display
+        Input("building-search-input", "value"),
+        Input("building-table-sort-store", "data"),
+        Input("unit-toggle", "value"),
     ],
     State("building-radio-group", "value"),
 )
@@ -947,8 +998,8 @@ def update_table(
     area_range,
     hhw_range,
     chw_range,
-    # temp_range,
-    metadata_data,
+    search_text,
+    sort_data,
     unit_mode,
     current_choice,
 ):
@@ -998,8 +1049,12 @@ def update_table(
         else:
             df = buildings.copy()
 
+    total = len(buildings)
+
     if df.empty:
-        return build_building_table(df, selected_id=None, unit_mode=unit_mode)
+        return build_building_table(
+            df, selected_id=None, unit_mode=unit_mode
+        ), f"0 of {total} buildings"
 
     # -----------------------------
     # 1) Additional filters
@@ -1040,68 +1095,43 @@ def update_table(
         cmin, cmax = chw_range
         df = df[df["chw_max_load"].between(cmin, cmax)]
 
+    # -----------------------------
+    # 2) Free-text search
+    # -----------------------------
+    _SEARCH_COLS = ["building_id", "location", "building_type", "vintage", "ashrae_climate_zone"]
+    if search_text and search_text.strip():
+        needle = search_text.strip().lower()
+        cols_present = [c for c in _SEARCH_COLS if c in df.columns]
+        mask = (
+            df[cols_present]
+            .apply(
+                lambda col: col.astype(str).str.lower().str.contains(needle, regex=False, na=False)
+            )
+            .any(axis=1)
+        )
+        df = df[mask]
+
     if df.empty:
-        return build_building_table(df, selected_id=None, unit_mode=unit_mode)
+        return build_building_table(
+            df, selected_id=None, unit_mode=unit_mode
+        ), f"0 of {total} buildings"
 
     # -----------------------------
-    # 2) Metadata-based priority sort (unchanged)
+    # 3) Column sort (replaces location priority sort)
     # -----------------------------
-    meta_location = None
-    meta_climate = None
-    if metadata_data:
-        meta_location = metadata_data.get("location")
-        meta_climate = metadata_data.get("ashrae_climate_zone")
-
-    # detect location column
-    loc_col = None
-    for cand in ("location", "city"):
-        if cand in df.columns:
-            loc_col = cand
-            break
-
-    # detect climate column
-    clim_col = None
-    for cand in ("ashrae_climate_zone", "climate"):
-        if cand in df.columns:
-            clim_col = cand
-            break
-
-    priority_col_added = False
-
-    def apply_priority(mask_series):
-        nonlocal df, priority_col_added
-        df["__priority"] = 1
-        df.loc[mask_series, "__priority"] = 0
-        priority_col_added = True
-
-    if loc_col and clim_col and meta_location and meta_climate:
-        # Step 1: exact match on BOTH location + climate
-        mask_both = (df[loc_col] == meta_location) & (df[clim_col] == meta_climate)
-        if mask_both.any():
-            apply_priority(mask_both)
-        else:
-            # Step 2: same climate zone only
-            if meta_climate:
-                mask_climate = df[clim_col] == meta_climate
-                if mask_climate.any():
-                    apply_priority(mask_climate)
-    elif clim_col and meta_climate:
-        mask_climate = df[clim_col] == meta_climate
-        if mask_climate.any():
-            apply_priority(mask_climate)
-
-    # Step 3: if no matches, leave df order as-is
-    if priority_col_added:
-        sort_cols = ["__priority"]
-        if "building_type" in df.columns:
-            sort_cols.append("building_type")
-        if "building_id" in df.columns:
-            sort_cols.append("building_id")
-
-        df = df.sort_values(sort_cols).drop(columns="__priority")
+    sort_col = (sort_data or {}).get("col", "building_id")
+    sort_dir = (sort_data or {}).get("dir", "asc")
+    tie_break = [sort_col] + (
+        ["building_id"] if sort_col != "building_id" and "building_id" in df.columns else []
+    )
+    valid_cols = [c for c in tie_break if c in df.columns]
+    if valid_cols:
+        df = df.sort_values(
+            valid_cols, ascending=[sort_dir == "asc"] + [True] * (len(valid_cols) - 1)
+        )
 
     # -----------------------------
-    # 3) Preserve selection if still visible
+    # 4) Preserve selection if still visible
     # -----------------------------
     selected_id = None
     if "building_id" in df.columns:
@@ -1109,7 +1139,10 @@ def update_table(
         if current_choice is not None and str(current_choice) in visible_ids:
             selected_id = current_choice
 
-    return build_building_table(df, selected_id, unit_mode=unit_mode)
+    result_count = f"{len(df)} of {total} buildings"
+    return build_building_table(
+        df, selected_id, unit_mode=unit_mode, sort_col=sort_col, sort_dir=sort_dir
+    ), result_count
 
 
 # -------------------------------------------------------------------
@@ -1587,7 +1620,11 @@ def update_scale_preview(method, target_value, metadata_data, unit_mode):
             target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
 
         if not ref_si or ref_si <= 0:
-            return "", label, f"Reference value for '{method}' not available in library data."
+            return (
+                "",
+                label,
+                f"Reference value for '{method}' not available in library data.",
+            )
 
         scale_factor = target_si / ref_si
         if scale_factor <= 0:
@@ -1967,9 +2004,11 @@ def apply_base_load(n_clicks, method, apply_to, value, metadata_data, load_data_
 
     summary_payload = _build_summary_payload(modified_load)
 
-    apply_to_label = {"heating": "heating", "cooling": "cooling", "both": "heating + cooling"}[
-        apply_to
-    ]
+    apply_to_label = {
+        "heating": "heating",
+        "cooling": "cooling",
+        "both": "heating + cooling",
+    }[apply_to]
     method_label = "floor" if method == "floor" else "offset"
     value_display = f"{value:,.0f} BTU/h" if unit_mode == "IP" else f"{value:.1f} kW"
 

@@ -1,6 +1,7 @@
 import contextlib
 import datetime
 import io
+import time
 import zipfile
 from pathlib import Path
 
@@ -8,12 +9,14 @@ import dash
 import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
-from dash import Input, Output, State, callback, dcc
-from dash_iconify import DashIconify
+from dash import Input, Output, State, callback, dcc, no_update
 
 from layout.charts import chart_tabs
 from layout.output import summary_project_info
 from src.config import URLS
+from src.energy import loads_to_site_energy, site_to_source
+from src.equipment import EquipmentLibrary
+from src.loads import get_load_data
 from src.metadata import Metadata
 from src.visuals import (
     plot_emission_scenarios_grouped,
@@ -23,6 +26,11 @@ from src.visuals import (
     plot_scatter_temp_vs_variable,
 )
 from utils.display_registry import format_emission_scenario_id
+from utils.error_handling import (
+    create_error_notification,
+    create_success_notification,
+    create_warning_notification,
+)
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -40,10 +48,17 @@ def layout():
                         [
                             dmc.Paper(
                                 [
+                                    dmc.LoadingOverlay(
+                                        id="results-loading-overlay",
+                                        visible=True,
+                                        overlayProps={"radius": "md", "blur": 10},
+                                        zIndex=10,
+                                    ),
                                     chart_tabs(),
                                 ],
                                 p="md",
                                 radius="md",
+                                pos="relative",
                             ),
                         ],
                         span=12,
@@ -51,17 +66,6 @@ def layout():
                 ],
                 gutter="md",
             ),
-            dmc.Button(
-                "Download data ",
-                rightSection=DashIconify(icon="material-symbols-light:download", width=20),
-                variant="outline",
-                color="blue",
-                id="download-button",
-                n_clicks=0,
-                style={"float": "right"},
-                mr="md",
-            ),
-            dcc.Download(id="download-data"),
         ],
         fluid=True,
     )
@@ -122,7 +126,7 @@ def update_meter_plot(
     unit_mode,
 ):
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or not emission_scenarios or not equipment_scenarios:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     # flags from toggles
@@ -151,7 +155,7 @@ def update_meter_plot(
 )
 def update_total_emissions_plot(session_data, equipment_scenarios, emission_scenario, unit_mode):
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or emission_scenario is None or not equipment_scenarios:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     if isinstance(emission_scenario, str):
@@ -170,7 +174,7 @@ def update_total_emissions_plot(session_data, equipment_scenarios, emission_scen
 )
 def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selected_equipment_ids):
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or not emission_scenarios:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     # Use user-defined order from selected-equipment-store
@@ -179,6 +183,9 @@ def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selec
         equipment_scenarios = [sid for sid in selected_equipment_ids if sid in df_ids]
     else:
         equipment_scenarios = list(df_ids)
+
+    if not equipment_scenarios:
+        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     # Ensure emission_scenarios is a list
     if isinstance(emission_scenarios, str):
@@ -203,7 +210,7 @@ def update_emissions_heatmap(
     session_data, equipment_scenario, emission_scenario, emission_type, unit_mode
 ):
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or not equipment_scenario or not emission_scenario:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     fig = plot_emissions_heatmap(
@@ -235,7 +242,7 @@ def update_scatter_plot(
     unit_mode,
 ):
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or not equipment_scenarios or not emission_scenario:
         return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
 
     frequency_value = frequency_value if frequency_value else "D"
@@ -286,9 +293,21 @@ def show_download_notification(n_clicks, unit_mode):
     Input("download-button", "n_clicks"),
     State("session-store", "data"),
     State("unit-toggle", "value"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    State("selected-emissions-store", "data"),
     prevent_initial_call=True,
 )
-def download_results(n_clicks, session_data, unit_mode):
+def download_results(
+    n_clicks,
+    session_data,
+    unit_mode,
+    metadata_json,
+    equipment_json,
+    selected_eq_ids,
+    selected_em_ids,
+):
     """Download the entire results dataframe as a .csv file with unit conversion."""
     import numpy as np
 
@@ -347,9 +366,41 @@ def download_results(n_clicks, session_data, unit_mode):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"results_{timestamp}.csv", csv_string)
+        _add_metadata_files(
+            zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+        )
 
     buf.seek(0)
     return dcc.send_bytes(buf.getvalue(), f"results_{timestamp}.zip")
+
+
+def _add_metadata_files(
+    zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+):
+    import json as _json
+
+    from src.equipment import EquipmentLibrary
+    from src.export import build_metadata_summary, build_settings_bundle
+    from src.metadata import Metadata
+
+    if not metadata_json or not equipment_json:
+        return
+
+    try:
+        metadata = Metadata(**metadata_json)
+        equipment_library = EquipmentLibrary(**equipment_json)
+        selected_eq = list(selected_eq_ids) if selected_eq_ids else []
+        selected_em = list(selected_em_ids) if selected_em_ids else []
+
+        summary = build_metadata_summary(
+            metadata, equipment_library, selected_eq, selected_em, unit_mode
+        )
+        zf.writestr("settings_summary.txt", summary)
+
+        bundle = build_settings_bundle(metadata, equipment_library, selected_eq, selected_em)
+        zf.writestr("settings.json", _json.dumps(bundle, indent=2, default=str))
+    except Exception:
+        pass  # never block the download for a metadata failure
 
 
 @callback(
@@ -366,10 +417,12 @@ def download_results(n_clicks, session_data, unit_mode):
     Output("scatter-equipment-scen-dropdown", "data"),
     Output("scatter-equipment-scen-dropdown", "value"),
     Input("session-store", "data"),
+    Input("results-ready-store", "data"),
     State("selected-equipment-store", "data"),  # optional, keeps user ordering
     State("equipment-scenario-number-map", "data"),  # display numbers (1-5)
+    prevent_initial_call=True,
 )
-def populate_equipment_dropdowns(session_data, selected_equipment_ids, number_map):
+def populate_equipment_dropdowns(session_data, _results_ready, selected_equipment_ids, number_map):
     """
     Populate all equipment scenario dropdowns with only the scenarios
     that were actually computed for this session.
@@ -454,6 +507,7 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids, number_ma
     Output("scatter-emission-scen-dropdown", "data"),
     Output("scatter-emission-scen-dropdown", "value"),
     Input("session-store", "data"),
+    Input("results-ready-store", "data"),
     State("selected-emissions-store", "data"),  # preserves user ordering
     # previous values to infer single vs multi & keep user choices where possible
     State("emission-scen-dropdown", "value"),
@@ -461,9 +515,11 @@ def populate_equipment_dropdowns(session_data, selected_equipment_ids, number_ma
     State("emission-em-scen-dropdown", "value"),
     State("heatmap-emission-scen-dropdown", "value"),
     State("scatter-emission-scen-dropdown", "value"),
+    prevent_initial_call=True,
 )
 def populate_emission_dropdowns(
     session_data,
+    _results_ready,
     selected_emission_ids,
     prev_emission_scen,
     prev_total_em,
@@ -570,3 +626,98 @@ def populate_emission_dropdowns(
         options,
         scatter_em_value,
     )
+
+
+@callback(
+    Output("results-ready-store", "data", allow_duplicate=True),
+    Output("results-calculating-store", "data", allow_duplicate=True),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("metadata-store", "data"),
+    State("equipment-store", "data"),
+    State("selected-equipment-store", "data"),
+    State("selected-emissions-store", "data"),
+    State("session-store", "data"),
+    prevent_initial_call=True,
+)
+def auto_calculate_on_results(
+    pathname,
+    metadata_json,
+    equipment_json,
+    selected_scenarios,
+    selected_emission_ids,
+    session_data,
+):
+    """Auto-trigger full site→source calculation when the user navigates to the Results tab."""
+    if pathname != URLS.RESULTS.value:
+        raise dash.exceptions.PreventUpdate
+
+    if not metadata_json:
+        return no_update, False, no_update
+
+    metadata = Metadata(**metadata_json)
+
+    if not metadata.load_data.load_type:
+        return no_update, False, no_update
+
+    if not metadata.base_gea_grid_region:
+        notification = create_warning_notification(
+            "Missing Grid Region",
+            "Could not determine grid region. Please select a location on the Loads page.",
+        )
+        return no_update, False, [notification]
+
+    if not equipment_json or not selected_scenarios or not session_data:
+        return no_update, False, no_update
+
+    try:
+        folder = Path(f"/tmp/{session_data['session_id']}")
+        folder.mkdir(parents=True, exist_ok=True)
+
+        equipment = EquipmentLibrary(**equipment_json)
+        load_data = get_load_data(metadata)
+
+        # Step 1: loads → site energy
+        site_energy = loads_to_site_energy(
+            load_data,
+            equipment,
+            scenario_ids=selected_scenarios,
+            detail=True,
+        )
+
+        # Step 2: site → source emissions
+        if selected_emission_ids:
+            metadata.emission_settings = [
+                scen
+                for scen in metadata.emission_settings
+                if scen.em_scen_id in selected_emission_ids
+            ]
+        source_energy = site_to_source(site_energy, metadata=metadata)
+
+        source_path = folder / "source_energy.pkl"
+        source_energy.to_pickle(source_path)
+        logger.info(f"Auto-calculated source energy on Results navigation: {source_path}")
+
+        success = create_success_notification(
+            "Calculation Complete",
+            "Source emissions calculation finished successfully.",
+        )
+        return time.time(), False, [success]
+
+    except Exception as e:
+        logger.exception(f"Auto-calculation error on Results navigation: {e}")
+        notification = create_error_notification(
+            "Calculation Error",
+            "Automatic calculation failed. Please check your load and settings.",
+        )
+        return no_update, False, [notification]
+
+
+@callback(
+    Output("results-loading-overlay", "visible"),
+    Input("results-calculating-store", "data"),
+    prevent_initial_call=True,
+)
+def control_loading_overlay(is_calculating):
+    """Hide the loading overlay once calculation completes."""
+    return bool(is_calculating)

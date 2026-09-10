@@ -1009,6 +1009,31 @@
       }
     },
     {
+      "eq_id": "bo05",
+      "eq_type": "backup_heating",
+      "eq_subtype": "hot_water",
+      "eq_calc_type": "specific",
+      "model": "GenericBoiler",
+      "fuel": "natural_gas",
+      "capacity_W": 190500,
+      "dimensions": {
+        "length": 1.06, 
+        "width": 0.833, 
+        "height": 2.01
+      },
+      "operating_weight_g": 305000,
+      "electrical": {
+        "mca": 10,
+        "voltage": 120,
+        "phase": 1
+      },
+      "performance": {
+        "heating": {
+          "efficiency": 0.6
+        }
+      }
+    },
+    {
       "eq_id": "ch01",
       "eq_type": "chiller",
       "eq_subtype": "air_cooled",

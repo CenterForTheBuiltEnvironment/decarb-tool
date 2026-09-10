@@ -535,10 +535,17 @@ def loads_to_site_energy(
                 Col.AWHP_NUM.value,
                 Col.AWHP_NUM_R.value,
                 Col.ELEC_AWHP_H_WH.value,
+                Col.HHW_REM_W_NG_MODE.value,
                 # Boiler
+                Col.BOILER_NUM.value,
                 Col.BOILER_HHW_W.value,
                 Col.BOILER_EFF.value,
+                Col.BOILER_EQ_CALC.value,
+                Col.BOILER_CAP_W.value,
                 Col.GAS_BOILER_WH.value,
+                Col.BOILER_HHW_W_NG_MODE.value,
+                Col.GAS_BOILER_WH_NG_MODE.value,
+                Col.FUEL_SWITCHING.value,
                 # Resistance heater
                 Col.RES_HHW_W.value,
                 Col.ELEC_RES_WH.value,
@@ -557,6 +564,11 @@ def loads_to_site_energy(
 
         # ---- scenario ----
         scen = library.get_scenario(scenario_id)
+
+        if scen.fuel_switching:
+            df[Col.FUEL_SWITCHING.value] = True
+        else:
+            df[Col.FUEL_SWITCHING.value] = False
 
         # =========================
         # Phase 1 - HR WWHP (optional)
@@ -711,13 +723,13 @@ def loads_to_site_energy(
 
             # Determine reference capacity
             if sizing_priority == "heating":
-                sizing_load = "hhw_W"
+                sizing_load = Col.HHW_REM_W.value
                 cap_ref = _awhp_reference_capacity(
                     awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
                 )
 
             elif sizing_priority == "cooling":
-                sizing_load = "chw_W"
+                sizing_load = Col.CHW_REM_W.value
                 cap_ref = _awhp_reference_capacity(
                     awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
                 )
@@ -727,16 +739,20 @@ def loads_to_site_energy(
                 "fractional_sizing_peak_load",
             ]:
                 cap_ref = {
-                    "hhw_W": _awhp_reference_capacity(
+                    Col.HHW_REM_W.value: _awhp_reference_capacity(
                         awhp_h, awhp_h_performance, awhp_h_supply_t, "heating"
                     ),
-                    "chw_W": _awhp_reference_capacity(
+                    Col.CHW_REM_W.value: _awhp_reference_capacity(
                         awhp_c, awhp_c_performance, awhp_c_supply_t, "cooling"
                     ),
                 }
                 num = {
-                    "hhw_W": float(df["hhw_W"].max()) * sizing_value / cap_ref["hhw_W"],
-                    "chw_W": float(df["chw_W"].max()) * sizing_value / cap_ref["chw_W"],
+                    Col.HHW_REM_W.value: float(df[Col.HHW_REM_W.value].max())
+                    * sizing_value
+                    / cap_ref[Col.HHW_REM_W.value],
+                    Col.CHW_REM_W.value: float(df[Col.CHW_REM_W.value].max())
+                    * sizing_value
+                    / cap_ref[Col.CHW_REM_W.value],
                 }
                 sizing_load = max(num, key=num.get)
                 cap_ref = cap_ref[sizing_load]
@@ -776,6 +792,10 @@ def loads_to_site_energy(
             cap_total_h_W = awhp_cap_h * awhp_num
             served_h_W = np.minimum(df[Col.HHW_REM_W.value].to_numpy(), cap_total_h_W)
             elec_h_Wh = served_h_W / awhp_cop_h
+
+            if scen.fuel_switching:
+                df[Col.HHW_REM_W_NG_MODE.value] = df[Col.HHW_REM_W.value].to_numpy()
+                # store remaining HHW load before it gets updated (in case there is heat recovery preceding)
 
             # add refrigerant information
             awhp_refrigerant = awhp_h.refrigerant if awhp_h.refrigerant else "Unknown"
@@ -831,31 +851,37 @@ def loads_to_site_energy(
             boiler_served_W = df[Col.HHW_REM_W].to_numpy()
             gas_Wh = boiler_served_W / eff
 
-            boiler_peak_served_W = np.nanmax(boiler_served_W)
-            # sizing logic
-            if backup_heating.eq_calc_type == "generic":
-                # generic equipment - do not account for space, electric capacity, etc.
-                boiler_num = 0
-            else:
-                # specific equipment model
-                boiler_cap = backup_heating.capacity_W
-                boiler_num = np.ceil(boiler_peak_served_W / boiler_cap)
-                boiler_num = max(boiler_num, 1)  # ensure at least one unit
-
-                logger.debug(f"Gas boiler sizing: {boiler_num:.0f} units")
+            if scen.fuel_switching:
+                # create intermediate columns to store boiler HHW and gas usage if AWHP did not operate (i.e., NG mode)
+                df[Col.BOILER_HHW_W_NG_MODE.value] = df[Col.HHW_REM_W_NG_MODE.value]
+                gas_Wh_NG_mode = df[Col.HHW_REM_W_NG_MODE.value] / eff
+                df[Col.GAS_BOILER_WH_NG_MODE.value] = gas_Wh_NG_mode
 
             df[Col.BOILER_HHW_W.value] = boiler_served_W
             df[Col.GAS_BOILER_WH.value] = gas_Wh
             df[Col.BOILER_EFF.value] = eff
             df[Col.GAS_WH.value] += gas_Wh
-            df[Col.HHW_REM_W.value] = 0.0
+            df[Col.HHW_REM_W.value] -= boiler_served_W
+            # boiler sizing information
+            df[Col.BOILER_EQ_CALC.value] = backup_heating.eq_calc_type
+            df[Col.BOILER_CAP_W.value] = backup_heating.capacity_W
 
-            boiler_coverage = (
-                (np.nansum(boiler_served_W) / np.nansum(df[Col.HHW_W.value])) * 100
-                if np.nansum(df[Col.HHW_W.value]) > 0
-                else 0
-            )
-            logger.debug(f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load")
+            if scen.fuel_switching:
+                logger.debug("Phase 3 complete")
+                # boiler coverage calculation would be incorrect for fuel switching so skipped here
+            else:
+                boiler_coverage = (
+                    (
+                        np.nansum(np.nansum(df[Col.BOILER_HHW_W.value]))
+                        / np.nansum(df[Col.HHW_W.value])
+                    )
+                    * 100
+                    if np.nansum(df[Col.HHW_W.value]) > 0
+                    else 0
+                )
+                logger.debug(
+                    f"Phase 3 complete: Boiler covers {boiler_coverage:.1f}% of heating load"
+                )
 
         # =========================
         # Phase 4 - Electric resistance (if heating remains)
@@ -1074,9 +1100,15 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.AWHP_REFRIGERANT.value,
         Col.AWHP_REFRIGERANT_WEIGHT_KG.value,
         Col.AWHP_REFRIGERANT_GWP.value,
+        Col.BOILER_NUM.value,
         Col.BOILER_EFF.value,
         Col.BOILER_HHW_W.value,
+        Col.BOILER_HHW_W_NG_MODE.value,
+        Col.BOILER_EQ_CALC.value,
+        Col.BOILER_CAP_W.value,
         Col.GAS_BOILER_WH.value,
+        Col.GAS_BOILER_WH_NG_MODE.value,
+        Col.FUEL_SWITCHING.value,
         Col.RES_HHW_W.value,
         Col.ELEC_RES_WH.value,
         Col.AWHP_NUM_C.value,
@@ -1191,20 +1223,97 @@ def site_to_source(
         # used with non-leap emission scenario years. Emissions are still correct
         # because they're matched by month+hour pattern.
 
+        ## fuel switching logic
+        emissions_intensity_HP = (
+            merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value] / merged[Col.AWHP_COP_H.value]
+        )
+        emissions_intensity_NG = gas_emissions_rate / merged[Col.BOILER_EFF.value]
+        NG_mode = (
+            merged[Col.FUEL_SWITCHING.value].to_numpy()  # only evaluate if fuel switching is true
+            & (
+                emissions_intensity_HP > emissions_intensity_NG
+            )  # disable HP if electricity emissions intensity is higher
+        )
+
+        # print number of fuel switching hours
+        df_fuel_switching = merged.copy()
+        df_fuel_switching["NG_mode"] = NG_mode
+        df_fuel_switching = (
+            df_fuel_switching[
+                [Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, Col.FUEL_SWITCHING.value, "NG_mode"]
+            ]
+            .groupby([Col.EQ_SCEN_ID.value, Col.EQ_SCEN_NAME.value, Col.FUEL_SWITCHING.value])
+            .agg(NG_mode_hours=("NG_mode", "sum"), total_hours=("NG_mode", "size"))
+            .reset_index()
+        )
+        logger.debug(f"Fuel switching operation:\n {df_fuel_switching}")
+
+        # update AWHP and electricity total
+        merged.loc[NG_mode, Col.ELEC_WH.value] -= merged[Col.ELEC_AWHP_H_WH.value][NG_mode]
+        merged.loc[NG_mode, Col.ELEC_AWHP_H_WH.value] = 0.0
+        merged.loc[NG_mode, Col.AWHP_HHW_W.value] = 0.0
+
+        # update boiler and gas total
+        merged.loc[NG_mode, Col.GAS_WH.value] += (
+            merged[Col.GAS_BOILER_WH_NG_MODE.value][NG_mode]
+            - merged[Col.GAS_BOILER_WH.value][NG_mode]
+        )
+        # boilers are the only gas consuming equipment, but this logic included for consistency
+        merged.loc[NG_mode, Col.BOILER_HHW_W.value] = merged[Col.BOILER_HHW_W_NG_MODE.value][
+            NG_mode
+        ]
+        merged.loc[NG_mode, Col.GAS_BOILER_WH.value] = merged[Col.GAS_BOILER_WH_NG_MODE.value][
+            NG_mode
+        ]
+
+        ## boiler sizing, after gas has been updated
+        # determine peak boiler load for each equipment scenario
+        df_peak_hhw = (
+            merged[[Col.EQ_SCEN_ID.value, Col.BOILER_HHW_W.value]]
+            .groupby([Col.EQ_SCEN_ID.value])
+            .max()
+            .reset_index()
+        )
+        df_peak_hhw = df_peak_hhw.rename(columns={"boiler_hhw_W": "boiler_peak_hhw_W"})
+        final_df = merged.merge(df_peak_hhw, on=[Col.EQ_SCEN_ID.value], how="left")
+
+        specific_scen = final_df[Col.BOILER_EQ_CALC.value] == "specific"
+        final_df.loc[~specific_scen, Col.BOILER_NUM.value] = (
+            0.0  # 0 for generic equipment - do not account for space, electricaL capacity, etc.
+        )
+        final_df.loc[specific_scen, Col.BOILER_NUM.value] = np.maximum(
+            1,
+            np.ceil(
+                final_df["boiler_peak_hhw_W"][specific_scen]
+                / final_df[Col.BOILER_CAP_W.value][specific_scen]
+            ),
+        )
+        final_df = final_df.drop(
+            [
+                Col.BOILER_HHW_W_NG_MODE.value,
+                Col.GAS_BOILER_WH_NG_MODE.value,
+                Col.BOILER_EQ_CALC.value,
+                Col.FUEL_SWITCHING.value,
+                "boiler_peak_hhw_W",
+            ],
+            axis=1,
+        )
+
+        ## emissions calculations
         # electricity emissions
-        merged[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.ELEC_WH.value]
-            * merged[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
+        final_df[Col.ELEC_EMISSIONS_KG_CO2E.value] = (
+            final_df[Col.ELEC_WH.value]
+            * final_df[Col.ELEC_EMISSIONS_RATE_G_PER_KWH.value]
             / 1_000_000  #! make cleaner
         )
 
         # gas emissions
-        if Col.GAS_WH.value in merged.columns:
-            merged[Col.GAS_EMISSIONS_KG_CO2E.value] = (
-                gas_emissions_rate * merged[Col.GAS_WH.value] / 1_000_000
+        if Col.GAS_WH.value in final_df.columns:
+            final_df[Col.GAS_EMISSIONS_KG_CO2E.value] = (
+                gas_emissions_rate * final_df[Col.GAS_WH.value] / 1_000_000
             )
         else:
-            merged[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
+            final_df[Col.GAS_EMISSIONS_KG_CO2E.value] = 0.0
 
         # refrigerant emissions
         refrig_cols = [
@@ -1213,17 +1322,17 @@ def site_to_source(
             Col.CHILLER_REFRIGERANT_GWP.value,
         ]
 
-        existing_refrig_cols = [c for c in refrig_cols if c in merged.columns]
+        existing_refrig_cols = [c for c in refrig_cols if c in final_df.columns]
 
         if existing_refrig_cols:
             # Compute the total refrigerant emissions inventory by summing available columns
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] = merged[existing_refrig_cols].sum(axis=1)
+            final_df[Col.TOTAL_REFRIG_GWP_KG.value] = final_df[existing_refrig_cols].sum(axis=1)
         else:
             # If none exist, default to zero
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
+            final_df[Col.TOTAL_REFRIG_GWP_KG.value] = 0.0
 
-        merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
+        final_df[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value] = (
+            final_df[Col.TOTAL_REFRIG_GWP_KG.value] * annual_refrig_leakage_percent
         )
 
         # DEBUGGING CODE TO IDENTIFY BAD TIMESTAMPS
@@ -1238,25 +1347,25 @@ def site_to_source(
 
         # print(bad_rows[["year", "month", "day", "hour"]].head())
 
-        merged[Col.TIMESTAMP.value] = pd.to_datetime(
-            merged[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
+        final_df[Col.TIMESTAMP.value] = pd.to_datetime(
+            final_df[[Col.YEAR.value, Col.MONTH.value, Col.DAY.value, Col.HOUR.value]]
         )
 
-        merged = merged.drop(
+        final_df = final_df.drop(
             columns=[Col.MONTH.value, Col.DAY.value, Col.DOY.value, Col.HOUR.value]
         ).set_index(Col.TIMESTAMP.value)
 
-        merged[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
-            merged[Col.ELEC_EMISSIONS_KG_CO2E.value]
-            + merged[Col.GAS_EMISSIONS_KG_CO2E.value]
-            + merged[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
+        final_df[Col.TOTAL_EMISSIONS_KG_CO2E.value] = (
+            final_df[Col.ELEC_EMISSIONS_KG_CO2E.value]
+            + final_df[Col.GAS_EMISSIONS_KG_CO2E.value]
+            + final_df[Col.TOTAL_REFRIG_EMISSIONS_KG_CO2E.value]
         )
 
-        merged[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
+        final_df[Col.EM_SCEN_ID.value] = em_scen_id  # tag scenario
 
-        results.append(merged)
+        results.append(final_df)
 
-        total_emissions_kg = sum(r[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum() for r in results)
+        total_emissions_kg = final_df[Col.TOTAL_EMISSIONS_KG_CO2E.value].sum()
         logger.info(
             f"Completed site_to_source for {em_scen_id}, "
             f"total emissions={total_emissions_kg:.0f} kg CO2e"

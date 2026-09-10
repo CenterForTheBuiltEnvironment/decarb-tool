@@ -275,6 +275,7 @@ COLUMN_CONFIG = {
     "simult_h_hr_W": ("capacity", "HR Simultaneous Cap"),
     "awhp_cap_h_W": ("capacity", "AWHP Heating Cap"),
     "capacity_W": ("capacity", "Rated Capacity"),
+    "boiler_cap_W": ("capacity", "Boiler Cap"),
     # === Capacity - Cooling (W) ===
     "awhp_cap_c_W": ("capacity_cooling", "AWHP Cooling Cap"),
     # === Temperature (°C) ===
@@ -318,6 +319,7 @@ COLUMN_CONFIG = {
     "awhp_num_c": (None, "AWHP Count (Cooling)"),
     "awhp_num": (None, "AWHP Count"),
     "awhp_num_redundant": (None, "AWHP Redundant Count"),
+    "boiler_num": (None, "Boiler Count"),
     # === Refrigerant Type (text - no conversion) ===
     "chiller_refrigerant": (None, "Chiller Refrigerant"),
     "hr_wwhp_refrigerant": (None, "HR-WWHP Refrigerant"),
