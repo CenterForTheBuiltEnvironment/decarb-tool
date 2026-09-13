@@ -27,7 +27,7 @@ from utils.error_handling import (
     create_warning_notification,
 )
 from utils.logging_config import get_logger
-from utils.tooltips import with_icon
+from utils.tooltips import with_icon_and_tooltip
 
 logger = get_logger(__name__)
 
@@ -46,11 +46,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            with_icon(
-                                text="Emissions",
+                            with_icon_and_tooltip(
+                                "Emissions",
+                                "emissions.emissions_docs",
                                 order=5,
                                 icon="basil:book-open-outline",
-                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                                href="https://cbe-berkeley.gitbook.io/decarb/documentation/emissions",
                             ),
                             dmc.Text(
                                 "Specify and select emission scenarios to include in the analysis.",

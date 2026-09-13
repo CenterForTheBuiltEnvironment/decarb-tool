@@ -26,6 +26,9 @@ TOOLTIPS = {
     # --- Loads Page ---
     "loads": {
         "specify_equipment_button": "Specify equipment configurations for this load scenario.",
+        "loads_docs": "Click to access the documentation on load profiles.",
+        "load_library_docs": "Click to access the documentation on the load library options.",
+        "upload_custom": "Ensure the CSV file uses the exact format and units listed in the documentation.",
     },
     # --- Results Page ---
     "results": {
@@ -38,6 +41,13 @@ TOOLTIPS = {
         "edit_eq_scenario": "Edit the equipment configuration for this scenario.",
         "delete_eq_scenario": "Delete this equipment scenario.",
         "reset_eq_scenario": "Reset all equipment scenarios to default.",
+        "equipment_docs": "Click to access the documentation on equipment options and scenarios.",
+        "equipment_input_docs": "Click to access the documentation on equipment inputs.",
+    },
+    # --- Emissions Page ---
+    "emissions": {
+        "emissions_docs": "Click to access the documentation on emissions options and scenarios.",
+        "emissions_input_docs": "Click to access the documentation on emissions inputs.",
     },
 }
 
@@ -104,6 +114,57 @@ def with_icon(
         [
             dmc.Title(text, order=order),
             icon_component,
+        ],
+        gap=gap,
+        align="center",
+        wrap="nowrap",
+    )
+
+
+def with_icon_and_tooltip(
+    text_title: str,
+    text_tooltip: str,
+    icon: str,
+    icon_color: str = "grey",
+    href: str | None = None,
+    order: int = 5,
+    icon_size: int = 18,
+    gap: int = 6,
+    target: str = "_blank",
+    text_props: dict | None = None,
+    **overrides,
+):
+    """Create a title with an icon and tooltip, optionally wrapped in a link.
+    Args:
+        text_title (str): Title text.
+        text_tooltip (str): Tooltip text or key to resolve from TOOLTIPS dict.
+        icon (str): Icon identifier for DashIconify.
+        icon_color (str, optional): Color of the icon. Defaults to "grey".
+        href (str | None, optional): URL to link the icon to. Defaults to None.
+        order (int, optional): Title order (1-6). Defaults to 5.
+        icon_size (int, optional): Size of the icon. Defaults to 18.
+        gap (int, optional): Gap between title and icon. Defaults to 6.
+        target (str, optional): Link target attribute. Defaults to "_blank".
+        text_props (dict, optional): Additional styling props for the tooltip text.
+        **overrides: Additional props to override default tooltip settings.
+    Returns:
+        dmc.Group: Group containing the title and icon with tooltip.
+    """
+
+    icon_component = DashIconify(icon=icon, width=icon_size, color=icon_color)
+
+    if href:
+        icon_component = dmc.Anchor(
+            icon_component,
+            href=href,
+            target=target,
+            underline="never",
+        )
+
+    return dmc.Group(
+        [
+            dmc.Title(text_title, order=order),
+            with_tooltip(icon_component, text_tooltip, text_props, **overrides),
         ],
         gap=gap,
         align="center",
