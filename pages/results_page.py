@@ -632,12 +632,14 @@ def populate_emission_dropdowns(
     Output("results-ready-store", "data", allow_duplicate=True),
     Output("results-calculating-store", "data", allow_duplicate=True),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Output("settings-dirty-store", "data", allow_duplicate=True),
     Input("url", "pathname"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
     State("selected-emissions-store", "data"),
     State("session-store", "data"),
+    State("settings-dirty-store", "data"),
     prevent_initial_call=True,
 )
 def auto_calculate_on_results(
@@ -647,28 +649,32 @@ def auto_calculate_on_results(
     selected_scenarios,
     selected_emission_ids,
     session_data,
+    settings_dirty,
 ):
     """Auto-trigger full site→source calculation when the user navigates to the Results tab."""
     if pathname != URLS.RESULTS.value:
         raise dash.exceptions.PreventUpdate
 
+    if not settings_dirty:
+        return no_update, time.time(), no_update, no_update
+
     if not metadata_json:
-        return no_update, False, no_update
+        return no_update, time.time(), no_update, no_update
 
     metadata = Metadata(**metadata_json)
 
     if not metadata.load_data.load_type:
-        return no_update, False, no_update
+        return no_update, time.time(), no_update, no_update
 
     if not metadata.base_gea_grid_region:
         notification = create_warning_notification(
             "Missing Grid Region",
             "Could not determine grid region. Please select a location on the Loads page.",
         )
-        return no_update, False, [notification]
+        return no_update, time.time(), [notification], no_update
 
     if not equipment_json or not selected_scenarios or not session_data:
-        return no_update, False, no_update
+        return no_update, time.time(), no_update, no_update
 
     try:
         folder = Path(f"/tmp/{session_data['session_id']}")
@@ -702,7 +708,7 @@ def auto_calculate_on_results(
             "Calculation Complete",
             "Source emissions calculation finished successfully.",
         )
-        return time.time(), False, [success]
+        return time.time(), time.time(), [success], False
 
     except Exception as e:
         logger.exception(f"Auto-calculation error on Results navigation: {e}")
@@ -710,7 +716,7 @@ def auto_calculate_on_results(
             "Calculation Error",
             "Automatic calculation failed. Please check your load and settings.",
         )
-        return no_update, False, [notification]
+        return no_update, time.time(), [notification], no_update
 
 
 @callback(
@@ -718,6 +724,6 @@ def auto_calculate_on_results(
     Input("results-calculating-store", "data"),
     prevent_initial_call=True,
 )
-def control_loading_overlay(is_calculating):
-    """Hide the loading overlay once calculation completes."""
-    return bool(is_calculating)
+def control_loading_overlay(_store_data):
+    """Hide the loading overlay whenever the calculation store is updated."""
+    return False

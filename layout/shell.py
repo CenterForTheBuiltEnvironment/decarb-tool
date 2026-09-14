@@ -78,6 +78,7 @@ def build_shell(page_content):
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
         dcc.Store(id="results-ready-store", storage_type="session", data=False),
         dcc.Store(id="results-calculating-store", storage_type="memory", data=False),
+        dcc.Store(id="settings-dirty-store", storage_type="session", data=True),
         dcc.Location(id="nav-location", refresh=True),
         dcc.Download(id="download-data"),
     ]
@@ -368,3 +369,15 @@ def update_equipment_number_map(selected_ids):
 def toggle_download_button(results_ready):
     has_results = bool(results_ready)
     return not has_results, has_results
+
+
+@callback(
+    Output("settings-dirty-store", "data", allow_duplicate=True),
+    Input("metadata-store", "data"),
+    Input("equipment-store", "data"),
+    Input("selected-equipment-store", "data"),
+    Input("selected-emissions-store", "data"),
+    prevent_initial_call=True,
+)
+def mark_settings_dirty(*_):
+    return True
