@@ -1163,7 +1163,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_converter, get_unit_label
+    from utils.units import get_converter, get_display_unit
 
     emission_df = pd.DataFrame(emission_data) if isinstance(emission_data, list) else emission_data
 
@@ -1181,16 +1181,22 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Get unit label for NG emission rate (dynamic based on unit_mode)
-    ng_emission_rate_unit = get_unit_label("emissions_rate", unit_mode)
+    # Get unit label for emission rates (dynamic based on unit_mode)
+    ng_emission_rate_unit = get_display_unit("gas_emission_factor", unit_mode)
+    elec_emission_rate_unit = get_display_unit("emissions_rate", unit_mode)
 
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
+        ("em_scen_name", "Scenario"),
+        ("elec_emission_source", "Grid emissions source"),
+        (
+            "elec_avg_emission_rate_gCO2e_per_kWh",
+            f"Constant grid emissions rate ({elec_emission_rate_unit})",
+        ),
         ("grid_scenario", "Grid Scenario"),
         ("gea_grid_region", "GEA Grid Region"),
         ("emission_type", "Emission Type"),
-        ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
         (
             "ng_emission_rate_gCO2e_per_kWh",
@@ -1319,8 +1325,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
-    # Get converter for NG emission rate values
-    ng_emission_rate_converter = get_unit_converter("emissions_rate", unit_mode)
+    # Get converter for emission rate values
+    ng_emission_rate_converter = get_converter("gas_emission_factor", unit_mode)
+    elec_emission_rate_converter = get_converter("emissions_rate", unit_mode)
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -1335,10 +1342,16 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for NG emission rate
+            # Apply unit conversion for emission rates
             if field == "ng_emission_rate_gCO2e_per_kWh" and raw_value is not None:
                 try:
                     converted = ng_emission_rate_converter(float(raw_value))
+                    display_value = f"{converted:.2f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            elif field == "elec_avg_emission_rate_gCO2e_per_kWh" and raw_value is not None:
+                try:
+                    converted = elec_emission_rate_converter(float(raw_value))
                     display_value = f"{converted:.2f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1915,6 +1928,36 @@ def edit_emission_modal():
                     spacing="md",
                     children=[
                         dmc.Select(
+                            id="edit-em-elec-source",
+                            label="Grid emissions source",
+                            placeholder="Select grid emissions source",
+                            data=_options(emissions_index["elec_emission_source"]),
+                            searchable=True,
+                            clearable=False,
+                        ),
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-em-elec-emission-rate-label",
+                                    children="Constant grid emissions rate (g/kWh)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-em-elec-avg-emission-rate",
+                                    min=0,
+                                    step=1,
+                                ),
+                            ],
+                            gap=4,
+                        ),
+                    ],
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
                             id="edit-em-grid-scenario",
                             label="Grid scenario",
                             placeholder="Select grid scenario",
@@ -1936,12 +1979,6 @@ def edit_emission_modal():
                     cols=2,
                     spacing="md",
                     children=[
-                        dmc.TextInput(
-                            id="edit-em-time-zone",
-                            label="Time zone",
-                            placeholder="e.g. America/Los_Angeles",
-                            disabled=True,
-                        ),
                         dmc.Select(
                             id="edit-em-emission-type",
                             label="Emission type",
@@ -1949,19 +1986,6 @@ def edit_emission_modal():
                             data=_options(emissions_index["emission_type"]),
                             searchable=False,
                             clearable=False,
-                        ),
-                    ],
-                ),
-                dmc.SimpleGrid(
-                    cols=2,
-                    spacing="md",
-                    children=[
-                        dmc.NumberInput(
-                            id="edit-em-shortrun-weighting",
-                            label="Short-run weighting",
-                            min=0,
-                            max=1,
-                            step=0.1,
                         ),
                         dmc.Select(
                             id="edit-em-year",
