@@ -70,7 +70,7 @@ class EmissionScenarioDefaults(Enum):
     """Default values for emission scenario parameters."""
 
     ELEC_EMISSION_SOURCE: str = "Marginal (Cambium, Long-run)"
-    ELEC_AVG_EMISSION_RATE_G_KWH: float | None = None
+    ELEC_AVG_EMISSION_RATE_G_KWH: float = None
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"

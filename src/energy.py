@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import Columns as Col
-from src.emissions import CAMBIUM_SOURCES, get_emissions_data
+from src.emissions import get_emissions_data
 from src.equipment import Equipment, EquipmentLibrary, PerformanceCurves
 from src.loads import StandardLoad
 from src.metadata import Metadata
@@ -1161,7 +1161,11 @@ def site_to_source(
         base[Col.HOUR.value] = base.index.hour
         base[Col.DOY.value] = base.index.dayofyear
 
-        if em_scen.elec_emission_source in CAMBIUM_SOURCES:
+        if em_scen.elec_emission_source in [
+            "Marginal (Cambium, Long-run)",
+            "Marginal (Cambium, Short-run)",
+            "Average (Cambium)",
+        ]:
             emissions_data = get_emissions_data(metadata[em_scen_id])
             logger.debug(
                 f"Cambium grid emissions: Loaded {len(emissions_data.df)} emission data rows"

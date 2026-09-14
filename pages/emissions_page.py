@@ -310,10 +310,6 @@ def handle_emission_group_selection(group_id, metadata_data, selected_ids, store
             "year": default_year,
         }
     )
-    # If the base was a Constant scenario it may have no grid_scenario; restore a
-    # sensible default so Cambium-based group variants don't fail validation.
-    if not base_scenario.get("grid_scenario"):
-        base_scenario["grid_scenario"] = "MidCase"
 
     # Reset to default 2/3/4 scenarios (a, b, optionally c & d) with group-specific values
     updated_scenarios = []
