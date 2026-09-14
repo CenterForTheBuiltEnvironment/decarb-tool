@@ -1,16 +1,28 @@
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from src import paths
 from src.mixins import DotAccessMixin
+
+CAMBIUM_SOURCES = (
+    "Marginal (Cambium, Long-run)",
+    "Marginal (Cambium, Short-run)",
+    "Average (Cambium)",
+)
 
 
 class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_id: str
     em_scen_name: str
-    elec_emission_source: str
+    elec_emission_source: Literal[
+        "Marginal (Cambium, Long-run)",
+        "Marginal (Cambium, Short-run)",
+        "Average (Cambium)",
+        "Constant (User-provided)",
+    ]
     elec_avg_emission_rate_gCO2e_per_kWh: float | None = None
     grid_scenario: str | None = None
     gea_grid_region: str | None = None
@@ -18,6 +30,14 @@ class EmissionScenario(DotAccessMixin, BaseModel):
     annual_refrig_leakage_percent: float
     ng_emission_rate_gCO2e_per_kWh: float
     year: int
+
+    @model_validator(mode="after")
+    def check_source_fields(self) -> "EmissionScenario":
+        if self.elec_emission_source in CAMBIUM_SOURCES and not self.grid_scenario:
+            raise ValueError(
+                f"grid_scenario is required for emission source '{self.elec_emission_source}'"
+            )
+        return self
 
 
 class StandardEmissions:
