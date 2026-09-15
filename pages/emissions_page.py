@@ -1,9 +1,7 @@
 import json
-from pathlib import Path
 
 import dash
 import dash_mantine_components as dmc
-import pandas as pd
 from dash import (
     ALL,
     Input,
@@ -19,11 +17,9 @@ from dash_iconify import DashIconify
 
 from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
 from src.config import URLS, EmissionScenarioDefaults
-from src.energy import site_to_source
 from src.metadata import Metadata
 from utils.error_handling import (
     create_error_notification,
-    create_success_notification,
     create_warning_notification,
 )
 from utils.logging_config import get_logger
@@ -39,9 +35,6 @@ def layout():
     return dmc.Container(
         [
             dcc.Store(id="active-emissions-tab"),
-            dcc.Store(id="site-energy-store"),
-            html.Div(id="source-energy-store"),
-            html.Div(id="calc-status-toast"),
             dmc.Group(
                 [
                     dmc.Stack(
@@ -151,9 +144,9 @@ def layout():
                 [
                     dmc.Button(
                         [
-                            "Calculate Source Emissions",
+                            "View Results",
                             DashIconify(
-                                icon="ic:baseline-autorenew",
+                                icon="ic:baseline-arrow-forward",
                                 width=20,
                                 style={"marginLeft": 8},
                             ),
@@ -908,79 +901,6 @@ def navigate_to_results(n_clicks, metadata_json, equipment_json, selected_scenar
         return no_update, [notification]
 
     return URLS.RESULTS.value, no_update
-
-
-@callback(
-    Output("source-energy-store", "children"),
-    Output("notification-container", "sendNotifications", allow_duplicate=True),
-    Output("results-ready-store", "data"),
-    Output("nav-location", "pathname", allow_duplicate=True),
-    Input("site-energy-store", "data"),
-    State("metadata-store", "data"),
-    State("selected-emissions-store", "data"),
-    State("session-store", "data"),
-    prevent_initial_call=True,
-)
-def run_site_to_source(site_energy_path, metadata_json, selected_emission_ids, session_data):
-    if not site_energy_path:
-        raise dash.exceptions.PreventUpdate
-
-    if not selected_emission_ids:
-        notification = create_warning_notification(
-            "No Emission Scenarios", "Please select at least one emission scenario."
-        )
-        return no_update, [notification], no_update, no_update
-
-    try:
-        logger.info(
-            f"Converting from site energy to source emissions for following em_scenarios: {selected_emission_ids}"
-        )
-
-        folder = Path(f"/tmp/{session_data['session_id']}")
-        folder.mkdir(parents=True, exist_ok=True)
-
-        site_energy = pd.read_pickle(site_energy_path)
-        metadata = Metadata(**metadata_json)
-
-        # filter emission scenarios
-        selected_emission_ids = selected_emission_ids or []
-        if selected_emission_ids:
-            metadata.emission_settings = [
-                scen
-                for scen in metadata.emission_settings
-                if scen.em_scen_id in selected_emission_ids
-            ]
-
-        source_energy = site_to_source(site_energy, metadata=metadata)
-
-        source_path = folder / "source_energy.pkl"
-        source_energy.to_pickle(source_path)
-
-        logger.info(f"Saved source energy to: {source_path}")
-
-        success = create_success_notification(
-            "Calculation Complete",
-            "Source emissions calculation finished successfully.",
-        )
-
-        return (
-            dcc.Store(id="source-energy-store", data=str(source_path)),
-            [success],
-            True,
-            URLS.RESULTS.value,
-        )
-
-    except ValueError as e:
-        logger.error(f"Emissions calculation error: {e}")
-        notification = create_error_notification("Calculation Error", str(e))
-        return no_update, [notification], no_update, no_update
-
-    except Exception as e:
-        logger.exception(f"Unexpected emissions error: {e}")
-        notification = create_error_notification(
-            "Unexpected Error", "Emissions calculation failed."
-        )
-        return no_update, [notification], no_update, no_update
 
 
 @callback(

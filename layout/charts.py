@@ -20,7 +20,9 @@ def _chart_block(controls, graph_id, height=600):
             controls,
             dmc.Paper(
                 dcc.Loading(
-                    type="default",
+                    type="circle",
+                    delay_show=300,
+                    delay_hide=100,
                     children=dcc.Graph(
                         id=graph_id,
                         style={"height": f"{height}px", "width": "100%"},

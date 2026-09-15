@@ -643,7 +643,8 @@ def build_equipment_table(
             (field, label) for field, label in row_config if field in equipment_df.columns
         ]
 
-    active_ids = set(active_ids or [])
+    active_ids_ordered = list(active_ids or [])
+    active_ids = set(active_ids_ordered)
 
     active_col_style = TABLE_STYLE.active_col_style
     inactive_col_style = TABLE_STYLE.inactive_col_style
@@ -841,7 +842,7 @@ def build_equipment_table(
 
     return dmc.CheckboxGroup(
         id="equipment-checkbox-group",
-        value=list(active_ids),
+        value=active_ids_ordered,
         children=table,
     )
 
@@ -1239,7 +1240,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
             (field, label) for field, label in row_config if field in emission_df.columns
         ]
 
-    active_ids = set(active_ids or [])
+    active_ids_ordered = list(active_ids or [])
+    active_ids = set(active_ids_ordered)
 
     active_col_style = TABLE_STYLE.active_col_style
     inactive_col_style = TABLE_STYLE.inactive_col_style
@@ -1399,7 +1401,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
 
     return dmc.CheckboxGroup(
         id="emissions-checkbox-group",
-        value=list(active_ids),
+        value=active_ids_ordered,
         children=table,
     )
 
