@@ -23,7 +23,7 @@ from layout.input import (
 )
 from src.config import URLS
 from utils.logging_config import get_logger
-from utils.tooltips import with_icon, with_tooltip
+from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 logger = get_logger(__name__)
 
@@ -44,11 +44,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            with_icon(
-                                text="Equipment",
+                            with_icon_and_tooltip(
+                                "Equipment",
+                                "equipment.equipment_docs",
                                 order=5,
                                 icon="basil:book-open-outline",
-                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                                href="https://cbe-berkeley.gitbook.io/decarb/documentation/equipment",
                             ),
                             dmc.Text(
                                 "Specify and select equipment scenarios to include in the analysis.",

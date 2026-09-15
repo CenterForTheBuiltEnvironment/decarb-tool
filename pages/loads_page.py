@@ -34,7 +34,7 @@ from src.loads import STANDARD_COLUMNS, StandardLoad, get_load_data
 from src.metadata import LoadData, Metadata
 from utils.error_handling import create_success_notification
 from utils.logging_config import get_logger
-from utils.tooltips import TOOLTIPS, with_icon, with_tooltip
+from utils.tooltips import TOOLTIPS, with_icon_and_tooltip, with_tooltip
 
 logger = get_logger(__name__)
 
@@ -69,11 +69,12 @@ def layout():
             dmc.GridCol(
                 dmc.Paper(
                     [
-                        with_icon(
-                            text="Loads",
+                        with_icon_and_tooltip(
+                            "Loads",
+                            "loads.loads_docs",
                             order=5,
                             icon="basil:book-open-outline",
-                            href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                            href="https://cbe-berkeley.gitbook.io/decarb/documentation/loads",
                         ),
                         html.Hr(),
                         select_load_type(),
