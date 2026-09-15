@@ -10,6 +10,7 @@ class URLS(Enum):
 
 class LINKS(Enum):
     DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb"
+    REPO_URL: str = "https://github.com/CenterForTheBuiltEnvironment/decarb-tool"
 
 
 class DEFAULT_SELECTIONS(Enum):
