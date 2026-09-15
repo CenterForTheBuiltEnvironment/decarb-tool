@@ -53,10 +53,10 @@ def layout():
                                         # Always starts visible: this is a static prop
                                         # baked into the page's initial markup, not a
                                         # callback, so it can't be made conditional on
-                                        # settings-dirty-store (unreadable at layout()
-                                        # render time, and no callback may target this
-                                        # page-specific component from a page-agnostic
-                                        # Input like url.pathname — see
+                                        # last-calculated-settings-store (unreadable at
+                                        # layout() render time, and no callback may
+                                        # target this page-specific component from a
+                                        # page-agnostic Input like url.pathname — see
                                         # auto_calculate_on_results). control_loading_overlay
                                         # below hides it again quickly on every visit.
                                         visible=True,
@@ -645,14 +645,14 @@ def populate_emission_dropdowns(
     Output("results-ready-store", "data", allow_duplicate=True),
     Output("results-refresh-store", "data", allow_duplicate=True),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
-    Output("settings-dirty-store", "data", allow_duplicate=True),
+    Output("last-calculated-settings-store", "data", allow_duplicate=True),
     Input("url", "pathname"),
     State("metadata-store", "data"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
     State("selected-emissions-store", "data"),
     State("session-store", "data"),
-    State("settings-dirty-store", "data"),
+    State("last-calculated-settings-store", "data"),
     prevent_initial_call=True,
 )
 def auto_calculate_on_results(
@@ -662,7 +662,7 @@ def auto_calculate_on_results(
     selected_scenarios,
     selected_emission_ids,
     session_data,
-    settings_dirty,
+    last_calculated_settings,
 ):
     """Auto-trigger full site→source calculation when the user navigates to the Results tab.
 
@@ -677,11 +677,25 @@ def auto_calculate_on_results(
     always present (the shell-level stores/notification container) are safe
     Outputs here.
 
+    Whether to skip the expensive recompute is decided by comparing the
+    CURRENT settings directly against a snapshot of what was actually used
+    for the last successful calculation (last-calculated-settings-store) —
+    not by a separately-maintained "dirty" boolean. An earlier version used
+    a settings-dirty-store flag set by a watcher callback on metadata-store/
+    equipment-store/selected-equipment-store/selected-emissions-store, but
+    that watcher re-fired (and wrongly marked settings dirty) on every page
+    navigation, not just on real edits — Dash re-dispatches callbacks whose
+    Inputs are already present in the DOM on every dash-pages navigation,
+    and prevent_initial_call only suppresses the very first, true app-startup
+    dispatch, not these later ones. A direct snapshot comparison, done here
+    at the only place that matters (arrival at Results, already gated on
+    pathname), sidesteps that entirely.
+
     results-refresh-store is bumped on every branch below (including the
     early-exit guards), never just on a successful calculation: it is the
     single, unconditional "repaint the results view now" pulse that
     populate_equipment_dropdowns/populate_emission_dropdowns key off of, so
-    that a revisit with unchanged (not dirty) settings still repaints the
+    that a revisit with unchanged settings still repaints the
     dropdowns/charts from whatever is authoritatively on disk instead of
     leaving them on the hardcoded placeholder values baked into
     layout/charts.py. results-ready-store, by contrast, keeps its narrower
@@ -691,7 +705,17 @@ def auto_calculate_on_results(
     if pathname != URLS.RESULTS.value:
         raise dash.exceptions.PreventUpdate
 
-    if not settings_dirty:
+    current_settings = {
+        "metadata": metadata_json,
+        "equipment": equipment_json,
+        "selected_equipment": selected_scenarios,
+        "selected_emissions": selected_emission_ids,
+    }
+
+    if (
+        current_settings == last_calculated_settings
+        and load_source_energy(session_data) is not None
+    ):
         return no_update, time.time(), no_update, no_update
 
     if not metadata_json:
@@ -744,7 +768,7 @@ def auto_calculate_on_results(
             "Calculation Complete",
             "Source emissions calculation finished successfully.",
         )
-        return time.time(), time.time(), [success], False
+        return time.time(), time.time(), [success], current_settings
 
     except Exception as e:
         logger.exception(f"Auto-calculation error on Results navigation: {e}")
