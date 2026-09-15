@@ -8,7 +8,6 @@ from pathlib import Path
 import dash
 import dash_mantine_components as dmc
 import pandas as pd
-import plotly.express as px
 from dash import Input, Output, State, callback, dcc, no_update
 
 from layout.charts import chart_tabs
@@ -19,6 +18,7 @@ from src.equipment import EquipmentLibrary
 from src.loads import get_load_data
 from src.metadata import Metadata
 from src.visuals import (
+    empty_figure,
     plot_emission_scenarios_grouped,
     plot_emissions_heatmap,
     plot_energy_and_emissions,
@@ -50,6 +50,15 @@ def layout():
                                 [
                                     dmc.LoadingOverlay(
                                         id="results-loading-overlay",
+                                        # Always starts visible: this is a static prop
+                                        # baked into the page's initial markup, not a
+                                        # callback, so it can't be made conditional on
+                                        # settings-dirty-store (unreadable at layout()
+                                        # render time, and no callback may target this
+                                        # page-specific component from a page-agnostic
+                                        # Input like url.pathname — see
+                                        # auto_calculate_on_results). control_loading_overlay
+                                        # below hides it again quickly on every visit.
                                         visible=True,
                                         overlayProps={"radius": "md", "blur": 10},
                                         zIndex=10,
@@ -114,7 +123,7 @@ def show_project_summary(metadata_json, unit_mode):
     Input("gas-toggle", "value"),
     Input("frequency-dropdown", "value"),
     Input("unit-toggle", "value"),
-    # prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_meter_plot(
     session_data,
@@ -127,7 +136,7 @@ def update_meter_plot(
 ):
     df = load_source_energy(session_data)
     if df is None or not emission_scenarios or not equipment_scenarios:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     # flags from toggles
     stacked = "stacked" in stacked_value
@@ -152,11 +161,12 @@ def update_meter_plot(
     Input("total-equipment-scen-dropdown", "value"),
     Input("total-emission-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
+    prevent_initial_call=True,
 )
 def update_total_emissions_plot(session_data, equipment_scenarios, emission_scenario, unit_mode):
     df = load_source_energy(session_data)
     if df is None or emission_scenario is None or not equipment_scenarios:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     if isinstance(emission_scenario, str):
         emission_scenario = [emission_scenario]
@@ -171,11 +181,12 @@ def update_total_emissions_plot(session_data, equipment_scenarios, emission_scen
     Input("emission-em-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
     State("selected-equipment-store", "data"),  # preserves user ordering
+    prevent_initial_call=True,
 )
 def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selected_equipment_ids):
     df = load_source_energy(session_data)
     if df is None or not emission_scenarios:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     # Use user-defined order from selected-equipment-store
     df_ids = set(df["eq_scen_id"].unique())
@@ -185,7 +196,7 @@ def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selec
         equipment_scenarios = list(df_ids)
 
     if not equipment_scenarios:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     # Ensure emission_scenarios is a list
     if isinstance(emission_scenarios, str):
@@ -204,14 +215,14 @@ def update_emissions_bar_plot(session_data, emission_scenarios, unit_mode, selec
     Input("heatmap-emission-scen-dropdown", "value"),
     Input("heatmap-emission-type-dropdown", "value"),
     Input("unit-toggle", "value"),
-    # prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_emissions_heatmap(
     session_data, equipment_scenario, emission_scenario, emission_type, unit_mode
 ):
     df = load_source_energy(session_data)
     if df is None or not equipment_scenario or not emission_scenario:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     fig = plot_emissions_heatmap(
         df,
@@ -231,7 +242,7 @@ def update_emissions_heatmap(
     Input("scatter-yvar-dropdown", "value"),
     Input("scatter-frequency-dropdown", "value"),
     Input("unit-toggle", "value"),
-    # prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_scatter_plot(
     session_data,
@@ -243,7 +254,7 @@ def update_scatter_plot(
 ):
     df = load_source_energy(session_data)
     if df is None or not equipment_scenarios or not emission_scenario:
-        return px.line(x=[0, 1], y=[0, 0], title="Waiting for data...")
+        return empty_figure()
 
     frequency_value = frequency_value if frequency_value else "D"
 
@@ -417,12 +428,14 @@ def _add_metadata_files(
     Output("scatter-equipment-scen-dropdown", "data"),
     Output("scatter-equipment-scen-dropdown", "value"),
     Input("session-store", "data"),
-    Input("results-ready-store", "data"),
+    Input("results-refresh-store", "data"),
     State("selected-equipment-store", "data"),  # optional, keeps user ordering
     State("equipment-scenario-number-map", "data"),  # display numbers (1-5)
     prevent_initial_call=True,
 )
-def populate_equipment_dropdowns(session_data, _results_ready, selected_equipment_ids, number_map):
+def populate_equipment_dropdowns(
+    session_data, _results_refresh, selected_equipment_ids, number_map
+):
     """
     Populate all equipment scenario dropdowns with only the scenarios
     that were actually computed for this session.
@@ -507,7 +520,7 @@ def populate_equipment_dropdowns(session_data, _results_ready, selected_equipmen
     Output("scatter-emission-scen-dropdown", "data"),
     Output("scatter-emission-scen-dropdown", "value"),
     Input("session-store", "data"),
-    Input("results-ready-store", "data"),
+    Input("results-refresh-store", "data"),
     State("selected-emissions-store", "data"),  # preserves user ordering
     # previous values to infer single vs multi & keep user choices where possible
     State("emission-scen-dropdown", "value"),
@@ -519,7 +532,7 @@ def populate_equipment_dropdowns(session_data, _results_ready, selected_equipmen
 )
 def populate_emission_dropdowns(
     session_data,
-    _results_ready,
+    _results_refresh,
     selected_emission_ids,
     prev_emission_scen,
     prev_total_em,
@@ -630,7 +643,7 @@ def populate_emission_dropdowns(
 
 @callback(
     Output("results-ready-store", "data", allow_duplicate=True),
-    Output("results-calculating-store", "data", allow_duplicate=True),
+    Output("results-refresh-store", "data", allow_duplicate=True),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
     Output("settings-dirty-store", "data", allow_duplicate=True),
     Input("url", "pathname"),
@@ -651,7 +664,30 @@ def auto_calculate_on_results(
     session_data,
     settings_dirty,
 ):
-    """Auto-trigger full site→source calculation when the user navigates to the Results tab."""
+    """Auto-trigger full site→source calculation when the user navigates to the Results tab.
+
+    This callback must not output to anything defined only inside the Results
+    page's layout (e.g. results-loading-overlay): its Input is the app-wide
+    "url" pathname, which changes on every navigation, including to pages
+    where such a component doesn't exist in the DOM — Dash's client-side
+    validator hard-errors ("nonexistent object ... in an Output") the moment
+    that fires while looking at a page that doesn't have it, regardless of
+    the pathname guard below (that guard runs in the Python callback body,
+    which is irrelevant to the client-side check). Only components that are
+    always present (the shell-level stores/notification container) are safe
+    Outputs here.
+
+    results-refresh-store is bumped on every branch below (including the
+    early-exit guards), never just on a successful calculation: it is the
+    single, unconditional "repaint the results view now" pulse that
+    populate_equipment_dropdowns/populate_emission_dropdowns key off of, so
+    that a revisit with unchanged (not dirty) settings still repaints the
+    dropdowns/charts from whatever is authoritatively on disk instead of
+    leaving them on the hardcoded placeholder values baked into
+    layout/charts.py. results-ready-store, by contrast, keeps its narrower
+    meaning ("a fresh calculation just completed") and is only bumped on
+    real success, since it also gates the Download button.
+    """
     if pathname != URLS.RESULTS.value:
         raise dash.exceptions.PreventUpdate
 
@@ -721,9 +757,21 @@ def auto_calculate_on_results(
 
 @callback(
     Output("results-loading-overlay", "visible"),
-    Input("results-calculating-store", "data"),
+    Input("emissions-bar-plot", "figure"),
     prevent_initial_call=True,
 )
-def control_loading_overlay(_store_data):
-    """Hide the loading overlay whenever the calculation store is updated."""
+def control_loading_overlay(_figure):
+    """Hide the loading overlay once the default (Emissions) tab's chart has
+    actually redrawn with current data — i.e. once auto_calculate_on_results,
+    dropdown repopulation, and the first real chart redraw have all completed.
+
+    Both this callback's Input and Output only exist while the Results page
+    is mounted, which is what makes it safe (see the note on
+    auto_calculate_on_results above). It reliably fires exactly once per
+    visit because results-refresh-store is guaranteed to bump on every
+    landing (see auto_calculate_on_results), which always concretely sets
+    every dropdown output in populate_emission_dropdowns (never no_update),
+    which in turn always re-triggers this chart's figure callback — whether
+    or not a recalculation actually happened.
+    """
     return False
