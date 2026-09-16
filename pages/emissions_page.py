@@ -16,14 +16,15 @@ from dash import (
 from dash_iconify import DashIconify
 
 from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
-from src.config import URLS, EmissionScenarioDefaults
+from src.config import LINKS, URLS, EmissionScenarioDefaults
+from src.energy import site_to_source
 from src.metadata import Metadata
 from utils.error_handling import (
     create_error_notification,
     create_warning_notification,
 )
 from utils.logging_config import get_logger
-from utils.tooltips import with_icon
+from utils.tooltips import with_icon_and_tooltip
 
 logger = get_logger(__name__)
 
@@ -39,11 +40,12 @@ def layout():
                 [
                     dmc.Stack(
                         [
-                            with_icon(
-                                text="Emissions",
+                            with_icon_and_tooltip(
+                                "Emissions",
+                                "emissions.emissions_docs",
                                 order=5,
                                 icon="basil:book-open-outline",
-                                href="https://github.com/CenterForTheBuiltEnvironment/decarb-tool",
+                                href=LINKS.EMISSION_DOCS_URL.value,
                             ),
                             dmc.Text(
                                 "Specify and select emission scenarios to include in the analysis.",

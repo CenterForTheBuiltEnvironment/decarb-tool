@@ -10,7 +10,18 @@ class URLS(Enum):
 
 class LINKS(Enum):
     DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb"
-    REPO_URL: str = "https://github.com/CenterForTheBuiltEnvironment/decarb-tool"
+    LOAD_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/loads"
+    LOAD_LIBRARY_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/loads/load-types"
+    )
+    EQUIPMENT_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/equipment"
+    EQUIPMENT_INPUT_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/equipment#inputs"
+    )
+    EMISSION_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/emissions"
+    EMISSION_INPUT_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/emissions#inputs"
+    )
 
 
 class DEFAULT_SELECTIONS(Enum):

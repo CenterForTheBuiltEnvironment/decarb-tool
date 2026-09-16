@@ -14,8 +14,8 @@ from layout.table_config import (
     value_deemphasis_style,
 )
 from src import paths
-from src.config import EmissionTableRows, EquipmentTableRows
-from utils.tooltips import with_tooltip
+from src.config import LINKS, EmissionTableRows, EquipmentTableRows
+from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 
 @lru_cache(maxsize=1)
@@ -162,12 +162,16 @@ def select_load_type():
                             html.P("Upload your own hourly load data in CSV format."),
                             dcc.Upload(
                                 id="upload-data",
-                                children=dbc.Button(
-                                    [
-                                        "Upload Custom Data ",
-                                        DashIconify(icon="material-symbols:upload", width=20),
-                                    ],
-                                    color="secondary",
+                                children=with_tooltip(
+                                    dbc.Button(
+                                        [
+                                            "Upload Custom Data ",
+                                            DashIconify(icon="material-symbols:upload", width=20),
+                                        ],
+                                        color="secondary",
+                                    ),
+                                    "loads.upload_custom",
+                                    position="right",
                                 ),
                                 accept=".csv",
                                 multiple=False,
@@ -348,7 +352,14 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
     chw_min, chw_max = load_index["chw_max_load"]
 
     return dmc.Modal(
-        title="Load Data Library",
+        title=with_icon_and_tooltip(
+            "Load Data Library",
+            "loads.load_library_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.LOAD_LIBRARY_DOCS_URL.value,
+            position="right",
+        ),
         children=[
             dmc.TextInput(
                 id="building-search-input",
@@ -902,7 +913,14 @@ def edit_equipment_modal():
     return dmc.Modal(
         id="equipment-edit-modal",
         opened=False,
-        title="Edit equipment scenario",
+        title=with_icon_and_tooltip(
+            "Edit equipment scenario",
+            "equipment.equipment_input_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.EQUIPMENT_INPUT_DOCS_URL.value,
+            position="right",
+        ),
         size="lg",
         children=dmc.Stack(
             [
@@ -1905,7 +1923,14 @@ def edit_emission_modal():
     return dmc.Modal(
         id="emissions-edit-modal",
         opened=False,
-        title="Edit emission scenario",
+        title=with_icon_and_tooltip(
+            "Edit emission scenario",
+            "emissions.emissions_input_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.EMISSION_INPUT_DOCS_URL.value,
+            position="right",
+        ),
         size="lg",
         children=dmc.Stack(
             [
