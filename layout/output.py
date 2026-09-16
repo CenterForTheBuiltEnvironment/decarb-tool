@@ -91,7 +91,7 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("climate_zone_output", "Climate Region"),
-        ("base_gea_grid_region", "GEA Grid Region"),
+        ("base_gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("area_sqm", "Building Area", "area"),
     ]
     return make_metadata_card(
@@ -237,7 +237,7 @@ def summary_emissions_selection(metadata: Metadata, active_tab=None):
 
     emission_fields = [
         ("grid_scenario", "Grid Scenario"),
-        ("gea_grid_region", "GEA Grid Region"),
+        ("gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-Run Weighting"),
         ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),

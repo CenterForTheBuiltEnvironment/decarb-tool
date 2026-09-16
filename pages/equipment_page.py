@@ -52,7 +52,7 @@ def layout():
                                 href=LINKS.EQUIPMENT_DOCS_URL.value,
                             ),
                             dmc.Text(
-                                "Specify and select equipment scenarios to include in the analysis.",
+                                "Specify and select equipment scenarios to include in the analysis, including heat recovery water-to-water heat pumps (HR WWHP), air-to-water heat pumps (AWHPs), air cooled chillers, and gas or electric boilers",
                                 size="sm",
                                 c="dimmed",
                             ),

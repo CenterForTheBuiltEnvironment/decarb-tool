@@ -120,7 +120,7 @@ def select_location():
             ),
             html.Br(),
             html.P(
-                "Overwrites GEA grid region for emissions. If skipped, information is inferred from the selected load data."
+                "Overwrites grid region used for electricity emission factors. If skipped, information is inferred from the location of the selected load data."
             ),
             dcc.Dropdown(
                 id="location-input",
@@ -1214,7 +1214,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
             f"Constant grid emissions rate ({elec_emission_rate_unit})",
         ),
         ("grid_scenario", "Grid Scenario"),
-        ("gea_grid_region", "GEA Grid Region"),
+        ("gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("emission_type", "Emission Type"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
         (
@@ -1994,7 +1994,7 @@ def edit_emission_modal():
                         ),
                         dmc.Select(
                             id="edit-em-gea-grid-region",
-                            label="GEA grid region",
+                            label="Generation and Emission Assessment grid region",
                             placeholder="Select grid region",
                             data=_options(emissions_index["gea_grid_region"]),
                             searchable=True,
