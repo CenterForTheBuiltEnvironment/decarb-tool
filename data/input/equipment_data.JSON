@@ -1544,7 +1544,7 @@
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
-      "awhp_h_supply_t": 50,
+      "awhp_h_supply_t": 45,
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
@@ -1561,7 +1561,7 @@
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
-      "awhp_h_supply_t": 50,
+      "awhp_h_supply_t": 45,
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
@@ -1578,7 +1578,7 @@
       "awhp_sizing_mode": "integer_sizing_peak_load",
       "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
-      "awhp_h_supply_t": 40,
+      "awhp_h_supply_t": 45,
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
@@ -1647,7 +1647,7 @@
     },
     {
       "group_id": "awhp_refrigerant_types",
-      "group_name": "Varying AWHP Refrigerant",
+      "group_name": "Varying AWHP Model+Refrigerant",
       "scenario_ids": ["eq_scenario_19", "eq_scenario_20", "eq_scenario_21"]
     },
     {
