@@ -22,6 +22,27 @@ berkeley_gold = "#FDB515"
 rose_medium = "#E7115E"
 
 
+def empty_figure(message: str = "No results to display yet") -> go.Figure:
+    """A blank, on-theme figure for charts with no data to show yet."""
+    fig = go.Figure()
+    fig.update_layout(
+        xaxis={"visible": False},
+        yaxis={"visible": False},
+        annotations=[
+            {
+                "text": message,
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0.5,
+                "y": 0.5,
+                "showarrow": False,
+                "font": {"size": 16, "color": "#868e96"},
+            }
+        ],
+    )
+    return fig
+
+
 def apply_standard_layout(fig, y_offset=-0.4, subtitle_text=None):
     # Keep existing annotations (like subplot titles)
     existing_annotations = list(fig.layout.annotations) if fig.layout.annotations else []

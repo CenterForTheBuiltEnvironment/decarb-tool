@@ -77,7 +77,8 @@ def build_shell(page_content):
         dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
         dcc.Store(id="results-ready-store", storage_type="session", data=False),
-        dcc.Store(id="results-calculating-store", storage_type="memory", data=False),
+        dcc.Store(id="results-refresh-store", storage_type="memory", data=None),
+        dcc.Store(id="last-calculated-settings-store", storage_type="session", data=None),
         dcc.Location(id="nav-location", refresh=True),
         dcc.Download(id="download-data"),
     ]
@@ -163,9 +164,11 @@ def build_navbar_content():
             href=page["path"],
             id={"type": "navbar-link", "path": page["path"]},
             active=False,  # will be controlled by callback
-            rightSection=DashIconify(icon="ic:baseline-autorenew", width=16)
-            if page["path"] == "/results"
-            else None,
+            rightSection=(
+                DashIconify(icon="ic:baseline-autorenew", width=16)
+                if page["path"] == "/results"
+                else None
+            ),
         )
         for page in pages
     ]
@@ -180,6 +183,21 @@ def build_navbar_content():
             align="center",
         ),
         href=LINKS.DOCS_URL.value,
+        target="_blank",
+        underline=False,
+        fz="sm",
+    )
+
+    repo_link = dmc.Anchor(
+        dmc.Group(
+            [
+                DashIconify(icon="akar-icons:github-outline-fill", width=25),
+                "GitHub Repository",
+            ],
+            gap="xs",  # Gap between icon and text
+            align="center",
+        ),
+        href=LINKS.REPO_URL.value,
         target="_blank",
         underline=False,
         fz="sm",
@@ -206,17 +224,17 @@ def build_navbar_content():
                 id="download-tooltip",
                 position="right",
             ),
+            dmc.Space(h="2"),
+            dmc.Stack(
+                [docs_link, repo_link],
+                gap="xs",
+            ),
             dmc.Divider(),
             legend_toggle(),
             html.Div(
                 id="legend-container",
                 children=scenario_legend_accordion(),
                 style={"display": "block"},
-            ),
-            dmc.Divider(),
-            dmc.Stack(  # external resources section
-                [docs_link],
-                gap="xs",
             ),
         ],
         gap="md",

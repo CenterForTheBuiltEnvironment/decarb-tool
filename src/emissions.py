@@ -10,11 +10,11 @@ from src.mixins import DotAccessMixin
 class EmissionScenario(DotAccessMixin, BaseModel):
     em_scen_id: str
     em_scen_name: str
-    grid_scenario: str
+    elec_emission_source: str
+    elec_avg_emission_rate_gCO2e_per_kWh: float | None = None
+    grid_scenario: str | None = None
     gea_grid_region: str | None = None
-    time_zone: str
     emission_type: str
-    shortrun_weighting: float
     annual_refrig_leakage_percent: float
     ng_emission_rate_gCO2e_per_kWh: float
     year: int
@@ -24,7 +24,7 @@ class StandardEmissions:
     """
     Unified interface for emissions data.
     Canonical schema:
-        emission_scenario | gea_grid_region | time_zone | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p
+        emission_scenario | gea_grid_region | year | timestamp | lrmer_co2e_c | lrmer_co2e_p | srmer_co2e_c | srmer_co2e_p | aer_load_co2e_c | aer_load_co2e_p
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -36,12 +36,13 @@ class StandardEmissions:
             "emission_scenario",
             "gea_grid_region",
             "year",
-            "time_zone",
             "timestamp",
             "lrmer_co2e_c",
             "lrmer_co2e_p",
             "srmer_co2e_c",
             "srmer_co2e_p",
+            "aer_load_co2e_c",
+            "aer_load_co2e_p",
         ]
         missing = [c for c in required if c not in df.columns]
         if missing:
@@ -54,7 +55,14 @@ class StandardEmissions:
         df = df.sort_values("timestamp").set_index("timestamp")
 
         # enforce numeric
-        for col in ["lrmer_co2e_c", "lrmer_co2e_p", "srmer_co2e_c", "srmer_co2e_p"]:
+        for col in [
+            "lrmer_co2e_c",
+            "lrmer_co2e_p",
+            "srmer_co2e_c",
+            "srmer_co2e_p",
+            "aer_load_co2e_c",
+            "aer_load_co2e_p",
+        ]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             if df[col].isnull().any():
                 raise ValueError(f"Invalid numeric values in column {col}")
@@ -107,7 +115,6 @@ def get_emissions_data(
             "em_scen_id": scenario.em_scen_id,
             "emission_scenario": scenario.grid_scenario,
             "gea_grid_region": scenario.gea_grid_region,
-            "time_zone": scenario.time_zone,
             "emission_type": scenario.emission_type,
             "year": df["year"],
             "timestamp": df["timestamp"],
@@ -117,6 +124,9 @@ def get_emissions_data(
             "srmer_co2e_c": df["srmer_co2e_c"],
             "srmer_co2e_p": df["srmer_co2e_p"],
             "srmer_co2e": df["srmer_co2e"],
+            "aer_load_co2e_c": df["aer_load_co2e_c"],
+            "aer_load_co2e_p": df["aer_load_co2e_p"],
+            "aer_load_co2e": df["aer_load_co2e"],
         }
     )
 
