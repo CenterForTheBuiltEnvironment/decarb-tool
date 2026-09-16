@@ -29,7 +29,7 @@ from layout.output import (
     load_characteristics_card,
 )
 from src import paths
-from src.config import URLS
+from src.config import LINKS, URLS
 from src.loads import STANDARD_COLUMNS, StandardLoad, get_load_data
 from src.metadata import LoadData, Metadata
 from utils.error_handling import create_success_notification
@@ -74,7 +74,7 @@ def layout():
                             "loads.loads_docs",
                             order=5,
                             icon="basil:book-open-outline",
-                            href="https://cbe-berkeley.gitbook.io/decarb/documentation/loads",
+                            href=LINKS.LOAD_DOCS_URL.value,
                         ),
                         html.Hr(),
                         select_load_type(),

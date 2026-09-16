@@ -18,7 +18,7 @@ from dash import (
 from dash_iconify import DashIconify
 
 from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
-from src.config import URLS, EmissionScenarioDefaults
+from src.config import LINKS, URLS, EmissionScenarioDefaults
 from src.energy import site_to_source
 from src.metadata import Metadata
 from utils.error_handling import (
@@ -51,7 +51,7 @@ def layout():
                                 "emissions.emissions_docs",
                                 order=5,
                                 icon="basil:book-open-outline",
-                                href="https://cbe-berkeley.gitbook.io/decarb/documentation/emissions",
+                                href=LINKS.EMISSION_DOCS_URL.value,
                             ),
                             dmc.Text(
                                 "Specify and select emission scenarios to include in the analysis.",

@@ -21,7 +21,7 @@ from layout.input import (
     build_equipment_table,
     edit_equipment_modal,
 )
-from src.config import URLS
+from src.config import LINKS, URLS
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
@@ -49,7 +49,7 @@ def layout():
                                 "equipment.equipment_docs",
                                 order=5,
                                 icon="basil:book-open-outline",
-                                href="https://cbe-berkeley.gitbook.io/decarb/documentation/equipment",
+                                href=LINKS.EQUIPMENT_DOCS_URL.value,
                             ),
                             dmc.Text(
                                 "Specify and select equipment scenarios to include in the analysis.",

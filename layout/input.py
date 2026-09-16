@@ -14,7 +14,7 @@ from layout.table_config import (
     value_deemphasis_style,
 )
 from src import paths
-from src.config import EmissionTableRows, EquipmentTableRows
+from src.config import LINKS, EmissionTableRows, EquipmentTableRows
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 
@@ -357,7 +357,7 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
             "loads.load_library_docs",
             order=5,
             icon="basil:book-open-outline",
-            href="https://cbe-berkeley.gitbook.io/decarb/documentation/loads/load-types",
+            href=LINKS.LOAD_LIBRARY_DOCS_URL.value,
             position="right",
         ),
         children=[
@@ -917,7 +917,7 @@ def edit_equipment_modal():
             "equipment.equipment_input_docs",
             order=5,
             icon="basil:book-open-outline",
-            href="https://cbe-berkeley.gitbook.io/decarb/documentation/equipment#inputs",
+            href=LINKS.EQUIPMENT_INPUT_DOCS_URL.value,
             position="right",
         ),
         size="lg",
@@ -1913,7 +1913,7 @@ def edit_emission_modal():
             "emissions.emissions_input_docs",
             order=5,
             icon="basil:book-open-outline",
-            href="https://cbe-berkeley.gitbook.io/decarb/documentation/emissions#inputs",
+            href=LINKS.EMISSION_INPUT_DOCS_URL.value,
             position="right",
         ),
         size="lg",
