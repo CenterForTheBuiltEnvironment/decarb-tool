@@ -126,9 +126,12 @@ def build_metadata_summary(
     lines.append(_section("EQUIPMENT SCENARIOS"))
 
     selected_eq_ids = list(selected_eq_ids) if selected_eq_ids else []
-    selected_scenarios = [
-        s for s in equipment_library.equipment_scenarios if s.eq_scen_id in selected_eq_ids
-    ]
+    # Order by selected_eq_ids (tracks Equipment-page column position), not
+    # equipment_library.equipment_scenarios storage order - a scenario
+    # copied by the column-dropdown swap is appended to the end of storage
+    # order but belongs wherever its slot puts it in selected_eq_ids.
+    eq_scen_by_id = {s.eq_scen_id: s for s in equipment_library.equipment_scenarios}
+    selected_scenarios = [eq_scen_by_id[sid] for sid in selected_eq_ids if sid in eq_scen_by_id]
 
     if not selected_scenarios:
         lines.append("  No equipment scenarios selected.")
@@ -197,9 +200,15 @@ def build_metadata_summary(
             lines.append(f"      Grid Region:       {scen.gea_grid_region or 'N/A'}")
             lines.append(f"      Year:              {scen.year}")
             lines.append(f"      Emission Type:     {scen.emission_type}")
-            lines.append(
-                f"      SR/LR Weighting:   {scen.shortrun_weighting * 100:.0f} % short-run"
-            )
+            lines.append(f"      Emission Source:   {scen.elec_emission_source}")
+            if (
+                scen.elec_emission_source == "Constant (User-provided)"
+                and scen.elec_avg_emission_rate_gCO2e_per_kWh is not None
+            ):
+                lines.append(
+                    "      Elec. Emission Rate: "
+                    f"{scen.elec_avg_emission_rate_gCO2e_per_kWh:.1f} g CO₂e / kWh"
+                )
             lines.append(
                 f"      Refrig. Leakage:   {scen.annual_refrig_leakage_percent:.2f} % / year"
             )
