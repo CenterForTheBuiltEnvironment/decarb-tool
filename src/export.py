@@ -198,9 +198,6 @@ def build_metadata_summary(
             lines.append(f"      Year:              {scen.year}")
             lines.append(f"      Emission Type:     {scen.emission_type}")
             lines.append(
-                f"      SR/LR Weighting:   {scen.shortrun_weighting * 100:.0f} % short-run"
-            )
-            lines.append(
                 f"      Refrig. Leakage:   {scen.annual_refrig_leakage_percent:.2f} % / year"
             )
             lines.append(
