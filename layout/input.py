@@ -1038,15 +1038,15 @@ def edit_equipment_modal():
                             id="edit-awhp-sizing-mode",
                             data=[
                                 {
-                                    "label": "% peak load (integer)",
+                                    "label": "Integer ceiling method",
                                     "value": "integer_sizing_peak_load",
                                 },
                                 {
-                                    "label": "% peak load (fractional)",
+                                    "label": "Fractional method",
                                     "value": "fractional_sizing_peak_load",
                                 },
                                 {
-                                    "label": "Fixed number of units",
+                                    "label": "Specific # of units",
                                     "value": "fixed_num_units",
                                 },
                             ],
@@ -1057,7 +1057,6 @@ def edit_equipment_modal():
                                 dmc.NumberInput(
                                     id="edit-awhp-sizing-value",
                                     label="Sizing value",
-                                    description="% of peak load or number of units",
                                     min=0,
                                     max=5,
                                     step=0.05,  # will be overridden dynamically
@@ -1083,7 +1082,7 @@ def edit_equipment_modal():
                                 ),
                                 dmc.Select(
                                     id="edit-awhp-sizing-priority",
-                                    label="Sizing priority",
+                                    label="Sizing basis",
                                     placeholder="None",
                                     data=[
                                         {
