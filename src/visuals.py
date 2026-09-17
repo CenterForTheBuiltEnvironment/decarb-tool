@@ -79,7 +79,9 @@ def shorten_scenario_name(scen_name, max_length=15):
     return scen_name[:12] + "…"
 
 
-def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_mode="SI"):
+def plot_energy_and_emissions(
+    df, equipment_scenarios, emission_scenarios, unit_mode="SI", position_map=None
+):
     # --- Filter scenarios ---
     df = df[
         (df["eq_scen_id"].isin(equipment_scenarios)) & (df["em_scen_id"].isin(emission_scenarios))
@@ -157,7 +159,9 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
         df_s = df[df["eq_scen_id"] == scen]
 
         scen_name = name_map.get(scen, scen)
-        scen_label = format_equipment_scenario_id_short(scen)
+        scen_label = format_equipment_scenario_id_short(
+            scen, position_map.get(scen) if position_map else None
+        )
 
         elec_total = (
             df_s[
@@ -220,7 +224,9 @@ def plot_energy_and_emissions(df, equipment_scenarios, emission_scenarios, unit_
     for i, scen in enumerate(scenarios):
         df_s = df[df["eq_scen_id"] == scen]
         scen_name = name_map.get(scen, scen)
-        scen_label = format_equipment_scenario_id_short(scen)
+        scen_label = format_equipment_scenario_id_short(
+            scen, position_map.get(scen) if position_map else None
+        )
 
         elec_em = df_s["elec_emissions"].sum().sum()
         gas_em = df_s["gas_emissions"].sum().sum()
@@ -319,6 +325,7 @@ def plot_emission_scenarios_grouped(
     equipment_scenarios,
     emission_scenarios,
     unit_mode="SI",
+    position_map=None,
 ):
     # --- Filter scenarios ---
     df = df[
@@ -382,7 +389,9 @@ def plot_emission_scenarios_grouped(
                 continue
 
             scen_name = df_s["eq_scen_name"].iloc[0]  # for hover template
-            scen_label = format_equipment_scenario_id_short(scen)
+            scen_label = format_equipment_scenario_id_short(
+                scen, position_map.get(scen) if position_map else None
+            )
 
             elec_em = df_s["elec_emissions"].sum()
             gas_em = df_s["gas_emissions"].sum()

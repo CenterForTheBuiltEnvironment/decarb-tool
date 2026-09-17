@@ -287,23 +287,35 @@ def toggle_legend_visibility(checked):
     Output("equipment-legend-content", "children"),
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
+    Input("displayed-equipment-store", "data"),
 )
-def update_equipment_legend(equipment_data, selected_ids):
+def update_equipment_legend(equipment_data, selected_ids, displayed_ids):
     """Populate the equipment legend with ID to name mappings."""
     if not equipment_data or not selected_ids:
         return dmc.Text("No scenarios selected", c="dimmed", size="sm")
 
-    scenarios = equipment_data.get("equipment_scenarios", [])
-    selected_scenarios = [s for s in scenarios if s.get("eq_scen_id") in selected_ids]
+    scen_by_id = {s.get("eq_scen_id"): s for s in equipment_data.get("equipment_scenarios", [])}
+    # Iterate in selected_ids order (kept in sync with column position by
+    # sync_active_equipment/handle_column_dropdown_change), not storage
+    # order - a "copy" scenario created by the column-dropdown swap is
+    # appended to the end of equipment_scenarios, so filtering the storage
+    # list directly would sink its row to the bottom even though it belongs
+    # in its slot's position.
+    selected_scenarios = [scen_by_id[sid] for sid in selected_ids if sid in scen_by_id]
 
     if not selected_scenarios:
         return dmc.Text("No scenarios selected", c="dimmed", size="sm")
+
+    # Number by Equipment-page slot position, not the library id, so the
+    # badge stays in sync with the column number on the Equipment page even
+    # after that slot's scenario is swapped via the column dropdown.
+    position_map = {sid: i + 1 for i, sid in enumerate(displayed_ids or [])}
 
     rows = []
     for scen in selected_scenarios:
         scen_id = scen.get("eq_scen_id", "")
         scen_name = scen.get("eq_scen_name", scen_id)
-        short_id = format_equipment_scenario_id_short(scen_id)
+        short_id = format_equipment_scenario_id_short(scen_id, position_map.get(scen_id))
 
         rows.append(
             dmc.Group(
