@@ -289,6 +289,15 @@ def build_building_table(
 
         body_rows.append(dmc.TableTr(cells))
 
+    # Sticky style applied to every header cell so the header row stays
+    # pinned to the top of the ScrollArea viewport while the body scrolls.
+    sticky_th_style = {
+        "position": "sticky",
+        "top": 0,
+        "zIndex": 2,
+        "backgroundColor": "var(--mantine-color-body)",
+    }
+
     # Build header with clickable sort indicators
     def make_sort_header(col_name, label):
         is_active = col_name == sort_col
@@ -311,10 +320,12 @@ def build_building_table(
                 id={"type": "building-sort-th", "col": col_name},
                 style={"cursor": "pointer", "userSelect": "none", "width": "100%"},
             ),
-            style={"textTransform": "none"},
+            style={"textTransform": "none", **sticky_th_style},
         )
 
-    header_cells = [dmc.TableTh("", style={"textTransform": "none"})]  # radio column
+    header_cells = [
+        dmc.TableTh("", style={"textTransform": "none", **sticky_th_style})
+    ]  # radio column
     header_cells.extend([make_sort_header(col, label) for col, label in available_columns])
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
