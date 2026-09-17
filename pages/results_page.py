@@ -168,9 +168,12 @@ def update_meter_plot(
     Input("total-emission-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
     State("session-store", "data"),
+    State("displayed-equipment-store", "data"),
     prevent_initial_call=True,
 )
-def update_total_emissions_plot(equipment_scenarios, emission_scenario, unit_mode, session_data):
+def update_total_emissions_plot(
+    equipment_scenarios, emission_scenario, unit_mode, session_data, displayed_ids
+):
     df = load_source_energy(session_data)
     if df is None or emission_scenario is None or not equipment_scenarios:
         return empty_figure()
@@ -178,7 +181,13 @@ def update_total_emissions_plot(equipment_scenarios, emission_scenario, unit_mod
     if isinstance(emission_scenario, str):
         emission_scenario = [emission_scenario]
 
-    fig = plot_energy_and_emissions(df, equipment_scenarios, emission_scenario, unit_mode=unit_mode)
+    fig = plot_energy_and_emissions(
+        df,
+        equipment_scenarios,
+        emission_scenario,
+        unit_mode=unit_mode,
+        position_map=_equipment_position_map(displayed_ids),
+    )
     return fig
 
 
@@ -187,10 +196,13 @@ def update_total_emissions_plot(equipment_scenarios, emission_scenario, unit_mod
     Input("emission-em-scen-dropdown", "value"),
     Input("unit-toggle", "value"),
     State("selected-equipment-store", "data"),  # preserves user ordering
+    State("displayed-equipment-store", "data"),
     State("session-store", "data"),
     prevent_initial_call=True,
 )
-def update_emissions_bar_plot(emission_scenarios, unit_mode, selected_equipment_ids, session_data):
+def update_emissions_bar_plot(
+    emission_scenarios, unit_mode, selected_equipment_ids, displayed_ids, session_data
+):
     df = load_source_energy(session_data)
     if df is None or not emission_scenarios:
         return empty_figure()
@@ -210,7 +222,11 @@ def update_emissions_bar_plot(emission_scenarios, unit_mode, selected_equipment_
         emission_scenarios = [emission_scenarios]
 
     fig = plot_emission_scenarios_grouped(
-        df, equipment_scenarios, emission_scenarios, unit_mode=unit_mode
+        df,
+        equipment_scenarios,
+        emission_scenarios,
+        unit_mode=unit_mode,
+        position_map=_equipment_position_map(displayed_ids),
     )
     return fig
 
@@ -418,10 +434,25 @@ def _add_metadata_files(
         bundle = build_settings_bundle(metadata, equipment_library, selected_eq, selected_em)
         zf.writestr("settings.json", _json.dumps(bundle, indent=2, default=str))
     except Exception:
-        pass  # never block the download for a metadata failure
+        # Never block the CSV download for a metadata-export failure, but do
+        # log it - a silent `pass` here is what let a stale-field regression
+        # in build_metadata_summary ship unnoticed for multiple PRs.
+        logger.exception("Failed to build settings_summary.txt/settings.json for download")
 
 
-def _equipment_dropdown_outputs(session_data, selected_equipment_ids):
+def _equipment_position_map(displayed_ids):
+    """
+    Map each eq_scen_id to its 1-based slot number on the Equipment page
+    (its index in displayed-equipment-store). This is the number that
+    should be shown everywhere on Results, since it's the slot a scenario
+    currently occupies rather than the library id it was created with -
+    those two diverge once a slot's scenario is swapped via the column
+    dropdown on the Equipment page.
+    """
+    return {sid: i + 1 for i, sid in enumerate(displayed_ids or [])}
+
+
+def _equipment_dropdown_outputs(session_data, selected_equipment_ids, displayed_ids=None):
     """
     Compute all equipment scenario dropdown options/values from only the
     scenarios that were actually computed for this session. Returns the
@@ -453,10 +484,17 @@ def _equipment_dropdown_outputs(session_data, selected_equipment_ids):
         # Fallback: nothing computed
         return [], [], [], None, [], None, [], []
 
-    # Build options list with user-friendly labels derived from each
-    # scenario's own id, never renumbered based on the active subset
+    # Build options list with user-friendly labels. The number shown is the
+    # scenario's Equipment-page slot position (never renumbered based on the
+    # active subset), falling back to parsing the id if a scenario is no
+    # longer present in displayed-equipment-store.
+    position_map = _equipment_position_map(displayed_ids)
     options = [
-        {"label": format_equipment_scenario_id(scen_id), "value": scen_id} for scen_id in eq_ids
+        {
+            "label": format_equipment_scenario_id(scen_id, position_map.get(scen_id)),
+            "value": scen_id,
+        }
+        for scen_id in eq_ids
     ]
 
     # Defaults:
@@ -630,6 +668,7 @@ def _emission_dropdown_outputs(
     State("metadata-store", "data"),
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
+    State("displayed-equipment-store", "data"),
     State("selected-emissions-store", "data"),
     State("session-store", "data"),
     State("last-calculated-settings-store", "data"),
@@ -646,6 +685,7 @@ def initialize_results_page(
     metadata_json,
     equipment_json,
     selected_scenarios,
+    displayed_equipment_ids,
     selected_emission_ids,
     session_data,
     last_calculated_settings,
@@ -774,7 +814,9 @@ def initialize_results_page(
             return no_update, time.time(), [notification], no_update
 
     calc_result = run_calc()
-    equipment_outputs = _equipment_dropdown_outputs(session_data, selected_scenarios)
+    equipment_outputs = _equipment_dropdown_outputs(
+        session_data, selected_scenarios, displayed_equipment_ids
+    )
     emission_outputs = _emission_dropdown_outputs(
         session_data,
         selected_emission_ids,

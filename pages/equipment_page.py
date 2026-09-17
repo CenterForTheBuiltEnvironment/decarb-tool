@@ -305,8 +305,13 @@ def handle_group_selection(group_id, equipment_data, initial_data, stored_group)
         "equipment_scenarios": updated_scenarios,
     }
 
-    # Update displayed, selected, persist group selection, and equipment store
-    return scenario_ids, scenario_ids, group_id, updated_equipment
+    # Update displayed, selected, persist group selection, and equipment store.
+    # scenario_ids comes straight from the group's JSON definition, whose
+    # order isn't guaranteed ascending (and doesn't need to be, since it's
+    # just membership) - sort it here so columns always display in ascending
+    # scenario-number order rather than whatever order the group lists them.
+    sorted_ids = _sorted_eq_scen_ids(scenario_ids)
+    return sorted_ids, sorted_ids, group_id, updated_equipment
 
 
 @callback(
@@ -336,6 +341,36 @@ def _build_base_options(equip_json):
         for s in equip_json["equipment_scenarios"]
         if s.get("eq_scen_id")
     ]
+
+
+def _eq_scen_sort_key(scen_id):
+    """Sort key for eq_scen_id strings: ascending by numeric suffix, with
+    non-standard ids (no "eq_scenario_N" pattern) sorted after all numeric
+    ones, alphabetically among themselves."""
+    if isinstance(scen_id, str) and scen_id.startswith("eq_scenario_"):
+        with contextlib.suppress(ValueError):
+            return (0, int(scen_id.split("_")[-1]))
+    return (1, scen_id)
+
+
+def _sorted_eq_scen_ids(ids):
+    """Return ids sorted ascending by scenario number (see _eq_scen_sort_key)."""
+    return sorted(ids or [], key=_eq_scen_sort_key)
+
+
+def _insert_eq_scen_id_sorted(ids, new_id):
+    """Insert new_id into ids at its ascending position, without otherwise
+    reordering the existing list. Unlike a full sort, this leaves any slot
+    a user has manually swapped a scenario into untouched - only the
+    brand-new id's own placement is decided by scenario number."""
+    ids = list(ids or [])
+    new_key = _eq_scen_sort_key(new_id)
+    for i, existing in enumerate(ids):
+        if _eq_scen_sort_key(existing) > new_key:
+            ids.insert(i, new_id)
+            return ids
+    ids.append(new_id)
+    return ids
 
 
 def _next_scenario_id(equip_json):
@@ -452,8 +487,10 @@ def add_scenario_to_store(save_clicks, equipment_data, displayed_ids, base_id, n
         "equipment_scenarios": [*scenarios, new_scenario],
     }
 
-    # Add the new scenario to displayed IDs so it appears in the table
-    updated_displayed = [*(displayed_ids or []), new_id]
+    # Add the new scenario to displayed IDs in ascending scenario-number
+    # order rather than always at the end (matters when the user types a
+    # custom, non-sequential scenario id)
+    updated_displayed = _insert_eq_scen_id_sorted(displayed_ids, new_id)
 
     logger.info("Added new equipment scenario: %s (based on %s)", new_id, base_id)
 
