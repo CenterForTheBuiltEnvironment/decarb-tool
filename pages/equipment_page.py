@@ -21,7 +21,7 @@ from layout.input import (
     build_equipment_table,
     edit_equipment_modal,
 )
-from src.config import LINKS, URLS
+from src.config import LINKS, MAX_ACTIVE_EQUIPMENT_SCENARIOS, URLS
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
@@ -130,6 +130,13 @@ def layout():
                         style={
                             "marginTop": "16px",
                         },
+                    ),
+                    dmc.Text(
+                        "You can select up to 5 active equipment scenarios considered for the analysis.",
+                        size="xs",
+                        c="dimmed",
+                        mt="xs",
+                        ta="right",
                     ),
                 ],
                 withBorder=False,
@@ -464,7 +471,7 @@ def add_scenario_to_store(save_clicks, equipment_data, displayed_ids, base_id, n
 def sync_active_equipment(selected_values, displayed_ids):
     """
     Keep selected-equipment-store in sync with the checkbox group.
-    Enforce the 'max 5 scenarios' rule by capping and reflecting
+    Enforce the max active scenarios rule by capping and reflecting
     that back in the CheckboxGroup.
     Preserves the displayed order (column order in the table) for chart consistency.
     """
@@ -476,8 +483,8 @@ def sync_active_equipment(selected_values, displayed_ids):
     else:
         ordered_selected = list(raw_selected)
 
-    # Enforce max 5 scenarios rule
-    capped_selected = ordered_selected[:5]
+    # Enforce max active scenarios rule
+    capped_selected = ordered_selected[:MAX_ACTIVE_EQUIPMENT_SCENARIOS]
 
     return capped_selected, capped_selected
 

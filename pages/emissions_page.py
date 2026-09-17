@@ -16,8 +16,7 @@ from dash import (
 from dash_iconify import DashIconify
 
 from layout.input import add_emission_modal, build_emissions_table, edit_emission_modal
-from src.config import LINKS, URLS, EmissionScenarioDefaults
-from src.energy import site_to_source
+from src.config import LINKS, MAX_ACTIVE_EMISSION_SCENARIOS, URLS, EmissionScenarioDefaults
 from src.metadata import Metadata
 from utils.error_handling import (
     create_error_notification,
@@ -136,6 +135,13 @@ def layout():
                             "marginTop": "16px",
                         },
                     ),
+                    dmc.Text(
+                        "You can select up to 5 active emission scenarios considered for the analysis.",
+                        size="xs",
+                        c="dimmed",
+                        mt="xs",
+                        ta="right",
+                    ),
                 ],
                 withBorder=False,
                 shadow="xs",
@@ -205,10 +211,17 @@ def update_emissions_table(metadata_data, selected_emissions, view_mode, unit_mo
 def sync_active_emissions(selected_values):
     """
     Keep selected-emissions-store in sync with the CheckboxGroup.
-    For now, no cap on number of active emission scenarios.
+    Enforce the max active scenarios rule by capping and reflecting
+    that back in the CheckboxGroup, mirroring equipment's behavior.
     """
-    selected = selected_values or []
-    return selected, selected
+    raw_selected = set(selected_values or [])
+
+    # Order matches build_emissions_table's column order (sort by em_scen_id)
+    ordered_selected = sorted(raw_selected)
+
+    capped_selected = ordered_selected[:MAX_ACTIVE_EMISSION_SCENARIOS]
+
+    return capped_selected, capped_selected
 
 
 @callback(

@@ -27,6 +27,10 @@ class LINKS(Enum):
     )
 
 
+MAX_ACTIVE_EQUIPMENT_SCENARIOS = 5
+MAX_ACTIVE_EMISSION_SCENARIOS = 5
+
+
 class DEFAULT_SELECTIONS(Enum):
     EQUIPMENT_SCENARIO = (
         "eq_scenario_1",
