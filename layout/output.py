@@ -91,7 +91,7 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("climate_zone_output", "Climate Region"),
-        ("base_gea_grid_region", "Generation and Emission Assessment Grid Region"),
+        ("base_gea_grid_region", "Grid Region"),
         ("area_sqm", "Building Area", "area"),
     ]
     return make_metadata_card(
