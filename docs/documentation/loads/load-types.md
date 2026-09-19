@@ -10,11 +10,11 @@ Expand this dropdown and select `Open Library` to access the Load Data Library p
 
 #### DOE
 
-The Simulated:DOE dataset contains loads generated using the [DOE Commercial Reference Building models](https://www.energy.gov/cmei/buildings/commercial-reference-buildings) with every combination of the following characteristics:
+The Simulated:DOE dataset contains loads generated using the [DOE commercial prototype building models](https://www.energycodes.gov/prototype-building-models) with every combination of the following characteristics:
 
 * 4 building types: Hospital, Large Office, Outpatient Healthcare, Large Hotel
 * 2 vintages: 2004, 2022
-* 16 climate zones: 1A, 2A-B, 3A-C, 4A-C, 5A-C, 6A-B, 7, 8. The representative cities used for each climate zone are listed [here](https://www.energy.gov/cmei/buildings/commercial-reference-buildings).
+* 16 climate zones: 1A, 2A-B, 3A-C, 4A-C, 5A-C, 6A-B, 7, 8. The representative cities used for each climate zone are listed [here](https://www.energycodes.gov/prototype-building-models).
 
 The heating loads in this dataset include only heating hot water (HHW) loads.
 

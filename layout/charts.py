@@ -20,7 +20,9 @@ def _chart_block(controls, graph_id, height=600):
             controls,
             dmc.Paper(
                 dcc.Loading(
-                    type="default",
+                    type="circle",
+                    delay_show=300,
+                    delay_hide=100,
                     children=dcc.Graph(
                         id=graph_id,
                         style={"height": f"{height}px", "width": "100%"},
@@ -49,12 +51,13 @@ def _emission_scen_seed():
 
 
 def emissions_bar_chart():
+    seed_options = _emission_scen_seed()
     controls = _controls_bar(
         [
             dmc.MultiSelect(
                 id="emission-em-scen-dropdown",
-                data=_emission_scen_seed(),  # will be overwritten dynamically
-                value=["em_scenario_a", "em_scenario_b", "em_scenario_c"],
+                data=seed_options,  # will be overwritten dynamically
+                value=[opt["value"] for opt in seed_options],
                 placeholder="Emission Scenarios",
                 searchable=True,
                 clearable=True,

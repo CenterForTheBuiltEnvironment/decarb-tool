@@ -91,7 +91,7 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("climate_zone_output", "Climate Region"),
-        ("base_gea_grid_region", "GEA Grid Region"),
+        ("base_gea_grid_region", "Grid Region"),
         ("area_sqm", "Building Area", "area"),
     ]
     return make_metadata_card(
@@ -174,9 +174,10 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
-        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_use_cooling", "Use AWHP for Cooling"),
         ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
+        ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Chiller"),
     ]
 
@@ -236,7 +237,7 @@ def summary_emissions_selection(metadata: Metadata, active_tab=None):
 
     emission_fields = [
         ("grid_scenario", "Grid Scenario"),
-        ("gea_grid_region", "GEA Grid Region"),
+        ("gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-Run Weighting"),
         ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),

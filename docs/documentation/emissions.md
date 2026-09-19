@@ -24,9 +24,9 @@ The grid scenarios project the possible evolution of the US electricity sector t
 6. **High Natural Gas Prices**: The same set of base assumptions as the first scenario but where natural gas prices are assumed to be higher.
 7. **Low Renewable Energy and Battery Costs With High Natural Gas Prices**: The same set of base assumptions as the first scenario but with higher natural gas prices and where renewable energy and battery costs are assumed to be lower and performance improvements greater.
 
-#### GEA Grid Region
+#### Generation and Emission Assessment Grid Region
 
-The Generation and Emission Assessment grid region. GEA regions are based on data from the [EPA's eGRID subregions](https://www.epa.gov/green-power-markets/us-grid-regions). This input is automatically populated based on the specified building location, but can be edited by the user.
+The Generation and Emission Assessment (GEA) grid region. GEA grid regions are based on data from the [EPA's eGRID subregions](https://www.epa.gov/green-power-markets/us-grid-regions). This input is automatically populated based on the specified building location, but can be edited by the user.
 
 #### Emission Type
 

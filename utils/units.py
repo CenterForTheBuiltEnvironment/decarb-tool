@@ -185,7 +185,7 @@ UNIT_MAP = {
     "emissions_rate": {
         "base": "g CO₂e/kWh",
         "SI": {"unit": "g CO₂e/kWh", "func": lambda x: x},
-        "IP": {"unit": "lb CO₂e/kBTU", "func": lambda x: x * g_to_lb / Wh_to_BTU},
+        "IP": {"unit": "lb CO₂e/kWh", "func": lambda x: x * g_to_lb},
     },
     # --- Gas emission factor ---
     "gas_emission_factor": {
@@ -275,6 +275,7 @@ COLUMN_CONFIG = {
     "simult_h_hr_W": ("capacity", "HR Simultaneous Cap"),
     "awhp_cap_h_W": ("capacity", "AWHP Heating Cap"),
     "capacity_W": ("capacity", "Rated Capacity"),
+    "boiler_cap_W": ("capacity", "Boiler Cap"),
     # === Capacity - Cooling (W) ===
     "awhp_cap_c_W": ("capacity_cooling", "AWHP Cooling Cap"),
     # === Temperature (°C) ===
@@ -297,6 +298,8 @@ COLUMN_CONFIG = {
     "lrmer_co2e_p": ("emissions_rate", "LRMER Pre-combustion"),
     "srmer_co2e_c": ("emissions_rate", "SRMER Combustion"),
     "srmer_co2e_p": ("emissions_rate", "SRMER Pre-combustion"),
+    "aer_load_co2e_c": ("emissions_rate", "AER Load Combustion"),
+    "aer_load_co2e_p": ("emissions_rate", "AER Load Pre-combustion"),
     "ng_emission_rate_gCO2e_per_kWh": ("gas_emission_factor", "Gas Emissions Rate"),
     # === Refrigerant Mass (kg) ===
     "hr_wwhp_refrigerant_weight_kg": ("mass", "HR-WWHP Refrig Weight"),
@@ -318,6 +321,7 @@ COLUMN_CONFIG = {
     "awhp_num_c": (None, "AWHP Count (Cooling)"),
     "awhp_num": (None, "AWHP Count"),
     "awhp_num_redundant": (None, "AWHP Redundant Count"),
+    "boiler_num": (None, "Boiler Count"),
     # === Refrigerant Type (text - no conversion) ===
     "chiller_refrigerant": (None, "Chiller Refrigerant"),
     "hr_wwhp_refrigerant": (None, "HR-WWHP Refrigerant"),
@@ -325,6 +329,7 @@ COLUMN_CONFIG = {
     # === Emission Scenario Parameters ===
     "lrmer_co2e": (None, "LRMER CO₂e"),
     "srmer_co2e": (None, "SRMER CO₂e"),
+    "aer_load_co2e": (None, "AER Load CO₂e"),
     "shortrun_weighting": (None, "Short-run Weighting"),
     "year": (None, "Year"),
     # === Scenario Identifiers ===

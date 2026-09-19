@@ -13,13 +13,27 @@ from layout.input import legend_toggle, scenario_legend_accordion, unit_toggle
 from src import paths
 from src.config import DEFAULT_SELECTIONS, LINKS
 from src.equipment import load_library  # adjust if path differs
-from utils.display_registry import format_emission_scenario_id_short
+from utils.display_registry import (
+    format_emission_scenario_id_short,
+    format_equipment_scenario_id_short,
+)
+from utils.tooltips import with_tooltip
 
 
 @lru_cache(maxsize=1)
 def _get_equipment_library():
     """Lazy-load and cache the equipment library as a dict."""
     return load_library(paths.EQUIPMENT_JSON).model_dump()
+
+
+def _get_initial_equipment_scenario_ids(equipment_library, group_id="default"):
+    """Return the scenario_ids list for `group_id` from the JSON scenario_groups,
+    preserving JSON order. Falls back to DEFAULT_SELECTIONS if the group is missing."""
+    groups = equipment_library.get("scenario_groups", [])
+    group = next((g for g in groups if g.get("group_id") == group_id), None)
+    if group and group.get("scenario_ids"):
+        return group["scenario_ids"]
+    return list(DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value)
 
 
 def build_shell(page_content):
@@ -30,6 +44,7 @@ def build_shell(page_content):
 
     # ---- global stores ----
     equipment_library = _get_equipment_library()
+    initial_scenario_ids = _get_initial_equipment_scenario_ids(equipment_library)
     global_state = [
         dcc.Store(id="metadata-store", storage_type="session"),
         dcc.Store(
@@ -42,17 +57,12 @@ def build_shell(page_content):
         dcc.Store(
             id="selected-equipment-store",
             storage_type="session",
-            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
-        ),
-        dcc.Store(
-            id="equipment-scenario-number-map",
-            storage_type="session",
-            data={},
+            data=initial_scenario_ids,
         ),
         dcc.Store(
             id="displayed-equipment-store",
             storage_type="session",
-            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+            data=initial_scenario_ids,
         ),
         dcc.Store(
             id="selected-emissions-store",
@@ -67,9 +77,19 @@ def build_shell(page_content):
         dcc.Store(id="pending-load-data-store", storage_type="session", data=None),
         dcc.Store(id="scale-info-store", storage_type="session", data=None),
         dcc.Store(id="base-load-info-store", storage_type="session", data=None),
+        dcc.Store(
+            id="building-table-sort-store",
+            storage_type="memory",
+            data={"col": "building_id", "dir": "asc"},
+        ),
         # Scenario group selections (persisted across page navigation)
         dcc.Store(id="equipment-scenario-group-store", storage_type="session", data="default"),
         dcc.Store(id="emission-scenario-group-store", storage_type="session", data="year"),
+        dcc.Store(id="results-ready-store", storage_type="session", data=False),
+        dcc.Store(id="results-refresh-store", storage_type="memory", data=None),
+        dcc.Store(id="last-calculated-settings-store", storage_type="session", data=None),
+        dcc.Location(id="nav-location", refresh=True),
+        dcc.Download(id="download-data"),
     ]
 
     header = dmc.AppShellHeader(
@@ -153,6 +173,11 @@ def build_navbar_content():
             href=page["path"],
             id={"type": "navbar-link", "path": page["path"]},
             active=False,  # will be controlled by callback
+            rightSection=(
+                DashIconify(icon="ic:baseline-autorenew", width=16)
+                if page["path"] == "/results"
+                else None
+            ),
         )
         for page in pages
     ]
@@ -172,22 +197,53 @@ def build_navbar_content():
         fz="sm",
     )
 
+    repo_link = dmc.Anchor(
+        dmc.Group(
+            [
+                DashIconify(icon="akar-icons:github-outline-fill", width=25),
+                "GitHub Repository",
+            ],
+            gap="xs",  # Gap between icon and text
+            align="center",
+        ),
+        href=LINKS.REPO_URL.value,
+        target="_blank",
+        underline=False,
+        fz="sm",
+    )
+
     return dmc.Stack(
         children=[
             dmc.Stack(page_links, gap="sm"),
             dmc.Divider(),
             unit_toggle(),
+            with_tooltip(
+                dmc.Button(
+                    "Download data",
+                    rightSection=DashIconify(icon="material-symbols-light:download", width=18),
+                    variant="outline",
+                    color="blue",
+                    styles={"root": {"borderColor": "var(--mantine-color-gray-3)"}},
+                    id="download-button",
+                    n_clicks=0,
+                    size="xs",
+                    disabled=True,
+                ),
+                "results.download_button",
+                id="download-tooltip",
+                position="right",
+            ),
+            dmc.Space(h="2"),
+            dmc.Stack(
+                [docs_link, repo_link],
+                gap="xs",
+            ),
             dmc.Divider(),
             legend_toggle(),
             html.Div(
                 id="legend-container",
                 children=scenario_legend_accordion(),
-                style={"display": "none"},  # Hidden by default
-            ),
-            dmc.Divider(),
-            dmc.Stack(  # external resources section
-                [docs_link],
-                gap="xs",
+                style={"display": "block"},
             ),
         ],
         gap="md",
@@ -242,23 +298,35 @@ def toggle_legend_visibility(checked):
     Output("equipment-legend-content", "children"),
     Input("equipment-store", "data"),
     Input("selected-equipment-store", "data"),
+    Input("displayed-equipment-store", "data"),
 )
-def update_equipment_legend(equipment_data, selected_ids):
+def update_equipment_legend(equipment_data, selected_ids, displayed_ids):
     """Populate the equipment legend with ID to name mappings."""
     if not equipment_data or not selected_ids:
         return dmc.Text("No scenarios selected", c="dimmed", size="sm")
 
-    scenarios = equipment_data.get("equipment_scenarios", [])
-    selected_scenarios = [s for s in scenarios if s.get("eq_scen_id") in selected_ids]
+    scen_by_id = {s.get("eq_scen_id"): s for s in equipment_data.get("equipment_scenarios", [])}
+    # Iterate in selected_ids order (kept in sync with column position by
+    # sync_active_equipment/handle_column_dropdown_change), not storage
+    # order - a "copy" scenario created by the column-dropdown swap is
+    # appended to the end of equipment_scenarios, so filtering the storage
+    # list directly would sink its row to the bottom even though it belongs
+    # in its slot's position.
+    selected_scenarios = [scen_by_id[sid] for sid in selected_ids if sid in scen_by_id]
 
     if not selected_scenarios:
         return dmc.Text("No scenarios selected", c="dimmed", size="sm")
 
+    # Number by Equipment-page slot position, not the library id, so the
+    # badge stays in sync with the column number on the Equipment page even
+    # after that slot's scenario is swapped via the column dropdown.
+    position_map = {sid: i + 1 for i, sid in enumerate(displayed_ids or [])}
+
     rows = []
-    for i, scen in enumerate(selected_scenarios):
+    for scen in selected_scenarios:
         scen_id = scen.get("eq_scen_id", "")
         scen_name = scen.get("eq_scen_name", scen_id)
-        short_id = str(i + 1)  # Display position (1-5) instead of scenario ID suffix
+        short_id = format_equipment_scenario_id_short(scen_id, position_map.get(scen_id))
 
         rows.append(
             dmc.Group(
@@ -321,11 +389,10 @@ def update_emission_legend(metadata_data, selected_ids):
 
 
 @callback(
-    Output("equipment-scenario-number-map", "data"),
-    Input("selected-equipment-store", "data"),
+    Output("download-button", "disabled"),
+    Output("download-tooltip", "disabled"),
+    Input("results-ready-store", "data"),
 )
-def update_equipment_number_map(selected_ids):
-    """Create mapping of scenario_id -> display_number (1-5)."""
-    if not selected_ids:
-        return {}
-    return {scen_id: i + 1 for i, scen_id in enumerate(selected_ids)}
+def toggle_download_button(results_ready):
+    has_results = bool(results_ready)
+    return not has_results, has_results

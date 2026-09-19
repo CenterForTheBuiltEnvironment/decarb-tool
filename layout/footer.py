@@ -130,7 +130,7 @@ def shell_footer():
 
     version_and_license = dmc.Group(
         [
-            dmc.Text("Version 1.00", fz="xs", c="dimmed"),
+            dmc.Text("Version 1.2.0", fz="xs", c="dimmed"),
             dmc.Anchor(
                 dmc.Image(
                     src="https://img.shields.io/badge/License-MIT-yellow.svg",

@@ -14,8 +14,8 @@ from layout.table_config import (
     value_deemphasis_style,
 )
 from src import paths
-from src.config import EmissionTableRows, EquipmentTableRows
-from utils.tooltips import with_tooltip
+from src.config import LINKS, EmissionTableRows, EquipmentTableRows
+from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 
 @lru_cache(maxsize=1)
@@ -58,7 +58,7 @@ def legend_toggle():
         id="legend-toggle",
         label="Show Scenario Legend",
         size="sm",
-        checked=False,
+        checked=True,
     )
 
 
@@ -104,11 +104,23 @@ def select_location():
     return html.Div(
         [
             dbc.Label(
-                "Building Location",
+                [
+                    "Building Location ",
+                    html.Span(
+                        "(OPTIONAL)",
+                        style={
+                            "fontSize": "0.75em",
+                            "color": "#6c757d",
+                            "fontWeight": "normal",
+                            "marginLeft": "5px",
+                        },
+                    ),
+                ],
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
+            html.Br(),
             html.P(
-                "Select the building location. This will set the corresponding ASHRAE climate zone used for the analysis."
+                "Overwrites grid region used for electricity emission factors. If skipped, information is inferred from the location of the selected load data."
             ),
             dcc.Dropdown(
                 id="location-input",
@@ -129,7 +141,7 @@ def select_load_type():
                 style={"fontWeight": "bold", "marginBottom": "10px"},
             ),
             html.Br(),
-            html.P("Select the type of load data you want to use for analysis."),
+            html.P("Select the load dataset you want to use for analysis."),
             dbc.Accordion(
                 [
                     dbc.AccordionItem(
@@ -150,12 +162,16 @@ def select_load_type():
                             html.P("Upload your own hourly load data in CSV format."),
                             dcc.Upload(
                                 id="upload-data",
-                                children=dbc.Button(
-                                    [
-                                        "Upload Custom Data ",
-                                        DashIconify(icon="material-symbols:upload", width=20),
-                                    ],
-                                    color="secondary",
+                                children=with_tooltip(
+                                    dbc.Button(
+                                        [
+                                            "Upload Custom Data ",
+                                            DashIconify(icon="material-symbols:upload", width=20),
+                                        ],
+                                        color="secondary",
+                                    ),
+                                    "loads.upload_custom",
+                                    position="right",
                                 ),
                                 accept=".csv",
                                 multiple=False,
@@ -172,7 +188,13 @@ def select_load_type():
     )
 
 
-def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"):
+def build_building_table(
+    buildings_data,
+    selected_id=None,
+    unit_mode: str = "SI",
+    sort_col: str = "building_id",
+    sort_dir: str = "asc",
+):
     """
     Build a table from a DataFrame with predefined columns.
     Only displays columns that exist in the data.
@@ -267,15 +289,44 @@ def build_building_table(buildings_data, selected_id=None, unit_mode: str = "SI"
 
         body_rows.append(dmc.TableTr(cells))
 
-    # Build header (use normal case, not uppercase)
-    header_style = {"textTransform": "none", "fontWeight": 500}
-    header_cells = [dmc.TableTh("", style=header_style)]  # radio column
-    header_cells.extend(
-        [
-            dmc.TableTh(get_header_label(col, label), style=header_style)
-            for col, label in available_columns
-        ]
-    )
+    # Sticky style applied to every header cell so the header row stays
+    # pinned to the top of the ScrollArea viewport while the body scrolls.
+    sticky_th_style = {
+        "position": "sticky",
+        "top": 0,
+        "zIndex": 2,
+        "backgroundColor": "var(--mantine-color-body)",
+    }
+
+    # Build header with clickable sort indicators
+    def make_sort_header(col_name, label):
+        is_active = col_name == sort_col
+        if is_active:
+            icon = "mdi:arrow-up" if sort_dir == "asc" else "mdi:arrow-down"
+            icon_color = "blue"
+        else:
+            icon = "mdi:unfold-more-horizontal"
+            icon_color = "gray"
+        return dmc.TableTh(
+            dmc.UnstyledButton(
+                dmc.Group(
+                    [
+                        dmc.Text(get_header_label(col_name, label), size="sm", fw=500),
+                        DashIconify(icon=icon, width=14, color=icon_color),
+                    ],
+                    gap=4,
+                    wrap="nowrap",
+                ),
+                id={"type": "building-sort-th", "col": col_name},
+                style={"cursor": "pointer", "userSelect": "none", "width": "100%"},
+            ),
+            style={"textTransform": "none", **sticky_th_style},
+        )
+
+    header_cells = [
+        dmc.TableTh("", style={"textTransform": "none", **sticky_th_style})
+    ]  # radio column
+    header_cells.extend([make_sort_header(col, label) for col, label in available_columns])
     header = dmc.TableThead(dmc.TableTr(header_cells))
 
     body = dmc.TableTbody(body_rows)
@@ -312,18 +363,42 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
     chw_min, chw_max = load_index["chw_max_load"]
 
     return dmc.Modal(
-        title="Load Data Library",
+        title=with_icon_and_tooltip(
+            "Load Data Library",
+            "loads.load_library_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.LOAD_LIBRARY_DOCS_URL.value,
+            position="right",
+        ),
         children=[
-            dmc.Text(
-                "Select simulated or measured load data from library.",
-                fw=400,
-                size="sm",
+            dmc.TextInput(
+                id="building-search-input",
+                placeholder="Search by location, building type, climate zone, vintage…",
+                leftSection=DashIconify(icon="mdi:magnify", width=20),
+                debounce=300,
+                size="md",
+                variant="filled",
+                radius="lg",
+                style={"width": "100%"},
+                styles={"input": {"backgroundColor": "rgba(34, 139, 230, 0.06)"}},
             ),
             dmc.Space(h="md"),
             # ------------------ FILTER CONTROLS ----------------------------
-            dmc.Stack(
-                gap="xl",
+            dmc.Paper(
+                withBorder=False,
+                radius="md",
+                p="md",
+                shadow="xs",
                 children=[
+                    dmc.Text(
+                        "Filters",
+                        size="xs",
+                        fw=600,
+                        c="dimmed",
+                        tt="uppercase",
+                        mb="sm",
+                    ),
                     dmc.Group(
                         align="center",
                         justify="space-between",
@@ -436,7 +511,14 @@ def modal_load_data_selection(buildings_df: pd.DataFrame):
                 ],
             ),
             dmc.Space(h="xl"),
-            # ------------------ TABLE + CONFIRM ----------------------------
+            # ------------------ TABLE + CONFIRM ---------------------------
+            dmc.Text(
+                id="building-table-result-count",
+                children="",
+                size="sm",
+                c="dimmed",
+                mb="xs",
+            ),
             html.Div(
                 id="building-table-container",
                 children=build_building_table(buildings_df, selected_id=None),
@@ -542,9 +624,10 @@ def build_equipment_table(
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
-        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_use_cooling", "Use AWHP for Cooling"),
         ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
+        ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Backup Cooling"),
     ]
 
@@ -582,7 +665,8 @@ def build_equipment_table(
             (field, label) for field, label in row_config if field in equipment_df.columns
         ]
 
-    active_ids = set(active_ids or [])
+    active_ids_ordered = list(active_ids or [])
+    active_ids = set(active_ids_ordered)
 
     active_col_style = TABLE_STYLE.active_col_style
     inactive_col_style = TABLE_STYLE.inactive_col_style
@@ -780,7 +864,7 @@ def build_equipment_table(
 
     return dmc.CheckboxGroup(
         id="equipment-checkbox-group",
-        value=list(active_ids),
+        value=active_ids_ordered,
         children=table,
     )
 
@@ -840,7 +924,14 @@ def edit_equipment_modal():
     return dmc.Modal(
         id="equipment-edit-modal",
         opened=False,
-        title="Edit equipment scenario",
+        title=with_icon_and_tooltip(
+            "Edit equipment scenario",
+            "equipment.equipment_input_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.EQUIPMENT_INPUT_DOCS_URL.value,
+            position="right",
+        ),
         size="lg",
         children=dmc.Stack(
             [
@@ -958,15 +1049,15 @@ def edit_equipment_modal():
                             id="edit-awhp-sizing-mode",
                             data=[
                                 {
-                                    "label": "% peak load (integer)",
+                                    "label": "Integer ceiling method",
                                     "value": "integer_sizing_peak_load",
                                 },
                                 {
-                                    "label": "% peak load (fractional)",
+                                    "label": "Fractional method",
                                     "value": "fractional_sizing_peak_load",
                                 },
                                 {
-                                    "label": "Fixed number of units",
+                                    "label": "Specific # of units",
                                     "value": "fixed_num_units",
                                 },
                             ],
@@ -977,7 +1068,6 @@ def edit_equipment_modal():
                                 dmc.NumberInput(
                                     id="edit-awhp-sizing-value",
                                     label="Sizing value",
-                                    description="% of peak load or number of units",
                                     min=0,
                                     max=5,
                                     step=0.05,  # will be overridden dynamically
@@ -998,12 +1088,12 @@ def edit_equipment_modal():
                             [
                                 dmc.Switch(
                                     id="edit-awhp-use-cooling",
-                                    label="Use heat pump also for cooling",
+                                    label="Use AWHP for cooling",
                                     mt="xs",
                                 ),
                                 dmc.Select(
                                     id="edit-awhp-sizing-priority",
-                                    label="Sizing priority",
+                                    label="Sizing basis",
                                     placeholder="None",
                                     data=[
                                         {
@@ -1049,6 +1139,11 @@ def edit_equipment_modal():
                             searchable=True,
                         ),
                     ],
+                ),
+                dmc.Switch(
+                    id="edit-fuel-switching",
+                    label="Use optimal heating fuel",
+                    mt="xs",
                 ),
                 dmc.Text(
                     id="edit-scenario-error",
@@ -1097,7 +1192,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_converter, get_unit_label
+    from utils.units import get_converter, get_display_unit
 
     emission_df = pd.DataFrame(emission_data) if isinstance(emission_data, list) else emission_data
 
@@ -1115,18 +1210,27 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # Sort for stable column order
     emission_df = emission_df.sort_values("em_scen_id").reset_index(drop=True)
 
-    # Get unit label for NG emission rate (dynamic based on unit_mode)
-    ng_emission_rate_unit = get_unit_label("emissions_rate", unit_mode)
+    # Get unit label for emission rates (dynamic based on unit_mode)
+    ng_emission_rate_unit = get_display_unit("gas_emission_factor", unit_mode)
+    elec_emission_rate_unit = get_display_unit("emissions_rate", unit_mode)
 
     # Rows to display (property name, label)
     # Note: em_scen_id is excluded as it's shown in the header
     row_config = [
+        ("em_scen_name", "Scenario"),
+        ("elec_emission_source", "Grid emissions source"),
+        (
+            "elec_avg_emission_rate_gCO2e_per_kWh",
+            f"Constant grid emissions rate ({elec_emission_rate_unit})",
+        ),
         ("grid_scenario", "Grid Scenario"),
-        ("gea_grid_region", "GEA Grid Region"),
+        ("gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("emission_type", "Emission Type"),
-        ("shortrun_weighting", "Short-run weighting"),
         ("annual_refrig_leakage_percent", "Refrigerant leakage (frac)"),
-        ("ng_emission_rate_gCO2e_per_kWh", f"Gas emissions rate ({ng_emission_rate_unit})"),
+        (
+            "ng_emission_rate_gCO2e_per_kWh",
+            f"Gas emissions rate ({ng_emission_rate_unit})",
+        ),
         ("year", "Year"),
     ]
 
@@ -1164,7 +1268,8 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
             (field, label) for field, label in row_config if field in emission_df.columns
         ]
 
-    active_ids = set(active_ids or [])
+    active_ids_ordered = list(active_ids or [])
+    active_ids = set(active_ids_ordered)
 
     active_col_style = TABLE_STYLE.active_col_style
     inactive_col_style = TABLE_STYLE.inactive_col_style
@@ -1250,8 +1355,9 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
     # ---------- Property rows ----------
     diff_row_style = TABLE_STYLE.diff_row_style
 
-    # Get converter for NG emission rate values
-    ng_emission_rate_converter = get_unit_converter("emissions_rate", unit_mode)
+    # Get converter for emission rate values
+    ng_emission_rate_converter = get_converter("gas_emission_factor", unit_mode)
+    elec_emission_rate_converter = get_converter("emissions_rate", unit_mode)
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -1266,10 +1372,16 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
         for idx, scen_id in enumerate(scen_ids):
             raw_value = emission_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for NG emission rate
+            # Apply unit conversion for emission rates
             if field == "ng_emission_rate_gCO2e_per_kWh" and raw_value is not None:
                 try:
                     converted = ng_emission_rate_converter(float(raw_value))
+                    display_value = f"{converted:.2f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            elif field == "elec_avg_emission_rate_gCO2e_per_kWh" and raw_value is not None:
+                try:
+                    converted = elec_emission_rate_converter(float(raw_value))
                     display_value = f"{converted:.2f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1317,7 +1429,7 @@ def build_emissions_table(emission_data, active_ids=None, view_mode="simple", un
 
     return dmc.CheckboxGroup(
         id="emissions-checkbox-group",
-        value=list(active_ids),
+        value=active_ids_ordered,
         children=table,
     )
 
@@ -1821,7 +1933,14 @@ def edit_emission_modal():
     return dmc.Modal(
         id="emissions-edit-modal",
         opened=False,
-        title="Edit emission scenario",
+        title=with_icon_and_tooltip(
+            "Edit emission scenario",
+            "emissions.emissions_input_docs",
+            order=5,
+            icon="basil:book-open-outline",
+            href=LINKS.EMISSION_INPUT_DOCS_URL.value,
+            position="right",
+        ),
         size="lg",
         children=dmc.Stack(
             [
@@ -1846,6 +1965,36 @@ def edit_emission_modal():
                     spacing="md",
                     children=[
                         dmc.Select(
+                            id="edit-em-elec-source",
+                            label="Grid emissions source",
+                            placeholder="Select grid emissions source",
+                            data=_options(emissions_index["elec_emission_source"]),
+                            searchable=True,
+                            clearable=False,
+                        ),
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-em-elec-emission-rate-label",
+                                    children="Constant grid emissions rate (g/kWh)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-em-elec-avg-emission-rate",
+                                    min=0,
+                                    step=1,
+                                ),
+                            ],
+                            gap=4,
+                        ),
+                    ],
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
                             id="edit-em-grid-scenario",
                             label="Grid scenario",
                             placeholder="Select grid scenario",
@@ -1855,7 +2004,7 @@ def edit_emission_modal():
                         ),
                         dmc.Select(
                             id="edit-em-gea-grid-region",
-                            label="GEA grid region",
+                            label="Generation and Emission Assessment grid region",
                             placeholder="Select grid region",
                             data=_options(emissions_index["gea_grid_region"]),
                             searchable=True,
@@ -1867,12 +2016,6 @@ def edit_emission_modal():
                     cols=2,
                     spacing="md",
                     children=[
-                        dmc.TextInput(
-                            id="edit-em-time-zone",
-                            label="Time zone",
-                            placeholder="e.g. America/Los_Angeles",
-                            disabled=True,
-                        ),
                         dmc.Select(
                             id="edit-em-emission-type",
                             label="Emission type",
@@ -1880,19 +2023,6 @@ def edit_emission_modal():
                             data=_options(emissions_index["emission_type"]),
                             searchable=False,
                             clearable=False,
-                        ),
-                    ],
-                ),
-                dmc.SimpleGrid(
-                    cols=2,
-                    spacing="md",
-                    children=[
-                        dmc.NumberInput(
-                            id="edit-em-shortrun-weighting",
-                            label="Short-run weighting",
-                            min=0,
-                            max=1,
-                            step=0.1,
                         ),
                         dmc.Select(
                             id="edit-em-year",
