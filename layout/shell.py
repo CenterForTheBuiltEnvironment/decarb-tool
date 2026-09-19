@@ -26,6 +26,16 @@ def _get_equipment_library():
     return load_library(paths.EQUIPMENT_JSON).model_dump()
 
 
+def _get_initial_equipment_scenario_ids(equipment_library, group_id="default"):
+    """Return the scenario_ids list for `group_id` from the JSON scenario_groups,
+    preserving JSON order. Falls back to DEFAULT_SELECTIONS if the group is missing."""
+    groups = equipment_library.get("scenario_groups", [])
+    group = next((g for g in groups if g.get("group_id") == group_id), None)
+    if group and group.get("scenario_ids"):
+        return group["scenario_ids"]
+    return list(DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value)
+
+
 def build_shell(page_content):
     """
     Build a Dash Mantine AppShell-based layout around the current page content.
@@ -34,6 +44,7 @@ def build_shell(page_content):
 
     # ---- global stores ----
     equipment_library = _get_equipment_library()
+    initial_scenario_ids = _get_initial_equipment_scenario_ids(equipment_library)
     global_state = [
         dcc.Store(id="metadata-store", storage_type="session"),
         dcc.Store(
@@ -46,12 +57,12 @@ def build_shell(page_content):
         dcc.Store(
             id="selected-equipment-store",
             storage_type="session",
-            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+            data=initial_scenario_ids,
         ),
         dcc.Store(
             id="displayed-equipment-store",
             storage_type="session",
-            data=DEFAULT_SELECTIONS.EQUIPMENT_SCENARIO.value,
+            data=initial_scenario_ids,
         ),
         dcc.Store(
             id="selected-emissions-store",

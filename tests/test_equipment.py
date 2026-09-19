@@ -2,6 +2,7 @@
 
 import pytest
 
+from layout.shell import _get_initial_equipment_scenario_ids
 from src import paths
 from src.equipment import (
     EquipmentLibrary,
@@ -18,6 +19,14 @@ class TestEquipmentLibrary:
         assert isinstance(lib, EquipmentLibrary)
         assert len(lib.equipment) > 0
         assert len(lib.equipment_scenarios) > 0
+
+    def test_initial_equipment_scenario_order_matches_default_group(self, equipment_library):
+        """Initial table order must match the JSON's 'default' scenario group order."""
+        equipment_data = equipment_library.model_dump()
+        default_group = next(
+            g for g in equipment_data["scenario_groups"] if g["group_id"] == "default"
+        )
+        assert _get_initial_equipment_scenario_ids(equipment_data) == default_group["scenario_ids"]
 
     def test_get_equipment_by_id(self, equipment_library):
         """Test equipment retrieval by ID."""
