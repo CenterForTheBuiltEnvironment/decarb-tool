@@ -110,7 +110,7 @@ behaviour changes, prompting you to remove the marker.
 | Where | What runs |
 |---|---|
 | pre-commit (`.pre-commit-config.yaml`) | `pytest -m unit` (≈1 s) after ruff |
-| `.github/workflows/tests.yml` | full suite on pushes to any branch except `main` and on PRs into `development` |
+| `.github/workflows/tests.yml` | full suite on PRs into `development` |
 | `.github/workflows/deploy.yml` | full suite on pushes/PRs to `main`; deployment only runs if it passes |
 
 Both workflows run two steps: the fast tiers (`-m "not app"`, ~5 s) first, then the app tier

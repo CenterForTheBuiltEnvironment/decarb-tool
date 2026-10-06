@@ -1,10 +1,8 @@
 name: Tests
 
-# Full suite on feature-branch pushes and PRs into development.
-# Pushes/PRs to main run the same suite in deploy.yml, which gates deployment.
+# Full suite on PRs into development.
+# PRs and pushes to main run the same suite in deploy.yml, which gates deployment.
 on:
-  push:
-    branches-ignore: [main]
   pull_request:
     branches: [development]
 
