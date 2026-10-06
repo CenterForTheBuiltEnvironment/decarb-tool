@@ -1,0 +1,26 @@
+name: Tests
+
+# Full suite on feature-branch pushes and PRs into development.
+# Pushes/PRs to main run the same suite in deploy.yml, which gates deployment.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [development]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full test suite
+        run: python -m pytest -q --tb=short
