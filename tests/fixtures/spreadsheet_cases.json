@@ -1,0 +1,2909 @@
+{
+ "source": "tests/testing_cases.xlsx",
+ "generated_by": "python -m tests.verification.extract_spreadsheet",
+ "equipment": [
+  {
+   "eq_id": "bo02",
+   "eq_type": "backup_heating",
+   "eq_subtype": "hot_water",
+   "eq_calc_type": "specific",
+   "model": "GenericBoiler",
+   "fuel": "natural_gas",
+   "capacity_W": 190500,
+   "dimensions": {
+    "length": 1.06,
+    "width": 0.833,
+    "height": 2.01
+   },
+   "operating_weight_g": 305000,
+   "electrical": {
+    "mca": 10,
+    "voltage": 120,
+    "phase": 1
+   },
+   "performance": {
+    "heating": {
+     "efficiency": 0.9
+    }
+   }
+  },
+  {
+   "eq_id": "bo03",
+   "eq_type": "backup_heating",
+   "eq_subtype": "hot_water",
+   "eq_calc_type": "specific",
+   "model": "GenericBoiler",
+   "fuel": "natural_gas",
+   "capacity_W": 190500,
+   "dimensions": {
+    "length": 1.06,
+    "width": 0.833,
+    "height": 2.01
+   },
+   "operating_weight_g": 305000,
+   "electrical": {
+    "mca": 10,
+    "voltage": 120,
+    "phase": 1
+   },
+   "performance": {
+    "heating": {
+     "efficiency": 0.8
+    }
+   }
+  },
+  {
+   "eq_id": "hp01",
+   "eq_type": "heat_pump",
+   "eq_subtype": "air_to_water",
+   "eq_calc_type": "specific",
+   "model": "GenericAWHP",
+   "nominal_capacity_W": 210960,
+   "fuel": "electricity",
+   "refrigerant": "R-454B",
+   "refrigerant_weight_g": 54000,
+   "refrigerant_gwp": 466,
+   "dimensions": {
+    "length": 2.0,
+    "width": 2.5,
+    "height": 3.2
+   },
+   "operating_weight_g": 2900000,
+   "electrical": {
+    "mca": 140,
+    "voltage": 460,
+    "phase": 3
+   },
+   "max_output_dba": 90,
+   "performance": {
+    "heating": {
+     "t_out_C": [
+      -15,
+      -12.2,
+      -6.7,
+      -1.1,
+      4.4,
+      10,
+      15,
+      20,
+      30
+     ],
+     "leaving_supply_t": {
+      "38": {
+       "cop": [
+        2.15,
+        2.33,
+        2.46,
+        2.69,
+        3.1,
+        3.63,
+        3.86,
+        4.03,
+        4.22
+       ],
+       "capacity_W": [
+        123600,
+        145200,
+        154700,
+        171100,
+        200200,
+        235700,
+        243100,
+        257500,
+        274800
+       ],
+       "constraints": {
+        "min_temp_C": -15,
+        "max_temp_C": 35
+       }
+      },
+      "52": {
+       "cop": [
+        1.97,
+        1.97,
+        1.97,
+        2.12,
+        2.42,
+        2.84,
+        2.88,
+        3.04,
+        3.2
+       ],
+       "capacity_W": [
+        155500,
+        155500,
+        155500,
+        169600,
+        196300,
+        229500,
+        232400,
+        248500,
+        268900
+       ],
+       "constraints": {
+        "min_temp_C": -10,
+        "max_temp_C": 35
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 38,
+      "max_temp_C": 52
+     }
+    },
+    "cooling": {
+     "t_out_C": [
+      15,
+      25,
+      35,
+      45
+     ],
+     "leaving_supply_t": {
+      "6.7": {
+       "cop": [
+        4.4,
+        4.0,
+        2.97,
+        2.65
+       ],
+       "capacity_W": [
+        250000,
+        220000,
+        201200,
+        183000
+       ],
+       "constraints": {
+        "min_temp_C": 5,
+        "max_temp_C": 45
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 6.7,
+      "max_temp_C": 6.7
+     }
+    }
+   }
+  },
+  {
+   "eq_id": "hp04",
+   "eq_type": "heat_pump",
+   "eq_subtype": "air_to_water",
+   "eq_calc_type": "specific",
+   "eq_manufacturer": "Aermec",
+   "model": "NRBHA800",
+   "nominal_capacity_W": 210960,
+   "fuel": "electricity",
+   "refrigerant": "R-410A",
+   "refrigerant_weight_g": 29030,
+   "refrigerant_gwp": 2088,
+   "dimensions": {
+    "length": 2.21,
+    "width": 2.46,
+    "height": 3.96
+   },
+   "operating_weight_g": 3079892,
+   "electrical": {
+    "mca": 129,
+    "voltage": 460,
+    "phase": 3
+   },
+   "max_output_dba": 87.5,
+   "performance": {
+    "heating": {
+     "t_out_C": [
+      -15,
+      -10,
+      -5,
+      0,
+      5,
+      7,
+      10,
+      15,
+      20,
+      25,
+      30
+     ],
+     "leaving_supply_t": {
+      "50": {
+       "cop": [
+        1.76,
+        1.76,
+        1.76,
+        1.84,
+        2.19,
+        2.41,
+        2.66,
+        2.88,
+        3.04,
+        3.13,
+        3.2
+       ],
+       "capacity_W": [
+        136831,
+        136831,
+        136831,
+        142105,
+        170526,
+        188985,
+        210667,
+        232349,
+        248464,
+        260184,
+        268974
+       ],
+       "constraints": {
+        "min_temp_C": -5,
+        "max_temp_C": 30
+       }
+      },
+      "45": {
+       "cop": [
+        1.89,
+        1.89,
+        1.94,
+        2.04,
+        2.44,
+        2.69,
+        2.95,
+        3.19,
+        3.35,
+        3.45,
+        3.51
+       ],
+       "capacity_W": [
+        137196,
+        137196,
+        137196,
+        143820,
+        173745,
+        192880,
+        214823,
+        236025,
+        251542,
+        262725,
+        270929
+       ],
+       "constraints": {
+        "min_temp_C": -10,
+        "max_temp_C": 30
+       }
+      },
+      "35": {
+       "cop": [
+        1.98,
+        2.29,
+        2.35,
+        2.5,
+        3.0,
+        3.29,
+        3.59,
+        3.86,
+        4.03,
+        4.15,
+        4.22
+       ],
+       "capacity_W": [
+        118948,
+        135599,
+        139544,
+        148258,
+        180562,
+        200729,
+        222975,
+        243083,
+        257523,
+        267647,
+        274811
+       ],
+       "constraints": {
+        "min_temp_C": -15,
+        "max_temp_C": 30
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 35,
+      "max_temp_C": 50
+     }
+    },
+    "cooling": {
+     "t_out_C": [
+      10,
+      20,
+      30,
+      35,
+      40
+     ],
+     "leaving_supply_t": {
+      "7": {
+       "cop": [
+        5.53,
+        4.43,
+        3.49,
+        3.05,
+        2.66
+       ],
+       "capacity_W": [
+        253568,
+        232467,
+        209959,
+        198353,
+        187099
+       ],
+       "constraints": {
+        "min_temp_C": 5,
+        "max_temp_C": 40
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 7,
+      "max_temp_C": 7
+     }
+    }
+   }
+  },
+  {
+   "eq_id": "hp06",
+   "eq_type": "heat_pump",
+   "eq_subtype": "air_to_water",
+   "eq_calc_type": "specific",
+   "eq_manufacturer": "Trane",
+   "model": "AXM",
+   "nominal_capacity_W": 210960,
+   "fuel": "electricity",
+   "refrigerant": "R-454B",
+   "refrigerant_weight_g": 78018,
+   "refrigerant_gwp": 466,
+   "dimensions": {
+    "length": 1.22,
+    "width": 2.62,
+    "height": 2.45
+   },
+   "operating_weight_g": 2721554,
+   "electrical": {
+    "mca": 151,
+    "voltage": 460,
+    "phase": 3
+   },
+   "performance": {
+    "heating": {
+     "t_out_C": [
+      -23.3,
+      -17.7,
+      -12.2,
+      -6.7,
+      -1.1,
+      4.4,
+      10
+     ],
+     "leaving_supply_t": {
+      "43.3": {
+       "cop": [
+        2.09,
+        2.32,
+        2.37,
+        2.57,
+        2.87,
+        3.19,
+        3.67
+       ],
+       "capacity_W": [
+        113070,
+        128224,
+        154712,
+        169923,
+        193875,
+        219918,
+        248389
+       ],
+       "constraints": {
+        "min_temp_C": -27,
+        "max_temp_C": 35
+       }
+      },
+      "48.9": {
+       "cop": [
+        1.92,
+        2.12,
+        2.18,
+        2.35,
+        2.62,
+        2.9,
+        3.31
+       ],
+       "capacity_W": [
+        116085,
+        131012,
+        155846,
+        171631,
+        195106,
+        220565,
+        247700
+       ],
+       "constraints": {
+        "min_temp_C": -27,
+        "max_temp_C": 35
+       }
+      },
+      "54.4": {
+       "cop": [
+        1.95,
+        1.95,
+        2.01,
+        2.17,
+        2.4,
+        2.65,
+        3.01
+       ],
+       "capacity_W": [
+        134227,
+        134227,
+        157746,
+        174225,
+        196994,
+        221969,
+        248331
+       ],
+       "constraints": {
+        "min_temp_C": -18,
+        "max_temp_C": 35
+       }
+      },
+      "60": {
+       "cop": [
+        1.86,
+        1.86,
+        1.86,
+        2.02,
+        2.23,
+        2.45,
+        2.77
+       ],
+       "capacity_W": [
+        160190,
+        160190,
+        160190,
+        177478,
+        200209,
+        224551,
+        250291
+       ],
+       "constraints": {
+        "min_temp_C": -13,
+        "max_temp_C": 35
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 43.3,
+      "max_temp_C": 60
+     }
+    },
+    "cooling": {
+     "t_out_C": [
+      25,
+      35,
+      45
+     ],
+     "leaving_supply_t": {
+      "6.7": {
+       "cop": [
+        4.0,
+        2.89,
+        2.65
+       ],
+       "capacity_W": [
+        250000,
+        203980,
+        185000
+       ],
+       "constraints": {
+        "min_temp_C": 5,
+        "max_temp_C": 40
+       }
+      }
+     },
+     "constraints": {
+      "min_temp_C": 6.7,
+      "max_temp_C": 6.7
+     }
+    }
+   }
+  },
+  {
+   "eq_id": "hr01",
+   "eq_type": "hr_heat_pump",
+   "eq_subtype": "water_to_water",
+   "eq_calc_type": "specific",
+   "model": "GenericHR_WWHP",
+   "nominal_capacity_W": 1054800,
+   "fuel": "electricity",
+   "refrigerant": "R-515B",
+   "refrigerant_weight_g": 200000,
+   "refrigerant_gwp": 466,
+   "dimensions": {
+    "length": 4.0,
+    "width": 1.5,
+    "height": 2.0
+   },
+   "operating_weight_g": 6000000,
+   "electrical": {
+    "mca": 500,
+    "voltage": 460,
+    "phase": 3
+   },
+   "performance": {
+    "heating": {
+     "capacity_W": [
+      323600,
+      647300,
+      704300,
+      818800,
+      933300,
+      1048100
+     ],
+     "leaving_supply_t": {
+      "32.2": {
+       "cop": [
+        6.7,
+        5.8,
+        5.9,
+        5.94,
+        5.97,
+        6.0
+       ]
+      },
+      "73.9": {
+       "cop": [
+        2.28,
+        2.28,
+        2.3,
+        2.33,
+        2.35,
+        2.37
+       ]
+      }
+     },
+     "constraints": {
+      "min_temp_C": 32.2,
+      "max_temp_C": 73.9
+     }
+    }
+   }
+  },
+  {
+   "eq_id": "hr03",
+   "eq_type": "hr_heat_pump",
+   "eq_subtype": "water_to_water_scroll",
+   "eq_calc_type": "specific",
+   "eq_manufacturer": "IMC",
+   "model": "GenericHR_WWHP",
+   "nominal_capacity_W": 210960,
+   "fuel": "electricity",
+   "refrigerant": "R-454B",
+   "refrigerant_weight_g": 29000,
+   "refrigerant_gwp": 466,
+   "dimensions": {
+    "length": 3.0,
+    "width": 2.25,
+    "height": 2.5
+   },
+   "operating_weight_g": 2612000,
+   "electrical": {
+    "mca": 140,
+    "voltage": 460,
+    "phase": 3
+   },
+   "max_output_dba": 90,
+   "performance": {
+    "heating": {
+     "capacity_W": [
+      70000,
+      140000,
+      211000
+     ],
+     "leaving_supply_t": {
+      "48.9": {
+       "cop": [
+        4.2,
+        4.0,
+        3.68
+       ]
+      },
+      "60": {
+       "cop": [
+        3.3,
+        3.1,
+        2.68
+       ]
+      }
+     },
+     "constraints": {
+      "min_temp_C": 48.9,
+      "max_temp_C": 60
+     }
+    }
+   }
+  },
+  {
+   "eq_id": "res01",
+   "eq_type": "backup_heating",
+   "model": "GenericResHeater",
+   "eq_subtype": "electric",
+   "eq_calc_type": "generic",
+   "fuel": "electricity",
+   "performance": {
+    "heating": {
+     "efficiency": 1.0
+    }
+   }
+  },
+  {
+   "eq_id": "res02",
+   "eq_type": "backup_heating",
+   "model": "GenericResHeater",
+   "eq_calc_type": "specific",
+   "eq_subtype": "electric",
+   "fuel": "electricity",
+   "capacity_W": 180000,
+   "dimensions": {
+    "length": 1.34,
+    "width": 0.832,
+    "height": 1.75
+   },
+   "operating_weight_g": 928000,
+   "electrical": {
+    "mca": 273,
+    "voltage": 480,
+    "phase": 3
+   },
+   "performance": {
+    "heating": {
+     "efficiency": 1.0
+    }
+   }
+  },
+  {
+   "eq_id": "xs_chiller_703kW",
+   "eq_type": "chiller",
+   "eq_calc_type": "specific",
+   "model": "Spreadsheet chiller 703 kW",
+   "fuel": "electricity",
+   "capacity_W": 703200,
+   "refrigerant": "R-spreadsheet",
+   "refrigerant_weight_g": 90700.0,
+   "refrigerant_gwp": 2088,
+   "performance": {
+    "cooling": {
+     "efficiency": 2.84
+    }
+   }
+  },
+  {
+   "eq_id": "xs_chiller_352kW",
+   "eq_type": "chiller",
+   "eq_calc_type": "specific",
+   "model": "Spreadsheet chiller 352 kW",
+   "fuel": "electricity",
+   "capacity_W": 351600,
+   "refrigerant": "R-spreadsheet",
+   "refrigerant_weight_g": 45400.0,
+   "refrigerant_gwp": 2088,
+   "performance": {
+    "cooling": {
+     "efficiency": 2.84
+    }
+   }
+  }
+ ],
+ "cases": [
+  {
+   "id": "B1S1",
+   "scenario": {
+    "eq_scen_id": "B1S1",
+    "eq_scen_name": "B1S1",
+    "hr_wwhp": "hr03",
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": 48.9,
+    "awhp": "hp01",
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": 38,
+    "awhp_sizing_mode": "integer_sizing_peak_load",
+    "awhp_sizing_value": 1,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": true,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "res02",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": 2805.01,
+   "peak_chiller_kW": 2108.01,
+   "emissions": {
+    "grid_scenario": "MidCase",
+    "gea_grid_region": "PJM_West",
+    "emission_type": "Includes pre-combustion",
+    "shortrun_weighting": 0,
+    "year": 2025,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 239.2,
+    "refrig_emissions_kg_per_hour": 5.761682648401828
+   },
+   "hours": [
+    {
+     "timestamp": "2001-03-31T07:00:00",
+     "t_out_C": 2.64,
+     "heating_kW": 663.25,
+     "cooling_kW": 0,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.9688
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 3054.208
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 663.25
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 223.40676367555915
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 223.40676367555915
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 402.6,
+     "elec_emissions_kg": 89.94356305578012,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-09-18T12:00:00",
+     "t_out_C": 27,
+     "heating_kW": 0,
+     "cooling_kW": 1602.33,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 4.1629
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 4313.76
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 3.79
+      },
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 3459.84
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 1602.33
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 408.29999999999995,
+     "elec_emissions_kg": 172.62040606860157,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-12-31T07:00:00",
+     "t_out_C": 12.58,
+     "heating_kW": 749.56,
+     "cooling_kW": 212.33,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 211
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 153.66304347826087
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 57.336956521739125
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.74868
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 3832.2943999999998
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 538.56
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 143.66657063286277
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 4000,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 58.66695652173914,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 20.6573790569504,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 221.6609062115523,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 461.8,
+     "elec_emissions_kg": 102.36300648849485,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B1S2",
+   "scenario": {
+    "eq_scen_id": "B1S2",
+    "eq_scen_name": "B1S2",
+    "hr_wwhp": null,
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": null,
+    "awhp": "hp01",
+    "awhp_performance_model": "interpolate_HHWST_reset",
+    "awhp_h_supply_t": 38,
+    "awhp_sizing_mode": "integer_sizing_peak_load",
+    "awhp_sizing_value": 1,
+    "awhp_redundancy": 2,
+    "awhp_use_cooling": true,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "res01",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": 2805.01,
+   "peak_chiller_kW": 2108.01,
+   "emissions": {
+    "grid_scenario": "MidCase",
+    "gea_grid_region": "PJM_West",
+    "emission_type": "Includes pre-combustion",
+    "shortrun_weighting": 0.3,
+    "year": 2035,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 200,
+    "refrig_emissions_kg_per_hour": 5.828178082191782
+   },
+   "hours": [
+    {
+     "timestamp": "2001-03-31T07:00:00",
+     "t_out_C": 2.64,
+     "heating_kW": 663.25,
+     "cooling_kW": 0,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.6497
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 3029.36
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 663.25
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 250.3113560025663
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 250.3113560025663
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 144.18,
+     "elec_emissions_kg": 36.08989130845001,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-09-18T12:00:00",
+     "t_out_C": 27,
+     "heating_kW": 0,
+     "cooling_kW": 1602.33,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 4.1629
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 4313.76
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 3.79
+      },
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 3459.84
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 1602.33
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 287.98,
+     "elec_emissions_kg": 121.75171329815304,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-12-31T07:00:00",
+     "t_out_C": 12.58,
+     "heating_kW": 749.56,
+     "cooling_kW": 212.33,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 16
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.561
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 3803.368
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 749.56
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 210.49143499017129
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 4000,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 212.33,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 74.76408450704226,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 285.2555194972135,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 329.34,
+     "elec_emissions_kg": 93.9460527912123,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B1S3",
+   "scenario": {
+    "eq_scen_id": "B1S3",
+    "eq_scen_name": "B1S3",
+    "hr_wwhp": "hr03",
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": 52,
+    "awhp": "hp01",
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": 42,
+    "awhp_sizing_mode": "fractional_sizing_peak_load",
+    "awhp_sizing_value": 0.7,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": true,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "bo03",
+    "chiller": "xs_chiller_352kW"
+   },
+   "peak_heating_kW": 2805.01,
+   "peak_chiller_kW": 3108.79,
+   "emissions": {
+    "grid_scenario": "LowNGPrice",
+    "gea_grid_region": "PJM_West",
+    "emission_type": "Combustion only",
+    "shortrun_weighting": 0.3,
+    "year": 2045,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 200,
+    "refrig_emissions_kg_per_hour": 6.684675799086759
+   },
+   "hours": [
+    {
+     "timestamp": "2001-03-31T07:00:00",
+     "t_out_C": 2.64,
+     "heating_kW": 663.25,
+     "cooling_kW": 0,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.785
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 663.25
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 238.1508078994614
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 238.1508078994614
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 11.13387715149997,
+       "reason": "AWHP sizing reference capacity at HHWST 42 \u00b0C: spreadsheet interpolates the 38 and 52 \u00b0C tables (176.35 kW at 0 \u00b0C); the tool uses the nearest table, 38 \u00b0C (176.92 kW), giving 11.098 instead of 11.134 units (-0.3 %). The spreadsheet's other two hours already use the tool's 11.1."
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 2115.3587216449337,
+       "reason": "AWHP sizing reference capacity at HHWST 42 \u00b0C: spreadsheet interpolates the 38 and 52 \u00b0C tables (176.35 kW at 0 \u00b0C); the tool uses the nearest table, 38 \u00b0C (176.92 kW), giving 11.098 instead of 11.134 units (-0.3 %). The spreadsheet's other two hours already use the tool's 11.1."
+      }
+     ],
+     "elec_rate_g_per_kWh": 46.849999999999994,
+     "elec_emissions_kg": 11.157365350089766,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-09-18T12:00:00",
+     "t_out_C": 27,
+     "heating_kW": 0,
+     "cooling_kW": 1602.33,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 11.1
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.872
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 2971.010127
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 3.79
+      },
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 2400.264
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 1602.33
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 422.77836411609496
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 98.77,
+     "elec_emissions_kg": 41.7578190237467,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2001-12-31T07:00:00",
+     "t_out_C": 12.58,
+     "heating_kW": 749.56,
+     "cooling_kW": 212.33,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 211
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 148.94117647058823
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 62.05882352941177
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 11.1
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.4959
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 2631.532167
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 538.56
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 154.05474984982408
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 2775,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 63.38882352941178,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 22.32000828500415,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 238.43358166424,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 192.81,
+     "elec_emissions_kg": 45.97237888068211,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B2S1",
+   "scenario": {
+    "eq_scen_id": "B2S1",
+    "eq_scen_name": "B2S1",
+    "hr_wwhp": null,
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": null,
+    "awhp": null,
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": null,
+    "awhp_sizing_mode": "integer_sizing_peak_load",
+    "awhp_sizing_value": 1,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": false,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "res02",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": null,
+   "peak_chiller_kW": 482.7,
+   "emissions": {
+    "grid_scenario": "MidCase",
+    "gea_grid_region": "CAISO",
+    "emission_type": "Includes pre-combustion",
+    "shortrun_weighting": 0,
+    "year": 2025,
+    "annual_refrig_leakage": 0.15,
+    "ng_rate_g_per_kWh": 200,
+    "refrig_emissions_kg_per_hour": 3.2428356164383563
+   },
+   "hours": [
+    {
+     "timestamp": "2022-03-10T11:00:00",
+     "t_out_C": 15.2,
+     "heating_kW": 100.99,
+     "cooling_kW": 98.91,
+     "checks": [
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 100.99
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 98.91
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 34.82746478873239
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 135.8174647887324
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 160.5,
+     "elec_emissions_kg": 21.79870309859155,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2022-09-06T11:00:00",
+     "t_out_C": 30.7,
+     "heating_kW": 0,
+     "cooling_kW": 439.98,
+     "checks": [
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 439.98
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 154.92253521126761
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 154.92253521126761
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 52.4,
+     "elec_emissions_kg": 8.117940845070423,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2021-12-20T23:00:00",
+     "t_out_C": 8.3,
+     "heating_kW": 203.75,
+     "cooling_kW": 17.17,
+     "checks": [
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 203.75
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 17.17
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 6.045774647887325
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 209.79577464788733
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 673,
+     "elec_emissions_kg": 141.19255633802817,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B2S2",
+   "scenario": {
+    "eq_scen_id": "B2S2",
+    "eq_scen_name": "B2S2",
+    "hr_wwhp": "hr03",
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": 60,
+    "awhp": "hp06",
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": 60,
+    "awhp_sizing_mode": "fixed_num_units",
+    "awhp_sizing_value": 3,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": false,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "res02",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": null,
+   "peak_chiller_kW": 482.7,
+   "emissions": {
+    "grid_scenario": "MidCase",
+    "gea_grid_region": "SPP_South",
+    "emission_type": "Includes pre-combustion",
+    "shortrun_weighting": 0.5,
+    "year": 2025,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 239.2,
+    "refrig_emissions_kg_per_hour": 1.9881344292237442
+   },
+   "hours": [
+    {
+     "timestamp": "2022-03-10T11:00:00",
+     "t_out_C": 15.2,
+     "heating_kW": 100.99,
+     "cooling_kW": 98.91,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 100.99
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 69.53873871068203
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 31.45126128931797
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 3
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.77
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 750.873
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 29.37126128931797
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 10.34199341173168
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 41.79325470104965
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 614.55,
+     "elec_emissions_kg": 25.684044676530057,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2022-09-06T11:00:00",
+     "t_out_C": 30.7,
+     "heating_kW": 0,
+     "cooling_kW": 439.98,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 3
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.77
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 750.873
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 439.98
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 154.92253521126761
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 154.92253521126761
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 745.2,
+     "elec_emissions_kg": 115.44827323943663,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2021-12-20T23:00:00",
+     "t_out_C": 8.3,
+     "heating_kW": 203.75,
+     "cooling_kW": 17.17,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 3
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.673
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 727.43121
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 203.75
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 76.225215114104
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 17.17
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 6.045774647887325
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 82.27098976199133
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 800.05,
+     "elec_emissions_kg": 65.82090535908117,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B3S1",
+   "scenario": {
+    "eq_scen_id": "B3S1",
+    "eq_scen_name": "B3S1",
+    "hr_wwhp": "hr01",
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": 40,
+    "awhp": "hp01",
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": 38,
+    "awhp_sizing_mode": "fractional_sizing_peak_load",
+    "awhp_sizing_value": 0.3,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": true,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "bo02",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": 325.09,
+   "peak_chiller_kW": 278.4,
+   "emissions": {
+    "grid_scenario": "MidCase",
+    "gea_grid_region": "CAISO",
+    "emission_type": "Includes pre-combustion",
+    "shortrun_weighting": 0,
+    "year": 2025,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 200,
+    "refrig_emissions_kg_per_hour": 1.835714804023592
+   },
+   "hours": [
+    {
+     "timestamp": "2023-04-19T04:00:00",
+     "t_out_C": 9,
+     "heating_kW": 302.95,
+     "cooling_kW": 0,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 0.551249152159168
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.535
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 126.43489692612481
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 126.43489692612481
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 35.766590360997114
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 196.12789230430576
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.4
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 35.766590360997114
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 137.812288039792,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 353.3,
+     "elec_emissions_kg": 12.63633637454028,
+     "gas_emissions_kg": 39.22557846086115
+    },
+    {
+     "timestamp": "2022-07-14T11:00:00",
+     "t_out_C": 23.7,
+     "heating_kW": 10.52,
+     "cooling_kW": 13.67,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 0.551249152159168
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 4.1003
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 145.47520250395658
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 10.52
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 2.5656659268833986
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.05
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 123.42468516843772,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 13.67,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 4.813380281690141,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 7.3790462085735395,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 126,
+     "elec_emissions_kg": 0.929759822280266,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2022-09-08T14:00:00",
+     "t_out_C": 36.6,
+     "heating_kW": 0,
+     "cooling_kW": 303.02,
+     "checks": [
+      {
+       "label": "HR HHW Output [kW]",
+       "column": "hr_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR CHW Output [kW]",
+       "column": "hr_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "HR-WWHP Electricity [kWh]",
+       "column": "elec_hr_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 0.551249152159168
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 4.22
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Gas [kWh]",
+       "column": "gas_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 2.9188
+      },
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 109.30609188333712
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 109.30609188333712
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 37.44898310378824
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 193.71390811666288
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 68.20912257628974
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 105.65810568007798
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 100.60000000000001,
+     "elec_emissions_kg": 10.629205431415844,
+     "gas_emissions_kg": 0
+    }
+   ]
+  },
+  {
+   "id": "B3S2",
+   "scenario": {
+    "eq_scen_id": "B3S2",
+    "eq_scen_name": "B3S2",
+    "hr_wwhp": null,
+    "hr_wwhp_performance_model": "interpolate_HHWST",
+    "hr_wwhp_h_supply_t": null,
+    "awhp": "hp04",
+    "awhp_performance_model": "interpolate_HHWST_fixed",
+    "awhp_h_supply_t": 45,
+    "awhp_sizing_mode": "integer_sizing_peak_load",
+    "awhp_sizing_value": 0.5,
+    "awhp_redundancy": 1,
+    "awhp_use_cooling": true,
+    "awhp_sizing_priority": "heating",
+    "fuel_switching": false,
+    "backup_heating": "res02",
+    "chiller": "xs_chiller_703kW"
+   },
+   "peak_heating_kW": 325.09,
+   "peak_chiller_kW": 203.82,
+   "emissions": {
+    "grid_scenario": "HighRECost",
+    "gea_grid_region": "CAISO",
+    "emission_type": "Combustion only",
+    "shortrun_weighting": 0.2,
+    "year": 2045,
+    "annual_refrig_leakage": 0.05,
+    "ng_rate_g_per_kWh": 181,
+    "refrig_emissions_kg_per_hour": 2.1188671232876715
+   },
+   "hours": [
+    {
+     "timestamp": "2023-04-19T04:00:00",
+     "t_out_C": 9,
+     "heating_kW": 302.95,
+     "cooling_kW": 0,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 2
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 2.863
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 415.01732
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 302.95
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 105.81557806496681
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 5.53
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 105.81557806496681
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 507.136,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 86.82,
+     "elec_emissions_kg": 9.186908487600418,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2022-07-14T11:00:00",
+     "t_out_C": 23.7,
+     "heating_kW": 10.52,
+     "cooling_kW": 13.67,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 2
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.424
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 519.63484
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 10.52
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 3.072429906542056
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 4.0822
+      }
+     ],
+     "superseded": [
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 448.27808,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 0,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 13.67,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 4.813380281690141,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 7.885810188232197,
+       "reason": "spreadsheet predates the AWHP compressor split: it allows no AWHP cooling in hours where the AWHPs also heat"
+      }
+     ],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 22.66,
+     "elec_emissions_kg": 0.1786924588653416,
+     "gas_emissions_kg": 0
+    },
+    {
+     "timestamp": "2022-09-08T14:00:00",
+     "t_out_C": 36.6,
+     "heating_kW": 0,
+     "cooling_kW": 303.02,
+     "checks": [
+      {
+       "label": "AWHP Count (Heating)",
+       "column": "awhp_num",
+       "divisor": 1,
+       "value": 2
+      },
+      {
+       "label": "AWHP Heating COP",
+       "column": "awhp_cop_h",
+       "divisor": 1,
+       "value": 3.51
+      },
+      {
+       "label": "AWHP Heating Cap [kW]",
+       "column": "awhp_cap_h_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP HHW Output [kW]",
+       "column": "awhp_hhw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Heating Electricity [kWh]",
+       "column": "elec_awhp_h_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Resistance Heater Electricity [kWh]",
+       "column": "elec_res_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "AWHP Cooling COP",
+       "column": "awhp_cop_c",
+       "divisor": 1,
+       "value": 2.9252
+      },
+      {
+       "label": "AWHP Cooling Cap [kW]",
+       "column": "awhp_cap_c_W",
+       "divisor": 1000,
+       "value": 389.50344
+      },
+      {
+       "label": "AWHP CHW Output [kW]",
+       "column": "awhp_chw_W",
+       "divisor": 1000,
+       "value": 303.02
+      },
+      {
+       "label": "AWHP Cooling Electricity [kWh]",
+       "column": "elec_awhp_c_Wh",
+       "divisor": 1000,
+       "value": 103.58949815397239
+      },
+      {
+       "label": "Chiller CHW Output [kW]",
+       "column": "chiller_chw_W",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Chiller Electricity [kWh]",
+       "column": "elec_chiller_Wh",
+       "divisor": 1000,
+       "value": 0
+      },
+      {
+       "label": "Total Electricity [kWh]",
+       "column": "elec_Wh",
+       "divisor": 1000,
+       "value": 103.58949815397239
+      }
+     ],
+     "superseded": [],
+     "known_differences": [],
+     "elec_rate_g_per_kWh": 47.260000000000005,
+     "elec_emissions_kg": 4.895639682756735,
+     "gas_emissions_kg": 0
+    }
+   ]
+  }
+ ]
+}

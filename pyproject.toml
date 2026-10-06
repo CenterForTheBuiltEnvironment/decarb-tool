@@ -34,4 +34,11 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = [
+  "unit: fast pure-function tests, synthetic data, no I/O (<5s total)",
+  "verification: engine + emissions checked against independent hand calculations and an independent reference model",
+  "regression: physics invariants + syrupy snapshots using the real equipment library",
+  "integration: full 8760-hour runs on real load and Cambium data, golden annual totals (1-3 min)",
+  "app: Dash server smoke tests and headless end-to-end workflow",
+]
 addopts = ["-v", "--tb=short", "-ra"]
