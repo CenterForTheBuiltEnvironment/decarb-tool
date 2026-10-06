@@ -13,7 +13,7 @@
    formulas, regression baselines regenerate with one command, and chart options are read from
    the live layout.
 
-Run everything with `python -m pytest` (about 90 s; all tiers except `app` finish in ~5 s).
+Run everything with `python -m pytest` (about 30 s; all tiers except `app` finish in ~5 s).
 
 ## Tiers
 
@@ -26,7 +26,7 @@ none, because CI selects by marker and an unmarked test would silently never run
 | `verification` | `test_verification_handcalc.py`, `test_verification_reference.py`, `test_verification_spreadsheet.py` | Results match independently calculated values | test-owned equipment; real loads/Cambium for the reference model | ~2 s |
 | `regression` | `test_energy_regression.py`, `test_loads.py::TestGetLoadData` | Energy balance invariants; hourly energy and emissions snapshots | real library, 24 h synthetic load | <1 s |
 | `integration` | `test_energy_integration.py` | Full-year runs: invariants plus golden annual energy and emissions totals (±0.1 %) | real parquet + Cambium | ~2 s |
-| `app` | `test_app_smoke.py`, `test_workflow.py` | Server, pages and callback wiring; headless end-to-end Results workflow | real | ~85 s |
+| `app` | `test_app_smoke.py`, `test_workflow.py` | Server, pages and callback wiring; headless end-to-end Results workflow | real | ~25 s |
 
 ### Verification
 
@@ -114,7 +114,7 @@ behaviour changes, prompting you to remove the marker.
 | `.github/workflows/deploy.yml` | full suite on pushes/PRs to `main`; deployment only runs if it passes |
 
 Both workflows run two steps: the fast tiers (`-m "not app"`, ~5 s) first, then the app tier
-(`-m app`, a few minutes on GitHub runners), each with `-v --durations=10` so progress and the
+(`-m app`, ~25 s locally, longer on GitHub runners), each with `-v --durations=10` so progress and the
 slowest tests are visible in the log. `pytest-timeout` (300 s per test, set in `pyproject.toml`)
 turns a hung test into a failure with a stack trace.
 

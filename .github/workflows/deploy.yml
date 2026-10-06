@@ -27,7 +27,7 @@ jobs:
       - name: "Tests: unit, verification, regression, integration (~5 s)"
         run: python -m pytest -m "not app" -v --tb=short --durations=10
 
-      - name: "Tests: app workflow (slow, a few minutes)"
+      - name: "Tests: app workflow (~1 min)"
         run: python -m pytest -m app -v --tb=short --durations=10
 
   deploy:

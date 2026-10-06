@@ -557,8 +557,12 @@ def convert_dataframe(df, unit_mode: str):
         category = get_category(col)
         if category is not None:
             converter = get_converter(category, unit_mode)
-            # Handle potential NaN values (use default arg to bind converter)
-            df[col] = df[col].apply(lambda x, conv=converter: conv(x) if pd.notna(x) else x)
+            if pd.api.types.is_numeric_dtype(df[col]) and not pd.api.types.is_bool_dtype(df[col]):
+                # Converters are plain arithmetic: apply to the whole column (NaN stays NaN)
+                df[col] = converter(df[col])
+            else:
+                # Handle potential NaN values (use default arg to bind converter)
+                df[col] = df[col].apply(lambda x, conv=converter: conv(x) if pd.notna(x) else x)
     return df
 
 
