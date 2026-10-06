@@ -180,7 +180,9 @@ def _run_workflow(results_page, layout, session: Session, exhaustive=False, down
     try:
         _calculate(results_page, session)
         _exercise_charts(results_page, layout, session, exhaustive)
-        for unit in download_units:  # the export is slow (~7 s), so only where it adds coverage
+        for (
+            unit
+        ) in download_units:  # the export is the slowest step, so only where it adds coverage
             df = _download(results_page, session, unit)
             hours = len(df) / len(session.scenario_ids) / len(session.emission_ids)
             assert hours in (8760, 8784), f"download has {len(df)} rows"
