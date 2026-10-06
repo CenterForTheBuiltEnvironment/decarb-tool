@@ -113,6 +113,11 @@ behaviour changes, prompting you to remove the marker.
 | `.github/workflows/tests.yml` | full suite on pushes to any branch except `main` and on PRs into `development` |
 | `.github/workflows/deploy.yml` | full suite on pushes/PRs to `main`; deployment only runs if it passes |
 
+Both workflows run two steps: the fast tiers (`-m "not app"`, ~5 s) first, then the app tier
+(`-m app`, a few minutes on GitHub runners), each with `-v --durations=10` so progress and the
+slowest tests are visible in the log. `pytest-timeout` (300 s per test, set in `pyproject.toml`)
+turns a hung test into a failure with a stack trace.
+
 The `cloudbuild.yaml` test step from the earlier `#132-testing-scheme` branch was not ported:
 `deploy.yml` builds with `gcloud builds submit --tag`, which ignores `cloudbuild.yaml`.
 

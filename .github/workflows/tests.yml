@@ -22,5 +22,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run full test suite
-        run: python -m pytest -q --tb=short
+      - name: "Tests: unit, verification, regression, integration (~5 s)"
+        run: python -m pytest -m "not app" -v --tb=short --durations=10
+
+      - name: "Tests: app workflow (slow, a few minutes)"
+        run: python -m pytest -m app -v --tb=short --durations=10

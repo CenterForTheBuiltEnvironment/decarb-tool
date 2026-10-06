@@ -42,3 +42,5 @@ markers = [
   "app: Dash server smoke tests and headless end-to-end workflow",
 ]
 addopts = ["-v", "--tb=short", "-ra"]
+# Fail a hung test with a stack trace instead of stalling CI (slowest test ~60 s locally)
+timeout = 300
