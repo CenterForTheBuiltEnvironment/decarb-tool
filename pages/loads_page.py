@@ -278,43 +278,138 @@ def filter_location_options(search_value, current_value):
     return options
 
 
-#! Needs to be reworked later + add trigger from modal confirm button
+def _location_from_zip(selected_zip: str) -> dict | None:
+    """Resolve location fields for a zip from locations.csv."""
+    locations = get_locations_df()
+    rows = locations.loc[locations["zip"] == selected_zip]
+    if rows.empty:
+        return None
+    row = rows.iloc[0]
+    return dict(
+        city=row["city"],
+        state_id=row["state_id"],
+        ashrae=row["ASHRAE"],
+        ca_zone=row["ca_climate"],
+        grid_region=row["gea_grid_region"],
+    )
+
+
+def _location_from_building(building: dict) -> dict:
+    """Resolve location fields for a library building from building metadata."""
+    ca_zone = building.get("ca_climate_zone")
+    region = building.get("gea_grid_region")
+    if region is None or region == "" or (isinstance(region, float) and pd.isna(region)):
+        region = None
+        # Fallback: look up from locations.csv by city, preferring CA entries
+        building_city = building.get("location")
+        if building_city:
+            locs = get_locations_df()
+            all_matches = locs.loc[locs["city"] == building_city][
+                ["state_id", "gea_grid_region"]
+            ].drop_duplicates(subset=["state_id"])
+            ca_matches = all_matches[all_matches["state_id"] == "CA"]
+            matches = ca_matches if not ca_matches.empty else all_matches
+            if not matches.empty:
+                region = matches.iloc[0]["gea_grid_region"]
+
+    has_ca_zone = ca_zone is not None and not (isinstance(ca_zone, float) and pd.isna(ca_zone))
+    return dict(
+        city=building.get("location"),
+        state_id="CA" if has_ca_zone or region == "CAISO" else None,
+        ashrae=building.get("ashrae_climate_zone"),
+        ca_zone=ca_zone,
+        grid_region=region,
+    )
+
+
+def _get_building(building_id) -> dict | None:
+    return next(
+        (b for b in get_buildings_list() if str(b.get("building_id")) == str(building_id)),
+        None,
+    )
+
+
+@callback(
+    Output("location-input", "value"),
+    Input("location-input", "id"),
+    State("metadata-store", "data"),
+)
+def restore_location_input(_, metadata_data):
+    """Re-populate the location search from metadata when the page is (re)rendered."""
+    zip_code = (metadata_data or {}).get("location_zip")
+    if (metadata_data or {}).get("location_source") != "user" or not zip_code:
+        raise dash.exceptions.PreventUpdate
+    return zip_code
+
+
+@callback(
+    Output("location-source-note", "children"),
+    Output("location-source-note", "c"),
+    Input("metadata-store", "data"),
+)
+def update_location_source_note(metadata_data):
+    """Show which source (load profile or location search) currently defines the location."""
+    data = metadata_data or {}
+    regions = [s.get("gea_grid_region") for s in data.get("emission_settings") or []]
+    region = regions[0] if regions else None
+
+    if data.get("location_source") == "user":
+        return [
+            f"Location set to {data.get('location')} ",
+            DashIconify(icon="mdi:check-bold", width=12, style={"verticalAlign": "middle"}),
+        ], "green"
+    if data.get("load_data", {}).get("load_type") and not region:
+        return "Select a location for valid grid region.", "orange"
+    if data.get("location_source") == "load":
+        return (
+            "Location based on load profile.",
+            "dimmed",
+        )
+    return "", "dimmed"
+
+
 @callback(
     Output("metadata-store", "data"),
     Input("location-input", "value"),
     State("metadata-store", "data"),
     prevent_initial_call=True,
 )
-def update_metadata(
-    selected_zip,
-    metadata_data,
-):
-    # Figure out which input triggered
-    trigger = ctx.triggered_id
+def update_metadata(selected_zip, metadata_data):
+    """Apply (or revert) the user-selected location.
 
-    if not trigger:  # no trigger
-        return metadata_data
-
+    A location set via the search stays in place until cleared, regardless of load changes.
+    Clearing reverts to the location of the selected load profile.
+    """
     metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
 
-    if trigger == "location-input" and selected_zip:
-        # look up the location row
-        locations = get_locations_df()
-        row = locations.loc[locations["zip"] == selected_zip].iloc[0]
-        metadata.location = row["city"]
-        metadata.ashrae_climate_zone = row["ASHRAE"]
-        if row["state_id"] == "CA":
-            metadata.climate_zone_output = (
-                metadata.ashrae_climate_zone + f" (CA Region {row['ca_climate']:.0f})"
-            )
-        else:
-            metadata.climate_zone_output = metadata.ashrae_climate_zone
-        metadata.set_gea_grid_region_for_all(row["gea_grid_region"])
-
+    if selected_zip:
+        if metadata.location_source == "user" and metadata.location_zip == selected_zip:
+            raise dash.exceptions.PreventUpdate  # restored on page load, nothing changed
+        location = _location_from_zip(selected_zip)
+        if location is None:
+            raise dash.exceptions.PreventUpdate
+        metadata.apply_location(**location, source="user", zip=selected_zip)
         logger.info(
-            f"Updated metadata location to {metadata.location}, ASHRAE Climate Zone {metadata.climate_zone_output}, based on zip {selected_zip}"
+            f"Updated metadata location to {metadata.location}, climate zone "
+            f"{metadata.climate_zone_output}, grid region {metadata.base_gea_grid_region}, "
+            f"based on zip {selected_zip}"
         )
+        return metadata.model_dump()
 
+    # cleared: revert to the location of the selected load profile
+    if metadata.location_source != "user":
+        raise dash.exceptions.PreventUpdate
+    building = (
+        _get_building(metadata.building_id)
+        if metadata.building_id and metadata.load_data.load_type != "custom"
+        else None
+    )
+    if building is not None:
+        metadata.apply_location(**_location_from_building(building), source="load")
+        logger.info(f"Location cleared, reverted to load location {metadata.location}")
+    else:
+        metadata.clear_location()
+        logger.info("Location cleared, no load location to revert to")
     return metadata.model_dump()
 
 
@@ -378,10 +473,9 @@ def _build_summary_payload(load_obj: "StandardLoad") -> dict:
     State("building-radio-group", "value"),
     State("metadata-store", "data"),
     State("session-store", "data"),
-    State("location-input", "value"),
     prevent_initial_call=True,
 )
-def confirm_selection(n_clicks, current_choice, metadata_data, session_data, selected_zip):
+def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
     """
     Handle library selection confirm.
     - For simulated data: proceed directly (update metadata, close modal)
@@ -392,10 +486,7 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data, sel
 
     metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
 
-    building = next(
-        (b for b in get_buildings_list() if str(b.get("building_id")) == str(current_choice)),
-        None,
-    )
+    building = _get_building(current_choice)
     if building is None:
         return (
             no_update,
@@ -420,8 +511,10 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data, sel
     metadata_updates = {}
     load_updates = {}
 
-    location_explicit = bool(selected_zip)
-    location_fields = {"location", "ashrae_climate_zone"}
+    location_fields = {
+        "location",
+        "ashrae_climate_zone",
+    }  # set via apply_location below
 
     for key, value in building.items():
         if key == "building_id":
@@ -434,8 +527,8 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data, sel
         if key in load_fields:
             load_updates[key] = value
         elif key in meta_fields and key != "load_data":
-            if location_explicit and key in location_fields:
-                continue  # preserve explicit location selection
+            if key in location_fields:
+                continue
             metadata_updates[key] = value
 
     # type fixes
@@ -449,9 +542,6 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data, sel
         else:
             metadata_updates.pop("vintage", None)
 
-    if "ashrae_climate_zone" in metadata_updates:
-        metadata_updates["ashrae_climate_zone"] = str(metadata_updates["ashrae_climate_zone"])
-
     # apply updates
     for field, value in metadata_updates.items():
         setattr(metadata, field, value)
@@ -460,32 +550,13 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data, sel
         {**metadata.load_data.model_dump(), **load_updates}
     )
 
-    # gea grid region + climate zone output: infer from building metadata if no explicit location
-    if not location_explicit:
-        # Prefer pre-computed column in building metadata over city-based lookup
-        region = building.get("gea_grid_region")
-        if not region:
-            # Fallback: look up from locations.csv by city, preferring CA entries
-            building_city = building.get("location")
-            if building_city:
-                locs = get_locations_df()
-                all_matches = locs.loc[locs["city"] == building_city][
-                    ["state_id", "gea_grid_region", "ASHRAE", "ca_climate"]
-                ].drop_duplicates(subset=["state_id"])
-                ca_matches = all_matches[all_matches["state_id"] == "CA"]
-                loc_row = (
-                    ca_matches.iloc[0]
-                    if not ca_matches.empty
-                    else (all_matches.iloc[0] if not all_matches.empty else None)
-                )
-                if loc_row is not None:
-                    region = loc_row["gea_grid_region"]
-
-        if region:
-            metadata.set_gea_grid_region_for_all(region)
-            if metadata.climate_zone_output is None:
-                metadata.climate_zone_output = metadata.ashrae_climate_zone
-            logger.info(f"Inferred grid region from load: {building.get('location')} → {region}")
+    # location (incl. climate zone + grid region) follows the load unless set by the user
+    if metadata.location_source != "user":
+        metadata.apply_location(**_location_from_building(building), source="load")
+        logger.info(
+            f"Location from load: {metadata.location}, {metadata.climate_zone_output}, "
+            f"{metadata.base_gea_grid_region}"
+        )
 
     # optional: path column in buildings_df
     if building.get("load_file_path"):
@@ -884,6 +955,8 @@ def process_upload(contents, filename, metadata_data, session_data):
         metadata = Metadata(**metadata_data) if metadata_data else Metadata.create()
         metadata.load_data.load_type = "custom"
         metadata.custom_load_path = result["filepath"]
+        if metadata.location_source != "user":
+            metadata.clear_location()  # custom data has no location; user is prompted to set one
 
         # Serialize dates for JSON storage
         pending_data = {
@@ -1053,9 +1126,10 @@ def update_table(
     total = len(buildings)
 
     if df.empty:
-        return build_building_table(
-            df, selected_id=None, unit_mode=unit_mode
-        ), f"0 of {total} buildings"
+        return (
+            build_building_table(df, selected_id=None, unit_mode=unit_mode),
+            f"0 of {total} buildings",
+        )
 
     # -----------------------------
     # 1) Additional filters
@@ -1099,7 +1173,13 @@ def update_table(
     # -----------------------------
     # 2) Free-text search
     # -----------------------------
-    _SEARCH_COLS = ["building_id", "location", "building_type", "vintage", "ashrae_climate_zone"]
+    _SEARCH_COLS = [
+        "building_id",
+        "location",
+        "building_type",
+        "vintage",
+        "ashrae_climate_zone",
+    ]
     if search_text and search_text.strip():
         needle = search_text.strip().lower()
         cols_present = [c for c in _SEARCH_COLS if c in df.columns]
@@ -1113,9 +1193,10 @@ def update_table(
         df = df[mask]
 
     if df.empty:
-        return build_building_table(
-            df, selected_id=None, unit_mode=unit_mode
-        ), f"0 of {total} buildings"
+        return (
+            build_building_table(df, selected_id=None, unit_mode=unit_mode),
+            f"0 of {total} buildings",
+        )
 
     # -----------------------------
     # 3) Column sort (replaces location priority sort)
@@ -1141,9 +1222,12 @@ def update_table(
             selected_id = current_choice
 
     result_count = f"{len(df)} of {total} buildings"
-    return build_building_table(
-        df, selected_id, unit_mode=unit_mode, sort_col=sort_col, sort_dir=sort_dir
-    ), result_count
+    return (
+        build_building_table(
+            df, selected_id, unit_mode=unit_mode, sort_col=sort_col, sort_dir=sort_dir
+        ),
+        result_count,
+    )
 
 
 # -------------------------------------------------------------------
