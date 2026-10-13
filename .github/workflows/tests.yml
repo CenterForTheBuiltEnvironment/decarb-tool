@@ -1,0 +1,46 @@
+name: Tests
+
+# Full suite + changelog check on PRs into development.
+# PRs and pushes to main run the same suite in deploy.yml, which gates deployment.
+on:
+  pull_request:
+    branches: [development]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Tests: unit, verification, regression, integration (~5 s)"
+        run: python -m pytest -m "not app" -v --tb=short --durations=10
+
+      - name: "Tests: app workflow (~1 min)"
+        run: python -m pytest -m app -v --tb=short --durations=10
+
+  changelog:
+    name: CHANGELOG.md updated
+    runs-on: ubuntu-latest
+    # Add the "skip-changelog" label to a PR for changes that don't need an entry (CI, typos)
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check that the PR adds a changelog entry
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qx CHANGELOG.md; then
+            echo "CHANGELOG.md updated"
+          else
+            echo "::error::Add an entry under '## [Unreleased]' in CHANGELOG.md, or label the PR 'skip-changelog'."
+            exit 1
+          fi

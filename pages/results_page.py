@@ -368,17 +368,25 @@ def download_results(
     # Convert values based on unit mode
     df = convert_dataframe(df, unit_mode)
 
-    # Round numeric values: 2 decimals normally, 3 for values < 1
-    def smart_round(val):
-        if pd.isna(val) or not isinstance(val, int | float | np.number):
-            return val
-        if abs(val) < 1 and val != 0:
-            return round(val, 3)
-        return round(val, 2)
+    def round_like_python(values, decimals):
+        """Vectorised round() with the same result as Python's built-in round().
 
+        Series.round() can differ from round() on values that look like exact
+        halves in decimal (e.g. 6.825); those few values are rounded one by one.
+        """
+        rounded = values.round(decimals)
+        scaled = values * 10**decimals
+        near_half = ((scaled - np.trunc(scaled)).abs() - 0.5).abs() < 1e-6
+        if near_half.any():
+            rounded[near_half] = values[near_half].map(lambda v: round(v, decimals))
+        return rounded
+
+    # Round numeric values: 2 decimals normally, 3 for values < 1
     for col in df.columns:
         if df[col].dtype in [np.float64, np.float32, float]:
-            df[col] = df[col].apply(smart_round)
+            values = df[col]
+            small = (values.abs() < 1) & (values != 0)
+            df[col] = round_like_python(values, 2).where(~small, round_like_python(values, 3))
 
     # Rename columns:
     # - Columns with a category: use get_column_label (includes unit)

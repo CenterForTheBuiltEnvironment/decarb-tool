@@ -1,6 +1,6 @@
 [project]
 name = "decarb-tool"
-version = "1.2.0"
+version = "0.1.0"
 description = "Building decarbonization planning tool"
 requires-python = ">=3.12"
 
@@ -34,4 +34,13 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = [
+  "unit: fast pure-function tests, synthetic data, no I/O (<5s total)",
+  "verification: engine + emissions checked against independent hand calculations and an independent reference model",
+  "regression: physics invariants + syrupy snapshots using the real equipment library",
+  "integration: full 8760-hour runs on real load and Cambium data, golden annual totals (1-3 min)",
+  "app: Dash server smoke tests and headless end-to-end workflow",
+]
 addopts = ["-v", "--tb=short", "-ra"]
+# Fail a hung test with a stack trace instead of stalling CI (slowest test ~60 s locally)
+timeout = 300

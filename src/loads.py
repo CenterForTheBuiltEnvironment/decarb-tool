@@ -79,6 +79,15 @@ class StandardLoad:
             if bad_count > 0:
                 logger.warning(f"{bad_count} invalid values in column {col}, set to NaN")
 
+        # Reject negative load values — a negative heating or cooling load indicates
+        # a data error (unit mismatch, sign convention issue, etc.)
+        for col in ["heating_W", "cooling_W"]:
+            if (df[col].dropna() < 0).any():
+                raise ValueError(
+                    f"Column '{col}' contains negative values. "
+                    "Load values must be >= 0. Check for unit errors or sign convention issues."
+                )
+
         return df
 
     # --------- Factory methods ---------

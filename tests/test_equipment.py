@@ -9,6 +9,8 @@ from src.equipment import (
     load_library,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestEquipmentLibrary:
     """Tests for equipment library loading and manipulation."""

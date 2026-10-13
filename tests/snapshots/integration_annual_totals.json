@@ -1,0 +1,288 @@
+{
+  "building_83_eq_scenario_1_simulated": {
+    "elec_kWh": 1103899.87,
+    "gas_kWh": 1924526.15,
+    "em_scenario_a": {
+      "elec_kWh": 1103899.87,
+      "gas_kWh": 1924526.15,
+      "total_kgCO2e": 898479.32,
+      "refrig_kgCO2e": 61346.98
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1103899.87,
+      "gas_kWh": 1924526.15,
+      "total_kgCO2e": 753107.21,
+      "refrig_kgCO2e": 61346.98
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1103899.87,
+      "gas_kWh": 1924526.15,
+      "total_kgCO2e": 521693.64,
+      "refrig_kgCO2e": 61346.98
+    }
+  },
+  "building_83_eq_scenario_3_simulated": {
+    "elec_kWh": 1487636.09,
+    "gas_kWh": 219400.32,
+    "em_scenario_a": {
+      "elec_kWh": 1487636.09,
+      "gas_kWh": 219400.32,
+      "total_kgCO2e": 598870.04,
+      "refrig_kgCO2e": 63863.38
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1487636.09,
+      "gas_kWh": 219400.32,
+      "total_kgCO2e": 412836.4,
+      "refrig_kgCO2e": 63863.38
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1487636.09,
+      "gas_kWh": 219400.32,
+      "total_kgCO2e": 116343.94,
+      "refrig_kgCO2e": 63863.38
+    }
+  },
+  "building_83_eq_scenario_4_simulated": {
+    "elec_kWh": 1409891.09,
+    "gas_kWh": 0.0,
+    "em_scenario_a": {
+      "elec_kWh": 1409891.09,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 500813.6,
+      "refrig_kgCO2e": 45930.78
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1409891.09,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 326691.2,
+      "refrig_kgCO2e": 45930.78
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1409891.09,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 45930.78,
+      "refrig_kgCO2e": 45930.78
+    }
+  },
+  "building_83_eq_scenario_5_simulated": {
+    "elec_kWh": 1171493.23,
+    "gas_kWh": 0.0,
+    "em_scenario_a": {
+      "elec_kWh": 1171493.23,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 430278.65,
+      "refrig_kgCO2e": 46979.27
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1171493.23,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 284195.03,
+      "refrig_kgCO2e": 46979.27
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1171493.23,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 46979.27,
+      "refrig_kgCO2e": 46979.27
+    }
+  },
+  "building_83_eq_scenario_10_simulated": {
+    "elec_kWh": 1121325.77,
+    "gas_kWh": 689329.84,
+    "em_scenario_a": {
+      "elec_kWh": 1121325.77,
+      "gas_kWh": 689329.84,
+      "total_kgCO2e": 609110.82,
+      "refrig_kgCO2e": 62395.47
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1121325.77,
+      "gas_kWh": 689329.84,
+      "total_kgCO2e": 461672.64,
+      "refrig_kgCO2e": 62395.47
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1121325.77,
+      "gas_kWh": 689329.84,
+      "total_kgCO2e": 227283.16,
+      "refrig_kgCO2e": 62395.47
+    }
+  },
+  "building_83_eq_scenario_18_simulated": {
+    "elec_kWh": 1409560.7,
+    "gas_kWh": 367.1,
+    "em_scenario_a": {
+      "elec_kWh": 1409560.7,
+      "gas_kWh": 367.1,
+      "total_kgCO2e": 500799.14,
+      "refrig_kgCO2e": 45930.78
+    },
+    "em_scenario_b": {
+      "elec_kWh": 1409560.7,
+      "gas_kWh": 367.1,
+      "total_kgCO2e": 326719.05,
+      "refrig_kgCO2e": 45930.78
+    },
+    "em_scenario_c": {
+      "elec_kWh": 1409560.7,
+      "gas_kWh": 367.1,
+      "total_kgCO2e": 46018.59,
+      "refrig_kgCO2e": 45930.78
+    }
+  },
+  "building_35_eq_scenario_1_simulated": {
+    "elec_kWh": 444279.95,
+    "gas_kWh": 552530.67,
+    "em_scenario_a": {
+      "elec_kWh": 444279.95,
+      "gas_kWh": 552530.67,
+      "total_kgCO2e": 275291.04,
+      "refrig_kgCO2e": 61346.98
+    },
+    "em_scenario_b": {
+      "elec_kWh": 444279.95,
+      "gas_kWh": 552530.67,
+      "total_kgCO2e": 214798.49,
+      "refrig_kgCO2e": 61346.98
+    },
+    "em_scenario_c": {
+      "elec_kWh": 444279.95,
+      "gas_kWh": 552530.67,
+      "total_kgCO2e": 200267.1,
+      "refrig_kgCO2e": 61346.98
+    }
+  },
+  "building_35_eq_scenario_3_simulated": {
+    "elec_kWh": 481538.42,
+    "gas_kWh": 11501.7,
+    "em_scenario_a": {
+      "elec_kWh": 481538.42,
+      "gas_kWh": 11501.7,
+      "total_kgCO2e": 148203.71,
+      "refrig_kgCO2e": 44672.58
+    },
+    "em_scenario_b": {
+      "elec_kWh": 481538.42,
+      "gas_kWh": 11501.7,
+      "total_kgCO2e": 73712.78,
+      "refrig_kgCO2e": 44672.58
+    },
+    "em_scenario_c": {
+      "elec_kWh": 481538.42,
+      "gas_kWh": 11501.7,
+      "total_kgCO2e": 55364.89,
+      "refrig_kgCO2e": 44672.58
+    }
+  },
+  "building_35_eq_scenario_4_simulated": {
+    "elec_kWh": 459525.19,
+    "gas_kWh": 0.0,
+    "em_scenario_a": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 128630.04,
+      "refrig_kgCO2e": 30514.58
+    },
+    "em_scenario_b": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 55951.02,
+      "refrig_kgCO2e": 30514.58
+    },
+    "em_scenario_c": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 38199.86,
+      "refrig_kgCO2e": 30514.58
+    }
+  },
+  "building_35_eq_scenario_5_simulated": {
+    "elec_kWh": 448994.53,
+    "gas_kWh": 0.0,
+    "em_scenario_a": {
+      "elec_kWh": 448994.53,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 126855.59,
+      "refrig_kgCO2e": 31563.07
+    },
+    "em_scenario_b": {
+      "elec_kWh": 448994.53,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 56259.02,
+      "refrig_kgCO2e": 31563.07
+    },
+    "em_scenario_c": {
+      "elec_kWh": 448994.53,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 39032.51,
+      "refrig_kgCO2e": 31563.07
+    }
+  },
+  "building_35_eq_scenario_10_simulated": {
+    "elec_kWh": 445085.27,
+    "gas_kWh": 480760.68,
+    "em_scenario_a": {
+      "elec_kWh": 445085.27,
+      "gas_kWh": 480760.68,
+      "total_kgCO2e": 259369.89,
+      "refrig_kgCO2e": 62395.47
+    },
+    "em_scenario_b": {
+      "elec_kWh": 445085.27,
+      "gas_kWh": 480760.68,
+      "total_kgCO2e": 198735.38,
+      "refrig_kgCO2e": 62395.47
+    },
+    "em_scenario_c": {
+      "elec_kWh": 445085.27,
+      "gas_kWh": 480760.68,
+      "total_kgCO2e": 184162.87,
+      "refrig_kgCO2e": 62395.47
+    }
+  },
+  "building_35_eq_scenario_18_simulated": {
+    "elec_kWh": 459525.19,
+    "gas_kWh": 0.0,
+    "em_scenario_a": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 128630.04,
+      "refrig_kgCO2e": 30514.58
+    },
+    "em_scenario_b": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 55951.02,
+      "refrig_kgCO2e": 30514.58
+    },
+    "em_scenario_c": {
+      "elec_kWh": 459525.19,
+      "gas_kWh": 0.0,
+      "total_kgCO2e": 38199.86,
+      "refrig_kgCO2e": 30514.58
+    }
+  },
+  "building_182_eq_scenario_3_measured": {
+    "elec_kWh": 209928.05,
+    "gas_kWh": 1594.57,
+    "em_scenario_a": {
+      "elec_kWh": 209928.05,
+      "gas_kWh": 1594.57,
+      "total_kgCO2e": 99087.93,
+      "refrig_kgCO2e": 22965.42
+    },
+    "em_scenario_b": {
+      "elec_kWh": 209928.05,
+      "gas_kWh": 1594.57,
+      "total_kgCO2e": 25740.88,
+      "refrig_kgCO2e": 22965.42
+    },
+    "em_scenario_c": {
+      "elec_kWh": 209928.05,
+      "gas_kWh": 1594.57,
+      "total_kgCO2e": 29050.79,
+      "refrig_kgCO2e": 22965.42
+    }
+  }
+}

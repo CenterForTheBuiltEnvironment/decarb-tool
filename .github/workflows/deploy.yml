@@ -24,9 +24,27 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run tests
-        run: pytest
-        continue-on-error: true  # TODO: remove once test suite is complete
+      - name: "Tests: unit, verification, regression, integration (~5 s)"
+        run: python -m pytest -m "not app" -v --tb=short --durations=10
+
+      - name: "Tests: app workflow (~1 min)"
+        run: python -m pytest -m app -v --tb=short --durations=10
+
+  release-check:
+    name: Version bumped & changelog released
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Check version and CHANGELOG.md against main
+        run: python -m scripts.check_release --base-ref origin/${{ github.base_ref }}
 
   deploy:
     name: Build & deploy to Cloud Run
@@ -58,3 +76,31 @@ jobs:
             --memory=4Gi \
             --concurrency=8 \
             --max-instances=1
+
+  tag-release:
+    name: Tag & publish GitHub Release
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Create tag and release if this version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(python -c "from utils.version import get_version; print(get_version())")
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "Tag v$VERSION already exists; nothing to release"
+            exit 0
+          fi
+          python -m scripts.check_release --notes > release-notes.md
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file release-notes.md

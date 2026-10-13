@@ -10,6 +10,33 @@ from src.equipment import load_library
 from src.loads import StandardLoad
 from src.metadata import Metadata
 
+TIER_MARKERS = {"unit", "verification", "regression", "integration", "app"}
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--generate-golden",
+        action="store_true",
+        default=False,
+        help="Regenerate integration_annual_totals.json golden values (integration tier)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Fail collection if any test lacks a tier marker.
+
+    CI selects tests by marker (e.g. -m "unit or regression"), so an unmarked
+    test would silently never run there.
+    """
+    unmarked = [
+        item.nodeid for item in items if not TIER_MARKERS & {m.name for m in item.iter_markers()}
+    ]
+    if unmarked:
+        raise pytest.UsageError(
+            f"Tests without a tier marker ({', '.join(sorted(TIER_MARKERS))}):\n  "
+            + "\n  ".join(unmarked)
+        )
+
 
 @pytest.fixture
 def sample_load_df():
