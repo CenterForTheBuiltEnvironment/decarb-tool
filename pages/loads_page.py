@@ -871,11 +871,9 @@ def toggle_custom_metadata_inputs(pending_data, unit_mode):
     Input("base-load-info-store", "data"),
 )
 def show_metadata(data, unit_mode, scale_info, base_load_info):
-    if not data:
-        return "No metadata yet"
-
     unit_mode = unit_mode or "SI"
-    metadata = Metadata(**data)
+    # Render empty cards (all fields "-") until a load is selected
+    metadata = Metadata(**data) if data else Metadata.create()
 
     return (
         building_characteristics_card(metadata, unit_mode=unit_mode),
