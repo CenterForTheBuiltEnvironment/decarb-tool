@@ -241,10 +241,23 @@ def toggle_modal(n_clicks, opened):
     return not opened
 
 
+def _zip_option(zip_code: str) -> dict | None:
+    """Dropdown option for a zip, or None if unknown."""
+    locations = get_locations_df()
+    rows = locations[locations["zip"] == zip_code]
+    if rows.empty:
+        return None
+    row = rows.iloc[0]
+    return {"label": f"{row['zip']} {row['city']}, {row['state_id']}", "value": zip_code}
+
+
 @callback(
     Output("location-input", "options"),
     Input("location-input", "search_value"),
     Input("location-input", "value"),  # Also trigger when value changes
+    # no initial call: an empty options update would race the restored value and the
+    # dropdown resets values that are not in its options (see the clientside restore below)
+    prevent_initial_call=True,
 )
 def filter_location_options(search_value, current_value):
     """Server-side search for location dropdown (avoids sending 44K options to client)."""
@@ -253,11 +266,9 @@ def filter_location_options(search_value, current_value):
 
     # Always include current selection first (so it stays visible)
     if current_value:
-        selected_row = locations[locations["zip"] == current_value]
-        if not selected_row.empty:
-            row = selected_row.iloc[0]
-            label = f"{row['zip']} {row['city']}, {row['state_id']}"
-            options.append({"label": label, "value": current_value})
+        option = _zip_option(current_value)
+        if option is not None:
+            options.append(option)
 
     # Add search results if user is searching (min 2 chars)
     if search_value and len(search_value) >= 2:
@@ -329,17 +340,27 @@ def _get_building(building_id) -> dict | None:
     )
 
 
-@callback(
+# Re-populate the location search from metadata when the page is (re)rendered.
+# Clientside, so the dropdown is filled without a server round trip. Value and its option
+# are set together: dcc.Dropdown clears a value that is not in its options, which would
+# revert the user location to the load location.
+dash.clientside_callback(
+    """
+    function(_, data) {
+        if (!data || data.location_source !== "user" || !data.location_zip) {
+            return [dash_clientside.no_update, dash_clientside.no_update];
+        }
+        const state = data.location_state ? `, ${data.location_state}` : "";
+        const label = `${data.location_zip} ${data.location}${state}`;
+        return [data.location_zip, [{label: label, value: data.location_zip}]];
+    }
+    """,
     Output("location-input", "value"),
+    Output("location-input", "options", allow_duplicate=True),
     Input("location-input", "id"),
     State("metadata-store", "data"),
+    prevent_initial_call="initial_duplicate",
 )
-def restore_location_input(_, metadata_data):
-    """Re-populate the location search from metadata when the page is (re)rendered."""
-    zip_code = (metadata_data or {}).get("location_zip")
-    if (metadata_data or {}).get("location_source") != "user" or not zip_code:
-        raise dash.exceptions.PreventUpdate
-    return zip_code
 
 
 @callback(

@@ -60,6 +60,7 @@ class Metadata(DotAccessMixin, BaseModel):
     climate_zone_output: str | None = None
     location_source: Literal["load", "user"] | None = None  # "user" = set via location search
     location_zip: str | None = None  # zip selected in the location search, if any
+    location_state: str | None = None  # state of the zip, for the location search label
     area_sqm: float | None
     load_data: LoadData
     equipment_scenarios: str | list[str]
@@ -207,6 +208,7 @@ class Metadata(DotAccessMixin, BaseModel):
         self.set_gea_grid_region_for_all(grid_region)
         self.location_source = source
         self.location_zip = zip
+        self.location_state = None if _is_missing(state_id) else state_id
 
     def clear_location(self) -> None:
         self.location = None
@@ -215,6 +217,7 @@ class Metadata(DotAccessMixin, BaseModel):
         self.set_gea_grid_region_for_all(None)
         self.location_source = None
         self.location_zip = None
+        self.location_state = None
 
     # ---------- Dict-like interface ----------
     def __getitem__(self, em_scen_id: str) -> EmissionScenario:

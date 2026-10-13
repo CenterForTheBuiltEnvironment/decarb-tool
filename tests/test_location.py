@@ -121,7 +121,9 @@ class TestLocationCallbacks:
         m["emission_settings"][0]["gea_grid_region"] = "edited on emissions page"
         with pytest.raises(PreventUpdate):
             loads_page.update_metadata(MIAMI_ZIP, m)
-        assert loads_page.restore_location_input("location-input", m) == MIAMI_ZIP
+        # restore_location_input (clientside) builds its option label from these fields
+        assert m["location_zip"] == MIAMI_ZIP
+        assert m["location_state"] == "FL"
 
     def test_tbd_building_has_no_grid_region(self, loads_page, session_data):
         m = Metadata(**self._select_building(loads_page, None, FAIRBANKS_ID, session_data))
