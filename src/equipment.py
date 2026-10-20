@@ -89,6 +89,10 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
         Literal["fixed_COP", "interpolate_HHWST", "performance_curves"] | None
     ) = None
     hr_wwhp_h_supply_t: float | None = None
+
+    hr_eac_heating_cap_W: float = Field(default=0.0, ge=0) # exhaust air coil max heat rejection [W]
+    hr_eac_cooling_cap_W: float = Field(default=0.0, ge=0) # exhaust air coil max heat recovery [W]
+
     awhp: str | None = None
     awhp_performance_model: (
         Literal[
