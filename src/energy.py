@@ -613,21 +613,27 @@ def loads_to_site_energy(
                 ],  # amount of simultaneous load that the WWHP can actually satisfy
             )
 
-            # Actual heating served (within capacity limits)
-            hr_hhw = np.where(
+            # Actual HR WWHP heating output (within capacity limits)
+            hr_out_h = np.where(
                 np.minimum(max_cap_h, simult_h) > min_cap_h,
                 np.minimum(max_cap_h, simult_h),
                 0.0,
             )
 
             # Interpolate COP at part load
-            hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_hhw)
+            hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_out_h)
 
             # Cooling served derived from heating & COP
-            hr_chw = np.where(hr_cop_h > 0, hr_hhw * (1 - (1 / hr_cop_h)), 0.0)  # same as R
+            hr_out_c = np.where(hr_cop_h > 0, hr_out_h * (1 - (1 / hr_cop_h)), 0.0)  # same as R
+
+            # Split total HRC output into building loads and exhaust air coil loads
+            hr_hhw = np.minimum(hr_out_h, df[Col.HHW_REM_W.value].to_numpy())
+            hr_chw = np.minimum(hr_out_c, df[Col.CHW_REM_W.value].to_numpy())
+            eac_h = hr_out_h - hr_hhw
+            eac_c = hr_out_c - hr_chw
 
             # Electricity use
-            elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
+            elec_hr = np.where(hr_cop_h > 0, hr_out_h / hr_cop_h, 0.0)
 
             # add refrigerant information
             hr_wwhp_refrigerant = hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
