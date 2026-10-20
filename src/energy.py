@@ -527,6 +527,8 @@ def loads_to_site_energy(
                 Col.HR_HHW_W.value,
                 Col.HR_CHW_W.value,
                 Col.HR_COP_H.value,
+                Col.HR_EAC_H_W.value,
+                Col.HR_EAC_C_W.value,
                 Col.ELEC_HR_WH.value,
                 # AWHP Heating
                 Col.AWHP_HHW_W.value,
@@ -674,6 +676,8 @@ def loads_to_site_energy(
             df[Col.HR_HHW_W.value] = hr_hhw
             df[Col.HR_CHW_W.value] = hr_chw
             df[Col.HR_COP_H.value] = hr_cop_h
+            df[Col.HR_EAC_H_W] = eac_h
+            df[Col.HR_EAC_C_W] = eac_c
             df[Col.ELEC_HR_WH.value] = elec_hr
             df[Col.ELEC_WH.value] += elec_hr
             df[Col.HHW_REM_W.value] -= hr_hhw
@@ -1103,6 +1107,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.MAX_CAP_H_HR_W.value,
         Col.MIN_CAP_H_HR_W.value,
         Col.SIMULT_H_HR_W.value,
+        Col.HR_EAC_H_W.value,
+        Col.HR_EAC_C_W.value,
         Col.ELEC_HR_WH.value,
         Col.HR_WWHP_REFRIGERANT.value,
         Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value,

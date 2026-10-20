@@ -129,7 +129,7 @@ class Columns(StrEnum):
     MAX_CAP_H_HR_W = "max_cap_h_hr_W"
     MIN_CAP_H_HR_W = "min_cap_h_hr_W"
     SIMULT_H_HR_W = "simult_h_hr_W"
-    HR_EAC_HW_W = "hr_eac_h_W"
+    HR_EAC_H_W = "hr_eac_h_W"
     HR_EAC_C_W = "hr_eac_c_W"
     ELEC_HR_WH = "elec_hr_Wh"
 
