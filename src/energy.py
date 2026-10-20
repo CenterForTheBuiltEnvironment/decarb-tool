@@ -605,12 +605,22 @@ def loads_to_site_energy(
             min_cap_h = plr_curve["cap"].min()  # min heating capacity allowed by unit
 
             # Simultaneous load potential (using least-waste-heat factor)
-            simult_h = np.minimum(
-                df[Col.HHW_REM_W.value].to_numpy(),
-                df[Col.CHW_REM_W.value].to_numpy()
-                / least_waste_heat[
-                    "cap_h_to_cap_c"
-                ],  # amount of simultaneous load that the WWHP can actually satisfy
+            heating_dominant = (
+                df[Col.HHW_REM_W.value].to_numpy() * least_waste_heat["cap_h_to_cap_c"]
+                >= df[Col.CHW_REM_W.value].to_numpy()
+            )
+
+            simult_h = np.where(
+                heating_dominant,
+                np.minimum(
+                    df[Col.HHW_REM_W.value].to_numpy(),
+                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_cooling_cap_W) / least_waste_heat["cap_h_to_cap_c"],
+                ),
+                # cooling dominant
+                np.minimum(
+                    df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
+                    df[Col.HHW_REM_W.value].to_numpy() + scen.hr_eac_heating_cap_W,
+                ),
             )
 
             # Actual HR WWHP heating output (within capacity limits)
