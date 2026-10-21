@@ -716,6 +716,8 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-hr-wwhp-select", "value"),
     Output("edit-hr-wwhp-performance-model", "value"),
     Output("edit-hr-wwhp-h-supply-t-value", "value"),
+    Output("edit-hr-eac-heating-cap", "value"),
+    Output("edit-hr-eac-cooling-cap", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
     Output("edit-awhp-performance-model", "value"),
@@ -742,7 +744,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 22
+        return (no_update,) * 24
 
     if not equipment_data:
         return (
@@ -753,6 +755,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            0,
+            0,
             [],
             None,
             None,
@@ -775,7 +779,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 22
+        return (no_update,) * 24
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -791,6 +795,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            0,
+            0,
             [],
             None,
             None,
@@ -822,6 +828,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            0,
+            0,
             [],
             None,
             None,
@@ -901,6 +909,9 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
 
+    hr_eac_heating_capacity = (scenario.get("hr_eac_heating_cap_W") or 0) / 1000
+    hr_eac_cooling_capacity = (scenario.get("hr_eac_cooling_cap_W") or 0) / 1000
+
     return (
         True,  # modal open
         eq_scen_id,  # id input
@@ -909,6 +920,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         hr_wwhp_val,
         hr_wwhp_performance_model_val,
         hr_wwhp_h_supply_t_val,
+        hr_eac_heating_capacity,
+        hr_eac_cooling_capacity,
         awhp_options,
         awhp_val,
         awhp_performance_model_val,
@@ -937,6 +950,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-hr-wwhp-select", "value"),
     State("edit-hr-wwhp-performance-model", "value"),
     State("edit-hr-wwhp-h-supply-t-value", "value"),
+    State("edit-hr-eac-heating-cap", "value"),
+    State("edit-hr-eac-cooling-cap", "value"),
     State("edit-awhp-select", "value"),
     State("edit-awhp-performance-model", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
@@ -959,6 +974,8 @@ def save_edit_scenario(
     hr_wwhp_val,
     hr_wwhp_performance_model_val,
     hr_wwhp_h_supply_t_val,
+    hr_eac_heating_cap_kW,
+    hr_eac_cooling_cap_kW,
     awhp_val,
     awhp_performance_model_val,
     awhp_h_supply_t_val,
@@ -1019,6 +1036,9 @@ def save_edit_scenario(
     except (TypeError, ValueError):
         redundancy = 1
 
+    hr_eac_heating_cap_W = float(hr_eac_heating_cap_kW or 0) * 1000
+    hr_eac_cooling_cap_W = float(hr_eac_cooling_cap_kW or 0) * 1000
+
     use_cooling = bool(use_cooling)
     fuel_switching = bool(fuel_switching)
 
@@ -1033,6 +1053,8 @@ def save_edit_scenario(
             new_scen["hr_wwhp"] = hr_wwhp_val
             new_scen["hr_wwhp_performance_model"] = hr_wwhp_performance_model_val
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
+            new_scen["hr_eac_heating_cap_W"] = hr_eac_heating_cap_W
+            new_scen["hr_eac_cooling_cap_W"] = hr_eac_cooling_cap_W
             new_scen["awhp"] = awhp_val
             new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val

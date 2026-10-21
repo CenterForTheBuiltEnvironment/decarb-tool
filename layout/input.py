@@ -1042,6 +1042,27 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
+                dmc.Divider(label="HR HP balancing sink/source (exhaust air coil)", labelPosition="center"),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.NumberInput(
+                            id="edit-hr-eac-heating-cap",
+                            label="Max heat rejection capacity (kW)",
+                            min=0,
+                            step=10,
+                            decimalScale=1,
+                        ),
+                        dmc.NumberInput(
+                            id="edit-hr-eac-cooling-cap",
+                            label="Max heat recovery capacity (kW)",
+                            min=0,
+                            step=10,
+                            decimalScale=1,
+                        ),
+                    ],
+                ),
                 dmc.Divider(label="Heat pump sizing", labelPosition="center"),
                 dmc.Stack(
                     [
