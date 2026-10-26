@@ -14,6 +14,24 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+### Added
+
+- Equipment validation that reports every problem in an equipment definition (errors and
+  warnings), groundwork for the Equipment Manager and editable performance curves (#171)
+- Optional `source`, `based_on` and `notes` fields on equipment, to tell library equipment from
+  user-made copies
+
+### Changed
+
+- Heat pump curves are now also checked for strictly increasing outdoor temperature or capacity
+  values, positive COP and capacity, numeric non-duplicate supply temperatures, and ordered
+  min/max limits before a calculation runs
+
+### Fixed
+
+- The supply temperature reset now picks the lowest supply temperature curve numerically
+  instead of alphabetically (no effect on the current equipment library)
+
 ## [0.1.0] - 2026-10-13
 
 First versioned release of the tool. Earlier deployments were not versioned consistently;

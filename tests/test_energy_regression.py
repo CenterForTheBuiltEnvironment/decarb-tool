@@ -21,7 +21,7 @@ from src import paths
 from src.config import Columns as Col
 from src.emissions import EmissionScenario
 from src.energy import loads_to_site_energy, site_to_source
-from src.equipment import load_library
+from src.equipment import EquipmentLibrary, duplicate_equipment, load_library
 from src.loads import StandardLoad
 from src.metadata import Metadata
 
@@ -220,3 +220,33 @@ def test_emissions_output_snapshot(snapshot, scenario_id, library, synthetic_loa
     site = loads_to_site_energy(load=synthetic_load, library=library, scenario_ids=[scenario_id])
     out = site_to_source(site, metadata=metadata)
     assert snapshot == out[EMISSION_COLUMNS].round(4).to_csv()
+
+
+# ---------------------------------------------------------------------------
+# Layer 2d — Custom equipment copies
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("scenario_id", ["eq_scenario_5"])  # HR-WWHP + AWHP + cooling
+def test_unmodified_custom_copy_matches_library_equipment(scenario_id, library, synthetic_load):
+    """A duplicated but unedited AWHP / HR-WWHP must give the same results as the original."""
+    custom_library = EquipmentLibrary(**library.model_dump())
+    scenario = custom_library.get_scenario(scenario_id)
+    existing_ids = [e.eq_id for e in custom_library.equipment]
+
+    hr_copy = duplicate_equipment(custom_library.get_equipment(scenario.hr_wwhp), existing_ids)
+    awhp_copy = duplicate_equipment(custom_library.get_equipment(scenario.awhp), existing_ids)
+    custom_library.add_equipment(hr_copy)
+    custom_library.add_equipment(awhp_copy)
+    custom_library.add_equipment_scenario(
+        scenario.model_copy(update={"hr_wwhp": hr_copy.eq_id, "awhp": awhp_copy.eq_id})
+    )
+
+    df_original = loads_to_site_energy(
+        load=synthetic_load, library=library, scenario_ids=[scenario_id]
+    )
+    df_copy = loads_to_site_energy(
+        load=synthetic_load, library=custom_library, scenario_ids=[scenario_id]
+    )
+    pd.testing.assert_frame_equal(df_original, df_copy)

@@ -3,7 +3,7 @@ import pandas as pd
 
 from src.config import Columns as Col
 from src.emissions import get_emissions_data
-from src.equipment import Equipment, EquipmentLibrary, PerformanceCurves
+from src.equipment import Equipment, EquipmentLibrary, PerformanceCurves, validate_equipment
 from src.loads import StandardLoad
 from src.metadata import Metadata
 from utils.interp import interp_vector, multi_interp_vector
@@ -11,6 +11,13 @@ from utils.logging_config import get_logger
 from utils.units import cop_h_to_cop_c
 
 logger = get_logger(__name__)
+
+
+def _raise_on_equipment_errors(e: Equipment, modes: tuple[str, ...]):
+    """Raise a ValueError with the first validation error of `e` for the given modes, if any."""
+    errors = [i for i in validate_equipment(e, modes) if i.severity == "error"]
+    if errors:
+        raise ValueError(errors[0].message)
 
 
 def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str]):
@@ -22,9 +29,7 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
         # wwhp checks
         if scen.hr_wwhp:
             hr_wwhp = library.get_equipment(scen.hr_wwhp)
-
-            if not hr_wwhp.performance_heating:
-                raise ValueError(f"Equipment '{hr_wwhp.eq_id}' lacks heating performance data.")
+            _raise_on_equipment_errors(hr_wwhp, ("heating",))
 
             hr_wwhp_supply_t = scen.hr_wwhp_h_supply_t
             if (
@@ -34,26 +39,6 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                 raise ValueError(
                     f"Supply water temperature {hr_wwhp_supply_t} is outside the bounds of the provided performance data for equipment '{hr_wwhp.eq_id}'."
                 )
-
-            if not hr_wwhp.performance_heating.capacity_W:
-                raise ValueError(
-                    f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (capacity_W curve)."
-                )
-
-            hr_wwhp_supply_temps_str = list(hr_wwhp.performance_heating.leaving_supply_t.keys())
-
-            for t in hr_wwhp_supply_temps_str:
-                if not hr_wwhp.performance_heating.leaving_supply_t[t].cop:
-                    raise ValueError(
-                        f"Equipment '{hr_wwhp.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
-                    )
-
-                if len(hr_wwhp.performance_heating.capacity_W) != len(
-                    hr_wwhp.performance_heating.leaving_supply_t[t].cop
-                ):
-                    raise ValueError(
-                        f"Equipment '{hr_wwhp.eq_id}' heating COP and capacity curves are of different lengths for supply temperature {t}."
-                    )
 
             if scen.hr_wwhp_performance_model not in [
                 "fixed_COP",
@@ -67,9 +52,10 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
         if scen.awhp:
             # awhp heating checks
             awhp_h = library.get_equipment(scen.awhp)
-
-            if not awhp_h.performance_heating:
-                raise ValueError(f"Equipment '{awhp_h.eq_id}' lacks heating performance data.")
+            # cooling curves are only checked when the scenario uses the AWHP for cooling
+            _raise_on_equipment_errors(
+                awhp_h, ("heating", "cooling") if scen.awhp_use_cooling else ("heating",)
+            )
 
             awhp_h_supply_t = scen.awhp_h_supply_t
             if (
@@ -79,50 +65,6 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                 raise ValueError(
                     f"Supply water temperature {awhp_h_supply_t} is outside the bounds of the provided performance data for equipment '{awhp_h.eq_id}'."
                 )
-
-            if not awhp_h.performance_heating.t_out_C:
-                raise ValueError(
-                    f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (t_out curve)."
-                )
-
-            awhp_h_supply_temps_str = list(awhp_h.performance_heating.leaving_supply_t.keys())
-
-            for t in awhp_h_supply_temps_str:
-                if not awhp_h.performance_heating.leaving_supply_t[t].capacity_W:
-                    if not awhp_h.capacity_W:
-                        raise ValueError(
-                            f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (fixed value or t_out-based curve for capacity_W at supply temperature {t})."
-                        )
-
-                else:
-                    if len(awhp_h.performance_heating.t_out_C) != len(
-                        awhp_h.performance_heating.leaving_supply_t[t].capacity_W
-                    ):
-                        raise ValueError(
-                            f"Equipment '{awhp_h.eq_id}' heating capacity_W and t_out curves are of different lengths for supply temperature {t}."
-                        )
-
-                if not awhp_h.performance_heating.leaving_supply_t[t].cop:
-                    raise ValueError(
-                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (COP curve for supply temperature {t})."
-                    )
-
-                if len(awhp_h.performance_heating.t_out_C) != len(
-                    awhp_h.performance_heating.leaving_supply_t[t].cop
-                ):
-                    raise ValueError(
-                        f"Equipment '{awhp_h.eq_id}' heating COP and t_out curves are of different lengths for supply temperature {t}."
-                    )
-
-                if "min_temp_C" not in awhp_h.performance_heating.leaving_supply_t[t].constraints:
-                    raise ValueError(
-                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (minimum t_out constraint for supply temperature {t})."
-                    )
-
-                if "max_temp_C" not in awhp_h.performance_heating.leaving_supply_t[t].constraints:
-                    raise ValueError(
-                        f"Equipment '{awhp_h.eq_id}' lacks heating capacity info (maximum t_out constraint for supply temperature {t})."
-                    )
 
             if scen.awhp_sizing_mode is None:
                 raise ValueError(f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_mode'.")
@@ -171,83 +113,16 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"AWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.awhp_performance_model}'."
                 )
 
-            # awhp cooling checks
-            if scen.awhp_use_cooling:
-                awhp_c = library.get_equipment(scen.awhp)
-
-                if scen.awhp_sizing_priority is None:
-                    raise ValueError(
-                        f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'."
-                    )
-
-                if not awhp_c.performance_cooling:
-                    raise ValueError(f"Equipment '{awhp_c.eq_id}' lacks cooling performance data.")
-
-                if not awhp_c.performance_cooling.t_out_C:
-                    raise ValueError(
-                        f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (t_out curve)."
-                    )
-
-                awhp_c_supply_temps_str = list(awhp_c.performance_cooling.leaving_supply_t.keys())
-
-                for t in awhp_c_supply_temps_str:
-                    if not awhp_c.performance_cooling.leaving_supply_t[t].capacity_W:
-                        if not awhp_c.capacity_W:
-                            raise ValueError(
-                                f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (fixed value or t_out-based curve for capacity_W at supply temperature {t})."
-                            )
-
-                    else:
-                        if len(awhp_c.performance_cooling.t_out_C) != len(
-                            awhp_c.performance_cooling.leaving_supply_t[t].capacity_W
-                        ):
-                            raise ValueError(
-                                f"Equipment '{awhp_c.eq_id}' cooling capacity_W and t_out curves are of different lengths for supply temperature {t}."
-                            )
-
-                    if not awhp_c.performance_cooling.leaving_supply_t[t].cop:
-                        raise ValueError(
-                            f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (COP curve for supply temperature {t})."
-                        )
-
-                    if len(awhp_c.performance_cooling.t_out_C) != len(
-                        awhp_c.performance_cooling.leaving_supply_t[t].cop
-                    ):
-                        raise ValueError(
-                            f"Equipment '{awhp_c.eq_id}' cooling COP and t_out curves are of different lengths for supply temperature {t}."
-                        )
-
-                    if (
-                        "min_temp_C"
-                        not in awhp_c.performance_cooling.leaving_supply_t[t].constraints
-                    ):
-                        raise ValueError(
-                            f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (minimum t_out constraint for supply temperature {t})."
-                        )
-
-                    if (
-                        "max_temp_C"
-                        not in awhp_c.performance_cooling.leaving_supply_t[t].constraints
-                    ):
-                        raise ValueError(
-                            f"Equipment '{awhp_c.eq_id}' lacks cooling capacity info (maximum t_out constraint for supply temperature {t})."
-                        )
+            # awhp cooling checks (equipment data already checked above)
+            if scen.awhp_use_cooling and scen.awhp_sizing_priority is None:
+                raise ValueError(
+                    f"AWHP scenario '{scen.eq_scen_id}' requires 'awhp_sizing_priority'."
+                )
 
         # boiler checks
         backup_heating = library.get_equipment(scen.backup_heating)
         if backup_heating.fuel == "natural_gas":
-            if not backup_heating.performance_heating:
-                raise ValueError(
-                    f"Equipment '{backup_heating.eq_id}' lacks heating performance data (efficiency)."
-                )
-
-            if (
-                backup_heating.performance_heating.efficiency is None
-                or backup_heating.performance_heating.efficiency <= 0
-            ):
-                raise ValueError(
-                    f"Equipment '{backup_heating.eq_id}' requires a positive 'efficiency'."
-                )
+            _raise_on_equipment_errors(backup_heating, ("heating",))
 
 
 def _heat_recovery_plr_curve(e: Equipment, performance: PerformanceCurves) -> pd.DataFrame:
@@ -274,7 +149,7 @@ def _heating_supply_temp_performance(
         t_out_lim = [np.nan, 20]
         # set low limit to the minimum operating OAT at the lowest supply temperature
         t_out_lim[0] = e.performance_heating.leaving_supply_t[
-            min(equip_supply_temps_str)
+            min(equip_supply_temps_str, key=float)
         ].constraints["min_temp_C"]
         logger.debug(
             f"AWHP heating water supply temperature reset: "
