@@ -103,24 +103,32 @@ def select_location():
     """Location selector with server-side search (options loaded via callback)."""
     return html.Div(
         [
-            dbc.Label(
-                [
-                    "Building Location ",
-                    html.Span(
-                        "(OPTIONAL)",
-                        style={
-                            "fontSize": "0.75em",
-                            "color": "#6c757d",
-                            "fontWeight": "normal",
-                            "marginLeft": "5px",
-                        },
-                    ),
-                ],
-                style={"fontWeight": "bold", "marginBottom": "10px"},
-            ),
-            html.Br(),
-            html.P(
-                "Overwrites grid region used for electricity emission factors. If skipped, information is inferred from the location of the selected load data."
+            with_tooltip(
+                html.Div(
+                    [
+                        dbc.Label(
+                            [
+                                "Building Location ",
+                                html.Span(
+                                    "(OPTIONAL)",
+                                    style={
+                                        "fontSize": "0.75em",
+                                        "color": "#6c757d",
+                                        "fontWeight": "normal",
+                                        "marginLeft": "5px",
+                                    },
+                                ),
+                            ],
+                            style={"fontWeight": "bold", "marginBottom": "10px"},
+                        ),
+                        html.Br(),
+                        html.P(
+                            "Sets location, climate zone and grid region (used for electricity "
+                            "emission factors)."
+                        ),
+                    ]
+                ),
+                "loads.location",
             ),
             dcc.Dropdown(
                 id="location-input",
@@ -129,6 +137,7 @@ def select_location():
                 searchable=True,
                 clearable=True,
             ),
+            dmc.Text(id="location-source-note", size="xs", c="dimmed", mt=5),
         ]
     )
 
