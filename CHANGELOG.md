@@ -14,6 +14,15 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+### Added
+
+- Optional exhaust air coil for the HR WWHP, with rejection and recovery capacities and a control option for each side (#122)
+
+### Fixed
+
+- The HR WWHP can now run exactly at its minimum turndown
+
+
 ## [0.1.0] - 2026-10-13
 
 First versioned release of the tool. Earlier deployments were not versioned consistently;
