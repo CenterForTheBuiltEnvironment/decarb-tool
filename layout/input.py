@@ -1048,14 +1048,14 @@ def edit_equipment_modal():
                     spacing="md",
                     children=[
                         dmc.NumberInput(
-                            id="edit-hr-eac-heating-cap",
+                            id="edit-hr-eac-rejection-cap",
                             label="Max heat rejection capacity (kW)",
                             min=0,
                             step=10,
                             decimalScale=1,
                         ),
                         dmc.NumberInput(
-                            id="edit-hr-eac-cooling-cap",
+                            id="edit-hr-eac-recovery-cap",
                             label="Max heat recovery capacity (kW)",
                             min=0,
                             step=10,
