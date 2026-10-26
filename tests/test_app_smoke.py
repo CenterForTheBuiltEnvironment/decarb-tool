@@ -12,7 +12,13 @@ import dash
 import plotly
 import pytest
 
-from tests.app_helpers import callback_component_ids, component_ids, ids_declared_in_source
+from tests.app_helpers import (
+    callback_component_ids,
+    component_ids,
+    components_in_dict_props,
+    ids_declared_in_source,
+    walk,
+)
 
 pytestmark = pytest.mark.app
 
@@ -85,3 +91,42 @@ def test_no_output_written_by_two_callbacks_without_allow_duplicate(dependencies
                 continue
             assert output not in seen, f"{output} written by two callbacks"
             seen[output] = dep
+
+
+def test_equipment_manager_is_not_a_numbered_workflow_step(app):
+    from layout.shell import build_navbar_content
+    from src.config import URLS
+
+    navbar = list(walk(build_navbar_content()))
+    step_paths = {
+        c.id["path"]
+        for c in navbar
+        if isinstance(getattr(c, "id", None), dict) and c.id.get("type") == "navbar-link"
+    }
+    assert "/equipment" in step_paths
+    assert URLS.EQUIPMENT_MANAGER.value not in step_paths
+    assert URLS.EQUIPMENT_MANAGER.value in {getattr(c, "href", None) for c in navbar}
+
+
+def test_page_layouts_have_no_components_inside_dict_props(app):
+    for page in dash.page_registry.values():
+        layout = page["layout"]() if callable(page["layout"]) else page["layout"]
+        assert components_in_dict_props(layout) == [], page["path"]
+
+
+@pytest.mark.parametrize("eq_id", ["hr01", "hp01", "hp02", "bo01", "ch02"])
+@pytest.mark.parametrize("unit_mode", ["SI", "IP"])
+def test_equipment_manager_output_renders_in_browser(app, eq_id, unit_mode):
+    """Rendered list and detail must serialise and contain no components inside dict props."""
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+
+    library = _get_equipment_library()
+    _, mode, _ = eqm.update_mode_options(eq_id, library, None)
+    outputs = [
+        eqm.render_equipment_list(library, "all", None, eq_id, unit_mode),
+        *eqm.render_equipment_detail(eq_id, mode, library, unit_mode),
+    ]
+    for output in outputs:
+        json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
+        assert components_in_dict_props(output) == []

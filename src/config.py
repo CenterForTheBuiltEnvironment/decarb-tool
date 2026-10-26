@@ -6,6 +6,7 @@ class URLS(Enum):
     EQUIPMENT: str = "/equipment"
     EMISSIONS: str = "/emissions"
     RESULTS: str = "/results"
+    EQUIPMENT_MANAGER: str = "/equipment-manager"
 
 
 class LINKS(Enum):

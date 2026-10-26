@@ -14,7 +14,7 @@ from layout.table_config import (
     value_deemphasis_style,
 )
 from src import paths
-from src.config import LINKS, EmissionTableRows, EquipmentTableRows
+from src.config import LINKS, URLS, EmissionTableRows, EquipmentTableRows
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 
@@ -1050,6 +1050,64 @@ def edit_equipment_modal():
                             ],
                         ),
                     ],
+                ),
+                dmc.Accordion(
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                dmc.Text("Performance curves", size="sm", fw=500),
+                            ),
+                            dmc.AccordionPanel(
+                                dmc.Stack(
+                                    [
+                                        dmc.Tabs(
+                                            [
+                                                dmc.TabsList(
+                                                    [
+                                                        dmc.TabsTab("AWHP", value="awhp"),
+                                                        dmc.TabsTab(
+                                                            "HR heat pump", value="hr_wwhp"
+                                                        ),
+                                                    ]
+                                                ),
+                                                dmc.TabsPanel(
+                                                    dcc.Graph(
+                                                        id="edit-awhp-curve-graph",
+                                                        config={"displaylogo": False},
+                                                    ),
+                                                    value="awhp",
+                                                ),
+                                                dmc.TabsPanel(
+                                                    dcc.Graph(
+                                                        id="edit-hr-wwhp-curve-graph",
+                                                        config={"displaylogo": False},
+                                                    ),
+                                                    value="hr_wwhp",
+                                                ),
+                                            ],
+                                            value="awhp",
+                                        ),
+                                        dmc.Text(
+                                            [
+                                                "Dashed line: curve at the selected supply temperature. ",
+                                                dmc.Anchor(
+                                                    "View all equipment in the Equipment Manager",
+                                                    href=URLS.EQUIPMENT_MANAGER.value,
+                                                    size="xs",
+                                                ),
+                                            ],
+                                            size="xs",
+                                            c="dimmed",
+                                        ),
+                                    ],
+                                    gap="xs",
+                                )
+                            ),
+                        ],
+                        value="curves",
+                    ),
+                    variant="contained",
+                    radius="md",
                 ),
                 dmc.Divider(label="Heat pump sizing", labelPosition="center"),
                 dmc.Stack(

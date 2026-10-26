@@ -16,6 +16,11 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Added
 
+- Equipment Manager page, linked in the sidebar next to the documentation: browse the equipment
+  library by type, search it, and inspect each item's data, data checks and performance curves
+  (plot and table, SI/IP) (#171)
+- Performance curve plot in the edit equipment scenario window, with the curve at the selected
+  supply temperature highlighted (#171)
 - Equipment validation that reports every problem in an equipment definition (errors and
   warnings), groundwork for the Equipment Manager and editable performance curves (#171)
 - Optional `source`, `based_on` and `notes` fields on equipment, to tell library equipment from
