@@ -612,7 +612,14 @@ def loads_to_site_energy(
                 >= df[Col.CHW_REM_W.value].to_numpy()
             )
 
-            simult_h = np.where(
+            # simult_base: no exhaust air coil
+            simult_base = np.minimum(
+                df[Col.HHW_REM_W.value].to_numpy(),
+                df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
+            )
+
+            # Simult_max: exhaust air coil used up to its full capacity
+            simult_max = np.where(
                 heating_dominant,
                 np.minimum(
                     df[Col.HHW_REM_W.value].to_numpy(),
@@ -625,9 +632,24 @@ def loads_to_site_energy(
                 ),
             )
 
+            # simult_min: exhaust air coil used only to reach the HR WWHP min turndown
+            simult_min = np.where(
+                simult_base >= min_cap_h,
+                simult_base,
+                np.minimum(simult_max, min_cap_h),
+            )
+
+            # Heating dominant hours follow the heat recovery control
+            # Cooling dominant hours follow the heat rejection control
+            simult_h = np.where(
+                heating_dominant,
+                simult_max if scen.hr_eac_recovery_control == "max_heat_recovery" else simult_min,
+                simult_max if scen.hr_eac_rejection_control == "max_heat_rejection" else simult_min,
+            )
+
             # Actual HR WWHP heating output (within capacity limits)
             hr_out_h = np.where(
-                np.minimum(max_cap_h, simult_h) > min_cap_h,
+                np.minimum(max_cap_h, simult_h) >= min_cap_h,
                 np.minimum(max_cap_h, simult_h),
                 0.0,
             )
