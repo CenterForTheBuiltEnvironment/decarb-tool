@@ -616,12 +616,12 @@ def loads_to_site_energy(
                 heating_dominant,
                 np.minimum(
                     df[Col.HHW_REM_W.value].to_numpy(),
-                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_cooling_cap_W) / least_waste_heat["cap_h_to_cap_c"],
+                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_recovery_cap_W) / least_waste_heat["cap_h_to_cap_c"],
                 ),
                 # cooling dominant
                 np.minimum(
                     df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
-                    df[Col.HHW_REM_W.value].to_numpy() + scen.hr_eac_heating_cap_W,
+                    df[Col.HHW_REM_W.value].to_numpy() + scen.hr_eac_rejection_cap_W,
                 ),
             )
 

@@ -170,7 +170,7 @@ def test_exhaust_air_coil(library, synthetic_load):
 
     # new scenario with 10 kW exhaust air coil
     scen = lib.get_scenario("eq_scenario_5").model_dump()
-    scen.update(eq_scen_id="eac", hr_eac_heating_cap_W=1e5, hr_eac_cooling_cap_W=1e5)
+    scen.update(eq_scen_id="eac", hr_eac_rejection_cap_W=1e5, hr_eac_recovery_cap_W=1e5)
     lib.add_equipment_scenario(EquipmentScenario(**scen))
 
     df = loads_to_site_energy(load=synthetic_load, library=lib, scenario_ids=["eac"])

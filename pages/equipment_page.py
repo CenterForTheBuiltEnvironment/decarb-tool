@@ -909,8 +909,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
 
-    hr_eac_heating_capacity = (scenario.get("hr_eac_heating_cap_W") or 0) / 1000
-    hr_eac_cooling_capacity = (scenario.get("hr_eac_cooling_cap_W") or 0) / 1000
+    hr_eac_heating_capacity = (scenario.get("hr_eac_rejection_cap_W") or 0) / 1000
+    hr_eac_cooling_capacity = (scenario.get("hr_eac_recovery_cap_W") or 0) / 1000
 
     return (
         True,  # modal open
@@ -1036,8 +1036,8 @@ def save_edit_scenario(
     except (TypeError, ValueError):
         redundancy = 1
 
-    hr_eac_heating_cap_W = float(hr_eac_heating_cap_kW or 0) * 1000
-    hr_eac_cooling_cap_W = float(hr_eac_cooling_cap_kW or 0) * 1000
+    hr_eac_rejection_cap_W = float(hr_eac_heating_cap_kW or 0) * 1000
+    hr_eac_recovery_cap_W = float(hr_eac_cooling_cap_kW or 0) * 1000
 
     use_cooling = bool(use_cooling)
     fuel_switching = bool(fuel_switching)
@@ -1053,8 +1053,8 @@ def save_edit_scenario(
             new_scen["hr_wwhp"] = hr_wwhp_val
             new_scen["hr_wwhp_performance_model"] = hr_wwhp_performance_model_val
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
-            new_scen["hr_eac_heating_cap_W"] = hr_eac_heating_cap_W
-            new_scen["hr_eac_cooling_cap_W"] = hr_eac_cooling_cap_W
+            new_scen["hr_eac_rejection_cap_W"] = hr_eac_rejection_cap_W
+            new_scen["hr_eac_recovery_cap_W"] = hr_eac_recovery_cap_W
             new_scen["awhp"] = awhp_val
             new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
