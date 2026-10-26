@@ -1061,6 +1061,26 @@ def edit_equipment_modal():
                             step=10,
                             decimalScale=1,
                         ),
+                        dmc.Select(
+                            id="edit-hr-eac-rejection-control",
+                            label="Heat rejection control",
+                            data=[
+                                {"label": "Min turndown", "value": "min_turndown"},
+                                {"label": "Max heat rejection", "value": "max_heat_rejection"},
+                            ],
+                            value="min_turndown",
+                            allowDeselect=False,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-eac-recovery-control",
+                            label="Heat recovery control",
+                            data=[
+                                {"label": "Min turndown", "value": "min_turndown"},
+                                {"label": "Max heat recovery", "value": "max_heat_recovery"},
+                            ],
+                            value="min_turndown",
+                            allowDeselect=False,
+                        ),
                     ],
                 ),
                 dmc.Divider(label="Heat pump sizing", labelPosition="center"),

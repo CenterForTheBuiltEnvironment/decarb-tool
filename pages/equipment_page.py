@@ -718,6 +718,8 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-hr-wwhp-h-supply-t-value", "value"),
     Output("edit-hr-eac-rejection-cap", "value"),
     Output("edit-hr-eac-recovery-cap", "value"),
+    Output("edit-hr-eac-rejection-control", "value"),
+    Output("edit-hr-eac-recovery-control", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
     Output("edit-awhp-performance-model", "value"),
@@ -744,7 +746,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 24
+        return (no_update,) * 26
 
     if not equipment_data:
         return (
@@ -757,6 +759,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             0,
             0,
+            "min_turndown",
+            "min_turndown",
             [],
             None,
             None,
@@ -779,7 +783,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 24
+        return (no_update,) * 26
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -797,6 +801,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             0,
             0,
+            "min_turndown",
+            "min_turndown",
             [],
             None,
             None,
@@ -830,6 +836,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             0,
             0,
+            "min_turndown",
+            "min_turndown",
             [],
             None,
             None,
@@ -911,6 +919,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     hr_eac_rejection_capacity = (scenario.get("hr_eac_rejection_cap_W") or 0) / 1000
     hr_eac_recovery_capacity = (scenario.get("hr_eac_recovery_cap_W") or 0) / 1000
+    hr_eac_rejection_control_val = scenario.get("hr_eac_rejection_control") or "min_turndown"
+    hr_eac_recovery_control_val = scenario.get("hr_eac_recovery_control") or "min_turndown"
 
     return (
         True,  # modal open
@@ -922,6 +932,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         hr_wwhp_h_supply_t_val,
         hr_eac_rejection_capacity,
         hr_eac_recovery_capacity,
+        hr_eac_rejection_control_val,
+        hr_eac_recovery_control_val,
         awhp_options,
         awhp_val,
         awhp_performance_model_val,
@@ -952,6 +964,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-hr-wwhp-h-supply-t-value", "value"),
     State("edit-hr-eac-rejection-cap", "value"),
     State("edit-hr-eac-recovery-cap", "value"),
+    State("edit-hr-eac-rejection-control", "value"),
+    State("edit-hr-eac-recovery-control", "value"),
     State("edit-awhp-select", "value"),
     State("edit-awhp-performance-model", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
@@ -976,6 +990,8 @@ def save_edit_scenario(
     hr_wwhp_h_supply_t_val,
     hr_eac_rejection_cap_kW,
     hr_eac_recovery_cap_kW,
+    hr_eac_rejection_control_val,
+    hr_eac_recovery_control_val,
     awhp_val,
     awhp_performance_model_val,
     awhp_h_supply_t_val,
@@ -1055,6 +1071,8 @@ def save_edit_scenario(
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
             new_scen["hr_eac_rejection_cap_W"] = hr_eac_rejection_cap_W
             new_scen["hr_eac_recovery_cap_W"] = hr_eac_recovery_cap_W
+            new_scen["hr_eac_rejection_control"] = hr_eac_rejection_control_val or "min_turndown"
+            new_scen["hr_eac_recovery_control"] = hr_eac_recovery_control_val or "min_turndown"
             new_scen["awhp"] = awhp_val
             new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
