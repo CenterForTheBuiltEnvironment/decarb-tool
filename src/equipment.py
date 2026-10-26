@@ -92,6 +92,8 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
 
     hr_eac_rejection_cap_W: float = Field(default=0.0, ge=0) # exhaust air coil max heat rejection [W]
     hr_eac_recovery_cap_W: float = Field(default=0.0, ge=0) # exhaust air coil max heat recovery [W]
+    hr_eac_rejection_control: Literal["min_turndown", "max_heat_rejection"] = "min_turndown" # control default: min turndown, user can choose full capacity heat rejection
+    hr_eac_recovery_control: Literal["min_turndown", "max_heat_recovery"] = "min_turndown"
 
     awhp: str | None = None
     awhp_performance_model: (
