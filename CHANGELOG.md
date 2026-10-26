@@ -14,6 +14,11 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+### Added
+
+- Google Analytics (GA4) and Siteimprove usage tracking on the production deployment, enabled
+  with `ENABLE_ANALYTICS=true` (set in the Dockerfile)
+
 ## [0.1.0] - 2026-10-13
 
 First versioned release of the tool. Earlier deployments were not versioned consistently;

@@ -7,6 +7,7 @@ from dash import Dash, Input, Output, callback
 
 import utils.plotly_theme  # noqa: F401 - imports for side effect (sets default Plotly theme)
 from layout.shell import build_shell
+from utils.analytics import GA_MEASUREMENT_ID, add_analytics, analytics_enabled
 from utils.logging_config import get_logger, setup_logging
 
 # Read level from environment variable (or default to INFO)
@@ -29,6 +30,9 @@ app = Dash(
     suppress_callback_exceptions=True,
     serve_locally=True,
 )
+
+app.index_string = add_analytics(app.index_string, analytics_enabled(), GA_MEASUREMENT_ID)
+logger.info("Analytics %s", "enabled" if analytics_enabled() else "disabled (ENABLE_ANALYTICS)")
 
 # Expose Flask server for gunicorn
 server = app.server
