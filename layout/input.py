@@ -586,7 +586,7 @@ def build_equipment_table(
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_converter, get_unit_label
+    from utils.units import get_converter, get_display_unit
 
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
@@ -618,8 +618,9 @@ def build_equipment_table(
     equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
     equipment_df = equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
 
-    # Get unit label for temperature (dynamic based on unit_mode)
-    temp_unit = get_unit_label("temperature", unit_mode)
+    # Get unit label for temperature and HR source/sink capacity (dynamic based on unit_mode)
+    temp_unit = get_display_unit("temperature", unit_mode)
+    power_unit = get_display_unit("power", unit_mode)
 
     # Rows to display (property name, label)
     # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
@@ -627,6 +628,10 @@ def build_equipment_table(
         ("hr_wwhp", "HR WWHP Model"),
         ("hr_wwhp_performance_model", "HR WWHP Performance Calculation Model"),
         ("hr_wwhp_h_supply_t", f"HR WWHP Heating Supply Temp ({temp_unit})"),
+        ("hr_eac_rejection_cap_W", f"HR Balancing Heat Rejection Capacity ({power_unit})"),
+        ("hr_eac_rejection_control", "HR Balancing Heat Rejection Control"),
+        ("hr_eac_recovery_cap_W", f"HR Balancing Heat Recovery Capacity ({power_unit})"),
+        ("hr_eac_recovery_control", "HR Balancing Heat Recovery Control"),
         ("awhp", "AWHP Model"),
         ("awhp_performance_model", "AWHP Performance Calculation Model"),
         ("awhp_h_supply_t", f"AWHP Heating Supply Temp ({temp_unit})"),
@@ -808,8 +813,12 @@ def build_equipment_table(
     diff_row_style = TABLE_STYLE.diff_row_style
 
     # Get converter for temperature values
-    temp_converter = get_unit_converter("temperature", unit_mode)
+    temp_converter = get_converter("temperature", unit_mode)
     temp_fields = {"hr_wwhp_h_supply_t", "awhp_h_supply_t"}
+
+    # Get converter for HR source/sink values
+    power_converter = get_converter("power", unit_mode)
+    power_fields = {"hr_eac_rejection_cap_W", "hr_eac_recovery_cap_W"}
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -828,6 +837,12 @@ def build_equipment_table(
             if field in temp_fields and raw_value is not None:
                 try:
                     converted = temp_converter(float(raw_value))
+                    display_value = f"{converted:.1f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            elif field in power_fields and raw_value is not None:
+                try:
+                    converted = power_converter(float(raw_value))
                     display_value = f"{converted:.1f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1137,19 +1152,39 @@ def edit_equipment_modal():
                     cols=2,
                     spacing="md",
                     children=[
-                        dmc.NumberInput(
-                            id="edit-hr-eac-rejection-cap",
-                            label="Max heat rejection capacity (kW)",
-                            min=0,
-                            step=10,
-                            decimalScale=1,
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-hr-eac-rejection-cap-label",
+                                    children="Heat rejection capacity (kW)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-eac-rejection-cap",
+                                    min=0,
+                                    step=10,
+                                    decimalScale=1,
+                                ),
+                            ],
+                            gap=4,
                         ),
-                        dmc.NumberInput(
-                            id="edit-hr-eac-recovery-cap",
-                            label="Max heat recovery capacity (kW)",
-                            min=0,
-                            step=10,
-                            decimalScale=1,
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-hr-eac-recovery-cap-label",
+                                    children="Heat recovery capacity (kW)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-eac-recovery-cap",
+                                    min=0,
+                                    step=10,
+                                    decimalScale=1,
+                                ),
+                            ],
+                            gap=4,
                         ),
                         dmc.Select(
                             id="edit-hr-eac-rejection-control",

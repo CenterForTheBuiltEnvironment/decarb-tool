@@ -40,8 +40,16 @@ def Wh_to_kWh(Wh):
     return Wh / 1000
 
 
+def kWh_to_Wh(kWh):
+    return kWh * 1000
+
+
 def Wh_to_BTUh(Wh):
     return Wh * 3.412
+
+
+def BTUh_to_Wh(BTUh):
+    return BTUh / 3.412
 
 
 def kg_to_lbs(kg):
@@ -248,6 +256,7 @@ COLUMN_CONFIG = {
     "hhw_rem_W": ("power", "HHW Remaining"),
     "hr_hhw_W": ("power", "HR HHW Output"),
     "hr_eac_h_W": ("power", "Exhaust Air Coil Heat Rejection"),
+    "hr_eac_c_W": ("power", "Exhaust Air Coil Heat Recovery"),
     "awhp_hhw_W": ("power", "AWHP HHW Output"),
     "boiler_hhw_W": ("power", "Boiler HHW Output"),
     "res_hhw_W": ("power", "Resistance HHW Output"),
@@ -262,7 +271,6 @@ COLUMN_CONFIG = {
     "chw_W": ("power_cooling", "CHW Load"),
     "chw_rem_W": ("power_cooling", "CHW Remaining"),
     "hr_chw_W": ("power_cooling", "HR CHW Output"),
-    "hr_eac_c_W": ("power_cooling", "Exhaust Air Coil Heat Recovery"),
     "awhp_chw_W": ("power_cooling", "AWHP CHW Output"),
     "chiller_chw_W": ("power_cooling", "Chiller CHW Output"),
     "chw_max_load": ("power_cooling", "Peak CHW Load"),
