@@ -610,9 +610,9 @@ def loads_to_site_energy(
             heating_dominant = (
                 df[Col.HHW_REM_W.value].to_numpy() * least_waste_heat["cap_h_to_cap_c"]
                 >= df[Col.CHW_REM_W.value].to_numpy()
-            )
+            )  # heating dominant if heat rejectable from HHW is greater than CHW
 
-            # simult_base: no exhaust air coil
+            # simult_base: no exhaust air coil - smaller of HHW and heat recoverable from CHW
             simult_base = np.minimum(
                 df[Col.HHW_REM_W.value].to_numpy(),
                 df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
@@ -621,11 +621,13 @@ def loads_to_site_energy(
             # Simult_max: exhaust air coil used up to its full capacity
             simult_max = np.where(
                 heating_dominant,
+                # if heating dominant, simult load = smaller of HHW vs heat recoverable from CHW + EAHR capacity
                 np.minimum(
                     df[Col.HHW_REM_W.value].to_numpy(),
-                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_recovery_cap_W) / least_waste_heat["cap_h_to_cap_c"],
+                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_recovery_cap_W)
+                    / least_waste_heat["cap_h_to_cap_c"],
                 ),
-                # cooling dominant
+                # if cooling dominant, simult load = smaller of HHW + EAHR capacity vs heat recoverable from CHW
                 np.minimum(
                     df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
                     df[Col.HHW_REM_W.value].to_numpy() + scen.hr_eac_rejection_cap_W,
@@ -658,7 +660,7 @@ def loads_to_site_energy(
             hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_out_h)
 
             # Cooling served derived from heating & COP
-            hr_out_c = np.where(hr_cop_h > 0, hr_out_h * (1 - (1 / hr_cop_h)), 0.0)  # same as R
+            hr_out_c = np.where(hr_cop_h > 0, hr_out_h * (1 - (1 / hr_cop_h)), 0.0)
 
             # Split total HRC output into building loads and exhaust air coil loads
             hr_hhw = np.minimum(hr_out_h, df[Col.HHW_REM_W.value].to_numpy())

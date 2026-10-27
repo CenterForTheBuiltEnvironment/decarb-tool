@@ -960,37 +960,16 @@ def edit_equipment_modal():
                     ],
                     grow=True,
                 ),
-                dmc.Divider(label="Heat pump selection", labelPosition="center"),
+                dmc.Divider(label="Air-to-water heat pump", labelPosition="center", size="md"),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
                     children=[
                         dmc.Select(
-                            id="edit-hr-wwhp-select",
-                            label="HR Heat Pump",
-                            placeholder="None",
-                            data=[],  # filled by callback
-                            clearable=True,
-                            searchable=True,
-                        ),
-                        dmc.Select(
                             id="edit-awhp-select",
                             label="Air-to-water Heat Pump",
                             placeholder="None",
                             data=[],
-                            clearable=True,
-                            searchable=True,
-                        ),
-                        dmc.Select(
-                            id="edit-hr-wwhp-performance-model",
-                            label="HR HP Performance Calculation Model",
-                            placeholder="None",
-                            data=[  # not including fixed_COP and performance_curves atm
-                                {
-                                    "label": "Interpolated table (HHWST fixed)",
-                                    "value": "interpolate_HHWST",
-                                }
-                            ],
                             clearable=True,
                             searchable=True,
                         ),
@@ -1011,24 +990,10 @@ def edit_equipment_modal():
                             clearable=True,
                             searchable=True,
                         ),
-                        dmc.Stack(
-                            gap=4,
-                            children=[
-                                dmc.Text(
-                                    id="edit-hr-wwhp-h-supply-t-label",
-                                    children="HR HP Heating supply temp (°C)",
-                                    size="sm",
-                                    fw=500,
-                                ),
-                                dmc.NumberInput(
-                                    id="edit-hr-wwhp-h-supply-t-value",
-                                    placeholder="Enter temperature",
-                                    min=32.2,  # Updated dynamically by callback
-                                    max=73.9,  # Updated dynamically by callback
-                                    step=0.1,
-                                    decimalScale=1,
-                                ),
-                            ],
+                        dmc.Switch(
+                            id="edit-awhp-use-cooling",
+                            label="Use AWHP for cooling",
+                            mt="xs",
                         ),
                         dmc.Stack(
                             gap=4,
@@ -1051,7 +1016,123 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
-                dmc.Divider(label="HR HP balancing sink/source (exhaust air coil)", labelPosition="center"),
+                dmc.Divider(label="Air-to-water heat pump sizing", labelPosition="center"),
+                dmc.SegmentedControl(
+                    id="edit-awhp-sizing-mode",
+                    data=[
+                        {
+                            "label": "Integer ceiling method",
+                            "value": "integer_sizing_peak_load",
+                        },
+                        {
+                            "label": "Fractional method",
+                            "value": "fractional_sizing_peak_load",
+                        },
+                        {
+                            "label": "Specific # of units",
+                            "value": "fixed_num_units",
+                        },
+                    ],
+                    fullWidth=True,
+                ),
+                dmc.SimpleGrid(
+                    cols=3,
+                    spacing="md",
+                    children=[
+                        dmc.NumberInput(
+                            id="edit-awhp-sizing-value",
+                            label="Sizing value",
+                            min=0,
+                            max=5,
+                            step=0.05,  # will be overridden dynamically
+                            style={"flex": 1},
+                        ),
+                        dmc.NumberInput(
+                            id="edit-awhp-redundancy",
+                            label="Redundant units",
+                            min=0,
+                            max=5,
+                            step=1,
+                            style={"flex": 1},
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-sizing-priority",
+                            label="Sizing basis",
+                            placeholder="None",
+                            data=[
+                                {
+                                    "label": "Heating load",
+                                    "value": "heating",
+                                },
+                                {
+                                    "label": "Cooling load",
+                                    "value": "cooling",
+                                },
+                                {
+                                    "label": "Larger of heating and cooling load",
+                                    "value": "larger",
+                                },
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                    ],
+                ),
+                dmc.Divider(
+                    label="Heat recovery water-to-water heat pump",
+                    labelPosition="center",
+                    size="md",
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
+                            id="edit-hr-wwhp-select",
+                            label="HR Heat Pump",
+                            placeholder="None",
+                            data=[],  # filled by callback
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-wwhp-performance-model",
+                            label="HR HP Performance Calculation Model",
+                            placeholder="None",
+                            data=[  # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST",
+                                }
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Space(),
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-hr-wwhp-h-supply-t-label",
+                                    children="HR HP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-wwhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=32.2,  # Updated dynamically by callback
+                                    max=73.9,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                dmc.Divider(
+                    label="Heat recovery heat pump balancing source/sink", labelPosition="center"
+                ),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
@@ -1092,82 +1173,7 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
-                dmc.Divider(label="Heat pump sizing", labelPosition="center"),
-                dmc.Stack(
-                    [
-                        dmc.SegmentedControl(
-                            id="edit-awhp-sizing-mode",
-                            data=[
-                                {
-                                    "label": "Integer ceiling method",
-                                    "value": "integer_sizing_peak_load",
-                                },
-                                {
-                                    "label": "Fractional method",
-                                    "value": "fractional_sizing_peak_load",
-                                },
-                                {
-                                    "label": "Specific # of units",
-                                    "value": "fixed_num_units",
-                                },
-                            ],
-                            fullWidth=True,
-                        ),
-                        dmc.Group(
-                            [
-                                dmc.NumberInput(
-                                    id="edit-awhp-sizing-value",
-                                    label="Sizing value",
-                                    min=0,
-                                    max=5,
-                                    step=0.05,  # will be overridden dynamically
-                                    style={"flex": 1},
-                                ),
-                                dmc.NumberInput(
-                                    id="edit-awhp-redundancy",
-                                    label="Redundant units",
-                                    min=0,
-                                    max=5,
-                                    step=1,
-                                    style={"flex": 1},
-                                ),
-                            ],
-                            grow=True,
-                        ),
-                        dmc.Group(
-                            [
-                                dmc.Switch(
-                                    id="edit-awhp-use-cooling",
-                                    label="Use AWHP for cooling",
-                                    mt="xs",
-                                ),
-                                dmc.Select(
-                                    id="edit-awhp-sizing-priority",
-                                    label="Sizing basis",
-                                    placeholder="None",
-                                    data=[
-                                        {
-                                            "label": "Heating load",
-                                            "value": "heating",
-                                        },
-                                        {
-                                            "label": "Cooling load",
-                                            "value": "cooling",
-                                        },
-                                        {
-                                            "label": "Larger of heating and cooling load",
-                                            "value": "larger",
-                                        },
-                                    ],
-                                    clearable=True,
-                                    searchable=True,
-                                ),
-                            ],
-                            grow=True,
-                        ),
-                    ],
-                ),
-                dmc.Divider(label="Backup equipment", labelPosition="center"),
+                dmc.Divider(label="Backup equipment", labelPosition="center", size="md"),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
