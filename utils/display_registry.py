@@ -28,11 +28,10 @@ class DisplayRegistry:
     def _build_equipment_lookup(cls):
         """Build the equipment ID to manufacturer+model name lookup dictionary."""
         library = load_library("data/input/equipment_data.JSON")
-        cls._equipment_lookup = {eq.eq_id:
-                                    eq.model if eq.eq_manufacturer is None
-                                    else f"{eq.eq_manufacturer} {eq.model}" 
-                                    for eq in library.equipment
-                                }
+        cls._equipment_lookup = {
+            eq.eq_id: eq.model if eq.eq_manufacturer is None else f"{eq.eq_manufacturer} {eq.model}"
+            for eq in library.equipment
+        }
 
     @classmethod
     def clear_cache(cls):
@@ -109,17 +108,26 @@ def format_enum_value(value: str, field_name: str) -> str:
     return value
 
 
-def format_equipment_scenario_id(eq_scen_id: str) -> str:
+def format_equipment_scenario_id(eq_scen_id: str, position: int | str | None = None) -> str:
     """Format equipment scenario ID for display.
 
     Args:
         eq_scen_id: The scenario ID (e.g., "eq_scenario_1", "eq_scenario_2")
+        position: The scenario's slot number on the Equipment page (1-based),
+            i.e. its position in displayed-equipment-store. When given, this
+            is used instead of parsing eq_scen_id, so the number shown always
+            matches the equipment scenario page slot the scenario currently
+            occupies, rather than the library id it happened to be created
+            with (which stays fixed even after the scenario in that slot is
+            swapped out via the column dropdown).
 
     Returns:
         Formatted display name (e.g., "Equipment Scen. 1")
     """
     if eq_scen_id is None:
         return None
+    if position is not None:
+        return f"Equipment Scen. {position}"
     # Expected format: "eq_scenario_X" where X is a number
     if eq_scen_id.startswith("eq_scenario_"):
         suffix = eq_scen_id[len("eq_scenario_") :]
@@ -145,17 +153,22 @@ def format_emission_scenario_id(em_scen_id: str) -> str:
     return em_scen_id
 
 
-def format_equipment_scenario_id_short(eq_scen_id: str) -> str:
+def format_equipment_scenario_id_short(eq_scen_id: str, position: int | str | None = None) -> str:
     """Format equipment scenario ID as a short label for chart tick marks.
 
     Args:
         eq_scen_id: The scenario ID (e.g., "eq_scenario_1", "eq_scenario_2")
+        position: The scenario's slot number on the Equipment page (1-based).
+            When given, used instead of parsing eq_scen_id — see
+            format_equipment_scenario_id for why.
 
     Returns:
         Short label (e.g., "1", "2")
     """
     if eq_scen_id is None:
         return ""
+    if position is not None:
+        return str(position)
     if eq_scen_id.startswith("eq_scenario_"):
         return eq_scen_id[len("eq_scenario_") :]
     return eq_scen_id

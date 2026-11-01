@@ -1,0 +1,27 @@
+name: Tests
+
+# Full suite on PRs into development.
+# PRs and pushes to main run the same suite in deploy.yml, which gates deployment.
+on:
+  pull_request:
+    branches: [development]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Tests: unit, verification, regression, integration (~5 s)"
+        run: python -m pytest -m "not app" -v --tb=short --durations=10
+
+      - name: "Tests: app workflow (~1 min)"
+        run: python -m pytest -m app -v --tb=short --durations=10

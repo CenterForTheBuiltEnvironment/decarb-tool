@@ -32,3 +32,6 @@ test-measured-data.ipynb
 # AI assistant logs
 .claude/
 CLAUDE.md
+
+# Local hand-calculation spreadsheet (frozen into tests/fixtures/spreadsheet_cases.json)
+tests/testing_cases.xlsx

@@ -18,6 +18,3 @@ data/output/
 .DS_Store
 .vscode/
 .idea/
-
-# Don't include util Python scripts
-utils/create_meta_index.py

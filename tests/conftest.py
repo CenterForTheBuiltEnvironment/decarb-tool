@@ -10,6 +10,33 @@ from src.equipment import load_library
 from src.loads import StandardLoad
 from src.metadata import Metadata
 
+TIER_MARKERS = {"unit", "verification", "regression", "integration", "app"}
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--generate-golden",
+        action="store_true",
+        default=False,
+        help="Regenerate integration_annual_totals.json golden values (integration tier)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Fail collection if any test lacks a tier marker.
+
+    CI selects tests by marker (e.g. -m "unit or regression"), so an unmarked
+    test would silently never run there.
+    """
+    unmarked = [
+        item.nodeid for item in items if not TIER_MARKERS & {m.name for m in item.iter_markers()}
+    ]
+    if unmarked:
+        raise pytest.UsageError(
+            f"Tests without a tier marker ({', '.join(sorted(TIER_MARKERS))}):\n  "
+            + "\n  ".join(unmarked)
+        )
+
 
 @pytest.fixture
 def sample_load_df():
@@ -54,11 +81,11 @@ def emission_scenario():
     """Create a sample emission scenario for testing."""
     return EmissionScenario(
         em_scen_id="test_em_1",
+        elec_emission_source="Marginal (Cambium, Long-run)",
+        elec_avg_emission_rate_gCO2e_per_kWh=None,
         grid_scenario="MidCase",
         gea_grid_region="CAMX",
-        time_zone="America/Los_Angeles",
         emission_type="Includes pre-combustion",
-        shortrun_weighting=0.0,
         annual_refrig_leakage_percent=0.05,
         ng_emission_rate_gCO2e_per_kWh=239.2,
         year=2025,

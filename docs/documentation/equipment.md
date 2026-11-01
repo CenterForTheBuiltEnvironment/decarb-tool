@@ -8,7 +8,7 @@ Equipment scenarios are defined on this page. An explanation for each input and 
 
 ### Inputs
 
-For each category of equipment noted below, the tool's equipment library defines a number of equipment models with energy and emissions characteristics, including capacity, efficiency, operating temperatures, and refrigerant type and weight. The library can be viewed in full [here](../../data/input/equipment_data.JSON).
+For each category of equipment noted below, the tool's equipment library defines a number of equipment models with energy and emissions characteristics, including capacity, efficiency, operating temperatures, and refrigerant type and weight. The library can be viewed in full [here](https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/development/data/input/equipment_data.JSON).
 
 <details>
 
@@ -70,13 +70,13 @@ These two inputs determine how the total number of AWHP units, not including red
 
 An integer number of additional units for redundancy. The default value is 1, i.e., N+1 redundancy. The total number of AWHP units, including redundancy, is used in refrigerant leakage calculations.
 
-**AWHP Use Cooling**
+**Use AWHP for Cooling**
 
 This input determines if the AWHPs serve cooling loads. The tool prioritizes heating loads, so the cooling capacity in a given hour is calculated using the number of units not used to serve heating load.
 
 **AWHP Sizing Priority**
 
-This input determines which load profile (heating, cooling, or both) is used to calculate the number of units per the sizing mode and value inputs. The default is heating load. Not editable if AWHP Use Cooling is unchecked.
+This input determines which load profile (heating, cooling, or both) is used to calculate the number of units per the sizing mode and value inputs. The default is heating load. Not editable if Use AWHP for Cooling is unchecked.
 
 </details>
 
@@ -95,6 +95,10 @@ The default equipment types are all specific equipment models.
 
 Two types of backup heating equipment are defined: gas boilers and electric resistance heaters. Both are assumed to have fixed efficiency over all operating conditions. A range of typical gas boiler efficiencies are provided; the default is 80% efficiency.
 
+**Use Optimal Heating Fuel**
+
+Dynamically switch between electric and gas heating based on emissions (see [Calculations](calculations.md#calculation-1) for further detail). Only selectable if the scenario contains both AWHP and gas boiler backup heating.
+
 **Backup Cooling**
 
 The backup cooling equipment is assumed to be an air-cooled chiller with fixed efficiency over all operating conditions. Generic units are defined with efficiency values per the IECC.
@@ -103,7 +107,7 @@ The backup cooling equipment is assumed to be an air-cooled chiller with fixed e
 
 ### Default Scenario Groups
 
-A summary of the significant inputs in each scenario group is provided below. The full list of inputs for each default scenario can be viewed in the tool or [here](../../data/input/equipment_data.JSON#L729).
+A summary of the significant inputs in each scenario group is provided below. The full list of inputs for each default scenario can be viewed in the tool or [here](https://github.com/CenterForTheBuiltEnvironment/decarb-tool/blob/development/data/input/equipment_data.JSON#L729).
 
 #### Default
 
@@ -120,6 +124,10 @@ This scenario group evaluates the impact of heat recovery with different configu
 #### HHW Supply Temps
 
 This scenario group varies the WWHP and AWHP heating hot water supply temperature and performance calculation model (fixed vs OAT-based reset), holding all other inputs constant.
+
+#### Dynamic Fuel Switching
+
+This scenario group compares fully gas and fully electric heating plants with a partial AWHP scenario and a fuel switching scenario.
 
 ### Future Development
 

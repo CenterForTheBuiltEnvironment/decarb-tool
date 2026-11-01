@@ -27,7 +27,7 @@ def get_nested_value(obj, attr_path):
     return obj
 
 
-def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI"):
+def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI", starred_keys=None):
     """Build a card displaying metadata fields with optional unit conversion.
 
     Args:
@@ -37,7 +37,9 @@ def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI"):
             - (key, label, var_type) for unit-aware fields (var_type: "power", "area", "temperature")
         title: Card title
         unit_mode: "SI" or "IP" for unit conversion
+        starred_keys: Set of field keys whose display values get a trailing " *"
     """
+    starred_keys = starred_keys or set()
     rows = []
     for field in fields:
         # Unpack field definition
@@ -53,15 +55,16 @@ def make_metadata_card(metadata: Metadata, fields, title="", unit_mode="SI"):
         if var_type and value is not None:
             # Apply unit conversion with auto-scaling (includes unit in output)
             display_value = format_with_auto_scale(value, var_type, unit_mode)
-            label = base_label
         else:
             display_value = str(value) if value is not None else "-"
-            label = base_label
+
+        if key in starred_keys:
+            display_value = display_value + "*"
 
         rows.append(
             dmc.Group(
                 [
-                    dmc.Text(label, fw=200),
+                    dmc.Text(base_label, fw=200),
                     dmc.Text(display_value, c="dimmed"),
                 ],
                 justify="space-between",
@@ -88,7 +91,7 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("building_type", "Building Type"),
         ("vintage", "Vintage"),
         ("climate_zone_output", "Climate Region"),
-        ("base_gea_grid_region", "GEA Grid Region"),
+        ("base_gea_grid_region", "Grid Region"),
         ("area_sqm", "Building Area", "area"),
     ]
     return make_metadata_card(
@@ -96,7 +99,9 @@ def building_characteristics_card(metadata: Metadata, unit_mode="SI"):
     )
 
 
-def load_characteristics_card(metadata: Metadata, unit_mode="SI"):
+def load_characteristics_card(
+    metadata: Metadata, unit_mode="SI", is_scaled=False, is_base_loaded=False
+):
     load_fields = [
         ("load_data.load_type", "Load Type"),
         ("load_data.annual_heating_cooling_ratio", "Annual H/C Ratio"),
@@ -106,9 +111,16 @@ def load_characteristics_card(metadata: Metadata, unit_mode="SI"):
         ("load_data.median_temp", "Median Outdoor Temp.", "temperature"),
         ("load_data.min_temp", "Min. Outdoor Temp.", "temperature"),
     ]
+    starred = set()
+    if is_scaled or is_base_loaded:
+        starred = {"load_data.hhw_max_load", "load_data.chw_max_load"}
 
     return make_metadata_card(
-        metadata, load_fields, title="Load Characteristics", unit_mode=unit_mode
+        metadata,
+        load_fields,
+        title="Load Characteristics",
+        unit_mode=unit_mode,
+        starred_keys=starred,
     )
 
 
@@ -162,9 +174,10 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
         ("awhp_sizing_mode", "AWHP Sizing Mode"),
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
-        ("awhp_use_cooling", "AWHP Use Cooling"),
+        ("awhp_use_cooling", "Use AWHP for Cooling"),
         ("awhp_sizing_priority", "AWHP Sizing Priority"),
         ("backup_heating", "Backup Heating"),
+        ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Chiller"),
     ]
 
@@ -224,7 +237,7 @@ def summary_emissions_selection(metadata: Metadata, active_tab=None):
 
     emission_fields = [
         ("grid_scenario", "Grid Scenario"),
-        ("gea_grid_region", "GEA Grid Region"),
+        ("gea_grid_region", "Generation and Emission Assessment Grid Region"),
         ("emission_type", "Emission Type"),
         ("shortrun_weighting", "Short-Run Weighting"),
         ("annual_refrig_leakage_percent", "Refrig. Leakage, p.a."),

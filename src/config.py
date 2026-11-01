@@ -10,6 +10,25 @@ class URLS(Enum):
 
 class LINKS(Enum):
     DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb"
+    REPO_URL: str = "https://github.com/CenterForTheBuiltEnvironment/decarb-tool"
+
+    # --- Documentation links ---
+    LOAD_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/loads"
+    LOAD_LIBRARY_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/loads/load-types"
+    )
+    EQUIPMENT_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/equipment"
+    EQUIPMENT_INPUT_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/equipment#inputs"
+    )
+    EMISSION_DOCS_URL: str = "https://cbe-berkeley.gitbook.io/decarb/documentation/emissions"
+    EMISSION_INPUT_DOCS_URL: str = (
+        "https://cbe-berkeley.gitbook.io/decarb/documentation/emissions#inputs"
+    )
+
+
+MAX_ACTIVE_EQUIPMENT_SCENARIOS = 5
+MAX_ACTIVE_EMISSION_SCENARIOS = 5
 
 
 class DEFAULT_SELECTIONS(Enum):
@@ -36,6 +55,7 @@ class EquipmentTableRows(Enum):
         "awhp_use_cooling",
         "awhp_sizing_priority",
         "backup_heating",
+        "fuel_switching",
         "chiller",
     )
 
@@ -43,12 +63,22 @@ class EquipmentTableRows(Enum):
 class EmissionTableRows(Enum):
     """Row configurations for emission table view modes."""
 
-    SIMPLE = ("grid_scenario", "gea_grid_region", "emission_type", "year")
-    ADVANCED = (
+    SIMPLE = (
+        "em_scen_name",
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
         "grid_scenario",
         "gea_grid_region",
         "emission_type",
-        "shortrun_weighting",
+        "year",
+    )
+    ADVANCED = (
+        "em_scen_name",
+        "elec_emission_source",
+        "elec_avg_emission_rate_gCO2e_per_kWh",
+        "grid_scenario",
+        "gea_grid_region",
+        "emission_type",
         "annual_refrig_leakage_percent",
         "ng_emission_rate_gCO2e_per_kWh",
         "year",
@@ -58,6 +88,8 @@ class EmissionTableRows(Enum):
 class EmissionScenarioDefaults(Enum):
     """Default values for emission scenario parameters."""
 
+    ELEC_EMISSION_SOURCE: str = "Marginal (Cambium, Long-run)"
+    ELEC_AVG_EMISSION_RATE_G_KWH: float = None
     YEAR: int = 2025
     REFRIGERANT_LEAKAGE: float = 0.02
     EMISSION_TYPE: str = "Includes pre-combustion"
@@ -106,11 +138,18 @@ class Columns(StrEnum):
     AWHP_COP_H = "awhp_cop_h"
     AWHP_HHW_W = "awhp_hhw_W"
     ELEC_AWHP_H_WH = "elec_awhp_h_Wh"
+    HHW_REM_W_NG_MODE = "hhw_rem_W_ng_mode"
 
     # --- Boiler ---
+    BOILER_NUM = "boiler_num"
     BOILER_EFF = "boiler_eff"
     BOILER_HHW_W = "boiler_hhw_W"
+    BOILER_EQ_CALC = "boiler_eq_calc_type"
+    BOILER_CAP_W = "boiler_cap_W"
     GAS_BOILER_WH = "gas_boiler_Wh"
+    BOILER_HHW_W_NG_MODE = "boiler_hhw_W_ng_mode"
+    GAS_BOILER_WH_NG_MODE = "gas_boiler_Wh_ng_mode"
+    FUEL_SWITCHING = "fuel_switching"
 
     # --- Resistance heater backup ---
     RES_HHW_W = "res_hhw_W"
@@ -150,6 +189,9 @@ class Columns(StrEnum):
     SRMER_CO2E_C = "srmer_co2e_c"
     SRMER_CO2E_P = "srmer_co2e_p"
     SRMER_CO2E = "srmer_co2e"
+    AER_LOAD_CO2E_C = "aer_load_co2e_c"
+    AER_LOAD_CO2E_P = "aer_load_co2e_p"
+    AER_LOAD_CO2E = "aer_load_co2e"
     SHORTRUN_WEIGHTING = "shortrun_weighting"
     ELEC_EMISSIONS_RATE_G_PER_KWH = "elec_emissions_rate_gCO2e_per_kWh"
 
