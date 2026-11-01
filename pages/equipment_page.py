@@ -1351,6 +1351,23 @@ def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_
     return (disabled, checked)
 
 
+@callback(
+    Output("edit-hr-eac-rejection-cap", "disabled"),
+    Output("edit-hr-eac-recovery-cap", "disabled"),
+    Output("edit-hr-eac-rejection-control", "disabled"),
+    Output("edit-hr-eac-recovery-control", "disabled"),
+    Input("edit-hr-wwhp-select", "value"),
+    prevent_initial_call=True,
+)
+def update_eac_inputs_on_wwhp_change(hr_hp_id):
+    """Enable/disable HR WWHP source/sink capacity inputs when HR selection changes."""
+
+    # Disable inputs if WWHP is not selected
+    hr_selected = hr_hp_id and hr_hp_id != "None"
+
+    return (not hr_selected, not hr_selected, not hr_selected, not hr_selected)
+
+
 # helper to build equipment options for Selects
 
 
