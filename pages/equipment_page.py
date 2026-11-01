@@ -928,8 +928,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     if hr_eac_rejection_capacity_val is not None:
         try:
             hr_eac_rejection_capacity_val = float(hr_eac_rejection_capacity_val)
-            if unit_mode == "IP":
-                hr_eac_rejection_capacity_val = power_converter(hr_eac_rejection_capacity_val)
+            # have to convert in both unit modes, because SI unit for power is kW not W
+            hr_eac_rejection_capacity_val = power_converter(hr_eac_rejection_capacity_val)
         except (ValueError, TypeError):
             hr_eac_rejection_capacity_val = None
 
@@ -937,8 +937,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     if hr_eac_recovery_capacity_val is not None:
         try:
             hr_eac_recovery_capacity_val = float(hr_eac_recovery_capacity_val)
-            if unit_mode == "IP":
-                hr_eac_recovery_capacity_val = power_converter(hr_eac_recovery_capacity_val)
+            hr_eac_recovery_capacity_val = power_converter(hr_eac_recovery_capacity_val)
         except (ValueError, TypeError):
             hr_eac_recovery_capacity_val = None
 
@@ -1039,7 +1038,7 @@ def save_edit_scenario(
     if not new_name:
         return True, no_update, "Scenario name cannot be empty."
 
-    from utils.units import BTUh_to_Wh, F_to_C
+    from utils.units import BTUh_to_Wh, F_to_C, kWh_to_Wh
 
     unit_mode = unit_mode or "SI"
 
@@ -1080,6 +1079,9 @@ def save_edit_scenario(
             hr_eac_rejection_cap_W_val = float(hr_eac_rejection_cap_W_val)
             if unit_mode == "IP":
                 hr_eac_rejection_cap_W_val = BTUh_to_Wh(hr_eac_rejection_cap_W_val)
+            else:
+                # convert back to base W, because SI unit for power is kW not W
+                hr_eac_rejection_cap_W_val = kWh_to_Wh(hr_eac_rejection_cap_W_val)
         except (ValueError, TypeError):
             hr_eac_rejection_cap_W_val = None
 
@@ -1088,6 +1090,8 @@ def save_edit_scenario(
             hr_eac_recovery_cap_W_val = float(hr_eac_recovery_cap_W_val)
             if unit_mode == "IP":
                 hr_eac_recovery_cap_W_val = BTUh_to_Wh(hr_eac_recovery_cap_W_val)
+            else:
+                hr_eac_recovery_cap_W_val = kWh_to_Wh(hr_eac_recovery_cap_W_val)
         except (ValueError, TypeError):
             hr_eac_recovery_cap_W_val = None
 

@@ -833,7 +833,7 @@ def build_equipment_table(
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for temperature fields
+            # Apply unit conversion for temperature and HR source/sink fields
             if field in temp_fields and raw_value is not None:
                 try:
                     converted = temp_converter(float(raw_value))
