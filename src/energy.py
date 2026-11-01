@@ -855,20 +855,20 @@ def loads_to_site_energy(
                 boiler_served_W = df[Col.HHW_REM_W].to_numpy()
                 gas_Wh = boiler_served_W / eff
 
-            if scen.fuel_switching:
-                # create intermediate columns to store boiler HHW and gas usage if AWHP did not operate (i.e., NG mode)
-                df[Col.BOILER_HHW_W_NG_MODE.value] = df[Col.HHW_REM_W_NG_MODE.value]
-                gas_Wh_NG_mode = df[Col.HHW_REM_W_NG_MODE.value] / eff
-                df[Col.GAS_BOILER_WH_NG_MODE.value] = gas_Wh_NG_mode
+                if scen.fuel_switching:
+                    # create intermediate columns to store boiler HHW and gas usage if AWHP did not operate (i.e., NG mode)
+                    df[Col.BOILER_HHW_W_NG_MODE.value] = df[Col.HHW_REM_W_NG_MODE.value]
+                    gas_Wh_NG_mode = df[Col.HHW_REM_W_NG_MODE.value] / eff
+                    df[Col.GAS_BOILER_WH_NG_MODE.value] = gas_Wh_NG_mode
 
-            df[Col.BOILER_HHW_W.value] = boiler_served_W
-            df[Col.GAS_BOILER_WH.value] = gas_Wh
-            df[Col.BOILER_EFF.value] = eff
-            df[Col.GAS_WH.value] += gas_Wh
-            df[Col.HHW_REM_W.value] -= boiler_served_W
-            # boiler sizing information
-            df[Col.BOILER_EQ_CALC.value] = backup_heating.eq_calc_type
-            df[Col.BOILER_CAP_W.value] = backup_heating.capacity_W
+                df[Col.BOILER_HHW_W.value] = boiler_served_W
+                df[Col.GAS_BOILER_WH.value] = gas_Wh
+                df[Col.BOILER_EFF.value] = eff
+                df[Col.GAS_WH.value] += gas_Wh
+                df[Col.HHW_REM_W.value] -= boiler_served_W
+                # boiler sizing information
+                df[Col.BOILER_EQ_CALC.value] = backup_heating.eq_calc_type
+                df[Col.BOILER_CAP_W.value] = backup_heating.capacity_W
 
             if scen.fuel_switching:
                 logger.debug("Phase 3 complete")
