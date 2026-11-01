@@ -661,11 +661,11 @@ def loads_to_site_energy(
                 np.minimum(simult_max, min_cap_h),
             )
 
-            # Heating dominant hours follow the heat recovery control
-            # Cooling dominant hours follow the heat rejection control
             simult_h = np.where(
                 heating_dominant,
+                # Heating dominant hours follow the heat recovery control
                 simult_max if scen.hr_eac_recovery_control == "max_heat_recovery" else simult_min,
+                # Cooling dominant hours follow the heat rejection control
                 simult_max if scen.hr_eac_rejection_control == "max_heat_rejection" else simult_min,
             )
 
@@ -687,6 +687,26 @@ def loads_to_site_energy(
             hr_chw = np.minimum(hr_out_c, df[Col.CHW_REM_W.value].to_numpy())
             eac_h = hr_out_h - hr_hhw
             eac_c = hr_out_c - hr_chw
+
+            eac_coverage = (
+                100 * (np.nansum(simult_h) - np.nansum(simult_base)) / np.nansum(simult_base)
+            )
+            eac_h_coverage = 100 * np.nansum(eac_h) / np.nansum(hr_out_h)
+            eac_c_coverage = 100 * np.nansum(eac_c) / np.nansum(hr_out_c)
+
+            logger.debug(
+                f"Balancing heat rejection: control={scen.hr_eac_rejection_control}, "
+                f"capacity={scen.hr_eac_rejection_cap_W:.1f} W, "
+                f"covers {eac_c_coverage:.1f}% of HR WWHP cooling"
+            )
+            logger.debug(
+                f"Balancing heat recovery: control={scen.hr_eac_recovery_control}, "
+                f"capacity={scen.hr_eac_recovery_cap_W:.1f} W, "
+                f"covers {eac_h_coverage:.1f}% of HR WWHP heating"
+            )
+            logger.debug(
+                f"Balancing source/sink overall increased simultaneous capacity by {eac_coverage:.1f}%"
+            )
 
             # Electricity use
             elec_hr = np.where(hr_cop_h > 0, hr_out_h / hr_cop_h, 0.0)
