@@ -29,6 +29,7 @@ TOOLTIPS = {
         "loads_docs": "Click to access the documentation on load profiles.",
         "load_library_docs": "Click to access the documentation on the load library options.",
         "upload_custom": "Ensure the CSV file uses the exact format and units listed in the documentation.",
+        "location": "A location selected here stays fixed when the load profile changes. Clear it to use the location of the selected load data again.",
     },
     # --- Results Page ---
     "results": {

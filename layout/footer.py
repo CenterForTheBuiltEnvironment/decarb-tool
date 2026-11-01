@@ -1,5 +1,7 @@
 import dash_mantine_components as dmc
 
+from utils.version import get_version
+
 
 def shell_footer():
     # --- Top band: logos, nav links, socials, citation ---
@@ -130,7 +132,7 @@ def shell_footer():
 
     version_and_license = dmc.Group(
         [
-            dmc.Text("Version 1.2.0", fz="xs", c="dimmed"),
+            dmc.Text(f"Version {get_version()}", fz="xs", c="dimmed"),
             dmc.Anchor(
                 dmc.Image(
                     src="https://img.shields.io/badge/License-MIT-yellow.svg",

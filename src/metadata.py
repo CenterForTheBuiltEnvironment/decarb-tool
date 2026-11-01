@@ -1,8 +1,9 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
+import pandas as pd
 from pydantic import BaseModel
 
 from src.emissions import EmissionScenario
@@ -57,6 +58,9 @@ class Metadata(DotAccessMixin, BaseModel):
     vintage: int | None = None
     ashrae_climate_zone: str | None = None
     climate_zone_output: str | None = None
+    location_source: Literal["load", "user"] | None = None  # "user" = set via location search
+    location_zip: str | None = None  # zip selected in the location search, if any
+    location_state: str | None = None  # state of the zip, for the location search label
     area_sqm: float | None
     load_data: LoadData
     equipment_scenarios: str | list[str]
@@ -175,9 +179,45 @@ class Metadata(DotAccessMixin, BaseModel):
         else:
             self.emission_settings.append(scenario)
 
-    def set_gea_grid_region_for_all(self, region: str) -> None:
+    def set_gea_grid_region_for_all(self, region: str | None) -> None:
         for scen in self.emission_settings:
             scen.gea_grid_region = region
+
+    # ---------- Location helpers ----------
+    def apply_location(
+        self,
+        city: str | None,
+        state_id: str | None,
+        ashrae: str | None,
+        ca_zone: float | int | None,
+        grid_region: str | None,
+        source: Literal["load", "user"],
+        zip: str | None = None,
+    ) -> None:
+        """Set location, climate zone, climate region output and grid region together."""
+        ashrae = None if _is_missing(ashrae) else str(ashrae)
+        self.location = None if _is_missing(city) else city
+        self.ashrae_climate_zone = ashrae
+        if ashrae and state_id == "CA" and not _is_missing(ca_zone):
+            self.climate_zone_output = f"{ashrae} (CA Region {int(ca_zone)})"
+        else:
+            self.climate_zone_output = ashrae
+        # "TBD" marks buildings without a Cambium region (e.g. Alaska)
+        if _is_missing(grid_region) or grid_region == "TBD":
+            grid_region = None
+        self.set_gea_grid_region_for_all(grid_region)
+        self.location_source = source
+        self.location_zip = zip
+        self.location_state = None if _is_missing(state_id) else state_id
+
+    def clear_location(self) -> None:
+        self.location = None
+        self.ashrae_climate_zone = None
+        self.climate_zone_output = None
+        self.set_gea_grid_region_for_all(None)
+        self.location_source = None
+        self.location_zip = None
+        self.location_state = None
 
     # ---------- Dict-like interface ----------
     def __getitem__(self, em_scen_id: str) -> EmissionScenario:
@@ -188,3 +228,7 @@ class Metadata(DotAccessMixin, BaseModel):
 
     def __iter__(self):
         return iter(self.emission_settings)
+
+
+def _is_missing(value: Any) -> bool:
+    return value is None or value == "" or (isinstance(value, float) and pd.isna(value))

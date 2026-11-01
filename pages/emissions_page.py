@@ -53,6 +53,8 @@ def layout():
                             ),
                         ],
                         gap=3,
+                        # Let the subtitle wrap instead of pushing the buttons down
+                        style={"flex": 1, "minWidth": 0},
                     ),
                     dmc.Group(
                         [
@@ -69,9 +71,12 @@ def layout():
                                 disabled=True,  # <- disabled for now
                             ),
                         ],
+                        wrap="nowrap",
+                        style={"flexShrink": 0},
                     ),
                 ],
                 justify="space-between",
+                wrap="nowrap",
                 mt="md",
                 mb="sm",
             ),

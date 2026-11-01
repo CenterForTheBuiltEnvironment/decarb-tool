@@ -127,6 +127,8 @@ The tool is designed to bring consistency, transparency, and scientific robustne
 ## Documentation
 While the tool is still under development, we have set up a short documentation outlining underlying calculations [here](https://cbe-berkeley.gitbook.io/decarb). <br>
 
+Release notes for each version are in [CHANGELOG.md](CHANGELOG.md). <br>
+
 <!-- - All larger tools should have a dedicated Documentation, ideally set up using GitBook and linked to the `docs` folder. -->
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
