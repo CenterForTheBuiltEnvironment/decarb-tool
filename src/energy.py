@@ -64,6 +64,26 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.hr_wwhp_performance_model}'."
                 )
 
+            if scen.hr_eac_rejection_control not in [
+                "max_heat_rejection",
+                "min_turndown",
+            ]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized balancing heat rejection control model: '{scen.hr_eac_rejection_controlhr_eac_rejection_control}'."
+                )
+            if scen.hr_eac_recovery_control not in [
+                "max_heat_recovery",
+                "min_turndown",
+            ]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized balancing heat recovery control model: '{scen.hr_eac_recovery_control}'."
+                )
+            if scen.hr_eac_rejection_cap_W < 0 or scen.hr_eac_recovery_cap_W < 0:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' requires "
+                    f"balancing heat recovery and rejection capacity to be non-negative."
+                )
+
         if scen.awhp:
             # awhp heating checks
             awhp_h = library.get_equipment(scen.awhp)

@@ -1145,9 +1145,7 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
-                dmc.Divider(
-                    label="Heat recovery heat pump balancing source/sink", labelPosition="center"
-                ),
+                dmc.Divider(label="Heat recovery balancing source/sink", labelPosition="center"),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
