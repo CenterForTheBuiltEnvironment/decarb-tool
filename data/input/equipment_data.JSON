@@ -1684,6 +1684,50 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_24",
+      "eq_scen_name": "HR WWHP+Balancing+20% AWHP (H+C)+Elec Backup",
+      "hr_wwhp": "hr03",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "hr_eac_rejection_cap_W": 100000,
+      "hr_eac_recovery_cap_W": 100000,
+      "hr_eac_rejection_control": "min_turndown",
+      "hr_eac_recovery_control": "max_heat_recovery",
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 0.2,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "fuel_switching": false,
+      "chiller": "ch02"
+    },
+    {
+      "eq_scen_id": "eq_scenario_25",
+      "eq_scen_name": "HR WWHP+Balancing+100% AWHP (H+C)+Elec Backup",
+      "hr_wwhp": "hr03",
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "hr_eac_rejection_cap_W": 100000,
+      "hr_eac_recovery_cap_W": 100000,
+      "hr_eac_rejection_control": "min_turndown",
+      "hr_eac_recovery_control": "max_heat_recovery",
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": true,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "fuel_switching": false,
+      "chiller": "ch02"
     }
   ],
   "scenario_groups": [
@@ -1711,6 +1755,11 @@
       "group_id": "fuel_switching",
       "group_name": "Dynamic Fuel Switching",
       "scenario_ids": ["eq_scenario_16", "eq_scenario_17", "eq_scenario_4", "eq_scenario_18"]
+    },
+    {
+      "group_id": "heat_recovery_balancing",
+      "group_name": "Heat Recovery Balancing Source/Sink",
+      "scenario_ids": ["eq_scenario_12", "eq_scenario_24", "eq_scenario_5", "eq_scenario_25"]
     },
     {
       "group_id": "awhp_refrigerant_types",
