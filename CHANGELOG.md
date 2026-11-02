@@ -28,6 +28,7 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Changed
 
+- Default unit system is IP; SI can still be selected with the unit toggle
 - Results download is named after the case (building, location, climate zone, load scaling,
   base load, unit system), e.g. `decarb_B3_Denver_CZ5B_scaled-h1.25-c1.25_SI_<date>.zip`, and
   unzips into a folder of the same name
