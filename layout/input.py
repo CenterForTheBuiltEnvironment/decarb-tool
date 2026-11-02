@@ -38,7 +38,7 @@ def get_emissions_index():
 def unit_toggle():
     return dmc.SegmentedControl(
         id="unit-toggle",  # keep your existing id if you already use it
-        value="SI",  # or "IP"
+        value="IP",  # default unit system; "SI" or "IP"
         data=[
             {"label": "SI", "value": "SI"},
             {"label": "IP", "value": "IP"},
@@ -1666,6 +1666,30 @@ def build_completeness_modal():
     )
 
 
+def _load_modification_buttons(prefix):
+    """Reset (left) and Cancel / Apply / Confirm (right) for the scale and base load modals.
+
+    Apply only updates the modal's draft; Confirm commits it to the load data.
+    """
+    return dmc.Group(
+        [
+            dmc.Button(
+                "Reset", id=f"{prefix}-reset-btn", variant="outline", color="red", disabled=True
+            ),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id=f"{prefix}-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id=f"{prefix}-apply-btn", variant="outline"),
+                    dmc.Button("Confirm", id=f"{prefix}-confirm-btn", color="blue"),
+                ],
+                gap="sm",
+            ),
+        ],
+        justify="space-between",
+        mt="md",
+    )
+
+
 def build_scale_load_modal():
     """Modal for scaling/normalizing a library load profile."""
     return dmc.Modal(
@@ -1677,7 +1701,9 @@ def build_scale_load_modal():
         children=[
             dmc.Text(
                 "Scale the library load profile to match your building. "
-                "Every hourly heating and cooling load will be multiplied by the computed scale factor.",
+                "Scaling by building area multiplies every hourly heating and cooling load by the "
+                "computed scale factor; scaling by peak heating or peak cooling load only changes "
+                "that load. Apply updates the table; Confirm uses the result in the calculation.",
                 size="sm",
                 c="dimmed",
             ),
@@ -1707,16 +1733,10 @@ def build_scale_load_modal():
                 mt=4,
             ),
             dmc.Space(h="sm"),
-            dmc.Text(id="scale-preview-text", c="blue", size="sm", fw=500),
-            dmc.Text(id="scale-error-text", c="red", size="sm"),
-            dmc.Group(
-                [
-                    dmc.Button("Cancel", id="scale-cancel-btn", variant="outline"),
-                    dmc.Button("Apply", id="scale-apply-btn", color="blue"),
-                ],
-                justify="flex-end",
-                mt="md",
-            ),
+            # Status line: always filled so the layout doesn't jump; colour set by callback
+            dmc.Text("No scaling applied", id="scale-preview-text", c="dimmed", size="sm", fw=500),
+            _load_modification_buttons("scale"),
+            dcc.Store(id="scale-draft-store", data=None),
         ],
     )
 
@@ -1732,7 +1752,8 @@ def build_base_load_modal():
         children=[
             dmc.Text(
                 "Add a minimum floor or a constant offset to model process loads or "
-                "minimum baseline consumption.",
+                "minimum baseline consumption. Heating and cooling can each have their own "
+                "base load. Apply updates the table; Confirm uses the result in the calculation.",
                 size="sm",
                 c="dimmed",
             ),
@@ -1777,16 +1798,12 @@ def build_base_load_modal():
                 mt=4,
             ),
             dmc.Space(h="sm"),
-            dmc.Text(id="base-load-preview-text", c="blue", size="sm", fw=500),
-            dmc.Text(id="base-load-error-text", c="red", size="sm"),
-            dmc.Group(
-                [
-                    dmc.Button("Cancel", id="base-load-cancel-btn", variant="outline"),
-                    dmc.Button("Apply", id="base-load-apply-btn", color="blue"),
-                ],
-                justify="flex-end",
-                mt="md",
+            # Status line: always filled so the layout doesn't jump; colour set by callback
+            dmc.Text(
+                "No base load applied", id="base-load-preview-text", c="dimmed", size="sm", fw=500
             ),
+            _load_modification_buttons("base-load"),
+            dcc.Store(id="base-load-draft-store", data=None),
         ],
     )
 
