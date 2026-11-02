@@ -16,6 +16,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Added
 
+- Results download includes an annual summary CSV with one row per equipment and emission
+  scenario combination
 - Reset button in the Scale Load Profile and Modify Base Load modals to restore the load
   without scaling or base load
 - Confirm button in both modals: Apply only updates the values shown in the modal, so several
@@ -26,6 +28,18 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Changed
 
+- Default unit system is IP; SI can still be selected with the unit toggle
+- Results download is named after the case (building, location, climate zone, load scaling,
+  base load, unit system), e.g. `decarb_B3_Denver_CZ5B_scaled-h1.25-c1.25_SI_<date>.zip`, and
+  unzips into a folder of the same name
+- Hourly results CSV starts with readable case columns (equipment scenario number as shown on the
+  Results page, emission scenario letter, name, year, grid scenario, source, emission type) so
+  scenario combinations can be filtered directly; rows are grouped per combination and the
+  remaining columns are ordered by topic. The load-year column was removed (it is in the timestamp)
+- Settings summary lists load scaling and base load, and shows emission rates in the selected unit
+  system
+- Values below 1 in the results CSVs keep 4 significant figures instead of 3 decimals, so small
+  hourly emissions and lb CO₂e/kWh rates no longer round to zero
 - Scale Load Profile modal shows the original library values next to the scaled values instead
   of overwriting them
 - Scaling by peak heating or peak cooling load only scales that load; heating and cooling
@@ -36,6 +50,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Fixed
 
+- Combined LRMER/SRMER/AER CO₂e rate columns in the results CSV were not converted (and had no
+  unit) in IP mode
 - Applying load scaling repeatedly no longer compounds the scale factor
 - Input labels and the base load method description show as soon as the modals open
 

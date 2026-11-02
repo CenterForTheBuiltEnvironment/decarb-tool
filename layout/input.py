@@ -38,7 +38,7 @@ def get_emissions_index():
 def unit_toggle():
     return dmc.SegmentedControl(
         id="unit-toggle",  # keep your existing id if you already use it
-        value="SI",  # or "IP"
+        value="IP",  # default unit system; "SI" or "IP"
         data=[
             {"label": "SI", "value": "SI"},
             {"label": "IP", "value": "IP"},
