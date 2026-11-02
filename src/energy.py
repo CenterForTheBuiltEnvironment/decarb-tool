@@ -688,24 +688,25 @@ def loads_to_site_energy(
             eac_h = hr_out_h - hr_hhw
             eac_c = hr_out_c - hr_chw
 
-            eac_coverage = (
-                100 * (np.nansum(simult_h) - np.nansum(simult_base)) / np.nansum(simult_base)
-            )
-            eac_h_coverage = 100 * np.nansum(eac_h) / np.nansum(hr_out_h)
-            eac_c_coverage = 100 * np.nansum(eac_c) / np.nansum(hr_out_c)
+            hr_hhw_no_eac = np.minimum(max_cap_h, simult_base)
+            hr_hhw_no_eac = np.where(hr_hhw_no_eac >= min_cap_h, hr_hhw_no_eac, 0.0)
+
+            eac_h_coverage = 100 * np.nansum(eac_h) / np.nansum(hr_out_h) if np.nansum(hr_out_h) > 0 else 0.0
+            eac_c_coverage = 100 * np.nansum(eac_c) / np.nansum(hr_out_c) if np.nansum(hr_out_c) > 0 else 0.0
 
             logger.debug(
                 f"Balancing heat rejection: control={scen.hr_eac_rejection_control}, "
                 f"capacity={scen.hr_eac_rejection_cap_W:.1f} W, "
-                f"covers {eac_c_coverage:.1f}% of HR WWHP cooling"
+                f"covers {eac_h_coverage:.1f}% of HR WWHP heating"
             )
             logger.debug(
                 f"Balancing heat recovery: control={scen.hr_eac_recovery_control}, "
                 f"capacity={scen.hr_eac_recovery_cap_W:.1f} W, "
-                f"covers {eac_h_coverage:.1f}% of HR WWHP heating"
+                f"covers {eac_c_coverage:.1f}% of HR WWHP cooling"
             )
             logger.debug(
-                f"Balancing source/sink overall increased simultaneous capacity by {eac_coverage:.1f}%"
+                f"EAC effect on HR WWHP heating (no coil -> with coil): "
+                f"{np.nansum(hr_hhw_no_eac) / 1000:.0f} -> {np.nansum(hr_hhw) / 1000:.0f} kWh"
             )
 
             # Electricity use
