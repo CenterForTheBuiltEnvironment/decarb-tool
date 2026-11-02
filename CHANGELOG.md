@@ -14,6 +14,31 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+### Added
+
+- Reset button in the Scale Load Profile and Modify Base Load modals to restore the load
+  without scaling or base load
+- Confirm button in both modals: Apply only updates the values shown in the modal, so several
+  changes (e.g. heating and cooling) can be made before Confirm uses them in the calculation
+- Modify Base Load modal shows peak loads without and with the base load side by side
+- Status line in both modals says what is in the table and whether Apply or Confirm is needed
+  next; Confirm is disabled while an entered value has not been applied or nothing changed
+
+### Changed
+
+- Scale Load Profile modal shows the original library values next to the scaled values instead
+  of overwriting them
+- Scaling by peak heating or peak cooling load only scales that load; heating and cooling
+  factors are kept separately, so both peaks can be matched
+- Heating and cooling can each have their own base load (floor or offset); applying a base
+  load replaces the previous one for that load type instead of stacking, and base loads are
+  always applied after scaling
+
+### Fixed
+
+- Applying load scaling repeatedly no longer compounds the scale factor
+- Input labels and the base load method description show as soon as the modals open
+
 ## [0.1.0] - 2026-10-13
 
 First versioned release of the tool. Earlier deployments were not versioned consistently;
