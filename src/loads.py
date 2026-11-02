@@ -274,6 +274,36 @@ class StandardLoad:
         return self.df.describe()
 
 
+def apply_load_modifications(
+    df: pd.DataFrame,
+    heating_factor: float = 1.0,
+    cooling_factor: float = 1.0,
+    base_load: dict | None = None,
+) -> pd.DataFrame:
+    """Return a copy of df with load scaling and base-load adjustment applied.
+
+    Scaling is applied first, then the base load (floor or offset), so the base load
+    always stays at the absolute value the user entered.
+
+    base_load: one base load per load type (shape of base-load-info-store), or None:
+    {"heating": {"method": "floor" | "offset", "value_W": float} | None, "cooling": ... | None}
+    """
+    out = df.copy()
+    out["heating_W"] = out["heating_W"] * heating_factor
+    out["cooling_W"] = out["cooling_W"] * cooling_factor
+
+    for load_type, col in (("heating", "heating_W"), ("cooling", "cooling_W")):
+        mod = (base_load or {}).get(load_type)
+        if not mod:
+            continue
+        if mod["method"] == "floor":
+            out[col] = out[col].clip(lower=mod["value_W"])
+        else:  # offset
+            out[col] = out[col] + mod["value_W"]
+
+    return out
+
+
 def get_load_data(metadata: Metadata) -> StandardLoad:
     """
     Load and filter load data based on Metadata settings.
