@@ -49,6 +49,26 @@ def _equipment_data_validation(library: EquipmentLibrary, scenario_ids: list[str
                     f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized performance calculation model: '{scen.hr_wwhp_performance_model}'."
                 )
 
+            if scen.hr_eac_rejection_control not in [
+                "max_heat_rejection",
+                "min_turndown",
+            ]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized balancing heat rejection control model: '{scen.hr_eac_rejection_controlhr_eac_rejection_control}'."
+                )
+            if scen.hr_eac_recovery_control not in [
+                "max_heat_recovery",
+                "min_turndown",
+            ]:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' has unrecognized balancing heat recovery control model: '{scen.hr_eac_recovery_control}'."
+                )
+            if scen.hr_eac_rejection_cap_W < 0 or scen.hr_eac_recovery_cap_W < 0:
+                raise ValueError(
+                    f"HR WWHP scenario '{scen.eq_scen_id}' requires "
+                    f"balancing heat recovery and rejection capacity to be non-negative."
+                )
+
         if scen.awhp:
             # awhp heating checks
             awhp_h = library.get_equipment(scen.awhp)
@@ -402,6 +422,8 @@ def loads_to_site_energy(
                 Col.HR_HHW_W.value,
                 Col.HR_CHW_W.value,
                 Col.HR_COP_H.value,
+                Col.HR_EAC_H_W.value,
+                Col.HR_EAC_C_W.value,
                 Col.ELEC_HR_WH.value,
                 # AWHP Heating
                 Col.AWHP_HHW_W.value,
@@ -480,29 +502,94 @@ def loads_to_site_energy(
             min_cap_h = plr_curve["cap"].min()  # min heating capacity allowed by unit
 
             # Simultaneous load potential (using least-waste-heat factor)
-            simult_h = np.minimum(
+            heating_dominant = (
+                df[Col.HHW_REM_W.value].to_numpy() * least_waste_heat["cap_h_to_cap_c"]
+                >= df[Col.CHW_REM_W.value].to_numpy()
+            )  # heating dominant if heat rejectable from HHW is greater than CHW
+
+            # simult_base: no exhaust air coil - smaller of HHW and heat recoverable from CHW
+            simult_base = np.minimum(
                 df[Col.HHW_REM_W.value].to_numpy(),
-                df[Col.CHW_REM_W.value].to_numpy()
-                / least_waste_heat[
-                    "cap_h_to_cap_c"
-                ],  # amount of simultaneous load that the WWHP can actually satisfy
+                df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
             )
 
-            # Actual heating served (within capacity limits)
-            hr_hhw = np.where(
-                np.minimum(max_cap_h, simult_h) > min_cap_h,
+            # Simult_max: exhaust air coil used up to its full capacity
+            simult_max = np.where(
+                heating_dominant,
+                # if heating dominant, simult load = smaller of HHW vs heat recoverable from CHW + EAHR capacity
+                np.minimum(
+                    df[Col.HHW_REM_W.value].to_numpy(),
+                    (df[Col.CHW_REM_W.value].to_numpy() + scen.hr_eac_recovery_cap_W)
+                    / least_waste_heat["cap_h_to_cap_c"],
+                ),
+                # if cooling dominant, simult load = smaller of HHW + EAHR capacity vs heat recoverable from CHW
+                np.minimum(
+                    df[Col.CHW_REM_W.value].to_numpy() / least_waste_heat["cap_h_to_cap_c"],
+                    df[Col.HHW_REM_W.value].to_numpy() + scen.hr_eac_rejection_cap_W,
+                ),
+            )
+
+            # simult_min: exhaust air coil used only to reach the HR WWHP min turndown
+            simult_min = np.where(
+                simult_base >= min_cap_h,
+                simult_base,
+                np.minimum(simult_max, min_cap_h),
+            )
+
+            simult_h = np.where(
+                heating_dominant,
+                # Heating dominant hours follow the heat recovery control
+                simult_max if scen.hr_eac_recovery_control == "max_heat_recovery" else simult_min,
+                # Cooling dominant hours follow the heat rejection control
+                simult_max if scen.hr_eac_rejection_control == "max_heat_rejection" else simult_min,
+            )
+
+            # Actual HR WWHP heating output (within capacity limits)
+            hr_out_h = np.where(
+                np.minimum(max_cap_h, simult_h) >= min_cap_h,
                 np.minimum(max_cap_h, simult_h),
                 0.0,
             )
 
             # Interpolate COP at part load
-            hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_hhw)
+            hr_cop_h = interp_vector(plr_curve["cap"], plr_curve["cop"], hr_out_h)
 
             # Cooling served derived from heating & COP
-            hr_chw = np.where(hr_cop_h > 0, hr_hhw * (1 - (1 / hr_cop_h)), 0.0)  # same as R
+            hr_out_c = np.where(hr_cop_h > 0, hr_out_h * (1 - (1 / hr_cop_h)), 0.0)
+
+            # Split total HRC output into building loads and exhaust air coil loads
+            hr_hhw = np.minimum(hr_out_h, df[Col.HHW_REM_W.value].to_numpy())
+            hr_chw = np.minimum(hr_out_c, df[Col.CHW_REM_W.value].to_numpy())
+            eac_h = hr_out_h - hr_hhw
+            eac_c = hr_out_c - hr_chw
+
+            hr_hhw_no_eac = np.minimum(max_cap_h, simult_base)
+            hr_hhw_no_eac = np.where(hr_hhw_no_eac >= min_cap_h, hr_hhw_no_eac, 0.0)
+
+            eac_h_coverage = (
+                100 * np.nansum(eac_h) / np.nansum(hr_out_h) if np.nansum(hr_out_h) > 0 else 0.0
+            )
+            eac_c_coverage = (
+                100 * np.nansum(eac_c) / np.nansum(hr_out_c) if np.nansum(hr_out_c) > 0 else 0.0
+            )
+
+            logger.debug(
+                f"Balancing heat rejection: control={scen.hr_eac_rejection_control}, "
+                f"capacity={scen.hr_eac_rejection_cap_W:.1f} W, "
+                f"covers {eac_h_coverage:.1f}% of HR WWHP heating"
+            )
+            logger.debug(
+                f"Balancing heat recovery: control={scen.hr_eac_recovery_control}, "
+                f"capacity={scen.hr_eac_recovery_cap_W:.1f} W, "
+                f"covers {eac_c_coverage:.1f}% of HR WWHP cooling"
+            )
+            logger.debug(
+                f"EAC effect on HR WWHP heating (no coil -> with coil): "
+                f"{np.nansum(hr_hhw_no_eac) / 1000:.0f} -> {np.nansum(hr_hhw) / 1000:.0f} kWh"
+            )
 
             # Electricity use
-            elec_hr = np.where(hr_cop_h > 0, hr_hhw / hr_cop_h, 0.0)
+            elec_hr = np.where(hr_cop_h > 0, hr_out_h / hr_cop_h, 0.0)
 
             # add refrigerant information
             hr_wwhp_refrigerant = hr_wwhp.refrigerant if hr_wwhp.refrigerant else "Unknown"
@@ -533,6 +620,8 @@ def loads_to_site_energy(
             df[Col.HR_HHW_W.value] = hr_hhw
             df[Col.HR_CHW_W.value] = hr_chw
             df[Col.HR_COP_H.value] = hr_cop_h
+            df[Col.HR_EAC_H_W] = eac_h
+            df[Col.HR_EAC_C_W] = eac_c
             df[Col.ELEC_HR_WH.value] = elec_hr
             df[Col.ELEC_WH.value] += elec_hr
             df[Col.HHW_REM_W.value] -= hr_hhw
@@ -962,6 +1051,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
         Col.MAX_CAP_H_HR_W.value,
         Col.MIN_CAP_H_HR_W.value,
         Col.SIMULT_H_HR_W.value,
+        Col.HR_EAC_H_W.value,
+        Col.HR_EAC_C_W.value,
         Col.ELEC_HR_WH.value,
         Col.HR_WWHP_REFRIGERANT.value,
         Col.HR_WWHP_REFRIGERANT_WEIGHT_KG.value,
