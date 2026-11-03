@@ -1,5 +1,4 @@
 import contextlib
-import datetime
 import io
 import time
 import zipfile
@@ -321,7 +320,7 @@ def show_download_notification(n_clicks, unit_mode):
     return [notification]
 
 
-# Download the full results/source energy dataframe as CSV
+# Download the results as a zip: hourly CSV, annual summary CSV and the settings
 @callback(
     Output("download-data", "data"),
     Input("download-button", "n_clicks"),
@@ -331,6 +330,9 @@ def show_download_notification(n_clicks, unit_mode):
     State("equipment-store", "data"),
     State("selected-equipment-store", "data"),
     State("selected-emissions-store", "data"),
+    State("displayed-equipment-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
     prevent_initial_call=True,
 )
 def download_results(
@@ -341,15 +343,16 @@ def download_results(
     equipment_json,
     selected_eq_ids,
     selected_em_ids,
+    displayed_eq_ids=None,
+    scale_info=None,
+    base_load_info=None,
 ):
-    """Download the entire results dataframe as a .csv file with unit conversion."""
-    import numpy as np
-
-    from utils.units import (
-        COLUMN_DISPLAY_NAMES,
-        convert_dataframe,
-        get_category,
-        get_column_label,
+    """Download the results as a zip named after the case, in the selected unit system."""
+    from src.export import (
+        build_annual_summary,
+        build_export_basename,
+        build_hourly_export,
+        format_for_csv,
     )
 
     # Only trigger on actual button click
@@ -360,64 +363,51 @@ def download_results(
         raise dash.exceptions.PreventUpdate
 
     df = load_source_energy(session_data)
-    if df is None:
+    if df is None or not metadata_json:
         raise dash.exceptions.PreventUpdate
 
     unit_mode = unit_mode or "SI"
+    metadata = Metadata(**metadata_json)
 
-    # Convert values based on unit mode
-    df = convert_dataframe(df, unit_mode)
+    hourly = build_hourly_export(df, metadata, _equipment_position_map(displayed_eq_ids))
+    annual = build_annual_summary(hourly)
 
-    def round_like_python(values, decimals):
-        """Vectorised round() with the same result as Python's built-in round().
-
-        Series.round() can differ from round() on values that look like exact
-        halves in decimal (e.g. 6.825); those few values are rounded one by one.
-        """
-        rounded = values.round(decimals)
-        scaled = values * 10**decimals
-        near_half = ((scaled - np.trunc(scaled)).abs() - 0.5).abs() < 1e-6
-        if near_half.any():
-            rounded[near_half] = values[near_half].map(lambda v: round(v, decimals))
-        return rounded
-
-    # Round numeric values: 2 decimals normally, 3 for values < 1
-    for col in df.columns:
-        if df[col].dtype in [np.float64, np.float32, float]:
-            values = df[col]
-            small = (values.abs() < 1) & (values != 0)
-            df[col] = round_like_python(values, 2).where(~small, round_like_python(values, 3))
-
-    # Rename columns:
-    # - Columns with a category: use get_column_label (includes unit)
-    # - Columns without a category but with display name: use display name only
-    column_renames = {}
-    for col in df.columns:
-        if get_category(col) is not None:
-            # Has unit conversion - include unit in label
-            column_renames[col] = get_column_label(col, unit_mode)
-        elif col in COLUMN_DISPLAY_NAMES:
-            # No unit conversion but has display name
-            column_renames[col] = COLUMN_DISPLAY_NAMES[col]
-        # else: keep original column name
-    df = df.rename(columns=column_renames)
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_string = df.to_csv(index=True)
-
+    base = build_export_basename(metadata, unit_mode, scale_info, base_load_info)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"results_{timestamp}.csv", csv_string)
+        zf.writestr(
+            f"{base}/{base}_hourly.csv",
+            format_for_csv(hourly, unit_mode).to_csv(index_label="Timestamp"),
+        )
+        zf.writestr(
+            f"{base}/{base}_annual.csv", format_for_csv(annual, unit_mode).to_csv(index=False)
+        )
         _add_metadata_files(
-            zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+            zf,
+            f"{base}/",
+            metadata_json,
+            equipment_json,
+            selected_eq_ids,
+            selected_em_ids,
+            unit_mode,
+            scale_info,
+            base_load_info,
         )
 
     buf.seek(0)
-    return dcc.send_bytes(buf.getvalue(), f"results_{timestamp}.zip")
+    return dcc.send_bytes(buf.getvalue(), f"{base}.zip")
 
 
 def _add_metadata_files(
-    zf, metadata_json, equipment_json, selected_eq_ids, selected_em_ids, unit_mode
+    zf,
+    prefix,
+    metadata_json,
+    equipment_json,
+    selected_eq_ids,
+    selected_em_ids,
+    unit_mode,
+    scale_info=None,
+    base_load_info=None,
 ):
     import json as _json
 
@@ -435,12 +425,18 @@ def _add_metadata_files(
         selected_em = list(selected_em_ids) if selected_em_ids else []
 
         summary = build_metadata_summary(
-            metadata, equipment_library, selected_eq, selected_em, unit_mode
+            metadata,
+            equipment_library,
+            selected_eq,
+            selected_em,
+            unit_mode,
+            scale_info=scale_info,
+            base_load_info=base_load_info,
         )
-        zf.writestr("settings_summary.txt", summary)
+        zf.writestr(f"{prefix}settings_summary.txt", summary)
 
         bundle = build_settings_bundle(metadata, equipment_library, selected_eq, selected_em)
-        zf.writestr("settings.json", _json.dumps(bundle, indent=2, default=str))
+        zf.writestr(f"{prefix}settings.json", _json.dumps(bundle, indent=2, default=str))
     except Exception:
         # Never block the CSV download for a metadata-export failure, but do
         # log it - a silent `pass` here is what let a stale-field regression

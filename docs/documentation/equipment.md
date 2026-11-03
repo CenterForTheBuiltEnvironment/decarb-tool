@@ -129,8 +129,23 @@ This scenario group varies the WWHP and AWHP heating hot water supply temperatur
 
 This scenario group compares fully gas and fully electric heating plants with a partial AWHP scenario and a fuel switching scenario.
 
+### Equipment Manager
+
+The Equipment Manager, linked in the sidebar, lists all equipment with its data checks, performance curves and properties. Library equipment is never changed. To customise an item, select it and click **Duplicate to edit**. This creates a custom copy that you can then edit:
+
+- **Overview**: name, manufacturer, capacities, efficiency (backup heating and chillers), refrigerant, charge, weight, dimensions, electrical data and notes. Pick a refrigerant from the list to fill in its GWP (IPCC AR4, 100-year). For a refrigerant that is not listed, type its name and enter the GWP yourself.
+- **Performance** (heat pumps): edit any curve point in the table, add or remove curve points and supply temperatures, and change the outdoor air temperature limits of each curve. **Scale curves** multiplies all COP and/or capacity values of the selected mode by a percentage. The factors are relative to the unscaled curves, so applying 90 % twice still gives 90 %. While you edit, the original curves are shown in grey for comparison.
+
+Click **Save** to store the copy. Saving is blocked while the data checks report errors; warnings, such as a COP outside 1 to 8, are allowed. Custom equipment appears in the equipment selections of the scenario edit window, marked "custom". It is kept for the browser session, also when the equipment scenarios are reset, and is included in the settings file of the results download. A custom item cannot be deleted while a scenario uses it.
+
+**Import and export.** Custom equipment is only kept for the browser session. To keep it, click **Export custom**. This downloads all custom items as a JSON file (`decarb_custom_equipment_<date>.json`). Load the file again in a later session with **Import**. Import also accepts the settings file from a results download and takes the custom equipment out of it. When importing:
+
+- an item that matches one already in the tool is skipped;
+- a custom item with the same ID as one in the session replaces it;
+- an item with the ID of library equipment is imported as a new custom copy, so library equipment is never replaced;
+- items with data errors are not imported, and the message shows why.
+
 ### Future Development
 
-1. Allow users to edit the equipment library and add new equipment models.
-2. Display equipment sizing outputs, such as total capacity required, total number of units, and total refrigerant weight.
-3. Allow users to edit the HHWST reset bounds.
+1. Display equipment sizing outputs, such as total capacity required, total number of units, and total refrigerant weight.
+2. Allow users to edit the HHWST reset bounds.

@@ -45,3 +45,18 @@
     color: rgb(0, 0, 0) !important;
     border-radius: 0.5rem 0.5rem 0.5rem 0.5rem;
 }
+
+/* Equipment Manager curve tables: sentence-case headings instead of the theme's uppercase */
+.eqm-table th,
+.eqm-table .dash-header {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-weight: 600;
+    vertical-align: bottom;
+}
+
+.eqm-table .eqm-unit {
+    display: block;
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
+}

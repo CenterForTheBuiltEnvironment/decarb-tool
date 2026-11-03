@@ -45,6 +45,10 @@ TOOLTIPS = {
         "equipment_docs": "Click to access the documentation on equipment options and scenarios.",
         "equipment_input_docs": "Click to access the documentation on equipment inputs.",
     },
+    # --- Equipment Manager Page ---
+    "equipment_manager": {
+        "docs": "Click to access the documentation on equipment.",
+    },
     # --- Emissions Page ---
     "emissions": {
         "emissions_docs": "Click to access the documentation on emissions options and scenarios.",

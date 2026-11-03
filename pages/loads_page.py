@@ -30,7 +30,7 @@ from layout.output import (
 )
 from src import paths
 from src.config import LINKS, URLS
-from src.loads import STANDARD_COLUMNS, StandardLoad, get_load_data
+from src.loads import STANDARD_COLUMNS, StandardLoad, apply_load_modifications, get_load_data
 from src.metadata import LoadData, Metadata
 from utils.error_handling import create_success_notification
 from utils.logging_config import get_logger
@@ -477,6 +477,41 @@ def _build_summary_payload(load_obj: "StandardLoad") -> dict:
     return {"monthly_peaks": monthly_summary, "temp_bins": temp_summary}
 
 
+def _original_load_path(load_data_path) -> Path:
+    """Path of the unmodified copy of a session load parquet."""
+    path = Path(load_data_path)
+    return path.with_name(f"{path.stem}_original{path.suffix}")
+
+
+def _read_original_load(load_data_path, scale_info=None, base_load_info=None) -> StandardLoad:
+    """Read the unmodified session load.
+
+    Sessions started before the original copy existed fall back to the current file,
+    which is only safe while no scaling or base load has been applied to it.
+    """
+    original_path = _original_load_path(load_data_path)
+    if not original_path.exists():
+        if scale_info or base_load_info:
+            raise FileNotFoundError(f"Original load data not found: {original_path}")
+        StandardLoad.from_parquet(load_data_path).to_parquet(original_path)
+    return StandardLoad.from_parquet(original_path)
+
+
+def _rebuild_session_load(load_data_path, scale_info, base_load_info) -> StandardLoad:
+    """Rebuild the session load from the original: scale first, then base load."""
+    original = _read_original_load(load_data_path, scale_info, base_load_info)
+    scale_info = scale_info or {}
+    modified_df = apply_load_modifications(
+        original.df,
+        heating_factor=scale_info.get("heating_factor", 1.0),
+        cooling_factor=scale_info.get("cooling_factor", 1.0),
+        base_load=base_load_info,
+    )
+    modified_load = StandardLoad(modified_df.reset_index())
+    modified_load.to_parquet(load_data_path)
+    return modified_load
+
+
 @callback(
     [
         Output("selected-building-store", "data"),
@@ -610,8 +645,9 @@ def confirm_selection(n_clicks, current_choice, metadata_data, session_data):
         fname = f"load_data_building_{metadata.building_id}_{metadata.load_data.load_type}.parquet"
         path = folder / fname
 
-        # 4) save as parquet
+        # 4) save as parquet, plus an untouched copy that scaling/base load rebuild from
         load_obj.to_parquet(path)
+        load_obj.to_parquet(_original_load_path(path))
 
         # 5) store path as string
         load_data_path = str(path)
@@ -1600,6 +1636,141 @@ def update_load_visualization(summary_data, pathname, unit_mode):
 # Scale loads feature
 # -------------------------------------------------------------------
 
+SCALE_METHOD_LABELS = {
+    "area": "building area",
+    "peak_heating": "peak heating load",
+    "peak_cooling": "peak cooling load",
+}
+
+
+def _scale_references(metadata, load_data_path, scale_info, base_load_info) -> dict:
+    """Original (unscaled) area and peak loads that scale factors are computed against."""
+    stats = _read_original_load(load_data_path, scale_info, base_load_info).compute_load_stats()
+    return {
+        "area_sqm": scale_info["orig_area_sqm"] if scale_info else metadata.area_sqm,
+        "hhw_max_W": stats["hhw_max_load"],
+        "chw_max_W": stats["chw_max_load"],
+    }
+
+
+def _compute_scale_info(method, target_value, unit_mode, refs, prev_scale_info) -> dict:
+    """Build the new scale-info-store payload for a scaling request.
+
+    Area scales heating and cooling; a peak method only sets the factor of its own load
+    type and keeps the other factor from the previous scaling. Factors are always relative
+    to the original data, so applying the same target twice does not compound.
+    Raises ValueError if the scale factor cannot be computed.
+    """
+    from utils.units import BTUh_to_W, sqft_to_sqm, ton_to_W
+
+    prev = prev_scale_info or {}
+    scale_info = {
+        "method": SCALE_METHOD_LABELS[method],
+        "heating_factor": prev.get("heating_factor", 1.0),
+        "cooling_factor": prev.get("cooling_factor", 1.0),
+        "orig_area_sqm": refs["area_sqm"],
+        "target_area_sqm": prev.get("target_area_sqm"),
+    }
+
+    if method == "area":
+        ref_si = refs["area_sqm"]
+        target_si = sqft_to_sqm(target_value) if unit_mode == "IP" else target_value
+    elif method == "peak_heating":
+        ref_si = refs["hhw_max_W"]
+        target_si = target_value * BTUh_to_W if unit_mode == "IP" else target_value * 1000
+    else:  # peak_cooling
+        ref_si = refs["chw_max_W"]
+        target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
+
+    if not ref_si or ref_si <= 0:
+        raise ValueError(f"Reference value for '{method}' not available in library data.")
+
+    scale_factor = target_si / ref_si
+    if scale_factor <= 0:
+        raise ValueError("Scale factor must be positive.")
+
+    if method == "area":
+        scale_info["heating_factor"] = scale_factor
+        scale_info["cooling_factor"] = scale_factor
+        scale_info["target_area_sqm"] = target_si
+    elif method == "peak_heating":
+        scale_info["heating_factor"] = scale_factor
+    else:
+        scale_info["cooling_factor"] = scale_factor
+
+    return scale_info
+
+
+def _format_scale_value(kind, value, unit_mode):
+    """Format an area (m²) or peak load (W) for the scale comparison table."""
+    from utils.units import W_to_BTUh, W_to_kW, W_to_tons, sqm_to_sqft
+
+    if value is None:
+        return "—"
+    if kind == "area":
+        if unit_mode == "IP":
+            return f"{sqm_to_sqft(value):,.0f} ft²"
+        return f"{value:,.0f} m²"
+    if unit_mode == "IP":
+        if kind == "cooling":
+            return f"{W_to_tons(value):,.1f} TR"
+        return f"{value * W_to_BTUh:,.0f} BTU/h"
+    return f"{W_to_kW(value):,.1f} kW"
+
+
+def _comparison_table(headers, rows):
+    """Two-column before/after table for the scale and base load modals.
+
+    rows: (label, before_text, after_text, changed); changed cells are emphasised.
+    """
+
+    def _after_cell(text, changed):
+        # Only pass emphasis props when needed: dmc fails on c=None / fw=None
+        emphasis = {"fw": 600, "c": "blue"} if changed else {}
+        return dmc.TableTd(dmc.Text(text, size="sm", **emphasis))
+
+    return dmc.Table(
+        [
+            dmc.TableThead(dmc.TableTr([dmc.TableTh("")] + [dmc.TableTh(h) for h in headers])),
+            dmc.TableTbody(
+                [
+                    dmc.TableTr(
+                        [
+                            dmc.TableTd(label),
+                            dmc.TableTd(before),
+                            _after_cell(after, changed),
+                        ]
+                    )
+                    for label, before, after, changed in rows
+                ]
+            ),
+        ],
+        fz="sm",
+        withTableBorder=True,
+    )
+
+
+def _commit_load_modifications(
+    metadata_data, load_data_path, scale_info, base_load_info, orig_area_sqm=None
+):
+    """Rebuild the session load and return (metadata dict, summary payload).
+
+    orig_area_sqm: library area to fall back to when scale_info has no target area;
+    None leaves the area unchanged.
+    """
+    metadata = Metadata(**metadata_data)
+    load = _rebuild_session_load(load_data_path, scale_info, base_load_info)
+
+    if orig_area_sqm is not None:
+        metadata.area_sqm = (scale_info or {}).get("target_area_sqm") or orig_area_sqm
+    metadata.load_data = LoadData.model_validate(
+        {**metadata.load_data.model_dump(), **load.compute_load_stats()}
+    )
+    # Without any modification the session file equals the library data again
+    metadata.session_load_path = load_data_path if (scale_info or base_load_info) else None
+
+    return metadata.model_dump(), _build_summary_payload(load)
+
 
 @callback(
     Output("open-scale-load-modal", "disabled"),
@@ -1625,73 +1796,133 @@ def update_scale_btn_state(metadata_data, scale_info):
 
 
 @callback(
-    Output("scale-load-modal", "opened", allow_duplicate=True),
-    Output("scale-reference-info", "children"),
-    Input("open-scale-load-modal", "n_clicks"),
-    Input("scale-cancel-btn", "n_clicks"),
-    State("metadata-store", "data"),
-    State("unit-toggle", "value"),
-    prevent_initial_call=True,
+    Output("scale-reset-btn", "disabled"),
+    Input("scale-draft-store", "data"),
 )
-def toggle_scale_modal(open_clicks, cancel_clicks, metadata_data, unit_mode):
-    """Open or close the scale load modal."""
-    from utils.units import W_to_BTUh, W_to_kW, W_to_tons, sqm_to_sqft
-
-    if ctx.triggered_id == "scale-cancel-btn":
-        return False, no_update
-
-    if not metadata_data:
-        return False, no_update
-
-    unit_mode = unit_mode or "SI"
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
-
-    def _fmt(val, decimals=1):
-        return f"{val:,.{decimals}f}" if val is not None else "—"
-
-    if unit_mode == "IP":
-        area_val = sqm_to_sqft(metadata.area_sqm) if metadata.area_sqm else None
-        area_unit = "ft²"
-        hhw_val = ld.hhw_max_load * W_to_BTUh if ld.hhw_max_load is not None else None
-        hhw_unit = "BTU/h"
-        chw_val = W_to_tons(ld.chw_max_load) if ld.chw_max_load is not None else None
-        chw_unit = "TR"
-    else:
-        area_val = metadata.area_sqm
-        area_unit = "m²"
-        hhw_val = W_to_kW(ld.hhw_max_load) if ld.hhw_max_load is not None else None
-        hhw_unit = "kW"
-        chw_val = W_to_kW(ld.chw_max_load) if ld.chw_max_load is not None else None
-        chw_unit = "kW"
-
-    ref_info = dmc.Stack(
-        gap=4,
-        children=[
-            dmc.Text("Library building reference values:", size="sm", fw=600),
-            dmc.Text(f"Area: {_fmt(area_val, 0)} {area_unit}", size="sm"),
-            dmc.Text(f"Peak heating: {_fmt(hhw_val)} {hhw_unit}", size="sm"),
-            dmc.Text(f"Peak cooling: {_fmt(chw_val)} {chw_unit}", size="sm"),
-        ],
-    )
-
-    return True, ref_info
+def update_scale_reset_btn(draft):
+    """Reset is only useful while the draft holds a scaling."""
+    return not draft
 
 
 @callback(
-    Output("scale-preview-text", "children"),
-    Output("scale-target-label", "children"),
-    Output("scale-error-text", "children"),
-    Input("scale-method-select", "value"),
-    Input("scale-target-value", "value"),
+    Output("scale-load-modal", "opened", allow_duplicate=True),
+    Output("scale-draft-store", "data", allow_duplicate=True),
+    Input("open-scale-load-modal", "n_clicks"),
+    Input("scale-cancel-btn", "n_clicks"),
     State("metadata-store", "data"),
-    State("unit-toggle", "value"),
+    State("scale-info-store", "data"),
     prevent_initial_call=True,
 )
-def update_scale_preview(method, target_value, metadata_data, unit_mode):
-    """Update the input label and live scale-factor preview."""
-    from utils.units import BTUh_to_W, ton_to_W
+def toggle_scale_modal(open_clicks, cancel_clicks, metadata_data, scale_info):
+    """Open the scale modal with a draft of the committed scaling, or close it (Cancel)."""
+    if ctx.triggered_id == "scale-cancel-btn" or not metadata_data:
+        return False, no_update
+    return True, scale_info
 
+
+@callback(
+    Output("scale-reference-info", "children"),
+    Input("scale-load-modal", "opened"),
+    Input("scale-draft-store", "data"),
+    Input("unit-toggle", "value"),
+    State("metadata-store", "data"),
+    State("load-data-path-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
+)
+def render_scale_comparison(
+    opened, draft, unit_mode, metadata_data, load_data_path, scale_info, base_load_info
+):
+    """Show original library values next to the scaled values of the draft."""
+    if not opened or not metadata_data or not load_data_path:
+        return no_update
+
+    unit_mode = unit_mode or "SI"
+    metadata = Metadata(**metadata_data)
+
+    try:
+        refs = _scale_references(metadata, load_data_path, scale_info, base_load_info)
+    except Exception as e:
+        logger.error(f"Could not read original load data: {e}")
+        return dmc.Text("Original load data not available.", c="red", size="sm")
+
+    originals = {
+        "area": refs["area_sqm"],
+        "heating": refs["hhw_max_W"],
+        "cooling": refs["chw_max_W"],
+    }
+    if draft:
+        target_area = draft.get("target_area_sqm")
+        # Unchanged values are carried over so both columns are always complete
+        scaled = {
+            "area": target_area if target_area is not None else refs["area_sqm"],
+            "heating": refs["hhw_max_W"] * draft["heating_factor"],
+            "cooling": refs["chw_max_W"] * draft["cooling_factor"],
+        }
+        changed = {
+            "area": target_area is not None,
+            "heating": draft["heating_factor"] != 1.0,
+            "cooling": draft["cooling_factor"] != 1.0,
+        }
+    else:
+        scaled = {"area": None, "heating": None, "cooling": None}
+        changed = {"area": False, "heating": False, "cooling": False}
+
+    labels = {"area": "Area", "heating": "Peak heating", "cooling": "Peak cooling"}
+    rows = [
+        (
+            label,
+            _format_scale_value(kind, originals[kind], unit_mode),
+            _format_scale_value(kind, scaled[kind], unit_mode),
+            changed[kind],
+        )
+        for kind, label in labels.items()
+    ]
+    return _comparison_table(["Library (original)", "Scaled"], rows)
+
+
+def _scale_summary(scale_info):
+    """Short description of a scaling for the modal status line."""
+    if not scale_info:
+        return "No scaling applied"
+    return (
+        f"Heating {scale_info['heating_factor']:.3f}x, cooling {scale_info['cooling_factor']:.3f}x"
+    )
+
+
+@callback(
+    Output("scale-target-label", "children"),
+    Output("scale-preview-text", "children"),
+    Output("scale-preview-text", "c"),
+    Output("scale-confirm-btn", "disabled"),
+    Input("scale-load-modal", "opened"),
+    Input("scale-method-select", "value"),
+    Input("scale-target-value", "value"),
+    Input("scale-draft-store", "data"),
+    Input("unit-toggle", "value"),
+    State("metadata-store", "data"),
+    State("load-data-path-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
+    prevent_initial_call=True,
+)
+def update_scale_status(
+    opened,
+    method,
+    target_value,
+    draft,
+    unit_mode,
+    metadata_data,
+    load_data_path,
+    scale_info,
+    base_load_info,
+):
+    """Input label, status line, and Confirm state of the scale modal.
+
+    The status line is always filled (layout stays put): grey for the scaling in the table,
+    blue for an entered value that still needs Apply, red for invalid input. Confirm is
+    disabled while an entered value is not applied yet or when there is nothing to confirm.
+    """
     unit_mode = unit_mode or "SI"
 
     labels = {
@@ -1700,176 +1931,178 @@ def update_scale_preview(method, target_value, metadata_data, unit_mode):
         "peak_cooling": f"Your peak cooling load [{'TR' if unit_mode == 'IP' else 'kW'}]",
     }
     label = labels.get(method, "Enter value")
+    nothing_to_confirm = draft == scale_info
+
+    def _status():
+        summary = _scale_summary(draft)
+        if nothing_to_confirm:
+            return summary
+        return f"{summary} in the table — click Confirm to use it in the calculation"
+
+    if target_value in (None, ""):
+        return label, _status(), "dimmed", nothing_to_confirm
 
     try:
         target_value = float(target_value)
-    except (TypeError, ValueError):
-        return "", label, ""
-
-    if not metadata_data or target_value <= 0:
-        return "", label, ""
-
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
-
-    try:
-        if method == "area":
-            ref_si = metadata.area_sqm
-            target_si = target_value / 10.7639 if unit_mode == "IP" else target_value
-        elif method == "peak_heating":
-            ref_si = ld.hhw_max_load
-            target_si = target_value * BTUh_to_W if unit_mode == "IP" else target_value * 1000
-        else:  # peak_cooling
-            ref_si = ld.chw_max_load
-            target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
-
-        if not ref_si or ref_si <= 0:
-            return (
-                "",
-                label,
-                f"Reference value for '{method}' not available in library data.",
-            )
-
-        scale_factor = target_si / ref_si
-        if scale_factor <= 0:
-            return "", label, "Scale factor must be positive."
-
-        return f"Scale factor: {scale_factor:.3f}x", label, ""
-
+        if target_value <= 0:
+            raise ValueError("Value must be greater than 0.")
+        refs = _scale_references(
+            Metadata(**metadata_data), load_data_path, scale_info, base_load_info
+        )
+        new_info = _compute_scale_info(method, target_value, unit_mode, refs, draft)
     except Exception as e:
-        return "", label, str(e)
+        return label, str(e), "red", True
+
+    if new_info == draft:
+        # Entered value is already in the table
+        return label, _status(), "dimmed", nothing_to_confirm
+
+    if method == "area":
+        preview = f"Scale factor: {new_info['heating_factor']:.3f}x (heating and cooling)"
+    elif method == "peak_heating":
+        preview = f"Heating scale factor: {new_info['heating_factor']:.3f}x (cooling unchanged)"
+    else:
+        preview = f"Cooling scale factor: {new_info['cooling_factor']:.3f}x (heating unchanged)"
+
+    return label, f"{preview} — click Apply to add it to the table", "blue", True
 
 
 @callback(
-    Output("metadata-store", "data", allow_duplicate=True),
-    Output("load-summary-store", "data", allow_duplicate=True),
-    Output("scale-load-modal", "opened", allow_duplicate=True),
-    Output("scale-info-store", "data"),
-    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Output("scale-draft-store", "data", allow_duplicate=True),
     Input("scale-apply-btn", "n_clicks"),
     State("scale-method-select", "value"),
     State("scale-target-value", "value"),
     State("metadata-store", "data"),
     State("load-data-path-store", "data"),
     State("unit-toggle", "value"),
+    State("scale-draft-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
     prevent_initial_call=True,
 )
-def apply_scale(n_clicks, method, target_value, metadata_data, load_data_path, unit_mode):
-    """Apply load scaling: multiply every hourly heating_W and cooling_W by scale_factor."""
-    from utils.units import BTUh_to_W, W_to_BTUh, W_to_kW, W_to_tons, ton_to_W
+def apply_scale(
+    n_clicks,
+    method,
+    target_value,
+    metadata_data,
+    load_data_path,
+    unit_mode,
+    draft,
+    scale_info,
+    base_load_info,
+):
+    """Add a scaling to the draft (table only); Confirm commits it to the load data.
 
-    no_change = (no_update, no_update, no_update, no_update, no_update)
-
-    if not n_clicks:
+    Area scales heating and cooling, a peak method only its own load, so heating and
+    cooling can be matched one after the other before confirming.
+    """
+    if not n_clicks or not metadata_data or not load_data_path:
         raise dash.exceptions.PreventUpdate
-
-    unit_mode = unit_mode or "SI"
-
-    if not metadata_data or not load_data_path:
-        return no_change
 
     try:
         target_value = float(target_value)
     except (TypeError, ValueError):
-        return no_change
+        raise dash.exceptions.PreventUpdate from None
 
     if target_value <= 0:
-        return no_change
+        raise dash.exceptions.PreventUpdate
 
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
-
-    # Compute scale factor
     try:
-        if method == "area":
-            ref_si = metadata.area_sqm
-            target_si = target_value / 10.7639 if unit_mode == "IP" else target_value
-            method_label = "building area"
-        elif method == "peak_heating":
-            ref_si = ld.hhw_max_load
-            target_si = target_value * BTUh_to_W if unit_mode == "IP" else target_value * 1000
-            method_label = "peak heating load"
-        else:  # peak_cooling
-            ref_si = ld.chw_max_load
-            target_si = target_value * ton_to_W if unit_mode == "IP" else target_value * 1000
-            method_label = "peak cooling load"
-
-        if not ref_si or ref_si <= 0:
-            return no_change
-
-        scale_factor = target_si / ref_si
-        if scale_factor <= 0:
-            return no_change
-
+        refs = _scale_references(
+            Metadata(**metadata_data), load_data_path, scale_info, base_load_info
+        )
+        # Errors are already shown by update_scale_status
+        return _compute_scale_info(method, target_value, unit_mode or "SI", refs, draft)
     except Exception as e:
-        logger.error(f"Scale factor computation failed: {e}")
-        return no_change
+        logger.error(f"Error computing load scaling: {e}")
+        raise dash.exceptions.PreventUpdate from None
 
-    # Load, scale, and save parquet
+
+@callback(
+    Output("scale-draft-store", "data", allow_duplicate=True),
+    Input("scale-reset-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def reset_scale(n_clicks):
+    """Clear the draft scaling; Confirm restores the original library load."""
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+    return None
+
+
+@callback(
+    Output("metadata-store", "data", allow_duplicate=True),
+    Output("load-summary-store", "data", allow_duplicate=True),
+    Output("scale-load-modal", "opened", allow_duplicate=True),
+    Output("scale-info-store", "data", allow_duplicate=True),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    Input("scale-confirm-btn", "n_clicks"),
+    State("scale-draft-store", "data"),
+    State("metadata-store", "data"),
+    State("load-data-path-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
+    prevent_initial_call=True,
+)
+def confirm_scale(n_clicks, draft, metadata_data, load_data_path, scale_info, base_load_info):
+    """Commit the draft scaling to the session load data and close the modal."""
+    if not n_clicks or not metadata_data or not load_data_path:
+        raise dash.exceptions.PreventUpdate
+
+    if draft == scale_info:
+        return no_update, no_update, False, no_update, no_update
+
+    orig_area_sqm = (scale_info or {}).get("orig_area_sqm") or Metadata(**metadata_data).area_sqm
     try:
-        load_obj = StandardLoad.from_parquet(load_data_path)
-
-        orig_hhw_max = float(load_obj.df["heating_W"].max())
-        orig_chw_max = float(load_obj.df["cooling_W"].max())
-
-        scaled_df = load_obj.df.copy()
-        scaled_df["heating_W"] = scaled_df["heating_W"] * scale_factor
-        scaled_df["cooling_W"] = scaled_df["cooling_W"] * scale_factor
-        scaled_load = StandardLoad(scaled_df.reset_index())
-        scaled_load.to_parquet(load_data_path)
-
+        metadata_out, summary_payload = _commit_load_modifications(
+            metadata_data, load_data_path, draft, base_load_info, orig_area_sqm
+        )
     except Exception as e:
         logger.error(f"Error scaling load data: {e}")
-        return no_change
+        return no_update, no_update, no_update, no_update, no_update
 
-    # Recompute stats and update metadata
-    new_stats = scaled_load.compute_load_stats()
-    if method == "area":
-        metadata.area_sqm = target_si
-    metadata.load_data = LoadData.model_validate({**ld.model_dump(), **new_stats})
-    metadata.session_load_path = load_data_path
+    if draft:
+        message = f"Heating {draft['heating_factor']:.3f}x, cooling {draft['cooling_factor']:.3f}x"
+        notification = create_success_notification(
+            "Load scaled", message, notification_id="scale-load-notification"
+        )
+        logger.info(f"Applied load scaling ({message}) to {load_data_path}")
+    else:
+        notification = create_success_notification(
+            "Scaling reset",
+            "Load profile restored to the original library values",
+            notification_id="scale-load-notification",
+        )
+        logger.info(f"Reset load scaling for {load_data_path}")
 
-    # Rebuild summary payload for charts
-    summary_payload = _build_summary_payload(scaled_load)
-
-    # Build confirmation alert
-    def _display_power(w_val):
-        if w_val is None:
-            return "—"
-        if unit_mode == "IP":
-            if method == "peak_cooling":
-                return f"{W_to_tons(w_val):.1f} TR"
-            return f"{w_val * W_to_BTUh:,.0f} BTU/h"
-        return f"{W_to_kW(w_val):.1f} kW"
-
-    new_hhw = new_stats["hhw_max_load"]
-    new_chw = new_stats["chw_max_load"]
-
-    scale_info = {
-        "method": method_label,
-        "scale_factor": round(scale_factor, 6),
-        "orig_hhw_max_W": orig_hhw_max,
-        "orig_chw_max_W": orig_chw_max,
-        "new_hhw_max_W": new_hhw,
-        "new_chw_max_W": new_chw,
-    }
-
-    notification = create_success_notification(
-        "Load scaled",
-        f"Scale factor {scale_factor:.3f}x (based on {method_label})",
-        notification_id="scale-load-notification",
-    )
-
-    logger.info(
-        f"Applied load scale factor {scale_factor:.4f} (method={method_label}) to {load_data_path}"
-    )
-
-    return metadata.model_dump(), summary_payload, False, scale_info, [notification]
+    return metadata_out, summary_payload, False, draft, [notification]
 
 
 # -------------------------------------------------------------------
 # Base Load callbacks
 # -------------------------------------------------------------------
+
+
+def _compute_base_load_info(method, apply_to, value, unit_mode, prev_base_load_info) -> dict:
+    """Build the new base-load-info-store payload: one base load per load type.
+
+    Applying to heating or cooling keeps the other load type's base load from before.
+    """
+    from utils.units import BTUh_to_W
+
+    value_W = value * BTUh_to_W if unit_mode == "IP" else value * 1000
+    entry = {
+        "method": "floor" if method == "floor" else "offset",
+        "value_W": value_W,
+        "value_display": f"{value:,.0f} BTU/h" if unit_mode == "IP" else f"{value:.1f} kW",
+    }
+
+    prev = prev_base_load_info or {}
+    info = {"heating": prev.get("heating"), "cooling": prev.get("cooling")}
+    for load_type in ("heating", "cooling"):
+        if apply_to in (load_type, "both"):
+            info[load_type] = entry
+    return info
 
 
 @callback(
@@ -1896,70 +2129,120 @@ def update_base_load_btn_state(metadata_data, base_load_info):
 
 
 @callback(
-    Output("base-load-modal", "opened", allow_duplicate=True),
-    Output("base-load-current-values", "children"),
-    Input("open-base-load-modal", "n_clicks"),
-    Input("base-load-cancel-btn", "n_clicks"),
-    State("metadata-store", "data"),
-    State("unit-toggle", "value"),
-    prevent_initial_call=True,
+    Output("base-load-reset-btn", "disabled"),
+    Input("base-load-draft-store", "data"),
 )
-def toggle_base_load_modal(open_clicks, cancel_clicks, metadata_data, unit_mode):
-    """Open or close the base load modal, showing current peak values for reference."""
-    from utils.units import W_to_BTUh, W_to_kW, W_to_tons
-
-    if ctx.triggered_id == "base-load-cancel-btn":
-        return False, no_update
-
-    if not metadata_data:
-        return False, no_update
-
-    unit_mode = unit_mode or "SI"
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
-
-    def _fmt(val, decimals=1):
-        return f"{val:,.{decimals}f}" if val is not None else "—"
-
-    if unit_mode == "IP":
-        hhw_val = ld.hhw_max_load * W_to_BTUh if ld.hhw_max_load is not None else None
-        hhw_unit = "BTU/h"
-        chw_val = W_to_tons(ld.chw_max_load) if ld.chw_max_load is not None else None
-        chw_unit = "TR"
-    else:
-        hhw_val = W_to_kW(ld.hhw_max_load) if ld.hhw_max_load is not None else None
-        hhw_unit = "kW"
-        chw_val = W_to_kW(ld.chw_max_load) if ld.chw_max_load is not None else None
-        chw_unit = "kW"
-
-    current_values = dmc.Stack(
-        gap=4,
-        children=[
-            dmc.Text("Current peak loads:", size="sm", fw=600),
-            dmc.Text(f"Peak heating: {_fmt(hhw_val)} {hhw_unit}", size="sm"),
-            dmc.Text(f"Peak cooling: {_fmt(chw_val)} {chw_unit}", size="sm"),
-        ],
-    )
-
-    return True, current_values
+def update_base_load_reset_btn(draft):
+    """Reset is only useful while the draft holds a base load."""
+    return not draft
 
 
 @callback(
-    Output("base-load-preview-text", "children"),
+    Output("base-load-modal", "opened", allow_duplicate=True),
+    Output("base-load-draft-store", "data", allow_duplicate=True),
+    Input("open-base-load-modal", "n_clicks"),
+    Input("base-load-cancel-btn", "n_clicks"),
+    State("metadata-store", "data"),
+    State("base-load-info-store", "data"),
+    prevent_initial_call=True,
+)
+def toggle_base_load_modal(open_clicks, cancel_clicks, metadata_data, base_load_info):
+    """Open the base load modal with a draft of the committed base load, or close it (Cancel)."""
+    if ctx.triggered_id == "base-load-cancel-btn" or not metadata_data:
+        return False, no_update
+    return True, base_load_info
+
+
+@callback(
+    Output("base-load-current-values", "children"),
+    Input("base-load-modal", "opened"),
+    Input("base-load-draft-store", "data"),
+    Input("unit-toggle", "value"),
+    State("load-data-path-store", "data"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
+)
+def render_base_load_comparison(
+    opened, draft, unit_mode, load_data_path, scale_info, base_load_info
+):
+    """Show peak loads without and with the draft base load (scaling included in both)."""
+    if not opened or not load_data_path:
+        return no_update
+
+    unit_mode = unit_mode or "SI"
+    factors = {
+        "heating_factor": (scale_info or {}).get("heating_factor", 1.0),
+        "cooling_factor": (scale_info or {}).get("cooling_factor", 1.0),
+    }
+
+    try:
+        original_df = _read_original_load(load_data_path, scale_info, base_load_info).df
+    except Exception as e:
+        logger.error(f"Could not read original load data: {e}")
+        return dmc.Text("Original load data not available.", c="red", size="sm")
+
+    without_df = apply_load_modifications(original_df, **factors)
+    with_df = apply_load_modifications(original_df, **factors, base_load=draft) if draft else None
+
+    rows = []
+    for load_type, col, label in (
+        ("heating", "heating_W", "heating"),
+        ("cooling", "cooling_W", "cooling"),
+    ):
+        mod = (draft or {}).get(load_type)
+        if draft:
+            setting = f"{mod['method'].capitalize()} {mod['value_display']}" if mod else "None"
+            peak_after = _format_scale_value(load_type, float(with_df[col].max()), unit_mode)
+        else:
+            setting = peak_after = "—"
+        rows.append((f"{label.capitalize()} base load", "—", setting, bool(mod)))
+        rows.append(
+            (
+                f"Peak {label}",
+                _format_scale_value(load_type, float(without_df[col].max()), unit_mode),
+                peak_after,
+                bool(mod),
+            )
+        )
+
+    return _comparison_table(["Without base load", "With base load"], rows)
+
+
+def _base_load_summary(base_load_info):
+    """Short description of the base loads for the modal status line."""
+    if not base_load_info or not any(base_load_info.values()):
+        return "No base load applied"
+    parts = [
+        f"{load_type.capitalize()} {mod['method']} of {mod['value_display']}"
+        if mod
+        else f"No {load_type} base load"
+        for load_type, mod in base_load_info.items()
+    ]
+    return ", ".join(parts)
+
+
+@callback(
     Output("base-load-value-label", "children"),
-    Output("base-load-error-text", "children"),
     Output("base-load-method-desc", "children"),
+    Output("base-load-preview-text", "children"),
+    Output("base-load-preview-text", "c"),
+    Output("base-load-confirm-btn", "disabled"),
+    Input("base-load-modal", "opened"),
     Input("base-load-method-select", "value"),
     Input("base-load-apply-select", "value"),
     Input("base-load-value", "value"),
-    State("metadata-store", "data"),
-    State("unit-toggle", "value"),
+    Input("base-load-draft-store", "data"),
+    Input("unit-toggle", "value"),
+    State("base-load-info-store", "data"),
     prevent_initial_call=True,
 )
-def update_base_load_preview(method, apply_to, value, metadata_data, unit_mode):
-    """Update label, method description, and live preview text."""
-    from utils.units import BTUh_to_W, W_to_BTUh, W_to_kW
+def update_base_load_status(opened, method, apply_to, value, draft, unit_mode, base_load_info):
+    """Value label, method description, status line, and Confirm state of the base load modal.
 
+    Same rules as the scale modal: grey for the base load in the table, blue for an entered
+    value that still needs Apply, red for invalid input; Confirm is disabled while an entered
+    value is not applied yet or when there is nothing to confirm.
+    """
     unit_mode = unit_mode or "SI"
     power_unit = "BTU/h" if unit_mode == "IP" else "kW"
 
@@ -1981,156 +2264,131 @@ def update_base_load_preview(method, apply_to, value, metadata_data, unit_mode):
         "both": f"Base load [{power_unit}] (applied to heating and cooling)",
     }
     label = apply_labels.get(apply_to, f"Value [{power_unit}]")
+    nothing_to_confirm = draft == base_load_info
+
+    def _status():
+        summary = _base_load_summary(draft)
+        if nothing_to_confirm:
+            return summary
+        return f"{summary} in the table — click Confirm to use it in the calculation"
+
+    if value in (None, ""):
+        return label, method_desc, _status(), "dimmed", nothing_to_confirm
 
     try:
         value = float(value)
     except (TypeError, ValueError):
-        return "", label, "", method_desc
+        return label, method_desc, "Enter a number.", "red", True
+    if value <= 0:
+        return label, method_desc, "Base load must be greater than 0.", "red", True
 
-    if not metadata_data or value <= 0:
-        return "", label, "", method_desc
+    new_info = _compute_base_load_info(method, apply_to, value, unit_mode, draft)
+    if new_info == draft:
+        # Entered value is already in the table
+        return label, method_desc, _status(), "dimmed", nothing_to_confirm
 
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
+    target = {"heating": "heating", "cooling": "cooling", "both": "heating and cooling"}[apply_to]
+    entry = new_info["cooling" if apply_to == "cooling" else "heating"]
+    preview = f"{entry['method'].capitalize()} of {entry['value_display']} for {target}"
+    return (
+        label,
+        method_desc,
+        f"{preview} — click Apply to add it to the table",
+        "blue",
+        True,
+    )
 
-    # Convert input to Watts
-    value_W = value * BTUh_to_W if unit_mode == "IP" else value * 1000
 
-    def _peak_display(w_val):
-        if w_val is None:
-            return "—"
-        if unit_mode == "IP":
-            return f"{w_val * W_to_BTUh:,.0f} BTU/h"
-        return f"{W_to_kW(w_val):.1f} kW"
+@callback(
+    Output("base-load-draft-store", "data", allow_duplicate=True),
+    Input("base-load-apply-btn", "n_clicks"),
+    State("base-load-method-select", "value"),
+    State("base-load-apply-select", "value"),
+    State("base-load-value", "value"),
+    State("unit-toggle", "value"),
+    State("base-load-draft-store", "data"),
+    prevent_initial_call=True,
+)
+def apply_base_load(n_clicks, method, apply_to, value, unit_mode, draft):
+    """Add a floor or offset for heating and/or cooling to the draft (table only).
 
-    lines = []
-    applies_to_heating = apply_to in ("heating", "both")
-    applies_to_cooling = apply_to in ("cooling", "both")
+    Confirm commits it; the load is then rebuilt from the original data with the current
+    scaling applied first.
+    """
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
 
-    if method == "floor":
-        if applies_to_heating and ld.hhw_max_load is not None:
-            if value_W > ld.hhw_max_load:
-                lines.append(
-                    f"Heating: floor ({_peak_display(value_W)}) exceeds current peak — all hours will be set to floor"
-                )
-            else:
-                lines.append(f"Heating peak unchanged at {_peak_display(ld.hhw_max_load)}")
-        if applies_to_cooling and ld.chw_max_load is not None:
-            if value_W > ld.chw_max_load:
-                lines.append(
-                    f"Cooling: floor ({_peak_display(value_W)}) exceeds current peak — all hours will be set to floor"
-                )
-            else:
-                lines.append(f"Cooling peak unchanged at {_peak_display(ld.chw_max_load)}")
-    else:  # offset
-        if applies_to_heating and ld.hhw_max_load is not None:
-            new_hhw = ld.hhw_max_load + value_W
-            lines.append(f"New peak heating: {_peak_display(new_hhw)} (+{_peak_display(value_W)})")
-        if applies_to_cooling and ld.chw_max_load is not None:
-            new_chw = ld.chw_max_load + value_W
-            lines.append(f"New peak cooling: {_peak_display(new_chw)} (+{_peak_display(value_W)})")
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise dash.exceptions.PreventUpdate from None
 
-    preview = " · ".join(lines) if lines else ""
-    return preview, label, "", method_desc
+    if value <= 0:
+        raise dash.exceptions.PreventUpdate
+
+    return _compute_base_load_info(method, apply_to, value, unit_mode or "SI", draft)
+
+
+@callback(
+    Output("base-load-draft-store", "data", allow_duplicate=True),
+    Input("base-load-reset-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def reset_base_load(n_clicks):
+    """Clear the draft base load; Confirm removes it from the load data."""
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+    return None
 
 
 @callback(
     Output("metadata-store", "data", allow_duplicate=True),
     Output("load-summary-store", "data", allow_duplicate=True),
     Output("base-load-modal", "opened", allow_duplicate=True),
-    Output("base-load-info-store", "data"),
+    Output("base-load-info-store", "data", allow_duplicate=True),
     Output("notification-container", "sendNotifications", allow_duplicate=True),
-    Input("base-load-apply-btn", "n_clicks"),
-    State("base-load-method-select", "value"),
-    State("base-load-apply-select", "value"),
-    State("base-load-value", "value"),
+    Input("base-load-confirm-btn", "n_clicks"),
+    State("base-load-draft-store", "data"),
     State("metadata-store", "data"),
     State("load-data-path-store", "data"),
-    State("unit-toggle", "value"),
+    State("scale-info-store", "data"),
+    State("base-load-info-store", "data"),
     prevent_initial_call=True,
 )
-def apply_base_load(n_clicks, method, apply_to, value, metadata_data, load_data_path, unit_mode):
-    """Apply base load modification: floor or offset on heating and/or cooling loads."""
-    from utils.units import BTUh_to_W
-
-    no_change = (no_update, no_update, no_update, no_update, no_update)
-
-    if not n_clicks:
+def confirm_base_load(n_clicks, draft, metadata_data, load_data_path, scale_info, base_load_info):
+    """Commit the draft base load to the session load data and close the modal."""
+    if not n_clicks or not metadata_data or not load_data_path:
         raise dash.exceptions.PreventUpdate
 
-    unit_mode = unit_mode or "SI"
-
-    if not metadata_data or not load_data_path:
-        return no_change
+    if draft == base_load_info:
+        return no_update, no_update, False, no_update, no_update
 
     try:
-        value = float(value)
-    except (TypeError, ValueError):
-        return no_change
-
-    if value <= 0:
-        return no_change
-
-    # Convert to Watts
-    value_W = value * BTUh_to_W if unit_mode == "IP" else value * 1000
-
-    applies_to_heating = apply_to in ("heating", "both")
-    applies_to_cooling = apply_to in ("cooling", "both")
-
-    try:
-        load_obj = StandardLoad.from_parquet(load_data_path)
-        modified_df = load_obj.df.copy()
-
-        if method == "floor":
-            if applies_to_heating:
-                modified_df["heating_W"] = modified_df["heating_W"].clip(lower=value_W)
-            if applies_to_cooling:
-                modified_df["cooling_W"] = modified_df["cooling_W"].clip(lower=value_W)
-        else:  # offset
-            if applies_to_heating:
-                modified_df["heating_W"] = modified_df["heating_W"] + value_W
-            if applies_to_cooling:
-                modified_df["cooling_W"] = modified_df["cooling_W"] + value_W
-
-        modified_load = StandardLoad(modified_df.reset_index())
-        modified_load.to_parquet(load_data_path)
-
+        metadata_out, summary_payload = _commit_load_modifications(
+            metadata_data, load_data_path, scale_info, draft
+        )
     except Exception as e:
         logger.error(f"Error applying base load modification: {e}")
-        return no_change
+        return no_update, no_update, no_update, no_update, no_update
 
-    # Recompute stats and update metadata
-    metadata = Metadata(**metadata_data)
-    ld = metadata.load_data
-    new_stats = modified_load.compute_load_stats()
-    metadata.load_data = LoadData.model_validate({**ld.model_dump(), **new_stats})
-    metadata.session_load_path = load_data_path
+    if draft:
+        parts = [
+            f"{load_type}: {mod['method']} of {mod['value_display']}"
+            for load_type, mod in draft.items()
+            if mod
+        ]
+        message = ", ".join(parts)
+        message = message[0].upper() + message[1:]
+        notification = create_success_notification(
+            "Base load applied", message, notification_id="base-load-notification"
+        )
+        logger.info(f"Applied base load ({message}) to {load_data_path}")
+    else:
+        notification = create_success_notification(
+            "Base load removed",
+            "Load profile restored to the values without base load",
+            notification_id="base-load-notification",
+        )
+        logger.info(f"Removed base load for {load_data_path}")
 
-    summary_payload = _build_summary_payload(modified_load)
-
-    apply_to_label = {
-        "heating": "heating",
-        "cooling": "cooling",
-        "both": "heating + cooling",
-    }[apply_to]
-    method_label = "floor" if method == "floor" else "offset"
-    value_display = f"{value:,.0f} BTU/h" if unit_mode == "IP" else f"{value:.1f} kW"
-
-    base_load_info = {
-        "method": method_label,
-        "apply_to": apply_to,
-        "value_W": value_W,
-        "value_display": value_display,
-    }
-
-    notification = create_success_notification(
-        "Base load applied",
-        f"{method_label.capitalize()} of {value_display} applied to {apply_to_label}",
-        notification_id="base-load-notification",
-    )
-
-    logger.info(
-        f"Applied base load {method_label} of {value_W:.1f} W to {apply_to} loads in {load_data_path}"
-    )
-
-    return metadata.model_dump(), summary_payload, False, base_load_info, [notification]
+    return metadata_out, summary_payload, False, draft, [notification]

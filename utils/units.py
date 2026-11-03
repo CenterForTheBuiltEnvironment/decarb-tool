@@ -327,15 +327,25 @@ COLUMN_CONFIG = {
     "hr_wwhp_refrigerant": (None, "HR-WWHP Refrigerant"),
     "awhp_refrigerant": (None, "AWHP Refrigerant"),
     # === Emission Scenario Parameters ===
-    "lrmer_co2e": (None, "LRMER CO₂e"),
-    "srmer_co2e": (None, "SRMER CO₂e"),
-    "aer_load_co2e": (None, "AER Load CO₂e"),
+    "lrmer_co2e": ("emissions_rate", "LRMER CO₂e"),
+    "srmer_co2e": ("emissions_rate", "SRMER CO₂e"),
+    "aer_load_co2e": ("emissions_rate", "AER Load CO₂e"),
     "shortrun_weighting": (None, "Short-run Weighting"),
     "year": (None, "Year"),
     # === Scenario Identifiers ===
     "em_scen_id": (None, "Emission Scenario ID"),
     "eq_scen_id": (None, "Equipment Scenario ID"),
     "eq_scen_name": (None, "Equipment Scenario"),
+    # === Results export only (src/export.py) ===
+    "eq_scen_slot": (None, "Equipment Scen. #"),
+    "em_scen_letter": (None, "Emission Scen."),
+    "em_scen_name": (None, "Emission Scenario"),
+    "em_year": (None, "Emission Year"),
+    "em_grid_scenario": (None, "Grid Scenario"),
+    "em_elec_source": (None, "Elec. Emission Source"),
+    "em_emission_type": (None, "Emission Type"),
+    "annual_heating_Wh": ("energy", "Annual Heating Load"),
+    "annual_cooling_Wh": ("energy", "Annual Cooling Load"),
 }
 
 
@@ -504,6 +514,17 @@ def get_display_unit(category: str, unit_mode: str) -> str:
         Unit string (e.g., "kWh", "BTU", "°F")
     """
     return UNIT_MAP[category][unit_mode]["unit"]
+
+
+def get_inverse_converter(category: str, unit_mode: str):
+    """Conversion function from the display unit back to the base unit (inverse of get_converter).
+
+    Temperature is the only affine conversion; every other category is a plain factor.
+    """
+    if category == "temperature":
+        return F_to_C if unit_mode == "IP" else (lambda x: x)
+    factor = get_converter(category, unit_mode)(1.0)
+    return lambda x: x / factor
 
 
 def get_base_unit(category: str) -> str:

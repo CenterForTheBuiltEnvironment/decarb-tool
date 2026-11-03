@@ -6,13 +6,13 @@ so local development runs do not show up in the statistics.
 
 import os
 
-# GA4 measurement ID of the decarb-tool property; GA_MEASUREMENT_ID overrides it.
-# Empty until the property is created, in which case only Siteimprove loads.
-GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "")
+# GA4 measurement ID of the decarb-tool property; GA_MEASUREMENT_ID overrides it
+# (an empty value disables GA and loads only Siteimprove).
+GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "G-3K9P3CNPWY")
 
 SITEIMPROVE_SRC = "https://siteimproveanalytics.com/js/siteanalyze_6294756.js"
 
-GTAG_SNIPPET = """<!-- Global site tag (gtag.js) - Google Analytics -->
+GTAG_SNIPPET = """<!-- Google tag (gtag.js) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=__GA_ID__"></script>
         <script>
           window.dataLayer = window.dataLayer || [];
