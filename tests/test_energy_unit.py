@@ -11,6 +11,7 @@ from src.energy import (
     _capacity_constraints,
     _constant_heating_efficiency,
     _heat_recovery_plr_curve,
+    _heating_supply_temp_performance,
     _per_unit_cooling_capacity_W,
     _per_unit_cooling_cop,
     _per_unit_heating_capacity_W,
@@ -313,3 +314,46 @@ class TestConstantHeatingEfficiency:
         )
         result = _constant_heating_efficiency(e)
         assert result == pytest.approx(0.97)
+
+
+# ---------------------------------------------------------------------------
+# _heating_supply_temp_performance
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestHeatingSupplyTempReset:
+    def test_lowest_supply_temperature_picked_numerically(self):
+        """Reset starts at the OAT limit of the numerically lowest supply temperature.
+
+        As strings, "100" < "82", which used to pick the wrong curve's limit (-5 °C instead of -20 °C).
+        """
+        e = Equipment(
+            eq_id="test_awhp_reset",
+            eq_type="heat_pump",
+            model="TestAWHPReset",
+            fuel="electricity",
+            performance={
+                "heating": {
+                    "t_out_C": [-20.0, 20.0],
+                    "leaving_supply_t": {
+                        "100": {
+                            "cop": [2.0, 2.0],
+                            "constraints": {"min_temp_C": -5.0, "max_temp_C": 35.0},
+                        },
+                        "82": {
+                            "cop": [3.0, 3.0],
+                            "constraints": {"min_temp_C": -20.0, "max_temp_C": 35.0},
+                        },
+                    },
+                    "constraints": {"min_temp_C": 82.0, "max_temp_C": 100.0},
+                }
+            },
+            capacity_W=100_000.0,
+        )
+        perf = _heating_supply_temp_performance(
+            e, np.array([np.nan]), np.array([-5.0]), "interpolate_HHWST_reset"
+        )
+        # reset from 100 °C at -20 °C OAT to 82 °C at 20 °C OAT -> 93.25 °C at -5 °C OAT
+        # COP interpolated between the 82 °C (3.0) and 100 °C (2.0) curves
+        assert perf.cop[0][0] == pytest.approx(3.0 - (93.25 - 82.0) / 18.0)

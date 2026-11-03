@@ -70,3 +70,28 @@ def callback_component_ids(dependencies: list[dict]) -> set[str]:
 def figure_has_data(fig) -> bool:
     fig = json.loads(fig.to_json()) if hasattr(fig, "to_json") else fig
     return any(trace for trace in fig.get("data", []))
+
+
+def _contains_component(value) -> bool:
+    if isinstance(value, Component):
+        return True
+    if isinstance(value, dict):
+        return any(_contains_component(v) for v in value.values())
+    if isinstance(value, list | tuple):
+        return any(_contains_component(v) for v in value)
+    return False
+
+
+def components_in_dict_props(layout) -> list[str]:
+    """Components nested inside dict-valued props (e.g. dmc.Table `data`).
+
+    Dash only renders components placed directly in node props; inside a dict they reach
+    React as plain objects and the page fails with "Objects are not valid as a React child".
+    """
+    found = []
+    for comp in walk(layout):
+        for prop in comp._prop_names:
+            value = getattr(comp, prop, None)
+            if isinstance(value, dict) and _contains_component(value):
+                found.append(f"{type(comp).__name__}(id={getattr(comp, 'id', None)!r}).{prop}")
+    return found

@@ -12,7 +12,13 @@ import dash
 import plotly
 import pytest
 
-from tests.app_helpers import callback_component_ids, component_ids, ids_declared_in_source
+from tests.app_helpers import (
+    callback_component_ids,
+    component_ids,
+    components_in_dict_props,
+    ids_declared_in_source,
+    walk,
+)
 
 pytestmark = pytest.mark.app
 
@@ -85,3 +91,111 @@ def test_no_output_written_by_two_callbacks_without_allow_duplicate(dependencies
                 continue
             assert output not in seen, f"{output} written by two callbacks"
             seen[output] = dep
+
+
+def test_equipment_manager_is_not_a_numbered_workflow_step(app):
+    from layout.shell import build_navbar_content
+    from src.config import URLS
+
+    navbar = list(walk(build_navbar_content()))
+    step_paths = {
+        c.id["path"]
+        for c in navbar
+        if isinstance(getattr(c, "id", None), dict) and c.id.get("type") == "navbar-link"
+    }
+    assert "/equipment" in step_paths
+    assert URLS.EQUIPMENT_MANAGER.value not in step_paths
+    assert URLS.EQUIPMENT_MANAGER.value in {getattr(c, "href", None) for c in navbar}
+
+
+def test_page_layouts_have_no_components_inside_dict_props(app):
+    for page in dash.page_registry.values():
+        layout = page["layout"]() if callable(page["layout"]) else page["layout"]
+        assert components_in_dict_props(layout) == [], page["path"]
+
+
+@pytest.mark.parametrize("eq_id", ["hr01", "hp01", "hp02", "bo01", "ch02"])
+@pytest.mark.parametrize("unit_mode", ["SI", "IP"])
+def test_equipment_manager_output_renders_in_browser(app, eq_id, unit_mode):
+    """Rendered list and detail must serialise and contain no components inside dict props."""
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+
+    library = _get_equipment_library()
+    _, mode, _ = eqm.update_mode_options(eq_id, library, None)
+    outputs = [
+        eqm.render_equipment_list(library, "all", None, eq_id, unit_mode),
+        eqm.render_overview(eq_id, library, unit_mode, None, 0, None),
+        *eqm.render_equipment_detail(eq_id, mode, library, unit_mode, None, None),
+    ]
+    for output in outputs:
+        json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
+        assert components_in_dict_props(output) == []
+
+
+@pytest.mark.parametrize("eq_id", ["hr01", "hp01", "hp02", "bo01", "ch02"])
+@pytest.mark.parametrize("unit_mode", ["SI", "IP"])
+def test_equipment_manager_edit_mode_renders_in_browser(app, eq_id, unit_mode):
+    """The overview form and curve editor tables of a custom copy must serialise."""
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+    from src.equipment import Equipment, duplicate_equipment, save_custom_equipment
+
+    library = _get_equipment_library()
+    library_ids = [e["eq_id"] for e in library["equipment"]]
+    source = next(Equipment(**e) for e in library["equipment"] if e["eq_id"] == eq_id)
+    copy = duplicate_equipment(source, library_ids)
+    data = save_custom_equipment(library, copy, library_ids)
+    draft, session = copy.model_dump(), {"eq_id": copy.eq_id, "started": 0}
+    _, mode, _ = eqm.update_mode_options(copy.eq_id, data, None)
+
+    outputs = [
+        eqm.render_overview(copy.eq_id, data, unit_mode, session, 0, draft),
+        *eqm.render_equipment_detail(copy.eq_id, mode, data, unit_mode, draft, session),
+    ]
+    if copy.eq_type in ("heat_pump", "hr_heat_pump"):
+        from layout.equipment_editor import editor_tables
+
+        outputs += list(editor_tables(copy, mode, unit_mode))
+    for output in outputs:
+        json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
+        assert components_in_dict_props(output) == []
+
+
+def test_equipment_manager_export_then_import(app):
+    """Export the custom items of one session and import the file into a fresh one."""
+    import base64
+
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+    from src.equipment import Equipment, duplicate_equipment, save_custom_equipment
+
+    library = _get_equipment_library()
+    library_ids = [e["eq_id"] for e in library["equipment"]]
+    hp01 = next(Equipment(**e) for e in library["equipment"] if e["eq_id"] == "hp01")
+    copy = duplicate_equipment(hp01, library_ids)
+    session = save_custom_equipment(library, copy, library_ids)
+
+    download, _ = eqm.export_equipment(1, session)
+    assert download["filename"].startswith("decarb_custom_equipment_")
+    contents = (
+        "data:application/json;base64," + base64.b64encode(download["content"].encode()).decode()
+    )
+
+    store, selected, draft, edit_session, message, reset = eqm.import_equipment(
+        contents, download["filename"], library, library
+    )
+    assert selected == copy.eq_id and draft is None and edit_session is None and reset is None
+    assert store["equipment"][-1]["eq_id"] == copy.eq_id
+    json.dumps(message, cls=plotly.utils.PlotlyJSONEncoder)
+
+    *_, error, _ = eqm.import_equipment(
+        "data:text/plain;base64," + base64.b64encode(b"not json").decode(),
+        "x.json",
+        library,
+        library,
+    )
+    assert "not a JSON file" in str(error.children)
+
+    _, empty = eqm.export_equipment(1, library)
+    assert "no custom equipment" in str(empty.children)

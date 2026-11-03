@@ -25,9 +25,38 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Modify Base Load modal shows peak loads without and with the base load side by side
 - Status line in both modals says what is in the table and whether Apply or Confirm is needed
   next; Confirm is disabled while an entered value has not been applied or nothing changed
+- Equipment Manager page, linked in the sidebar next to the documentation: browse the equipment
+  library by type, search it, and inspect each item's data, data checks and performance curves
+  (plot and table, SI/IP) (#171)
+- Performance curve plot in the edit equipment scenario window, with the curve at the selected
+  supply temperature highlighted (#171)
+- Equipment validation that reports every problem in an equipment definition (errors and
+  warnings), groundwork for the Equipment Manager and editable performance curves (#171)
+- Optional `source`, `based_on` and `notes` fields on equipment, to tell library equipment from
+  user-made copies
+- Custom equipment in the Equipment Manager: duplicate any library item and edit the copy's
+  properties (including efficiency of backup heating and chillers), curve points, supply
+  temperatures and operating limits; save, edit or delete custom items. Library equipment is never
+  changed, and custom items survive the equipment Reset (#171)
+- Scaling of heat pump performance curves by a COP and a capacity percentage; factors are relative
+  to the unscaled curves and are recorded on the item (#171)
+- Import and export of custom equipment in the Equipment Manager: export all custom items as a
+  JSON file and import them in a later session; import also reads the custom items of a results
+  settings file. Library equipment is never replaced: an item with a library ID is imported as a
+  custom copy, and invalid items are rejected with a reason (#171)
+- Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
+  which fills in the GWP automatically (#171)
 
 ### Changed
 
+- Performance curve plots restyled: white background with light grid, legend above the plot,
+  outdoor air temperature labelled under both AWHP panels, unified hover, the part of a curve outside its operating limits drawn dashed, and the original
+  curves shown in grey behind a custom copy (#171)
+- Equipment validation also reports missing (blank) curve values
+- Charts use Open Sans, the font of the rest of the interface, instead of Helvetica
+- Performance curve tables have grouped, sentence-case headings (a column group per supply
+  temperature, with units as secondary text) instead of uppercase headings with units in brackets
+- The Equipment Manager shows equipment names with their own capitalisation instead of all caps
 - Default unit system is IP; SI can still be selected with the unit toggle
 - Results download is named after the case (building, location, climate zone, load scaling,
   base load, unit system), e.g. `decarb_B3_Denver_CZ5B_scaled-h1.25-c1.25_SI_<date>.zip`, and
@@ -47,6 +76,9 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Heating and cooling can each have their own base load (floor or offset); applying a base
   load replaces the previous one for that load type instead of stacking, and base loads are
   always applied after scaling
+- Heat pump curves are now also checked for strictly increasing outdoor temperature or capacity
+  values, positive COP and capacity, numeric non-duplicate supply temperatures, and ordered
+  min/max limits before a calculation runs
 
 ### Fixed
 
@@ -54,6 +86,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   unit) in IP mode
 - Applying load scaling repeatedly no longer compounds the scale factor
 - Input labels and the base load method description show as soon as the modals open
+- The supply temperature reset now picks the lowest supply temperature curve numerically
+  instead of alphabetically (no effect on the current equipment library)
 
 ## [0.1.0] - 2026-10-13
 

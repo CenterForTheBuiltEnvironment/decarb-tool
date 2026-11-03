@@ -516,6 +516,17 @@ def get_display_unit(category: str, unit_mode: str) -> str:
     return UNIT_MAP[category][unit_mode]["unit"]
 
 
+def get_inverse_converter(category: str, unit_mode: str):
+    """Conversion function from the display unit back to the base unit (inverse of get_converter).
+
+    Temperature is the only affine conversion; every other category is a plain factor.
+    """
+    if category == "temperature":
+        return F_to_C if unit_mode == "IP" else (lambda x: x)
+    factor = get_converter(category, unit_mode)(1.0)
+    return lambda x: x / factor
+
+
 def get_base_unit(category: str) -> str:
     """Get the base (internal storage) unit for a category.
 
