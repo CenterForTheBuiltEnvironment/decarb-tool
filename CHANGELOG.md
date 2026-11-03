@@ -40,6 +40,10 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   changed, and custom items survive the equipment Reset (#171)
 - Scaling of heat pump performance curves by a COP and a capacity percentage; factors are relative
   to the unscaled curves and are recorded on the item (#171)
+- Import and export of custom equipment in the Equipment Manager: export all custom items as a
+  JSON file and import them in a later session; import also reads the custom items of a results
+  settings file. Library equipment is never replaced: an item with a library ID is imported as a
+  custom copy, and invalid items are rejected with a reason (#171)
 - Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
   which fills in the GWP automatically (#171)
 

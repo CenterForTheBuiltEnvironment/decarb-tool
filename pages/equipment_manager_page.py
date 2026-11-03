@@ -1,3 +1,5 @@
+import base64
+import datetime
 import json
 import time
 
@@ -27,7 +29,9 @@ from src.equipment import (
     curve_table,
     delete_custom_equipment,
     duplicate_equipment,
+    export_custom_equipment,
     find_refrigerant,
+    import_custom_equipment,
     save_custom_equipment,
     scale_performance,
     validate_equipment,
@@ -41,6 +45,7 @@ from utils.units import (
     get_converter,
     get_display_unit,
 )
+from utils.version import get_version
 
 logger = get_logger(__name__)
 
@@ -253,6 +258,35 @@ def layout():
                         dmc.Paper(
                             dmc.Stack(
                                 [
+                                    dmc.Group(
+                                        [
+                                            dcc.Upload(
+                                                dmc.Button(
+                                                    "Import",
+                                                    leftSection=DashIconify(
+                                                        icon="tabler:upload", width=16
+                                                    ),
+                                                    size="xs",
+                                                    variant="light",
+                                                ),
+                                                id="eqm-import-upload",
+                                                accept=".json,application/json",
+                                                multiple=False,
+                                            ),
+                                            dmc.Button(
+                                                "Export custom",
+                                                id="eqm-export-btn",
+                                                leftSection=DashIconify(
+                                                    icon="tabler:download", width=16
+                                                ),
+                                                size="xs",
+                                                variant="light",
+                                                n_clicks=0,
+                                            ),
+                                            dcc.Download(id="eqm-download"),
+                                        ],
+                                        gap="xs",
+                                    ),
                                     dmc.SegmentedControl(
                                         id="eqm-type-filter",
                                         data=TYPE_FILTERS,
@@ -1192,3 +1226,85 @@ def edit_curves(
         return (no_update,) * 9 + (_message(f"Could not apply the change: {err}", "red"), no_update)
 
     return render(eq, eq.model_dump())
+
+
+@callback(
+    Output("eqm-download", "data"),
+    Output("eqm-action-msg", "children", allow_duplicate=True),
+    Input("eqm-export-btn", "n_clicks"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def export_equipment(n_clicks, equipment_data):
+    if not n_clicks:
+        return no_update, no_update
+    payload = export_custom_equipment(equipment_data, get_version())
+    if not payload["equipment"]:
+        return no_update, _message(
+            "There is no custom equipment to export yet. Duplicate an item to make one.", "yellow"
+        )
+    filename = f"decarb_custom_equipment_{datetime.date.today().isoformat()}.json"
+    n = len(payload["equipment"])
+    return (
+        dcc.send_string(json.dumps(payload, indent=2), filename),
+        _message(f"Exported {n} custom item{'s' if n != 1 else ''} to {filename}.", "green"),
+    )
+
+
+@callback(
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("eqm-selected-store", "data", allow_duplicate=True),
+    Output("eqm-draft-store", "data", allow_duplicate=True),
+    Output("eqm-edit-session", "data", allow_duplicate=True),
+    Output("eqm-action-msg", "children", allow_duplicate=True),
+    Output("eqm-import-upload", "contents"),  # reset so the same file can be imported again
+    Input("eqm-import-upload", "contents"),
+    State("eqm-import-upload", "filename"),
+    State("equipment-store", "data"),
+    State("equipment-initial-store", "data"),
+    prevent_initial_call=True,
+)
+def import_equipment(contents, filename, equipment_data, initial_data):
+    if not contents:
+        return (no_update,) * 6
+    try:
+        payload = json.loads(base64.b64decode(contents.split(",", 1)[1]).decode("utf-8"))
+        library_ids = [e["eq_id"] for e in (initial_data or {}).get("equipment", [])]
+        updated, report = import_custom_equipment(equipment_data, payload, library_ids)
+    except (ValueError, UnicodeDecodeError, IndexError) as err:
+        reason = "it is not a JSON file" if isinstance(err, json.JSONDecodeError) else str(err)
+        return (no_update,) * 4 + (_message(f"Could not import {filename}: {reason}", "red"), None)
+
+    lines = []
+    if report.added:
+        lines.append(f"Added: {', '.join(report.added)}")
+    if report.updated:
+        lines.append(f"Replaced the custom items with the same id: {', '.join(report.updated)}")
+    if report.renamed:
+        lines.append(
+            "Imported as custom copies (library equipment is never replaced): "
+            + ", ".join(f"{old} as {new}" for old, new in report.renamed.items())
+        )
+    if report.unchanged:
+        lines.append(f"Already present, unchanged: {', '.join(report.unchanged)}")
+    if report.rejected:
+        lines.append("Not imported: " + "; ".join(f"{k}: {v}" for k, v in report.rejected.items()))
+    if not lines:
+        lines.append("The file contains no custom equipment.")
+    color = (
+        "red"
+        if report.rejected and not report.imported
+        else ("yellow" if report.rejected else "green")
+    )
+    message = _message(
+        [
+            dmc.Text(f"Imported {filename}", size="sm", fw=600),
+            dmc.List([dmc.ListItem(line) for line in lines], size="sm"),
+        ],
+        color,
+    )
+    logger.info("Imported custom equipment from %s: %s", filename, report.model_dump())
+    if not report.imported:
+        return no_update, no_update, no_update, no_update, message, None
+    # importing ends an edit in progress, its item may just have been replaced
+    return updated, report.imported[0], None, None, message, None

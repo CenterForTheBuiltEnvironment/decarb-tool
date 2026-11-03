@@ -1,3 +1,4 @@
+import copy
 import json
 import math
 from collections.abc import Iterable
@@ -373,6 +374,113 @@ def keep_custom_equipment(initial_data: dict, current_data: dict | None) -> dict
     if not custom:
         return initial_data
     return {**initial_data, "equipment": [*initial_data.get("equipment", []), *custom]}
+
+
+# --- Import / export of custom equipment ---
+CUSTOM_EQUIPMENT_FORMAT = "decarb-tool/custom-equipment"
+CUSTOM_EQUIPMENT_FORMAT_VERSION = "1.0"
+
+
+def export_custom_equipment(equipment_data: dict, tool_version: str | None = None) -> dict:
+    """The custom equipment in `equipment_data` as an export file (see `import_custom_equipment`)."""
+    import datetime
+
+    return {
+        "format": CUSTOM_EQUIPMENT_FORMAT,
+        "format_version": CUSTOM_EQUIPMENT_FORMAT_VERSION,
+        "tool_version": tool_version,
+        "exported_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "equipment": [
+            copy.deepcopy(e)
+            for e in (equipment_data or {}).get("equipment", [])
+            if e.get("source") == "custom"
+        ],
+    }
+
+
+class ImportReport(BaseModel):
+    """What `import_custom_equipment` did with each item of a file."""
+
+    added: list[str] = []
+    updated: list[str] = []
+    renamed: dict[str, str] = {}  # id in the file -> new id (the file's id is a library id)
+    unchanged: list[str] = []
+    rejected: dict[str, str] = {}  # id (or position) in the file -> reason
+
+    @property
+    def imported(self) -> list[str]:
+        return [*self.added, *self.updated, *self.renamed.values()]
+
+
+def _items_in_file(payload) -> list:
+    """Equipment items of an export file, a results settings file or a bare list."""
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        raise ValueError("The file does not contain equipment.")
+    if isinstance(payload.get("equipment"), list):
+        return payload["equipment"]
+    library = payload.get("equipment_library")
+    if isinstance(library, dict) and isinstance(library.get("equipment"), list):
+        # results settings file: only the custom items, the library is already in the tool
+        return [
+            e for e in library["equipment"] if isinstance(e, dict) and e.get("source") == "custom"
+        ]
+    raise ValueError("The file does not contain equipment.")
+
+
+def import_custom_equipment(
+    equipment_data: dict, payload, library_ids: Iterable[str]
+) -> tuple[dict, ImportReport]:
+    """Add the equipment of an imported file to `equipment_data` as custom equipment.
+
+    Library equipment is never overwritten: an item with a library id is imported under a new
+    custom id. An item with the id of a custom item replaces it (or is skipped when identical).
+    Items that cannot be read or have validation errors are rejected.
+    """
+    library_ids = set(library_ids)
+    report = ImportReport()
+    data = equipment_data or {}
+
+    for n, item in enumerate(_items_in_file(payload), start=1):
+        label = item.get("eq_id") if isinstance(item, dict) and item.get("eq_id") else f"item {n}"
+        try:
+            eq = Equipment(**item)
+        except (TypeError, ValueError) as err:
+            reason = err.errors()[0]["msg"] if hasattr(err, "errors") else str(err)
+            report.rejected[label] = f"not a valid equipment definition ({reason})"
+            continue
+        stored = _stored_item(data, eq.eq_id)
+        if stored is not None and eq.model_dump() == stored:
+            report.unchanged.append(
+                eq.eq_id
+            )  # e.g. a library item, or a custom item imported twice
+            continue
+        errors = [i.message for i in validate_equipment(eq) if i.severity == "error"]
+        if errors:
+            report.rejected[label] = errors[0]
+            continue
+
+        if eq.eq_id in library_ids:
+            # a changed library item: keep it as a custom copy, never overwrite the library
+            existing_ids = [e.get("eq_id") for e in data.get("equipment", [])]
+            duplicate = duplicate_equipment(
+                eq.model_copy(update={"source": "library"}), existing_ids
+            )
+            eq = duplicate.model_copy(update={"model": eq.model})
+            report.renamed[label] = eq.eq_id
+        else:
+            eq = eq.model_copy(update={"source": "custom"})
+            (report.updated if stored is not None else report.added).append(eq.eq_id)
+        data = save_custom_equipment(data, eq, library_ids)
+
+    return data, report
+
+
+def _stored_item(equipment_data: dict, eq_id: str) -> dict | None:
+    """The stored item with `eq_id`, normalised through the model so it compares with an import."""
+    item = next((e for e in equipment_data.get("equipment", []) if e.get("eq_id") == eq_id), None)
+    return Equipment(**item).model_dump() if item else None
 
 
 CURVE_TABLE_COLUMNS = ["x", "x_kind", "lwt_C", "cop", "capacity_W", "oat_min_C", "oat_max_C"]

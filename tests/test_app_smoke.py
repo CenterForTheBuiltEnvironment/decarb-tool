@@ -160,3 +160,42 @@ def test_equipment_manager_edit_mode_renders_in_browser(app, eq_id, unit_mode):
     for output in outputs:
         json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
         assert components_in_dict_props(output) == []
+
+
+def test_equipment_manager_export_then_import(app):
+    """Export the custom items of one session and import the file into a fresh one."""
+    import base64
+
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+    from src.equipment import Equipment, duplicate_equipment, save_custom_equipment
+
+    library = _get_equipment_library()
+    library_ids = [e["eq_id"] for e in library["equipment"]]
+    hp01 = next(Equipment(**e) for e in library["equipment"] if e["eq_id"] == "hp01")
+    copy = duplicate_equipment(hp01, library_ids)
+    session = save_custom_equipment(library, copy, library_ids)
+
+    download, _ = eqm.export_equipment(1, session)
+    assert download["filename"].startswith("decarb_custom_equipment_")
+    contents = (
+        "data:application/json;base64," + base64.b64encode(download["content"].encode()).decode()
+    )
+
+    store, selected, draft, edit_session, message, reset = eqm.import_equipment(
+        contents, download["filename"], library, library
+    )
+    assert selected == copy.eq_id and draft is None and edit_session is None and reset is None
+    assert store["equipment"][-1]["eq_id"] == copy.eq_id
+    json.dumps(message, cls=plotly.utils.PlotlyJSONEncoder)
+
+    *_, error, _ = eqm.import_equipment(
+        "data:text/plain;base64," + base64.b64encode(b"not json").decode(),
+        "x.json",
+        library,
+        library,
+    )
+    assert "not a JSON file" in str(error.children)
+
+    _, empty = eqm.export_equipment(1, library)
+    assert "no custom equipment" in str(empty.children)

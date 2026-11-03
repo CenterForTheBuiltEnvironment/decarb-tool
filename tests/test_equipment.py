@@ -1,5 +1,7 @@
 """Tests for equipment models and library."""
 
+import json
+
 import pandas as pd
 import pytest
 
@@ -13,7 +15,9 @@ from src.equipment import (
     curve_table,
     delete_custom_equipment,
     duplicate_equipment,
+    export_custom_equipment,
     find_refrigerant,
+    import_custom_equipment,
     keep_custom_equipment,
     load_library,
     load_refrigerants,
@@ -475,3 +479,85 @@ class TestRefrigerants:
         assert find_refrigerant("CO2").gwp == 1
         assert find_refrigerant("R-999") is None
         assert find_refrigerant(None) is None
+
+
+class TestImportExport:
+    @pytest.fixture
+    def setup(self, equipment_library):
+        data = equipment_library.model_dump()
+        library_ids = [e["eq_id"] for e in data["equipment"]]
+        copy = scale_performance(
+            duplicate_equipment(equipment_library.get_equipment("hp01"), library_ids),
+            "heating",
+            cop_factor=0.9,
+        )
+        return data, library_ids, save_custom_equipment(data, copy, library_ids), copy
+
+    def test_export_contains_only_custom_items(self, setup):
+        _, _, with_custom, copy = setup
+        payload = export_custom_equipment(with_custom, "0.2.0")
+        assert payload["format"] == "decarb-tool/custom-equipment"
+        assert payload["tool_version"] == "0.2.0"
+        assert [e["eq_id"] for e in payload["equipment"]] == [copy.eq_id]
+
+    def test_round_trip_into_a_fresh_session(self, setup):
+        data, library_ids, with_custom, copy = setup
+        payload = json.loads(json.dumps(export_custom_equipment(with_custom)))
+        imported, report = import_custom_equipment(data, payload, library_ids)
+        assert report.added == [copy.eq_id]
+        assert imported["equipment"][-1] == copy.model_dump()
+
+    def test_importing_the_same_file_twice_changes_nothing(self, setup):
+        _, library_ids, with_custom, copy = setup
+        payload = export_custom_equipment(with_custom)
+        again, report = import_custom_equipment(with_custom, payload, library_ids)
+        assert report.unchanged == [copy.eq_id] and not report.imported
+        assert again["equipment"] == with_custom["equipment"]
+
+    def test_changed_custom_item_replaces_the_session_copy(self, setup):
+        _, library_ids, with_custom, copy = setup
+        payload = export_custom_equipment(with_custom)
+        payload["equipment"][0]["model"] = "Renamed in the file"
+        updated, report = import_custom_equipment(with_custom, payload, library_ids)
+        assert report.updated == [copy.eq_id]
+        assert len(updated["equipment"]) == len(with_custom["equipment"])
+        assert updated["equipment"][-1]["model"] == "Renamed in the file"
+
+    def test_library_items_are_never_overwritten(self, setup, equipment_library):
+        data, library_ids, _, _ = setup
+        hp01 = equipment_library.get_equipment("hp01").model_dump()
+        changed = {**hp01, "model": "Edited outside the tool", "source": "custom"}
+        imported, report = import_custom_equipment(data, [hp01, changed], library_ids)
+        assert report.unchanged == ["hp01"]  # the unchanged library item itself
+        new_id = report.renamed["hp01"]
+        assert new_id.startswith("custom_hp01_")
+        assert next(e for e in imported["equipment"] if e["eq_id"] == "hp01") == hp01
+        new = next(e for e in imported["equipment"] if e["eq_id"] == new_id)
+        assert (new["model"], new["source"], new["based_on"]) == (
+            "Edited outside the tool",
+            "custom",
+            "hp01",
+        )
+
+    def test_invalid_items_are_rejected_with_a_reason(self, setup, equipment_library):
+        data, library_ids, _, _ = setup
+        broken = duplicate_equipment(equipment_library.get_equipment("hp01"), library_ids)
+        broken = broken.model_dump()
+        broken["performance"]["heating"]["leaving_supply_t"]["38"]["cop"] = [0.0] * 9
+        _, report = import_custom_equipment(
+            data, [broken, {"eq_id": "x1", "model": "no type"}, "nonsense"], library_ids
+        )
+        assert set(report.rejected) == {broken["eq_id"], "x1", "item 3"}
+        assert "non-positive" in report.rejected[broken["eq_id"]]
+        assert not report.imported
+
+    def test_results_settings_file_contributes_its_custom_items(self, setup):
+        data, library_ids, with_custom, copy = setup
+        settings = {"format_version": "1.0", "equipment_library": with_custom}
+        _, report = import_custom_equipment(data, settings, library_ids)
+        assert report.added == [copy.eq_id]
+
+    def test_file_without_equipment_is_an_error(self, setup):
+        data, library_ids, _, _ = setup
+        with pytest.raises(ValueError, match="does not contain equipment"):
+            import_custom_equipment(data, {"something": "else"}, library_ids)

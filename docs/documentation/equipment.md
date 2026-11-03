@@ -138,8 +138,14 @@ The Equipment Manager, linked in the sidebar, lists all equipment with its data 
 
 Click **Save** to store the copy. Saving is blocked while the data checks report errors; warnings, such as a COP outside 1 to 8, are allowed. Custom equipment appears in the equipment selections of the scenario edit window, marked "custom". It is kept for the browser session, also when the equipment scenarios are reset, and is included in the settings file of the results download. A custom item cannot be deleted while a scenario uses it.
 
+**Import and export.** Custom equipment is only kept for the browser session. To keep it, click **Export custom**. This downloads all custom items as a JSON file (`decarb_custom_equipment_<date>.json`). Load the file again in a later session with **Import**. Import also accepts the settings file from a results download and takes the custom equipment out of it. When importing:
+
+- an item that matches one already in the tool is skipped;
+- a custom item with the same ID as one in the session replaces it;
+- an item with the ID of library equipment is imported as a new custom copy, so library equipment is never replaced;
+- items with data errors are not imported, and the message shows why.
+
 ### Future Development
 
-1. Import and export custom equipment as a file, to reuse it across sessions.
-2. Display equipment sizing outputs, such as total capacity required, total number of units, and total refrigerant weight.
-3. Allow users to edit the HHWST reset bounds.
+1. Display equipment sizing outputs, such as total capacity required, total number of units, and total refrigerant weight.
+2. Allow users to edit the HHWST reset bounds.
