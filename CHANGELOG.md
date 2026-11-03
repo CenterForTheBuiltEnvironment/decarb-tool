@@ -49,6 +49,10 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   outdoor air temperature labelled under both AWHP panels, unified hover, the part of a curve outside its operating limits drawn dashed, and the original
   curves shown in grey behind a custom copy (#171)
 - Equipment validation also reports missing (blank) curve values
+- Charts use Open Sans, the font of the rest of the interface, instead of Helvetica
+- Performance curve tables have grouped, sentence-case headings (a column group per supply
+  temperature, with units as secondary text) instead of uppercase headings with units in brackets
+- The Equipment Manager shows equipment names with their own capitalisation instead of all caps
 - Default unit system is IP; SI can still be selected with the unit toggle
 - Results download is named after the case (building, location, climate zone, load scaling,
   base load, unit system), e.g. `decarb_B3_Denver_CZ5B_scaled-h1.25-c1.25_SI_<date>.zip`, and

@@ -149,13 +149,17 @@ def _curve_editor():
                     p="sm",
                 ),
                 dmc.Text("Curve points", size="sm", fw=600),
-                dash_table.DataTable(
-                    id="eqm-curve-editor",
-                    data=[],
-                    columns=[],
-                    editable=True,
-                    row_deletable=True,
-                    **TABLE_STYLE,
+                html.Div(
+                    dash_table.DataTable(
+                        id="eqm-curve-editor",
+                        data=[],
+                        columns=[],
+                        editable=True,
+                        row_deletable=True,
+                        merge_duplicate_headers=True,
+                        **TABLE_STYLE,
+                    ),
+                    className="eqm-table",
                 ),
                 dmc.Group(
                     dmc.Button(
@@ -168,12 +172,15 @@ def _curve_editor():
                     )
                 ),
                 dmc.Text("Supply temperatures", size="sm", fw=600, mt="xs"),
-                dash_table.DataTable(
-                    id="eqm-lwt-editor",
-                    data=[],
-                    columns=[],
-                    editable=True,
-                    **TABLE_STYLE,
+                html.Div(
+                    dash_table.DataTable(
+                        id="eqm-lwt-editor",
+                        data=[],
+                        columns=[],
+                        editable=True,
+                        **TABLE_STYLE,
+                    ),
+                    className="eqm-table",
                 ),
                 dmc.Group(
                     [
@@ -581,11 +588,41 @@ def _curve_data_table(eq: Equipment, mode: str, unit_mode: str):
     x_points = sorted(df["x"].unique())
     has_cap = is_awhp and df["capacity_W"].notna().any()
 
-    head = [f"OAT [{t_unit}]" if is_awhp else f"Capacity [{cap_unit}]"]
-    for lwt in lwts:
-        head.append(f"COP @ {to_temp(lwt):.1f} {t_unit}")
-        if has_cap:
-            head.append(f"Capacity @ {to_temp(lwt):.1f} {t_unit} [{cap_unit}]")
+    def th(text, unit=None, **span):
+        # html.Th: dmc.TableTh has no rowSpan/colSpan
+        unit_line = html.Span(unit, className="eqm-unit") if unit else None
+        return html.Th([text, unit_line], **span)
+
+    # two header rows: a group per supply temperature, with COP (and capacity) beneath
+    per_lwt = 2 if has_cap else 1
+    head = dmc.TableThead(
+        [
+            dmc.TableTr(
+                [
+                    th(
+                        "Outdoor air temperature" if is_awhp else "Capacity at part load",
+                        t_unit if is_awhp else cap_unit,
+                        rowSpan=2,
+                    ),
+                    *[
+                        th(
+                            f"Supply {to_temp(lwt):.1f} {t_unit}",
+                            colSpan=per_lwt,
+                            style={"textAlign": "center"},
+                        )
+                        for lwt in lwts
+                    ],
+                ]
+            ),
+            dmc.TableTr(
+                [
+                    cell
+                    for _ in lwts
+                    for cell in ([th("COP")] + ([th("Capacity", cap_unit)] if has_cap else []))
+                ]
+            ),
+        ]
+    )
 
     body = []
     for x in x_points:
@@ -611,11 +648,18 @@ def _curve_data_table(eq: Equipment, mode: str, unit_mode: str):
         [
             dmc.TableScrollContainer(
                 dmc.Table(
-                    data={"head": head, "body": body},
+                    [
+                        head,
+                        dmc.TableTbody(
+                            [dmc.TableTr([dmc.TableTd(v) for v in row]) for row in body]
+                        ),
+                    ],
                     striped=True,
                     highlightOnHover=True,
+                    withColumnBorders=True,
                     fz="xs",
                     verticalSpacing=4,
+                    className="eqm-table",
                 ),
                 minWidth=400,
             ),
@@ -934,7 +978,8 @@ def render_equipment_detail(selected_id, mode, equipment_data, unit_mode, draft,
         [
             dmc.Stack(
                 [
-                    dmc.Title(title, order=4),
+                    # keep the model's own capitalisation (the theme sets headings in uppercase)
+                    dmc.Title(title, order=4, tt="none", lts="normal"),
                     dmc.Text(
                         f"{TYPE_LABELS.get(eq.eq_type, eq.eq_type)} · {eq.eq_id}",
                         size="sm",

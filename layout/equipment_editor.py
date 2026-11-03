@@ -246,15 +246,18 @@ def editor_tables(eq: Equipment, mode: str, unit_mode: str):
     lwts = sorted(df["lwt_C"].unique())
     has_cap = is_awhp and df["capacity_W"].notna().any()
 
-    columns = [
-        _num_col("x", f"OAT [{t_unit}]", 1) if is_awhp else _num_col("x", f"Capacity [{c_unit}]", 2)
-    ]
+    # two header rows (merged by the table): a group per supply temperature, COP/capacity beneath
+    x_name = (
+        ["Outdoor air temperature", f"({t_unit})"]
+        if is_awhp
+        else ["Capacity at part load", f"({c_unit})"]
+    )
+    columns = [_num_col("x", x_name, 1 if is_awhp else 2)]
     for i, lwt in enumerate(lwts):
-        columns.append(_num_col(f"cop_{i}", f"COP @ {t_disp(lwt):.1f} {t_unit}", 2))
+        group = f"Supply {t_disp(lwt):.1f} {t_unit}"
+        columns.append(_num_col(f"cop_{i}", [group, "COP"], 2))
         if has_cap:
-            columns.append(
-                _num_col(f"cap_{i}", f"Capacity @ {t_disp(lwt):.1f} {t_unit} [{c_unit}]", 2)
-            )
+            columns.append(_num_col(f"cap_{i}", [group, f"Capacity ({c_unit})"], 2))
 
     rows = []
     for x, d in df.groupby("x", sort=True):
@@ -266,11 +269,11 @@ def editor_tables(eq: Equipment, mode: str, unit_mode: str):
                 row[f"cap_{i}"] = float(c_disp(d.loc[lwt, "capacity_W"]))
         rows.append(row)
 
-    lwt_columns = [_num_col("lwt", f"Supply temperature [{t_unit}]", 1)]
+    lwt_columns = [_num_col("lwt", f"Supply temperature ({t_unit})", 1)]
     if is_awhp:
         lwt_columns += [
-            _num_col("oat_min", f"OAT min [{t_unit}]", 1),
-            _num_col("oat_max", f"OAT max [{t_unit}]", 1),
+            _num_col("oat_min", f"Lowest outdoor air temperature ({t_unit})", 1),
+            _num_col("oat_max", f"Highest outdoor air temperature ({t_unit})", 1),
         ]
     limits = df.groupby("lwt_C")[["oat_min_C", "oat_max_C"]].first()
     lwt_rows = []
