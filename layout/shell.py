@@ -11,7 +11,7 @@ from layout.footer import shell_footer
 from layout.header import shell_header
 from layout.input import legend_toggle, scenario_legend_accordion, unit_toggle
 from src import paths
-from src.config import DEFAULT_SELECTIONS, LINKS
+from src.config import DEFAULT_SELECTIONS, LINKS, URLS
 from src.equipment import load_library  # adjust if path differs
 from utils.display_registry import (
     format_emission_scenario_id_short,
@@ -162,8 +162,9 @@ def build_shell(page_content):
 
 
 def build_navbar_content():
+    # Workflow steps only; the Equipment Manager is linked next to the documentation instead
     pages = sorted(
-        dash.page_registry.values(),
+        (p for p in dash.page_registry.values() if p["path"] != URLS.EQUIPMENT_MANAGER.value),
         key=lambda p: p.get("order", 0),
     )
 
@@ -181,6 +182,20 @@ def build_navbar_content():
         )
         for page in pages
     ]
+
+    equipment_manager_link = dmc.Anchor(
+        dmc.Group(
+            [
+                DashIconify(icon="material-symbols-light:tune", width=25),
+                "Equipment Manager",
+            ],
+            gap="xs",
+            align="center",
+        ),
+        href=URLS.EQUIPMENT_MANAGER.value,
+        underline=False,
+        fz="sm",
+    )
 
     docs_link = dmc.Anchor(
         dmc.Group(
@@ -235,7 +250,7 @@ def build_navbar_content():
             ),
             dmc.Space(h="2"),
             dmc.Stack(
-                [docs_link, repo_link],
+                [equipment_manager_link, docs_link, repo_link],
                 gap="xs",
             ),
             dmc.Divider(),

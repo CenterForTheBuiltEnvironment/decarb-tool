@@ -22,6 +22,8 @@ from layout.input import (
     edit_equipment_modal,
 )
 from src.config import LINKS, MAX_ACTIVE_EQUIPMENT_SCENARIOS, URLS
+from src.equipment import Equipment, keep_custom_equipment
+from src.visuals import empty_figure, plot_performance_curves
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
@@ -697,12 +699,13 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids, displ
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Input("button-reset-equipment", "n_clicks"),
     State("equipment-initial-store", "data"),
+    State("equipment-store", "data"),
     prevent_initial_call=True,
 )
-def reset_equipment(n_clicks, initial_data):
+def reset_equipment(n_clicks, initial_data, equipment_data):
     """
     Reset the equipment configuration back to the initial library
-    and clear any active selections.
+    and clear any active selections. Custom equipment from the Equipment Manager is kept.
     """
     if not n_clicks:
         return no_update, no_update
@@ -710,7 +713,7 @@ def reset_equipment(n_clicks, initial_data):
     if not initial_data:
         return no_update, no_update
 
-    return initial_data, []
+    return keep_custom_equipment(initial_data, equipment_data), []
 
 
 @callback(
@@ -1315,6 +1318,56 @@ def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
 
 
 @callback(
+    Output("edit-hr-wwhp-curve-graph", "figure"),
+    Output("edit-awhp-curve-graph", "figure"),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-awhp-select", "value"),
+    Input("edit-hr-wwhp-h-supply-t-value", "value"),
+    Input("edit-awhp-h-supply-t-value", "value"),
+    Input("edit-hr-wwhp-performance-model", "value"),
+    Input("edit-awhp-performance-model", "value"),
+    Input("unit-toggle", "value"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def update_curve_previews(
+    hr_hp_id,
+    awhp_id,
+    hr_supply_t,
+    awhp_supply_t,
+    hr_perf_model,
+    awhp_perf_model,
+    unit_mode,
+    equipment_data,
+):
+    """Plot the heating performance curves of the heat pumps selected in the edit modal."""
+    from utils.units import F_to_C
+
+    unit_mode = unit_mode or "SI"
+    equipment_list = (equipment_data or {}).get("equipment", [])
+
+    def figure(eq_id, supply_t, fixed_supply_t):
+        eq = next((e for e in equipment_list if e.get("eq_id") == eq_id), None)
+        if not eq:
+            return empty_figure("No heat pump selected")
+        # only a fixed supply temperature can be shown as one curve (not a reset schedule)
+        highlight = None
+        if fixed_supply_t and supply_t is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                highlight = float(supply_t)
+                if unit_mode == "IP":
+                    highlight = F_to_C(highlight)
+        return plot_performance_curves(
+            Equipment(**eq), "heating", unit_mode, highlight_lwt_C=highlight, height=440
+        )
+
+    return (
+        figure(hr_hp_id, hr_supply_t, hr_perf_model == "interpolate_HHWST"),
+        figure(awhp_id, awhp_supply_t, awhp_perf_model == "interpolate_HHWST_fixed"),
+    )
+
+
+@callback(
     Output("edit-awhp-sizing-priority", "disabled"),
     Input("edit-awhp-use-cooling", "checked"),
     Input("edit-awhp-sizing-mode", "value"),
@@ -1413,6 +1466,8 @@ def _build_equipment_options(
                 label_cap = "Infinite cap."
 
             label += f" ({label_cap})"
+            if eq.get("source") == "custom":
+                label += " · custom"
 
             options.append(
                 {

@@ -4,7 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.loads import STANDARD_COLUMNS, StandardLoad, ensure_datetime, get_load_data
+from src.loads import (
+    STANDARD_COLUMNS,
+    StandardLoad,
+    apply_load_modifications,
+    ensure_datetime,
+    get_load_data,
+)
 from src.metadata import LoadData, Metadata
 
 
@@ -208,6 +214,56 @@ def _make_annual_load(hours=8760, year=2025, nan_col=None, nan_count=0):
             }
         )
     )
+
+
+@pytest.mark.unit
+class TestApplyLoadModifications:
+    """Scaling and base load are rebuilt from the original: scale first, then base load."""
+
+    def _df(self):
+        return pd.DataFrame(
+            {"t_out_C": [10.0, 20.0], "heating_W": [100.0, 1000.0], "cooling_W": [50.0, 500.0]}
+        )
+
+    def test_unit_factors_return_identical_copy(self):
+        df = self._df()
+        out = apply_load_modifications(df)
+        pd.testing.assert_frame_equal(out, df)
+        assert out is not df
+
+    def test_factors_apply_per_load_type(self):
+        out = apply_load_modifications(self._df(), heating_factor=2.0)
+        assert out["heating_W"].tolist() == [200.0, 2000.0]
+        assert out["cooling_W"].tolist() == [50.0, 500.0]
+
+        out = apply_load_modifications(self._df(), cooling_factor=0.5)
+        assert out["heating_W"].tolist() == [100.0, 1000.0]
+        assert out["cooling_W"].tolist() == [25.0, 250.0]
+
+    def test_floor_applied_after_scaling(self):
+        base_load = {"heating": {"method": "floor", "value_W": 300.0}, "cooling": None}
+        out = apply_load_modifications(self._df(), heating_factor=2.0, base_load=base_load)
+        # 100 * 2 = 200 is raised to the floor; the floor itself is not scaled
+        assert out["heating_W"].tolist() == [300.0, 2000.0]
+        assert out["cooling_W"].tolist() == [50.0, 500.0]
+
+    def test_offset_applied_after_scaling(self):
+        offset = {"method": "offset", "value_W": 10.0}
+        base_load = {"heating": offset, "cooling": offset}
+        out = apply_load_modifications(
+            self._df(), heating_factor=2.0, cooling_factor=2.0, base_load=base_load
+        )
+        assert out["heating_W"].tolist() == [210.0, 2010.0]
+        assert out["cooling_W"].tolist() == [110.0, 1010.0]
+
+    def test_separate_base_load_per_load_type(self):
+        base_load = {
+            "heating": {"method": "floor", "value_W": 300.0},
+            "cooling": {"method": "offset", "value_W": 10.0},
+        }
+        out = apply_load_modifications(self._df(), base_load=base_load)
+        assert out["heating_W"].tolist() == [300.0, 1000.0]
+        assert out["cooling_W"].tolist() == [60.0, 510.0]
 
 
 @pytest.mark.unit

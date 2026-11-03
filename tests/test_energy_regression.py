@@ -21,7 +21,13 @@ from src import paths
 from src.config import Columns as Col
 from src.emissions import EmissionScenario
 from src.energy import loads_to_site_energy, site_to_source
-from src.equipment import EquipmentLibrary, EquipmentScenario, load_library
+from src.equipment import (
+    EquipmentLibrary,
+    EquipmentScenario,
+    duplicate_equipment,
+    load_library,
+    scale_performance,
+)
 from src.loads import StandardLoad
 from src.metadata import Metadata
 
@@ -163,16 +169,23 @@ def test_no_negative_energy(scenario_id, library, synthetic_load):
         df[Col.GAS_WH.value] >= -1e-9
     ).all(), f"[{scenario_id}] Negative gas consumption detected"
 
+
 @pytest.mark.regression
 @pytest.mark.parametrize("recovery_control", ["min_turndown", "max_heat_recovery"])
 @pytest.mark.parametrize("rejection_control", ["min_turndown", "max_heat_rejection"])
 def test_exhaust_air_coil(library, synthetic_load, recovery_control, rejection_control):
     """Exhaust air coil stays within capacity and keeps the HR WWHP energy balance."""
-    lib = EquipmentLibrary(**library.model_dump()) # copy library
+    lib = EquipmentLibrary(**library.model_dump())  # copy library
 
     # new scenario with 10 kW exhaust air coil
     scen = lib.get_scenario("eq_scenario_5").model_dump()
-    scen.update(eq_scen_id="eac", hr_eac_rejection_cap_W=1e5, hr_eac_recovery_cap_W=1e5, hr_eac_recovery_control=recovery_control, hr_eac_rejection_control=rejection_control,)
+    scen.update(
+        eq_scen_id="eac",
+        hr_eac_rejection_cap_W=1e5,
+        hr_eac_recovery_cap_W=1e5,
+        hr_eac_recovery_control=recovery_control,
+        hr_eac_rejection_control=rejection_control,
+    )
     lib.add_equipment_scenario(EquipmentScenario(**scen))
 
     df = loads_to_site_energy(load=synthetic_load, library=lib, scenario_ids=["eac"])
@@ -187,7 +200,7 @@ def test_exhaust_air_coil(library, synthetic_load, recovery_control, rejection_c
     assert np.allclose(
         df[Col.HR_HHW_W.value] + eac_h,
         df[Col.HR_CHW_W.value] + eac_c + df[Col.ELEC_HR_WH.value],
-        atol = 1.0,
+        atol=1.0,
     )
 
     hr_out_h = df[Col.HR_HHW_W.value] + eac_h
@@ -202,6 +215,7 @@ def test_exhaust_air_coil(library, synthetic_load, recovery_control, rejection_c
         assert np.allclose(hr_out_h[eac_h > 1.0], min_cap)
     else:
         assert (hr_out_h[eac_h > 1.0] > min_cap).any()
+
 
 # ---------------------------------------------------------------------------
 # Layer 2b — Snapshot regression
@@ -259,3 +273,58 @@ def test_emissions_output_snapshot(snapshot, scenario_id, library, synthetic_loa
     site = loads_to_site_energy(load=synthetic_load, library=library, scenario_ids=[scenario_id])
     out = site_to_source(site, metadata=metadata)
     assert snapshot == out[EMISSION_COLUMNS].round(4).to_csv()
+
+
+# ---------------------------------------------------------------------------
+# Layer 2d — Custom equipment copies
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("scenario_id", ["eq_scenario_5"])  # HR-WWHP + AWHP + cooling
+def test_unmodified_custom_copy_matches_library_equipment(scenario_id, library, synthetic_load):
+    """A duplicated but unedited AWHP / HR-WWHP must give the same results as the original."""
+    custom_library = EquipmentLibrary(**library.model_dump())
+    scenario = custom_library.get_scenario(scenario_id)
+    existing_ids = [e.eq_id for e in custom_library.equipment]
+
+    hr_copy = duplicate_equipment(custom_library.get_equipment(scenario.hr_wwhp), existing_ids)
+    awhp_copy = duplicate_equipment(custom_library.get_equipment(scenario.awhp), existing_ids)
+    custom_library.add_equipment(hr_copy)
+    custom_library.add_equipment(awhp_copy)
+    custom_library.add_equipment_scenario(
+        scenario.model_copy(update={"hr_wwhp": hr_copy.eq_id, "awhp": awhp_copy.eq_id})
+    )
+
+    df_original = loads_to_site_energy(
+        load=synthetic_load, library=library, scenario_ids=[scenario_id]
+    )
+    df_copy = loads_to_site_energy(
+        load=synthetic_load, library=custom_library, scenario_ids=[scenario_id]
+    )
+    pd.testing.assert_frame_equal(df_original, df_copy)
+
+
+@pytest.mark.regression
+def test_halving_awhp_heating_cop_doubles_its_heating_electricity(library, synthetic_load):
+    """COP-only scaling keeps sizing and delivered heat; heat pump heating electricity is heat / COP."""
+    scenario_id = "eq_scenario_4"  # AWHP heating + cooling, electric resistance backup
+    custom_library = EquipmentLibrary(**library.model_dump())
+    scenario = custom_library.get_scenario(scenario_id)
+    existing_ids = [e.eq_id for e in custom_library.equipment]
+    awhp = duplicate_equipment(custom_library.get_equipment(scenario.awhp), existing_ids)
+    custom_library.add_equipment(scale_performance(awhp, "heating", cop_factor=0.5))
+    custom_library.add_equipment_scenario(scenario.model_copy(update={"awhp": awhp.eq_id}))
+
+    df_original = loads_to_site_energy(
+        load=synthetic_load, library=library, scenario_ids=[scenario_id]
+    )
+    df_scaled = loads_to_site_energy(
+        load=synthetic_load, library=custom_library, scenario_ids=[scenario_id]
+    )
+    pd.testing.assert_series_equal(
+        df_scaled[Col.ELEC_AWHP_H_WH.value], 2 * df_original[Col.ELEC_AWHP_H_WH.value]
+    )
+    pd.testing.assert_series_equal(
+        df_scaled[Col.ELEC_AWHP_C_WH.value], df_original[Col.ELEC_AWHP_C_WH.value]
+    )

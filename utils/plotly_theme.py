@@ -31,7 +31,7 @@ custom_template = pio.templates["ggplot2"].update(
     layout_colorway=extended_custom_colors,
     layout_plot_bgcolor="rgba(0,0,0,0)",
     layout_paper_bgcolor="rgba(0,0,0,0)",
-    layout_font=dict(family="Helvetica, sans-serif", size=14, color="black"),
+    layout_font=dict(family="Open Sans, Helvetica, sans-serif", size=14, color="black"),
 )
 
 pio.templates["decarb-tool-theme"] = custom_template
