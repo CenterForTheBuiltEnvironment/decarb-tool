@@ -1687,12 +1687,12 @@
     },
     {
       "eq_scen_id": "eq_scenario_24",
-      "eq_scen_name": "HR WWHP+Balancing+20% AWHP (H+C)+Elec Backup",
+      "eq_scen_name": "HR WWHP+Balancing+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr03",
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 48.9,
-      "hr_eac_rejection_cap_W": 100000,
-      "hr_eac_recovery_cap_W": 100000,
+      "hr_eac_rejection_cap_W": 50000,
+      "hr_eac_recovery_cap_W": 50000,
       "hr_eac_rejection_control": "min_turndown",
       "hr_eac_recovery_control": "min_turndown",
       "awhp": "hp01",
@@ -1709,14 +1709,14 @@
     },
     {
       "eq_scen_id": "eq_scenario_25",
-      "eq_scen_name": "HR WWHP+Balancing+100% AWHP (H+C)+Elec Backup",
+      "eq_scen_name": "HR WWHP+Max Recovery Balancing+100% AWHP (H+C)+Elec Backup",
       "hr_wwhp": "hr03",
       "hr_wwhp_performance_model": "interpolate_HHWST",
       "hr_wwhp_h_supply_t": 48.9,
-      "hr_eac_rejection_cap_W": 100000,
-      "hr_eac_recovery_cap_W": 100000,
+      "hr_eac_rejection_cap_W": 50000,
+      "hr_eac_recovery_cap_W": 50000,
       "hr_eac_rejection_control": "min_turndown",
-      "hr_eac_recovery_control": "min_turndown",
+      "hr_eac_recovery_control": "max_heat_recovery",
       "awhp": "hp01",
       "awhp_performance_model": "interpolate_HHWST_fixed",
       "awhp_sizing_mode": "integer_sizing_peak_load",
@@ -1759,7 +1759,7 @@
     {
       "group_id": "heat_recovery_balancing",
       "group_name": "Heat Recovery Balancing Source/Sink",
-      "scenario_ids": ["eq_scenario_12", "eq_scenario_24", "eq_scenario_5", "eq_scenario_25"]
+      "scenario_ids": ["eq_scenario_4", "eq_scenario_5", "eq_scenario_24",  "eq_scenario_25"]
     },
     {
       "group_id": "awhp_refrigerant_types",
