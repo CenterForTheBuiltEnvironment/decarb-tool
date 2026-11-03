@@ -1,15 +1,46 @@
+import json
+import time
+
 import dash
 import dash_mantine_components as dmc
 import pandas as pd
-from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import ALL, Input, Output, State, callback, ctx, dash_table, dcc, html, no_update
 from dash_iconify import DashIconify
 
+from layout.equipment_editor import (
+    TYPE_LABELS,
+    display_value,
+    editor_tables,
+    editor_units,
+    field_meta,
+    overview_form,
+    scale_values,
+    set_path,
+    tables_to_long,
+    to_float,
+)
 from src.config import LINKS, URLS
-from src.equipment import HEAT_PUMP_TYPES, Equipment, curve_table, validate_equipment
+from src.equipment import (
+    HEAT_PUMP_TYPES,
+    Equipment,
+    apply_curve_table,
+    curve_table,
+    delete_custom_equipment,
+    duplicate_equipment,
+    find_refrigerant,
+    save_custom_equipment,
+    scale_performance,
+    validate_equipment,
+)
 from src.visuals import empty_figure, plot_performance_curves
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip
-from utils.units import format_with_auto_scale, get_auto_scale, get_converter, get_display_unit
+from utils.units import (
+    format_with_auto_scale,
+    get_auto_scale,
+    get_converter,
+    get_display_unit,
+)
 
 logger = get_logger(__name__)
 
@@ -21,13 +52,6 @@ dash.register_page(
     order=99,  # not a workflow step; linked separately in the sidebar
 )
 
-TYPE_LABELS = {
-    "hr_heat_pump": "HR water-to-water heat pump",
-    "heat_pump": "Air-to-water heat pump",
-    "backup_heating": "Backup heating",
-    "chiller": "Chiller",
-}
-
 TYPE_FILTERS = [
     {"label": "All", "value": "all"},
     {"label": "HR WWHP", "value": "hr_heat_pump"},
@@ -38,11 +62,163 @@ TYPE_FILTERS = [
 
 MODE_LABELS = {"heating": "Heating", "cooling": "Cooling"}
 
+HIDDEN = {"display": "none"}
+
+TABLE_STYLE = {
+    "style_table": {"overflowX": "auto"},
+    "style_cell": {
+        "fontFamily": "inherit",
+        "fontSize": 12,
+        "padding": "4px 8px",
+        "border": "1px solid var(--mantine-color-gray-3)",
+        "minWidth": 70,
+    },
+    "style_header": {
+        "fontWeight": 600,
+        "backgroundColor": "var(--mantine-color-gray-0)",
+        "whiteSpace": "normal",
+        "height": "auto",
+    },
+}
+
+
+def _action_button(label, button_id, icon, **kwargs):
+    return dmc.Button(
+        label,
+        id=button_id,
+        leftSection=DashIconify(icon=icon, width=16),
+        size="xs",
+        n_clicks=0,
+        style=HIDDEN,
+        **kwargs,
+    )
+
+
+def _curve_editor():
+    """Scaling panel and editable curve tables, shown while a custom heat pump is edited."""
+    return html.Div(
+        dmc.Stack(
+            [
+                dmc.Paper(
+                    dmc.Stack(
+                        [
+                            dmc.Text("Scale curves", size="sm", fw=600),
+                            dmc.Group(
+                                [
+                                    dmc.NumberInput(
+                                        id="eqm-scale-cop",
+                                        label="COP factor",
+                                        suffix=" %",
+                                        value=100,
+                                        min=1,
+                                        step=1,
+                                        decimalScale=1,
+                                        size="xs",
+                                        w=120,
+                                    ),
+                                    dmc.NumberInput(
+                                        id="eqm-scale-cap",
+                                        label="Capacity factor",
+                                        suffix=" %",
+                                        value=100,
+                                        min=1,
+                                        step=1,
+                                        decimalScale=1,
+                                        size="xs",
+                                        w=120,
+                                    ),
+                                    dmc.Button(
+                                        "Apply", id="eqm-scale-apply", size="xs", n_clicks=0
+                                    ),
+                                ],
+                                align="flex-end",
+                                gap="sm",
+                            ),
+                            dmc.Text(
+                                "Factors are relative to the curves before any scaling and apply "
+                                "to every supply temperature of the selected mode. Applying the "
+                                "same factor again changes nothing.",
+                                size="xs",
+                                c="dimmed",
+                            ),
+                        ],
+                        gap=6,
+                    ),
+                    withBorder=True,
+                    radius="sm",
+                    p="sm",
+                ),
+                dmc.Text("Curve points", size="sm", fw=600),
+                dash_table.DataTable(
+                    id="eqm-curve-editor",
+                    data=[],
+                    columns=[],
+                    editable=True,
+                    row_deletable=True,
+                    **TABLE_STYLE,
+                ),
+                dmc.Group(
+                    dmc.Button(
+                        "Add point",
+                        id="eqm-add-point",
+                        leftSection=DashIconify(icon="tabler:row-insert-bottom", width=16),
+                        size="xs",
+                        variant="light",
+                        n_clicks=0,
+                    )
+                ),
+                dmc.Text("Supply temperatures", size="sm", fw=600, mt="xs"),
+                dash_table.DataTable(
+                    id="eqm-lwt-editor",
+                    data=[],
+                    columns=[],
+                    editable=True,
+                    **TABLE_STYLE,
+                ),
+                dmc.Group(
+                    [
+                        dmc.NumberInput(id="eqm-new-lwt", placeholder="New", size="xs", w=110),
+                        dmc.Button(
+                            "Add supply temperature",
+                            id="eqm-add-lwt",
+                            size="xs",
+                            variant="light",
+                            n_clicks=0,
+                        ),
+                        dmc.Select(id="eqm-remove-lwt-select", data=[], size="xs", w=110),
+                        dmc.Button(
+                            "Remove",
+                            id="eqm-remove-lwt",
+                            size="xs",
+                            variant="light",
+                            color="red",
+                            n_clicks=0,
+                        ),
+                    ],
+                    gap="xs",
+                ),
+                dmc.Text(
+                    "A new supply temperature starts as a copy of the nearest existing curve. "
+                    "The supply temperature limits of the mode follow the range of the curves.",
+                    size="xs",
+                    c="dimmed",
+                ),
+                html.Div(id="eqm-curve-editor-msg"),
+            ],
+            gap="xs",
+        ),
+        id="eqm-curve-editor-wrap",
+        style=HIDDEN,
+    )
+
 
 def layout():
     return dmc.Container(
         [
             dcc.Store(id="eqm-selected-store", storage_type="session"),
+            dcc.Store(id="eqm-draft-store", storage_type="memory", data=None),
+            dcc.Store(id="eqm-edit-session", storage_type="memory", data=None),
+            dcc.Store(id="eqm-form-version", storage_type="memory", data=0),
             dmc.Stack(
                 [
                     with_icon_and_tooltip(
@@ -53,7 +229,9 @@ def layout():
                         href=LINKS.EQUIPMENT_DOCS_URL.value,
                     ),
                     dmc.Text(
-                        "Browse the equipment library and inspect the data behind each item, including the performance curves of heat pumps.",
+                        "Browse the equipment library and inspect the data behind each item. "
+                        "Duplicate an item to make an editable custom copy; library equipment "
+                        "itself is never changed.",
                         size="sm",
                         c="dimmed",
                     ),
@@ -102,6 +280,35 @@ def layout():
                             dmc.Stack(
                                 [
                                     html.Div(id="eqm-detail-header"),
+                                    dmc.Group(
+                                        [
+                                            _action_button(
+                                                "Duplicate to edit",
+                                                "eqm-duplicate-btn",
+                                                "tabler:copy",
+                                                variant="light",
+                                            ),
+                                            _action_button("Edit", "eqm-edit-btn", "tabler:pencil"),
+                                            _action_button(
+                                                "Delete",
+                                                "eqm-delete-btn",
+                                                "tabler:trash",
+                                                variant="subtle",
+                                                color="red",
+                                            ),
+                                            _action_button(
+                                                "Save", "eqm-save-btn", "tabler:device-floppy"
+                                            ),
+                                            _action_button(
+                                                "Cancel",
+                                                "eqm-cancel-btn",
+                                                "tabler:x",
+                                                variant="default",
+                                            ),
+                                        ],
+                                        gap="xs",
+                                    ),
+                                    html.Div(id="eqm-action-msg"),
                                     dmc.Tabs(
                                         [
                                             dmc.TabsList(
@@ -127,6 +334,7 @@ def layout():
                                                             config={"displaylogo": False},
                                                         ),
                                                         html.Div(id="eqm-curve-table"),
+                                                        _curve_editor(),
                                                     ],
                                                     gap="sm",
                                                     pt="sm",
@@ -180,6 +388,11 @@ def _find_equipment(equipment_data, eq_id) -> Equipment | None:
     return Equipment(**eq) if eq else None
 
 
+def _editing(session, draft, selected_id) -> bool:
+    """Whether the selected item is open in the editor."""
+    return bool(session and draft and session.get("eq_id") == selected_id)
+
+
 def _capacity_label(eq: Equipment, unit_mode: str) -> str:
     """Capacity as shown in the scenario dropdowns (see equipment_page._build_equipment_options)."""
     if eq.eq_calc_type != "specific":
@@ -193,6 +406,16 @@ def _source_badge(eq: Equipment):
     if eq.source == "custom":
         return dmc.Badge("Custom", color="grape", variant="light", size="sm")
     return dmc.Badge("Library", color="gray", variant="light", size="sm")
+
+
+def _scaling_text(eq: Equipment) -> str | None:
+    if not eq.scaling:
+        return None
+    return "; ".join(
+        f"{MODE_LABELS.get(m, m)}: COP {f.get('cop', 1) * 100:.0f} %, "
+        f"capacity {f.get('capacity', 1) * 100:.0f} %"
+        for m, f in eq.scaling.items()
+    )
 
 
 def _list_item(eq: Equipment, selected: bool, unit_mode: str):
@@ -254,6 +477,8 @@ def _overview_table(eq: Equipment, unit_mode: str):
         ("Fuel", eq.fuel.replace("_", " ")),
         ("Capacity", _capacity_label(eq, unit_mode)),
     ]
+    if eq.eq_type == "heat_pump" and eq.capacity_W:
+        rows.append(("Fixed unit capacity", fmt(eq.capacity_W, "power")))
     for mode, perf in eq.performance.items():
         if perf.efficiency is not None:
             label = "Efficiency" if eq.eq_type == "backup_heating" else "COP"
@@ -263,6 +488,8 @@ def _overview_table(eq: Equipment, unit_mode: str):
                 else f"{perf.efficiency:.2f}"
             )
             rows.append((f"{label} ({mode})", value))
+    if eq.scaling:
+        rows.append(("Curve scaling", _scaling_text(eq)))
     if eq.eq_type in HEAT_PUMP_TYPES or eq.refrigerant:
         rows += [
             ("Refrigerant", fmt(eq.refrigerant)),
@@ -398,6 +625,10 @@ def _curve_data_table(eq: Equipment, mode: str, unit_mode: str):
     )
 
 
+def _message(text, color="blue"):
+    return dmc.Alert(text, color=color, variant="light", p="xs", withCloseButton=True)
+
+
 # ---------------------------------------- Callbacks ----------------------------------------
 
 
@@ -440,14 +671,22 @@ def render_equipment_list(equipment_data, type_filter, search, selected_id, unit
 
 @callback(
     Output("eqm-selected-store", "data"),
+    Output("eqm-draft-store", "data", allow_duplicate=True),
+    Output("eqm-edit-session", "data", allow_duplicate=True),
+    Output("eqm-action-msg", "children", allow_duplicate=True),
     Input({"type": "eqm-item", "eq_id": ALL}, "n_clicks"),
+    State("eqm-edit-session", "data"),
     prevent_initial_call=True,
 )
-def select_equipment(n_clicks):
+def select_equipment(n_clicks, session):
     # The list is re-rendered on every selection, which re-fires this with n_clicks=0
     if not ctx.triggered_id or not any(n_clicks or []):
-        return no_update
-    return ctx.triggered_id["eq_id"]
+        return no_update, no_update, no_update, no_update
+    eq_id = ctx.triggered_id["eq_id"]
+    if session and session.get("eq_id") != eq_id:
+        # selecting another item discards unsaved edits
+        return eq_id, None, None, None
+    return eq_id, no_update, no_update, no_update
 
 
 @callback(
@@ -469,28 +708,228 @@ def update_mode_options(selected_id, equipment_data, current_mode):
 
 
 @callback(
-    Output("eqm-detail-header", "children"),
+    Output("eqm-duplicate-btn", "style"),
+    Output("eqm-duplicate-btn", "children"),
+    Output("eqm-edit-btn", "style"),
+    Output("eqm-delete-btn", "style"),
+    Output("eqm-save-btn", "style"),
+    Output("eqm-cancel-btn", "style"),
+    Input("eqm-selected-store", "data"),
+    Input("equipment-store", "data"),
+    Input("eqm-edit-session", "data"),
+    Input("eqm-draft-store", "data"),
+)
+def update_action_buttons(selected_id, equipment_data, session, draft):
+    show = {}
+    equipment_list = (equipment_data or {}).get("equipment", [])
+    selected_id = _resolve_selected_id(equipment_list, selected_id)
+    eq = _find_equipment(equipment_data, selected_id)
+    if eq is None:
+        return HIDDEN, no_update, HIDDEN, HIDDEN, HIDDEN, HIDDEN
+    if _editing(session, draft, selected_id):
+        return HIDDEN, no_update, HIDDEN, HIDDEN, show, show
+    if eq.source == "custom":
+        return show, "Duplicate", show, show, HIDDEN, HIDDEN
+    return show, "Duplicate to edit", HIDDEN, HIDDEN, HIDDEN, HIDDEN
+
+
+@callback(
+    Output("equipment-store", "data", allow_duplicate=True),
+    Output("eqm-selected-store", "data", allow_duplicate=True),
+    Output("eqm-draft-store", "data", allow_duplicate=True),
+    Output("eqm-edit-session", "data", allow_duplicate=True),
+    Output("eqm-action-msg", "children"),
+    Input("eqm-duplicate-btn", "n_clicks"),
+    Input("eqm-edit-btn", "n_clicks"),
+    Input("eqm-delete-btn", "n_clicks"),
+    Input("eqm-save-btn", "n_clicks"),
+    Input("eqm-cancel-btn", "n_clicks"),
+    State("eqm-selected-store", "data"),
+    State("equipment-store", "data"),
+    State("equipment-initial-store", "data"),
+    State("eqm-draft-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_actions(
+    _dup, _edit, _delete, _save, _cancel, selected_id, equipment_data, initial_data, draft
+):
+    trigger = ctx.triggered_id
+    if not trigger or not ctx.triggered[0]["value"]:
+        return (no_update,) * 5
+
+    equipment_list = (equipment_data or {}).get("equipment", [])
+    selected_id = _resolve_selected_id(equipment_list, selected_id)
+    eq = _find_equipment(equipment_data, selected_id)
+    library_ids = [e["eq_id"] for e in (initial_data or {}).get("equipment", [])]
+
+    if trigger == "eqm-cancel-btn":
+        return no_update, no_update, None, None, None
+
+    if eq is None:
+        return (no_update,) * 4 + (_message("No equipment selected.", "red"),)
+
+    if trigger == "eqm-duplicate-btn":
+        copy = duplicate_equipment(eq, [e["eq_id"] for e in equipment_list])
+        updated = save_custom_equipment(equipment_data, copy, library_ids)
+        logger.info("Created custom equipment '%s' from '%s'", copy.eq_id, eq.eq_id)
+        return (
+            updated,
+            copy.eq_id,
+            copy.model_dump(),
+            {"eq_id": copy.eq_id, "started": time.time()},
+            _message(f"Created the custom copy {copy.eq_id}. Edit it below, then Save."),
+        )
+
+    if trigger == "eqm-edit-btn":
+        if eq.source != "custom":
+            return (no_update,) * 4 + (_message("Library equipment cannot be edited.", "red"),)
+        return (
+            no_update,
+            no_update,
+            eq.model_dump(),
+            {"eq_id": eq.eq_id, "started": time.time()},
+            None,
+        )
+
+    if trigger == "eqm-delete-btn":
+        try:
+            updated = delete_custom_equipment(equipment_data, eq.eq_id)
+        except ValueError as err:
+            return (no_update,) * 4 + (_message(str(err), "red"),)
+        logger.info("Deleted custom equipment '%s'", eq.eq_id)
+        return updated, eq.based_on, None, None, _message(f"Deleted {eq.eq_id}.")
+
+    # save
+    if not draft:
+        return (no_update,) * 5
+    edited = Equipment(**draft)
+    errors = [i for i in validate_equipment(edited) if i.severity == "error"]
+    if errors:
+        return (no_update,) * 4 + (
+            _message(
+                [
+                    dmc.Text("Fix these problems before saving:", size="sm"),
+                    dmc.List([dmc.ListItem(i.message) for i in errors], size="sm"),
+                ],
+                "red",
+            ),
+        )
+    try:
+        updated = save_custom_equipment(equipment_data, edited, library_ids)
+    except ValueError as err:
+        return (no_update,) * 4 + (_message(str(err), "red"),)
+    logger.info("Saved custom equipment '%s'", edited.eq_id)
+    return updated, no_update, None, None, _message(f"Saved {edited.eq_id}.", "green")
+
+
+@callback(
     Output("eqm-overview", "children"),
+    Input("eqm-selected-store", "data"),
+    Input("equipment-store", "data"),
+    Input("unit-toggle", "value"),
+    Input("eqm-edit-session", "data"),
+    Input("eqm-form-version", "data"),
+    State("eqm-draft-store", "data"),
+)
+def render_overview(selected_id, equipment_data, unit_mode, session, _version, draft):
+    # Rendered from the draft only when editing starts or the units change, so that typing
+    # in the form is not interrupted by re-rendering it
+    unit_mode = unit_mode or "SI"
+    equipment_list = (equipment_data or {}).get("equipment", [])
+    selected_id = _resolve_selected_id(equipment_list, selected_id)
+    if _editing(session, draft, selected_id):
+        return overview_form(draft, unit_mode)
+    eq = _find_equipment(equipment_data, selected_id)
+    return _overview_table(eq, unit_mode) if eq else None
+
+
+@callback(
+    Output("eqm-draft-store", "data", allow_duplicate=True),
+    Input({"type": "eqm-field", "name": ALL}, "value"),
+    State({"type": "eqm-field", "name": ALL}, "id"),
+    State("eqm-draft-store", "data"),
+    State("eqm-edit-session", "data"),
+    State("unit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_draft_from_form(values, ids, draft, session, unit_mode):
+    if not draft or not session or not ids:
+        return no_update
+    unit_mode = unit_mode or "SI"
+    triggered = {t["prop_id"].rsplit(".", 1)[0] for t in ctx.triggered}
+    changed = False
+    for field_id, value in zip(ids, values, strict=True):
+        name = field_id["name"]
+        if _id_str(field_id) not in triggered:
+            continue
+        if value == display_value(draft, name, unit_mode):
+            continue  # keep the stored value instead of its rounded display value
+        _, kind, _, to_base, _ = field_meta(name, draft, unit_mode)
+        if kind in ("text", "textarea", "calc_type", "refrigerant"):
+            new = (value or "").strip() or None
+            if name == "model" and new is None:
+                continue  # the model name is required
+        elif value in (None, ""):
+            new = None
+        else:
+            new = to_base(float(value))
+            if name in ("nominal_capacity_W", "electrical.phase"):
+                new = round(new)
+        set_path(draft, name, new)
+        if name == "refrigerant" and (match := find_refrigerant(new)) is not None:
+            draft["refrigerant_gwp"] = match.gwp
+        changed = True
+    return draft if changed else no_update
+
+
+def _id_str(field_id: dict) -> str:
+    """A pattern-matching id as it appears in ctx.triggered prop ids."""
+    return json.dumps(field_id, sort_keys=True, separators=(",", ":"))
+
+
+@callback(
+    Output({"type": "eqm-field", "name": "refrigerant_gwp"}, "value"),
+    Output({"type": "eqm-field", "name": "refrigerant_gwp"}, "disabled"),
+    Input({"type": "eqm-field", "name": "refrigerant"}, "value"),
+    prevent_initial_call=True,
+)
+def fill_refrigerant_gwp(refrigerant):
+    match = find_refrigerant(refrigerant)
+    if match is None:
+        return no_update, False  # unknown refrigerant: enter the GWP manually
+    return match.gwp, True
+
+
+@callback(
+    Output("eqm-detail-header", "children"),
     Output("eqm-issues", "children"),
     Output("eqm-curve-graph", "figure"),
     Output("eqm-curve-graph", "style"),
     Output("eqm-curve-table", "children"),
+    Output("eqm-curve-editor-wrap", "style"),
     Input("eqm-selected-store", "data"),
     Input("eqm-mode", "value"),
     Input("equipment-store", "data"),
     Input("unit-toggle", "value"),
+    Input("eqm-draft-store", "data"),
+    Input("eqm-edit-session", "data"),
 )
-def render_equipment_detail(selected_id, mode, equipment_data, unit_mode):
+def render_equipment_detail(selected_id, mode, equipment_data, unit_mode, draft, session):
     unit_mode = unit_mode or "SI"
     equipment_list = (equipment_data or {}).get("equipment", [])
-    eq = _find_equipment(equipment_data, _resolve_selected_id(equipment_list, selected_id))
+    selected_id = _resolve_selected_id(equipment_list, selected_id)
+    editing = _editing(session, draft, selected_id)
+    eq = Equipment(**draft) if editing else _find_equipment(equipment_data, selected_id)
     if eq is None:
-        return None, None, None, empty_figure("No equipment selected"), {"display": "none"}, None
+        return None, None, empty_figure("No equipment selected"), HIDDEN, None, HIDDEN
 
     if mode not in eq.performance:
         mode = next(iter(eq.performance), None)
 
     title = f"{eq.eq_manufacturer} {eq.model}" if eq.eq_manufacturer else eq.model
+    badges = [_source_badge(eq)]
+    if editing:
+        badges.insert(0, dmc.Badge("Editing", color="orange", variant="filled", size="sm"))
     header = dmc.Group(
         [
             dmc.Stack(
@@ -504,12 +943,11 @@ def render_equipment_detail(selected_id, mode, equipment_data, unit_mode):
                 ],
                 gap=0,
             ),
-            _source_badge(eq),
+            dmc.Group(badges, gap=4),
         ],
         justify="space-between",
     )
 
-    overview = _overview_table(eq, unit_mode)
     issues = _issues_block(eq, mode) if mode else None
 
     if eq.eq_type not in HEAT_PUMP_TYPES:
@@ -522,8 +960,190 @@ def render_equipment_detail(selected_id, mode, equipment_data, unit_mode):
             )
         else:
             text = "No performance data."
-        note = dmc.Text(f"{text} This equipment has no performance curves.", size="sm")
-        return header, overview, issues, empty_figure(""), {"display": "none"}, note
+        note = f"{text} This equipment has no performance curves."
+        if editing:
+            note += " Edit its efficiency in the Overview tab."
+        return header, issues, empty_figure(""), HIDDEN, dmc.Text(note, size="sm"), HIDDEN
 
-    fig = plot_performance_curves(eq, mode, unit_mode)
-    return header, overview, issues, fig, {}, _curve_data_table(eq, mode, unit_mode)
+    compare_to = None
+    if editing or eq.source == "custom":
+        compare_to = _find_equipment(equipment_data, eq.based_on) if eq.based_on else None
+    if not editing or _plottable(eq, mode):
+        fig = plot_performance_curves(eq, mode, unit_mode, compare_to=compare_to)
+    else:
+        fig = empty_figure("Fix the errors above to see the curves")
+    if editing:
+        return header, issues, fig, {}, None, {}
+    return header, issues, fig, {}, _curve_data_table(eq, mode, unit_mode), HIDDEN
+
+
+def _plottable(eq: Equipment, mode: str) -> bool:
+    """Whether a draft's curves can be drawn: errors in limits or values still plot, broken shapes do not."""
+    try:
+        df = curve_table(eq, mode)
+    except (ValueError, TypeError):
+        return False
+    return not df.empty and df["x"].notna().all()
+
+
+@callback(
+    Output("eqm-draft-store", "data", allow_duplicate=True),
+    Output("eqm-curve-editor", "data"),
+    Output("eqm-curve-editor", "columns"),
+    Output("eqm-lwt-editor", "data"),
+    Output("eqm-lwt-editor", "columns"),
+    Output("eqm-remove-lwt-select", "data"),
+    Output("eqm-remove-lwt-select", "value"),
+    Output("eqm-scale-cop", "value"),
+    Output("eqm-scale-cap", "value"),
+    Output("eqm-curve-editor-msg", "children"),
+    Output("eqm-form-version", "data"),
+    Input("eqm-edit-session", "data"),
+    Input("eqm-mode", "value"),
+    Input("unit-toggle", "value"),
+    Input("eqm-curve-editor", "data_timestamp"),
+    Input("eqm-lwt-editor", "data_timestamp"),
+    Input("eqm-scale-apply", "n_clicks"),
+    Input("eqm-add-point", "n_clicks"),
+    Input("eqm-add-lwt", "n_clicks"),
+    Input("eqm-remove-lwt", "n_clicks"),
+    State("eqm-curve-editor", "data"),
+    State("eqm-lwt-editor", "data"),
+    State("eqm-draft-store", "data"),
+    State("eqm-scale-cop", "value"),
+    State("eqm-scale-cap", "value"),
+    State("eqm-new-lwt", "value"),
+    State("eqm-remove-lwt-select", "value"),
+    State("eqm-form-version", "data"),
+    prevent_initial_call=True,
+)
+def edit_curves(
+    session,
+    mode,
+    unit_mode,
+    _curve_ts,
+    _lwt_ts,
+    _scale,
+    _add_point,
+    _add_lwt,
+    _remove_lwt,
+    rows,
+    lwt_rows,
+    draft,
+    cop_pct,
+    cap_pct,
+    new_lwt,
+    remove_lwt,
+    form_version,
+):
+    """All edits of the curves of the draft; the tables are re-rendered after structural changes."""
+    unit_mode = unit_mode or "SI"
+    if not session or not draft or draft.get("eq_type") not in HEAT_PUMP_TYPES:
+        return (no_update,) * 11
+    eq = Equipment(**draft)
+    if mode not in eq.performance:
+        mode = next(iter(eq.performance), None)
+    if mode is None:
+        return (no_update,) * 11
+
+    trigger = ctx.triggered_id
+    message = None
+    rerender_form = False
+
+    def render(eq, new_draft):
+        tables = editor_tables(eq, mode, unit_mode)
+        lwt_options = [
+            {"label": f"{r['lwt']:.1f}", "value": str(i)} for i, r in enumerate(tables[2])
+        ]
+        cop, cap = scale_values(eq, mode)
+        return (
+            new_draft,
+            *tables,
+            lwt_options,
+            None,
+            cop,
+            cap,
+            message,
+            form_version + 1 if rerender_form else no_update,
+        )
+
+    if trigger in ("eqm-edit-session", "eqm-mode", "unit-toggle"):
+        return render(eq, no_update)
+
+    try:
+        if trigger == "eqm-curve-editor":
+            # plain value edits: update the draft, keep the table as typed
+            df = tables_to_long(eq, mode, unit_mode, rows or [], lwt_rows or [])
+            if df.empty:
+                return (no_update,) * 9 + (
+                    _message("Keep at least one curve point.", "red"),
+                    no_update,
+                )
+            eq = apply_curve_table(eq, mode, df)
+            return (eq.model_dump(),) + (no_update,) * 10
+
+        if trigger == "eqm-lwt-editor":
+            lwts = [to_float(r.get("lwt")) for r in lwt_rows or []]
+            if any(pd.isna(t) for t in lwts) or len({round(t, 1) for t in lwts}) < len(lwts):
+                return (no_update,) * 9 + (
+                    _message("Each supply temperature needs a value, and no value twice.", "red"),
+                    no_update,
+                )
+            df = tables_to_long(eq, mode, unit_mode, rows or [], lwt_rows or [])
+            eq = apply_curve_table(eq, mode, df)
+
+        elif trigger == "eqm-scale-apply":
+            eq = scale_performance(eq, mode, (cop_pct or 100) / 100, (cap_pct or 100) / 100)
+            rerender_form = True  # nominal and fixed capacity are shown in the form
+
+        elif trigger == "eqm-add-point":
+            rows = [dict(r) for r in rows or []]
+            if not rows:
+                return (no_update,) * 11
+            xs = [to_float(r.get("x")) for r in rows]
+            step = xs[-1] - xs[-2] if len(xs) > 1 else 5.0
+            rows.append({**rows[-1], "x": xs[-1] + step})
+            eq = apply_curve_table(eq, mode, tables_to_long(eq, mode, unit_mode, rows, lwt_rows))
+
+        elif trigger == "eqm-add-lwt":
+            if new_lwt in (None, ""):
+                return (no_update,) * 9 + (
+                    _message("Enter the new supply temperature.", "red"),
+                    no_update,
+                )
+            (_, t_base, _), _ = editor_units(mode, unit_mode)
+            lwt_C = t_base(float(new_lwt))
+            df = curve_table(eq, mode)
+            if (df["lwt_C"] - lwt_C).abs().min() < 0.05:
+                return (no_update,) * 9 + (
+                    _message("This supply temperature already exists.", "red"),
+                    no_update,
+                )
+            nearest = df.loc[(df["lwt_C"] - lwt_C).abs().idxmin(), "lwt_C"]
+            new_curve = df[df["lwt_C"] == nearest].assign(lwt_C=lwt_C)
+            eq = apply_curve_table(eq, mode, pd.concat([df, new_curve], ignore_index=True))
+            message = _message(
+                "Added a copy of the nearest curve. Adjust its values in the table above."
+            )
+
+        elif trigger == "eqm-remove-lwt":
+            df = curve_table(eq, mode)
+            lwts = sorted(df["lwt_C"].unique())
+            if remove_lwt is None:
+                return (no_update,) * 9 + (
+                    _message("Pick the supply temperature to remove.", "red"),
+                    no_update,
+                )
+            if len(lwts) < 2:
+                return (no_update,) * 9 + (
+                    _message("Keep at least one supply temperature.", "red"),
+                    no_update,
+                )
+            eq = apply_curve_table(eq, mode, df[df["lwt_C"] != lwts[int(remove_lwt)]])
+
+        else:
+            return (no_update,) * 11
+    except (ValueError, TypeError, KeyError) as err:
+        return (no_update,) * 9 + (_message(f"Could not apply the change: {err}", "red"), no_update)
+
+    return render(eq, eq.model_dump())

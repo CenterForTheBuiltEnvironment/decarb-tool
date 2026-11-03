@@ -34,9 +34,21 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   warnings), groundwork for the Equipment Manager and editable performance curves (#171)
 - Optional `source`, `based_on` and `notes` fields on equipment, to tell library equipment from
   user-made copies
+- Custom equipment in the Equipment Manager: duplicate any library item and edit the copy's
+  properties (including efficiency of backup heating and chillers), curve points, supply
+  temperatures and operating limits; save, edit or delete custom items. Library equipment is never
+  changed, and custom items survive the equipment Reset (#171)
+- Scaling of heat pump performance curves by a COP and a capacity percentage; factors are relative
+  to the unscaled curves and are recorded on the item (#171)
+- Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
+  which fills in the GWP automatically (#171)
 
 ### Changed
 
+- Performance curve plots restyled: white background with light grid, legend above the plot,
+  outdoor air temperature labelled under both AWHP panels, unified hover, the part of a curve outside its operating limits drawn dashed, and the original
+  curves shown in grey behind a custom copy (#171)
+- Equipment validation also reports missing (blank) curve values
 - Default unit system is IP; SI can still be selected with the unit toggle
 - Results download is named after the case (building, location, climate zone, load scaling,
   base load, unit system), e.g. `decarb_B3_Denver_CZ5B_scaled-h1.25-c1.25_SI_<date>.zip`, and

@@ -22,7 +22,7 @@ from layout.input import (
     edit_equipment_modal,
 )
 from src.config import LINKS, MAX_ACTIVE_EQUIPMENT_SCENARIOS, URLS
-from src.equipment import Equipment
+from src.equipment import Equipment, keep_custom_equipment
 from src.visuals import empty_figure, plot_performance_curves
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
@@ -699,12 +699,13 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids, displ
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Input("button-reset-equipment", "n_clicks"),
     State("equipment-initial-store", "data"),
+    State("equipment-store", "data"),
     prevent_initial_call=True,
 )
-def reset_equipment(n_clicks, initial_data):
+def reset_equipment(n_clicks, initial_data, equipment_data):
     """
     Reset the equipment configuration back to the initial library
-    and clear any active selections.
+    and clear any active selections. Custom equipment from the Equipment Manager is kept.
     """
     if not n_clicks:
         return no_update, no_update
@@ -712,7 +713,7 @@ def reset_equipment(n_clicks, initial_data):
     if not initial_data:
         return no_update, no_update
 
-    return initial_data, []
+    return keep_custom_equipment(initial_data, equipment_data), []
 
 
 @callback(
@@ -1263,7 +1264,7 @@ def update_curve_previews(
                 if unit_mode == "IP":
                     highlight = F_to_C(highlight)
         return plot_performance_curves(
-            Equipment(**eq), "heating", unit_mode, highlight_lwt_C=highlight, height=380
+            Equipment(**eq), "heating", unit_mode, highlight_lwt_C=highlight, height=440
         )
 
     return (
@@ -1354,6 +1355,8 @@ def _build_equipment_options(
                 label_cap = "Infinite cap."
 
             label += f" ({label_cap})"
+            if eq.get("source") == "custom":
+                label += " · custom"
 
             options.append(
                 {

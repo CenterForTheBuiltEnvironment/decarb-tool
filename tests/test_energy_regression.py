@@ -21,7 +21,12 @@ from src import paths
 from src.config import Columns as Col
 from src.emissions import EmissionScenario
 from src.energy import loads_to_site_energy, site_to_source
-from src.equipment import EquipmentLibrary, duplicate_equipment, load_library
+from src.equipment import (
+    EquipmentLibrary,
+    duplicate_equipment,
+    load_library,
+    scale_performance,
+)
 from src.loads import StandardLoad
 from src.metadata import Metadata
 
@@ -250,3 +255,28 @@ def test_unmodified_custom_copy_matches_library_equipment(scenario_id, library, 
         load=synthetic_load, library=custom_library, scenario_ids=[scenario_id]
     )
     pd.testing.assert_frame_equal(df_original, df_copy)
+
+
+@pytest.mark.regression
+def test_halving_awhp_heating_cop_doubles_its_heating_electricity(library, synthetic_load):
+    """COP-only scaling keeps sizing and delivered heat; heat pump heating electricity is heat / COP."""
+    scenario_id = "eq_scenario_4"  # AWHP heating + cooling, electric resistance backup
+    custom_library = EquipmentLibrary(**library.model_dump())
+    scenario = custom_library.get_scenario(scenario_id)
+    existing_ids = [e.eq_id for e in custom_library.equipment]
+    awhp = duplicate_equipment(custom_library.get_equipment(scenario.awhp), existing_ids)
+    custom_library.add_equipment(scale_performance(awhp, "heating", cop_factor=0.5))
+    custom_library.add_equipment_scenario(scenario.model_copy(update={"awhp": awhp.eq_id}))
+
+    df_original = loads_to_site_energy(
+        load=synthetic_load, library=library, scenario_ids=[scenario_id]
+    )
+    df_scaled = loads_to_site_energy(
+        load=synthetic_load, library=custom_library, scenario_ids=[scenario_id]
+    )
+    pd.testing.assert_series_equal(
+        df_scaled[Col.ELEC_AWHP_H_WH.value], 2 * df_original[Col.ELEC_AWHP_H_WH.value]
+    )
+    pd.testing.assert_series_equal(
+        df_scaled[Col.ELEC_AWHP_C_WH.value], df_original[Col.ELEC_AWHP_C_WH.value]
+    )

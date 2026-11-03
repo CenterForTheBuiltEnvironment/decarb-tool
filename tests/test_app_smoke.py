@@ -125,8 +125,38 @@ def test_equipment_manager_output_renders_in_browser(app, eq_id, unit_mode):
     _, mode, _ = eqm.update_mode_options(eq_id, library, None)
     outputs = [
         eqm.render_equipment_list(library, "all", None, eq_id, unit_mode),
-        *eqm.render_equipment_detail(eq_id, mode, library, unit_mode),
+        eqm.render_overview(eq_id, library, unit_mode, None, 0, None),
+        *eqm.render_equipment_detail(eq_id, mode, library, unit_mode, None, None),
     ]
+    for output in outputs:
+        json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
+        assert components_in_dict_props(output) == []
+
+
+@pytest.mark.parametrize("eq_id", ["hr01", "hp01", "hp02", "bo01", "ch02"])
+@pytest.mark.parametrize("unit_mode", ["SI", "IP"])
+def test_equipment_manager_edit_mode_renders_in_browser(app, eq_id, unit_mode):
+    """The overview form and curve editor tables of a custom copy must serialise."""
+    import pages.equipment_manager_page as eqm
+    from layout.shell import _get_equipment_library
+    from src.equipment import Equipment, duplicate_equipment, save_custom_equipment
+
+    library = _get_equipment_library()
+    library_ids = [e["eq_id"] for e in library["equipment"]]
+    source = next(Equipment(**e) for e in library["equipment"] if e["eq_id"] == eq_id)
+    copy = duplicate_equipment(source, library_ids)
+    data = save_custom_equipment(library, copy, library_ids)
+    draft, session = copy.model_dump(), {"eq_id": copy.eq_id, "started": 0}
+    _, mode, _ = eqm.update_mode_options(copy.eq_id, data, None)
+
+    outputs = [
+        eqm.render_overview(copy.eq_id, data, unit_mode, session, 0, draft),
+        *eqm.render_equipment_detail(copy.eq_id, mode, data, unit_mode, draft, session),
+    ]
+    if copy.eq_type in ("heat_pump", "hr_heat_pump"):
+        from layout.equipment_editor import editor_tables
+
+        outputs += list(editor_tables(copy, mode, unit_mode))
     for output in outputs:
         json.dumps(output, cls=plotly.utils.PlotlyJSONEncoder)
         assert components_in_dict_props(output) == []
