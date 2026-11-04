@@ -1698,7 +1698,7 @@
       "awhp": "hp01",
       "awhp_performance_model": "interpolate_HHWST_fixed",
       "awhp_sizing_mode": "integer_sizing_peak_load",
-      "awhp_sizing_value": 0.2,
+      "awhp_sizing_value": 1,
       "awhp_redundancy": 1,
       "awhp_h_supply_t": 38,
       "awhp_use_cooling": true,
