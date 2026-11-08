@@ -446,6 +446,38 @@ def loads_to_site_energy(
             df[Col.FUEL_SWITCHING.value] = False
 
         # =========================
+        # TES (optional)
+        # =========================
+
+        df_loads = load.df.copy()
+        df_loads["date"] = df_loads.index.date
+
+        df_peak = df_loads.groupby("date").agg(
+            total_Wh=("heating_W", "sum"), num_hrs=("heating_W", "size")
+        )
+        df_peak = df_peak.sort_values("total_Wh", ascending=False)
+        peak_date = df_peak.head(n=1).index[0]
+        # print(peak_date)
+        hp_size = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
+
+        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)]
+        # df_peak_date["hp"] = hp_size
+        df_peak_date["TES_charge_delta"] = hp_size - df_peak_date["heating_W"]
+        df_peak_date["TES_charging"] = np.where(
+            df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
+        )
+        df_peak_date["TES_discharging"] = np.where(
+            df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
+        )
+        print(df_peak_date)
+
+        df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
+        print(df_TES_sums)
+        # add debug warning/error if sums don't match
+        TES_size = df_TES_sums["TES_charging"]
+        print(TES_size)
+
+        # =========================
         # Phase 1 - HR WWHP (optional)
         # =========================
         if scen.hr_wwhp:
