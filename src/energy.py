@@ -464,10 +464,11 @@ def loads_to_site_energy(
         )
         df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
         peak_date = df_peak.head(n=1).index[0]
-        # print(peak_date)
+        # print(df_peak)
 
         # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
         hp_size = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
+        # print(hp_size)
 
         df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
         df_peak_date["TES_charge_delta"] = (
@@ -484,7 +485,7 @@ def loads_to_site_energy(
         df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
         # add debug warning/error if sums don't match
         TES_size = df_TES_sums["TES_charging"]
-        # print(TES_size)
+        # print(df_TES_sums)
 
         # ---- control ----
         available_charge_delta = (
@@ -493,9 +494,11 @@ def loads_to_site_energy(
         TES_charge = list(
             accumulate(
                 available_charge_delta.copy()[1:],
-                lambda prev, delta, tes_size=TES_size: np.clip(
-                    prev + delta, 0, tes_size
-                ),  # each hour: charge = prev. charge + available delta, limited by 0 and max size
+                lambda prev, delta, tes_size=TES_size: prev
+                if np.isnan(delta)
+                else np.clip(prev + delta, 0, tes_size),
+                # each hour: charge = prev. charge + available delta, limited by 0 and max size
+                # if nan load: carry forward previous tank charge
                 initial=TES_size,  # assume tank starts full
             )
         )
