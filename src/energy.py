@@ -1,3 +1,5 @@
+from itertools import accumulate
+
 import numpy as np
 import pandas as pd
 
@@ -449,33 +451,61 @@ def loads_to_site_energy(
         # TES (optional)
         # =========================
 
+        # ---- sizing ----
         df_loads = load.df.copy()
         df_loads["date"] = df_loads.index.date
 
+        # find peak heating day (day with largest total load)
         df_peak = df_loads.groupby("date").agg(
             total_Wh=("heating_W", "sum"), num_hrs=("heating_W", "size")
         )
-        df_peak = df_peak.sort_values("total_Wh", ascending=False)
+        df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
         peak_date = df_peak.head(n=1).index[0]
         # print(peak_date)
+
+        # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
         hp_size = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
 
-        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)]
-        # df_peak_date["hp"] = hp_size
-        df_peak_date["TES_charge_delta"] = hp_size - df_peak_date["heating_W"]
+        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
+        df_peak_date["TES_charge_delta"] = (
+            hp_size - df_peak_date["heating_W"]
+        )  # TES delta = HP capacity - hourly load
         df_peak_date["TES_charging"] = np.where(
             df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
         )
         df_peak_date["TES_discharging"] = np.where(
             df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
         )
-        print(df_peak_date)
+        # print(df_peak_date)
 
         df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
-        print(df_TES_sums)
         # add debug warning/error if sums don't match
         TES_size = df_TES_sums["TES_charging"]
-        print(TES_size)
+        # print(TES_size)
+
+        # ---- control ----
+        available_charge_delta = (
+            hp_size - df[Col.HHW_W.value].to_numpy()
+        )  # available TES delta = HP capacity - hourly load
+        TES_charge = list(
+            accumulate(
+                available_charge_delta.copy()[1:],
+                lambda prev, delta, tes_size=TES_size: np.clip(
+                    prev + delta, 0, tes_size
+                ),  # each hour: charge = prev. charge + available delta, limited by 0 and max size
+                initial=TES_size,  # assume tank starts full
+            )
+        )
+        df["TES_charge"] = TES_charge
+        df["TES_charge_delta"] = (
+            TES_charge - df["TES_charge"].shift(1, fill_value=TES_charge[0]).to_numpy()
+        )  # delta = current - previous
+        df[Col.HHW_REM_W.value] += df["TES_charge_delta"].to_numpy()  # update remaining load
+        print(
+            df[["heating_W", Col.HHW_REM_W.value, "TES_charge", "TES_charge_delta"]].loc[
+                (df.index.date == peak_date)
+            ]
+        )  # .loc[(df.index.date == peak_date)] # .head(n=5)
 
         # =========================
         # Phase 1 - HR WWHP (optional)
