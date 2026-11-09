@@ -168,6 +168,10 @@ class Columns(StrEnum):
     CHILLER_CHW_W = "chiller_chw_W"
     ELEC_CHILLER_WH = "elec_chiller_Wh"
 
+    # --- Thermal Energy Storage (TES) ---
+    TES_CHARGE_WH = "TES_charge_Wh"
+    TES_CHARGE_DELTA_W = "TES_charge_delta_W"
+
     # --- Energy (general) ---
     ELEC_WH = "elec_Wh"
     GAS_WH = "gas_Wh"

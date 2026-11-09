@@ -400,6 +400,9 @@ def loads_to_site_energy(
         # detail columns (create lazily; safer to pre-create as NaN for clarity)
         if detail:
             for c in [
+                # TES
+                Col.TES_CHARGE_WH.value,
+                Col.TES_CHARGE_DELTA_W.value,
                 # HR WWHP
                 Col.HR_HHW_W.value,
                 Col.HR_CHW_W.value,
@@ -496,13 +499,15 @@ def loads_to_site_energy(
                 initial=TES_size,  # assume tank starts full
             )
         )
-        df["TES_charge"] = TES_charge
-        df["TES_charge_delta"] = (
-            TES_charge - df["TES_charge"].shift(1, fill_value=TES_charge[0]).to_numpy()
+        df[Col.TES_CHARGE_WH.value] = TES_charge
+        df[Col.TES_CHARGE_DELTA_W.value] = (
+            TES_charge - df[Col.TES_CHARGE_WH.value].shift(1, fill_value=TES_charge[0]).to_numpy()
         )  # delta = current - previous
-        df[Col.HHW_REM_W.value] += df["TES_charge_delta"].to_numpy()  # update remaining load
+        df[Col.HHW_REM_W.value] += df[
+            Col.TES_CHARGE_DELTA_W.value
+        ].to_numpy()  # update remaining load
         print(
-            df[["heating_W", Col.HHW_REM_W.value, "TES_charge", "TES_charge_delta"]].loc[
+            df[["heating_W", Col.HHW_REM_W.value, "TES_charge_Wh", "TES_charge_delta_W"]].loc[
                 (df.index.date == peak_date)
             ]
         )  # .loc[(df.index.date == peak_date)] # .head(n=5)
@@ -1018,6 +1023,8 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
     detail_cols = [
         Col.HHW_W.value,
         Col.CHW_W.value,
+        Col.TES_CHARGE_WH.value,
+        Col.TES_CHARGE_DELTA_W.value,
         Col.HR_HHW_W.value,
         Col.HR_CHW_W.value,
         Col.HR_COP_H.value,

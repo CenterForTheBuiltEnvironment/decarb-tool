@@ -242,6 +242,7 @@ COLUMN_CONFIG = {
     # === Energy - Gas (Wh) - converts to BTU in IP mode ===
     "gas_Wh": ("energy", "Total Gas"),
     "gas_boiler_Wh": ("energy", "Boiler Gas"),
+    "TES_charge_Wh": ("energy", "TES State of Charge"),
     # === Power - Heating (W) ===
     "heating_W": ("power", "Heating Load"),
     "hhw_W": ("power", "HHW Load"),
@@ -256,6 +257,7 @@ COLUMN_CONFIG = {
     "hhw_min_load": ("power", "Min HHW Load"),
     "hhw_q25_load": ("power", "Q25 HHW Load"),
     "hhw_q75_load": ("power", "Q75 HHW Load"),
+    "TES_charge_delta_W": ("power", "TES Charge/Discharge Delta"),
     # === Power - Cooling (W) ===
     "cooling_W": ("power_cooling", "Cooling Load"),
     "chw_W": ("power_cooling", "CHW Load"),
