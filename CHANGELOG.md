@@ -46,6 +46,7 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   custom copy, and invalid items are rejected with a reason (#171)
 - Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
   which fills in the GWP automatically (#171)
+- Optional balancing source/sink for the HR WWHP, with rejection and recovery capacities and a control option for each side (#122)
 - Google Analytics (GA4, measurement ID `G-3K9P3CNPWY`) and Siteimprove usage tracking on the
   production deployment, enabled with `ENABLE_ANALYTICS=true` (set in the Dockerfile) (#200)
 
@@ -81,6 +82,7 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Heat pump curves are now also checked for strictly increasing outdoor temperature or capacity
   values, positive COP and capacity, numeric non-duplicate supply temperatures, and ordered
   min/max limits before a calculation runs
+- Equipment input modal revised to have separate sections for AWHP and HR WWHP inputs
 
 ### Fixed
 
@@ -90,6 +92,7 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Input labels and the base load method description show as soon as the modals open
 - The supply temperature reset now picks the lowest supply temperature curve numerically
   instead of alphabetically (no effect on the current equipment library)
+- The HR WWHP can now run at exactly its minimum turndown
 
 ## [0.1.0] - 2026-10-13
 
