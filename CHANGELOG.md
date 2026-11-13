@@ -47,6 +47,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
   which fills in the GWP automatically (#171)
 - Optional balancing source/sink for the HR WWHP, with rejection and recovery capacities and a control option for each side (#122)
+- Google Analytics (GA4, measurement ID `G-3K9P3CNPWY`) and Siteimprove usage tracking on the
+  production deployment, enabled with `ENABLE_ANALYTICS=true` (set in the Dockerfile) (#200)
 
 ### Changed
 
