@@ -4,14 +4,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from src.equipment import Equipment, curve_table
 from utils.display_registry import (
     format_emission_scenario_id_short,
     format_equipment_scenario_id_short,
     format_meter_name,
 )
+from utils.interp import interp_vector
 from utils.units import (
     convert_dataframe,
     get_auto_scale,
+    get_converter,
     get_display_unit,
     # Legacy import for backward compatibility (axis labels with HTML)
     unit_map,
@@ -857,4 +860,309 @@ def plot_scatter_temp_vs_variable(
         subtitle_text=f"Average Outdoor Temperature against {y_var.replace('_', ' ').title()}.",
     )
 
+    return fig
+
+
+CURVE_PALETTES = {
+    # sequential, light (low supply temperature) to dark (high)
+    "heating": ("#F6B352", "#8E1B3A"),
+    "cooling": ("#8EC5EE", "#0B3C78"),
+}
+CURVE_STYLE = dict(
+    font=dict(size=12, color="#343a40"),
+    grid="#e9ecef",
+    axis="#adb5bd",
+    original="#adb5bd",
+    highlight="#212529",
+)
+
+
+def _supply_temp_colors(n: int, mode: str) -> list[str]:
+    """Sequential colours for supply temperature curves: light (low) to dark (high)."""
+    low, high = (
+        px.colors.hex_to_rgb(c) for c in CURVE_PALETTES.get(mode, CURVE_PALETTES["heating"])
+    )
+    if n == 1:
+        return [px.colors.label_rgb(px.colors.find_intermediate_color(low, high, 0.6))]
+    return [
+        px.colors.label_rgb(px.colors.find_intermediate_color(low, high, i / (n - 1)))
+        for i in range(n)
+    ]
+
+
+def plot_performance_curves(
+    eq: Equipment,
+    mode: str,
+    unit_mode: str = "SI",
+    highlight_lwt_C: float | None = None,
+    height: int = 500,
+    compare_to: Equipment | None = None,
+) -> go.Figure:
+    """Heat pump performance curves, one line per leaving supply water temperature.
+
+    AWHP: COP (top) and capacity (bottom) against outdoor air temperature; the part of a curve
+    outside its operating limits is drawn dashed and faded. HR WWHP: COP against part-load
+    capacity. `highlight_lwt_C` adds a dashed curve interpolated at that supply temperature, the
+    way the calculation interpolates between the tabulated curves. `compare_to` draws the curves
+    of another item (e.g. the library original of a custom copy) in grey behind.
+    Every trace's `meta` names its role: curve, outside, fixed, highlight or original.
+    """
+    df = curve_table(eq, mode)
+    if df.empty:
+        return empty_figure("No performance curves for this equipment")
+
+    to_temp = get_converter("temperature", unit_mode)
+    t_unit = get_display_unit("temperature", unit_mode)
+    cap_category = "power_cooling" if mode == "cooling" else "power"
+    is_awhp = df["x_kind"].iloc[0] == "t_out_C"
+    mode_label = "Cooling" if mode == "cooling" else "Heating"
+
+    compare_df = curve_table(compare_to, mode) if compare_to is not None else None
+    if compare_df is not None and (
+        compare_df.empty or compare_df["x_kind"].iloc[0] != df["x_kind"].iloc[0]
+    ):
+        compare_df = None
+
+    fixed_capacity = None
+    if is_awhp and df["capacity_W"].isna().all() and eq.capacity_W:
+        fixed_capacity = eq.capacity_W
+    cap_values = df["capacity_W"].dropna().tolist() or [fixed_capacity or 0]
+    cap_scale, cap_unit = get_auto_scale(cap_values, cap_category, unit_mode)
+
+    lwts = sorted(df["lwt_C"].unique())
+    colors = _supply_temp_colors(len(lwts), mode)
+
+    if is_awhp:
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.24)
+        x_label = f"Outdoor air temperature [{t_unit}]"
+    else:
+        fig = go.Figure()
+        x_label = f"{mode_label} capacity at part load [{cap_unit}]"
+
+    def x_display(x):
+        return (
+            to_temp(np.asarray(x, dtype=float))
+            if is_awhp
+            else np.asarray(x, dtype=float) / cap_scale
+        )
+
+    cop_panel = {"row": 1, "col": 1} if is_awhp else {}
+    cap_panel = {"row": 2, "col": 1}
+
+    # original curves first, so they sit behind
+    if compare_df is not None:
+        for i, (_lwt, d) in enumerate(compare_df.groupby("lwt_C", sort=True)):
+            line = dict(color=CURVE_STYLE["original"], width=1.5, dash="dot")
+            common = dict(
+                mode="lines",
+                legendgroup="original",
+                line=line,
+                hoverinfo="skip",
+                meta="original",
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=x_display(d["x"]),
+                    y=d["cop"],
+                    name=f"Original ({compare_to.eq_id})",
+                    showlegend=i == 0,
+                    **common,
+                ),
+                **cop_panel,
+            )
+            if is_awhp and d["capacity_W"].notna().any():
+                fig.add_trace(
+                    go.Scatter(
+                        x=x_display(d["x"]),
+                        y=d["capacity_W"] / cap_scale,
+                        name=f"Original ({compare_to.eq_id})",
+                        showlegend=False,
+                        **common,
+                    ),
+                    **cap_panel,
+                )
+
+    def add_curve(x, y, in_range, name, color, panel, hover_value, show_legend):
+        """A curve with its in-range part solid and the part outside the limits dashed."""
+        x, y, in_range = np.asarray(x), np.asarray(y, dtype=float), np.asarray(in_range)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=np.where(in_range, y, np.nan),
+                mode="lines+markers",
+                name=name,
+                legendgroup=name,
+                showlegend=show_legend,
+                line=dict(color=color, width=2.5),
+                marker=dict(color=color, size=6, symbol="circle"),
+                hovertemplate=f"{name}: {hover_value}<extra></extra>",
+                meta="curve",
+            ),
+            **panel,
+        )
+        if in_range.all():
+            return
+        # extend the outside part by one point so it joins the solid line
+        outside = ~in_range | np.convolve(~in_range, [1, 1, 1], mode="same").astype(bool)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=np.where(outside, y, np.nan),
+                mode="lines+markers",
+                name=name,
+                legendgroup=name,
+                showlegend=False,
+                opacity=0.45,
+                line=dict(color=color, width=1.5, dash="dash"),
+                marker=dict(
+                    color=color, size=6, symbol=np.where(in_range, "circle", "circle-open")
+                ),
+                hovertemplate=f"{name}: {hover_value} (outside operating limits)<extra></extra>",
+                meta="outside",
+            ),
+            **panel,
+        )
+
+    for lwt, color in zip(lwts, colors, strict=True):
+        d = df[df["lwt_C"] == lwt]
+        name = f"{to_temp(lwt):.1f} {t_unit}"
+        in_range = (
+            ((d["x"] >= d["oat_min_C"]) & (d["x"] <= d["oat_max_C"])) | d["oat_min_C"].isna()
+            if is_awhp
+            else pd.Series(True, index=d.index)
+        )
+        add_curve(
+            x_display(d["x"]), d["cop"], in_range, name, color, cop_panel, "COP %{y:.2f}", True
+        )
+        if is_awhp and d["capacity_W"].notna().any():
+            add_curve(
+                x_display(d["x"]),
+                d["capacity_W"] / cap_scale,
+                in_range,
+                name,
+                color,
+                cap_panel,
+                f"%{{y:,.1f}} {cap_unit}",
+                False,
+            )
+
+    if is_awhp and fixed_capacity:
+        x_range = x_display([df["x"].min(), df["x"].max()])
+        fig.add_trace(
+            go.Scatter(
+                x=x_range,
+                y=[fixed_capacity / cap_scale] * 2,
+                mode="lines",
+                name="Fixed capacity",
+                line=dict(color="#868e96", width=2),
+                hovertemplate=f"Fixed capacity: %{{y:,.1f}} {cap_unit}<extra></extra>",
+                meta="fixed",
+            ),
+            **cap_panel,
+        )
+
+    if highlight_lwt_C is not None and len(lwts) > 0:
+        pivot_cop = df.pivot(index="x", columns="lwt_C", values="cop")
+        x_points = pivot_cop.index.to_numpy()
+        cop_at = [float(interp_vector(lwts, row, highlight_lwt_C)) for row in pivot_cop.to_numpy()]
+        name = f"Selected {to_temp(highlight_lwt_C):.1f} {t_unit}"
+        highlight_line = dict(color=CURVE_STYLE["highlight"], width=2, dash="dash")
+        fig.add_trace(
+            go.Scatter(
+                x=x_display(x_points),
+                y=cop_at,
+                mode="lines",
+                name=name,
+                legendgroup="highlight",
+                line=highlight_line,
+                hovertemplate=f"{name}: COP %{{y:.2f}}<extra></extra>",
+                meta="highlight",
+            ),
+            **cop_panel,
+        )
+        fig.add_annotation(
+            x=x_display(x_points)[-1],
+            y=cop_at[-1],
+            text=f"{to_temp(highlight_lwt_C):.1f} {t_unit}",
+            showarrow=False,
+            xanchor="left",
+            xshift=4,
+            font=dict(size=11, color=CURVE_STYLE["highlight"]),
+            **({"xref": "x", "yref": "y"} if is_awhp else {}),
+        )
+        if is_awhp and df["capacity_W"].notna().all():
+            pivot_cap = df.pivot(index="x", columns="lwt_C", values="capacity_W")
+            cap_at = [
+                float(interp_vector(lwts, row, highlight_lwt_C)) for row in pivot_cap.to_numpy()
+            ]
+            fig.add_trace(
+                go.Scatter(
+                    x=x_display(x_points),
+                    y=np.asarray(cap_at) / cap_scale,
+                    mode="lines",
+                    name=name,
+                    legendgroup="highlight",
+                    showlegend=False,
+                    line=highlight_line,
+                    hovertemplate=f"{name}: %{{y:,.1f}} {cap_unit}<extra></extra>",
+                    meta="highlight",
+                ),
+                **cap_panel,
+            )
+
+    axis_style = dict(
+        showgrid=True,
+        gridcolor=CURVE_STYLE["grid"],
+        zeroline=False,
+        showline=True,
+        linecolor=CURVE_STYLE["axis"],
+        ticks="outside",
+        tickcolor=CURVE_STYLE["axis"],
+        ticklen=4,
+        mirror=False,
+        title_font=dict(size=12),
+        tickfont=dict(size=11),
+    )
+    fig.update_xaxes(
+        **axis_style,
+        showspikes=True,
+        spikemode="across",
+        spikethickness=1,
+        spikecolor=CURVE_STYLE["axis"],
+        spikedash="dot",
+    )
+    fig.update_yaxes(**axis_style)
+    # the unified hover label shows x once, as the axis value
+    fig.update_xaxes(hoverformat=".1f" if is_awhp else ",.1f")
+
+    if is_awhp:
+        fig.update_yaxes(title_text="COP", row=1, col=1)
+        fig.update_yaxes(
+            title_text=f"{mode_label} capacity [{cap_unit}]", rangemode="tozero", row=2, col=1
+        )
+        # both panels are plotted against outdoor air temperature: label the x-axis under each
+        fig.update_xaxes(title_text=x_label, showticklabels=True, row=1, col=1)
+        fig.update_xaxes(title_text=x_label, row=2, col=1)
+    else:
+        fig.update_layout(xaxis_title=x_label, yaxis_title="COP")
+
+    fig.update_layout(
+        template="decarb-tool-theme",
+        height=height,
+        margin=dict(t=56, b=10, l=10, r=40),
+        font=CURVE_STYLE["font"],
+        plot_bgcolor="white",
+        legend=dict(
+            title_text="Supply water temperature",
+            orientation="h",
+            x=0,
+            xanchor="left",
+            y=1.04,
+            yanchor="bottom",
+            font=dict(size=11),
+            title_font=dict(size=11),
+        ),
+        hovermode="x unified",
+        hoverlabel=dict(font_size=11),
+    )
     return fig

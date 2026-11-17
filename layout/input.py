@@ -14,7 +14,7 @@ from layout.table_config import (
     value_deemphasis_style,
 )
 from src import paths
-from src.config import LINKS, EmissionTableRows, EquipmentTableRows
+from src.config import LINKS, URLS, EmissionTableRows, EquipmentTableRows
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
 
@@ -38,7 +38,7 @@ def get_emissions_index():
 def unit_toggle():
     return dmc.SegmentedControl(
         id="unit-toggle",  # keep your existing id if you already use it
-        value="SI",  # or "IP"
+        value="IP",  # default unit system; "SI" or "IP"
         data=[
             {"label": "SI", "value": "SI"},
             {"label": "IP", "value": "IP"},
@@ -586,7 +586,7 @@ def build_equipment_table(
         view_mode: One of "simple", "advanced", or "differences"
         unit_mode: "SI" or "IP" for unit conversion
     """
-    from utils.units import get_unit_converter, get_unit_label
+    from utils.units import get_converter, get_display_unit
 
     if isinstance(equipment_data, list):
         equipment_df = pd.DataFrame(equipment_data)
@@ -618,8 +618,9 @@ def build_equipment_table(
     equipment_df = equipment_df[equipment_df["eq_scen_id"].isin(valid_displayed_ids)]
     equipment_df = equipment_df.set_index("eq_scen_id").loc[valid_displayed_ids].reset_index()
 
-    # Get unit label for temperature (dynamic based on unit_mode)
-    temp_unit = get_unit_label("temperature", unit_mode)
+    # Get unit label for temperature and HR source/sink capacity (dynamic based on unit_mode)
+    temp_unit = get_display_unit("temperature", unit_mode)
+    power_unit = get_display_unit("power", unit_mode)
 
     # Rows to display (property name, label)
     # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
@@ -627,6 +628,10 @@ def build_equipment_table(
         ("hr_wwhp", "HR WWHP Model"),
         ("hr_wwhp_performance_model", "HR WWHP Performance Calculation Model"),
         ("hr_wwhp_h_supply_t", f"HR WWHP Heating Supply Temp ({temp_unit})"),
+        ("hr_eac_rejection_cap_W", f"HR Balancing Heat Rejection Capacity ({power_unit})"),
+        ("hr_eac_rejection_control", "HR Balancing Heat Rejection Control"),
+        ("hr_eac_recovery_cap_W", f"HR Balancing Heat Recovery Capacity ({power_unit})"),
+        ("hr_eac_recovery_control", "HR Balancing Heat Recovery Control"),
         ("awhp", "AWHP Model"),
         ("awhp_performance_model", "AWHP Performance Calculation Model"),
         ("awhp_h_supply_t", f"AWHP Heating Supply Temp ({temp_unit})"),
@@ -808,8 +813,12 @@ def build_equipment_table(
     diff_row_style = TABLE_STYLE.diff_row_style
 
     # Get converter for temperature values
-    temp_converter = get_unit_converter("temperature", unit_mode)
+    temp_converter = get_converter("temperature", unit_mode)
     temp_fields = {"hr_wwhp_h_supply_t", "awhp_h_supply_t"}
+
+    # Get converter for HR source/sink values
+    power_converter = get_converter("power", unit_mode)
+    power_fields = {"hr_eac_rejection_cap_W", "hr_eac_recovery_cap_W"}
 
     for field, label in available_rows:
         is_diff_row = field in diff_fields
@@ -824,10 +833,16 @@ def build_equipment_table(
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for temperature fields
+            # Apply unit conversion for temperature and HR source/sink fields
             if field in temp_fields and raw_value is not None:
                 try:
                     converted = temp_converter(float(raw_value))
+                    display_value = f"{converted:.1f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            elif field in power_fields and raw_value is not None:
+                try:
+                    converted = power_converter(float(raw_value))
                     display_value = f"{converted:.1f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -960,37 +975,74 @@ def edit_equipment_modal():
                     ],
                     grow=True,
                 ),
-                dmc.Divider(label="Heat pump selection", labelPosition="center"),
+                dmc.Accordion(
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                dmc.Text("Performance curves", size="sm", fw=500),
+                            ),
+                            dmc.AccordionPanel(
+                                dmc.Stack(
+                                    [
+                                        dmc.Tabs(
+                                            [
+                                                dmc.TabsList(
+                                                    [
+                                                        dmc.TabsTab("AWHP", value="awhp"),
+                                                        dmc.TabsTab(
+                                                            "HR heat pump", value="hr_wwhp"
+                                                        ),
+                                                    ]
+                                                ),
+                                                dmc.TabsPanel(
+                                                    dcc.Graph(
+                                                        id="edit-awhp-curve-graph",
+                                                        config={"displaylogo": False},
+                                                    ),
+                                                    value="awhp",
+                                                ),
+                                                dmc.TabsPanel(
+                                                    dcc.Graph(
+                                                        id="edit-hr-wwhp-curve-graph",
+                                                        config={"displaylogo": False},
+                                                    ),
+                                                    value="hr_wwhp",
+                                                ),
+                                            ],
+                                            value="awhp",
+                                        ),
+                                        dmc.Text(
+                                            [
+                                                "Dashed line: curve at the selected supply temperature. ",
+                                                dmc.Anchor(
+                                                    "View all equipment in the Equipment Manager",
+                                                    href=URLS.EQUIPMENT_MANAGER.value,
+                                                    size="xs",
+                                                ),
+                                            ],
+                                            size="xs",
+                                            c="dimmed",
+                                        ),
+                                    ],
+                                    gap="xs",
+                                )
+                            ),
+                        ],
+                        value="curves",
+                    ),
+                    variant="contained",
+                    radius="md",
+                ),
+                dmc.Divider(label="Air-to-water heat pump", labelPosition="center", size="md"),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
                     children=[
                         dmc.Select(
-                            id="edit-hr-wwhp-select",
-                            label="HR Heat Pump",
-                            placeholder="None",
-                            data=[],  # filled by callback
-                            clearable=True,
-                            searchable=True,
-                        ),
-                        dmc.Select(
                             id="edit-awhp-select",
                             label="Air-to-water Heat Pump",
                             placeholder="None",
                             data=[],
-                            clearable=True,
-                            searchable=True,
-                        ),
-                        dmc.Select(
-                            id="edit-hr-wwhp-performance-model",
-                            label="HR HP Performance Calculation Model",
-                            placeholder="None",
-                            data=[  # not including fixed_COP and performance_curves atm
-                                {
-                                    "label": "Interpolated table (HHWST fixed)",
-                                    "value": "interpolate_HHWST",
-                                }
-                            ],
                             clearable=True,
                             searchable=True,
                         ),
@@ -1011,24 +1063,10 @@ def edit_equipment_modal():
                             clearable=True,
                             searchable=True,
                         ),
-                        dmc.Stack(
-                            gap=4,
-                            children=[
-                                dmc.Text(
-                                    id="edit-hr-wwhp-h-supply-t-label",
-                                    children="HR HP Heating supply temp (°C)",
-                                    size="sm",
-                                    fw=500,
-                                ),
-                                dmc.NumberInput(
-                                    id="edit-hr-wwhp-h-supply-t-value",
-                                    placeholder="Enter temperature",
-                                    min=32.2,  # Updated dynamically by callback
-                                    max=73.9,  # Updated dynamically by callback
-                                    step=0.1,
-                                    decimalScale=1,
-                                ),
-                            ],
+                        dmc.Switch(
+                            id="edit-awhp-use-cooling",
+                            label="Use AWHP for cooling",
+                            mt="xs",
                         ),
                         dmc.Stack(
                             gap=4,
@@ -1051,82 +1089,182 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
-                dmc.Divider(label="Heat pump sizing", labelPosition="center"),
-                dmc.Stack(
-                    [
-                        dmc.SegmentedControl(
-                            id="edit-awhp-sizing-mode",
+                dmc.Divider(label="Air-to-water heat pump sizing", labelPosition="center"),
+                dmc.SegmentedControl(
+                    id="edit-awhp-sizing-mode",
+                    data=[
+                        {
+                            "label": "Integer ceiling method",
+                            "value": "integer_sizing_peak_load",
+                        },
+                        {
+                            "label": "Fractional method",
+                            "value": "fractional_sizing_peak_load",
+                        },
+                        {
+                            "label": "Specific # of units",
+                            "value": "fixed_num_units",
+                        },
+                    ],
+                    fullWidth=True,
+                ),
+                dmc.SimpleGrid(
+                    cols=3,
+                    spacing="md",
+                    children=[
+                        dmc.NumberInput(
+                            id="edit-awhp-sizing-value",
+                            label="Sizing value",
+                            min=0,
+                            max=5,
+                            step=0.05,  # will be overridden dynamically
+                            style={"flex": 1},
+                        ),
+                        dmc.NumberInput(
+                            id="edit-awhp-redundancy",
+                            label="Redundant units",
+                            min=0,
+                            max=5,
+                            step=1,
+                            style={"flex": 1},
+                        ),
+                        dmc.Select(
+                            id="edit-awhp-sizing-priority",
+                            label="Sizing basis",
+                            placeholder="None",
                             data=[
                                 {
-                                    "label": "Integer ceiling method",
-                                    "value": "integer_sizing_peak_load",
+                                    "label": "Heating load",
+                                    "value": "heating",
                                 },
                                 {
-                                    "label": "Fractional method",
-                                    "value": "fractional_sizing_peak_load",
+                                    "label": "Cooling load",
+                                    "value": "cooling",
                                 },
                                 {
-                                    "label": "Specific # of units",
-                                    "value": "fixed_num_units",
+                                    "label": "Larger of heating and cooling load",
+                                    "value": "larger",
                                 },
                             ],
-                            fullWidth=True,
-                        ),
-                        dmc.Group(
-                            [
-                                dmc.NumberInput(
-                                    id="edit-awhp-sizing-value",
-                                    label="Sizing value",
-                                    min=0,
-                                    max=5,
-                                    step=0.05,  # will be overridden dynamically
-                                    style={"flex": 1},
-                                ),
-                                dmc.NumberInput(
-                                    id="edit-awhp-redundancy",
-                                    label="Redundant units",
-                                    min=0,
-                                    max=5,
-                                    step=1,
-                                    style={"flex": 1},
-                                ),
-                            ],
-                            grow=True,
-                        ),
-                        dmc.Group(
-                            [
-                                dmc.Switch(
-                                    id="edit-awhp-use-cooling",
-                                    label="Use AWHP for cooling",
-                                    mt="xs",
-                                ),
-                                dmc.Select(
-                                    id="edit-awhp-sizing-priority",
-                                    label="Sizing basis",
-                                    placeholder="None",
-                                    data=[
-                                        {
-                                            "label": "Heating load",
-                                            "value": "heating",
-                                        },
-                                        {
-                                            "label": "Cooling load",
-                                            "value": "cooling",
-                                        },
-                                        {
-                                            "label": "Larger of heating and cooling load",
-                                            "value": "larger",
-                                        },
-                                    ],
-                                    clearable=True,
-                                    searchable=True,
-                                ),
-                            ],
-                            grow=True,
+                            clearable=True,
+                            searchable=True,
                         ),
                     ],
                 ),
-                dmc.Divider(label="Backup equipment", labelPosition="center"),
+                dmc.Divider(
+                    label="Heat recovery water-to-water heat pump",
+                    labelPosition="center",
+                    size="md",
+                ),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Select(
+                            id="edit-hr-wwhp-select",
+                            label="HR Heat Pump",
+                            placeholder="None",
+                            data=[],  # filled by callback
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-wwhp-performance-model",
+                            label="HR HP Performance Calculation Model",
+                            placeholder="None",
+                            data=[  # not including fixed_COP and performance_curves atm
+                                {
+                                    "label": "Interpolated table (HHWST fixed)",
+                                    "value": "interpolate_HHWST",
+                                }
+                            ],
+                            clearable=True,
+                            searchable=True,
+                        ),
+                        dmc.Space(),
+                        dmc.Stack(
+                            gap=4,
+                            children=[
+                                dmc.Text(
+                                    id="edit-hr-wwhp-h-supply-t-label",
+                                    children="HR HP Heating supply temp (°C)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-wwhp-h-supply-t-value",
+                                    placeholder="Enter temperature",
+                                    min=32.2,  # Updated dynamically by callback
+                                    max=73.9,  # Updated dynamically by callback
+                                    step=0.1,
+                                    decimalScale=1,
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                dmc.Divider(label="Heat recovery balancing source/sink", labelPosition="center"),
+                dmc.SimpleGrid(
+                    cols=2,
+                    spacing="md",
+                    children=[
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-hr-eac-rejection-cap-label",
+                                    children="Heat rejection capacity (kW)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-eac-rejection-cap",
+                                    min=0,
+                                    step=10,
+                                    decimalScale=1,
+                                ),
+                            ],
+                            gap=4,
+                        ),
+                        dmc.Stack(
+                            [
+                                dmc.Text(
+                                    id="edit-hr-eac-recovery-cap-label",
+                                    children="Heat recovery capacity (kW)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                                dmc.NumberInput(
+                                    id="edit-hr-eac-recovery-cap",
+                                    min=0,
+                                    step=10,
+                                    decimalScale=1,
+                                ),
+                            ],
+                            gap=4,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-eac-rejection-control",
+                            label="Heat rejection control",
+                            data=[
+                                {"label": "Min turndown", "value": "min_turndown"},
+                                {"label": "Max heat rejection", "value": "max_heat_rejection"},
+                            ],
+                            value="min_turndown",
+                            allowDeselect=False,
+                        ),
+                        dmc.Select(
+                            id="edit-hr-eac-recovery-control",
+                            label="Heat recovery control",
+                            data=[
+                                {"label": "Min turndown", "value": "min_turndown"},
+                                {"label": "Max heat recovery", "value": "max_heat_recovery"},
+                            ],
+                            value="min_turndown",
+                            allowDeselect=False,
+                        ),
+                    ],
+                ),
+                dmc.Divider(label="Backup equipment", labelPosition="center", size="md"),
                 dmc.SimpleGrid(
                     cols=2,
                     spacing="md",
@@ -1608,6 +1746,30 @@ def build_completeness_modal():
     )
 
 
+def _load_modification_buttons(prefix):
+    """Reset (left) and Cancel / Apply / Confirm (right) for the scale and base load modals.
+
+    Apply only updates the modal's draft; Confirm commits it to the load data.
+    """
+    return dmc.Group(
+        [
+            dmc.Button(
+                "Reset", id=f"{prefix}-reset-btn", variant="outline", color="red", disabled=True
+            ),
+            dmc.Group(
+                [
+                    dmc.Button("Cancel", id=f"{prefix}-cancel-btn", variant="outline"),
+                    dmc.Button("Apply", id=f"{prefix}-apply-btn", variant="outline"),
+                    dmc.Button("Confirm", id=f"{prefix}-confirm-btn", color="blue"),
+                ],
+                gap="sm",
+            ),
+        ],
+        justify="space-between",
+        mt="md",
+    )
+
+
 def build_scale_load_modal():
     """Modal for scaling/normalizing a library load profile."""
     return dmc.Modal(
@@ -1619,7 +1781,9 @@ def build_scale_load_modal():
         children=[
             dmc.Text(
                 "Scale the library load profile to match your building. "
-                "Every hourly heating and cooling load will be multiplied by the computed scale factor.",
+                "Scaling by building area multiplies every hourly heating and cooling load by the "
+                "computed scale factor; scaling by peak heating or peak cooling load only changes "
+                "that load. Apply updates the table; Confirm uses the result in the calculation.",
                 size="sm",
                 c="dimmed",
             ),
@@ -1649,16 +1813,10 @@ def build_scale_load_modal():
                 mt=4,
             ),
             dmc.Space(h="sm"),
-            dmc.Text(id="scale-preview-text", c="blue", size="sm", fw=500),
-            dmc.Text(id="scale-error-text", c="red", size="sm"),
-            dmc.Group(
-                [
-                    dmc.Button("Cancel", id="scale-cancel-btn", variant="outline"),
-                    dmc.Button("Apply", id="scale-apply-btn", color="blue"),
-                ],
-                justify="flex-end",
-                mt="md",
-            ),
+            # Status line: always filled so the layout doesn't jump; colour set by callback
+            dmc.Text("No scaling applied", id="scale-preview-text", c="dimmed", size="sm", fw=500),
+            _load_modification_buttons("scale"),
+            dcc.Store(id="scale-draft-store", data=None),
         ],
     )
 
@@ -1674,7 +1832,8 @@ def build_base_load_modal():
         children=[
             dmc.Text(
                 "Add a minimum floor or a constant offset to model process loads or "
-                "minimum baseline consumption.",
+                "minimum baseline consumption. Heating and cooling can each have their own "
+                "base load. Apply updates the table; Confirm uses the result in the calculation.",
                 size="sm",
                 c="dimmed",
             ),
@@ -1719,16 +1878,12 @@ def build_base_load_modal():
                 mt=4,
             ),
             dmc.Space(h="sm"),
-            dmc.Text(id="base-load-preview-text", c="blue", size="sm", fw=500),
-            dmc.Text(id="base-load-error-text", c="red", size="sm"),
-            dmc.Group(
-                [
-                    dmc.Button("Cancel", id="base-load-cancel-btn", variant="outline"),
-                    dmc.Button("Apply", id="base-load-apply-btn", color="blue"),
-                ],
-                justify="flex-end",
-                mt="md",
+            # Status line: always filled so the layout doesn't jump; colour set by callback
+            dmc.Text(
+                "No base load applied", id="base-load-preview-text", c="dimmed", size="sm", fw=500
             ),
+            _load_modification_buttons("base-load"),
+            dcc.Store(id="base-load-draft-store", data=None),
         ],
     )
 

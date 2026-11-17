@@ -5,6 +5,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
+# Load Google Analytics / Siteimprove tracking (off for local runs)
+ENV ENABLE_ANALYTICS=true
 
 # Set working directory
 WORKDIR /app

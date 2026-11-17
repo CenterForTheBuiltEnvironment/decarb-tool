@@ -22,6 +22,8 @@ from layout.input import (
     edit_equipment_modal,
 )
 from src.config import LINKS, MAX_ACTIVE_EQUIPMENT_SCENARIOS, URLS
+from src.equipment import Equipment, keep_custom_equipment
+from src.visuals import empty_figure, plot_performance_curves
 from utils.logging_config import get_logger
 from utils.tooltips import with_icon_and_tooltip, with_tooltip
 
@@ -697,12 +699,13 @@ def remove_scenario(remove_clicks, equipment_data, selected_equipment_ids, displ
     Output("selected-equipment-store", "data", allow_duplicate=True),
     Input("button-reset-equipment", "n_clicks"),
     State("equipment-initial-store", "data"),
+    State("equipment-store", "data"),
     prevent_initial_call=True,
 )
-def reset_equipment(n_clicks, initial_data):
+def reset_equipment(n_clicks, initial_data, equipment_data):
     """
     Reset the equipment configuration back to the initial library
-    and clear any active selections.
+    and clear any active selections. Custom equipment from the Equipment Manager is kept.
     """
     if not n_clicks:
         return no_update, no_update
@@ -710,7 +713,7 @@ def reset_equipment(n_clicks, initial_data):
     if not initial_data:
         return no_update, no_update
 
-    return initial_data, []
+    return keep_custom_equipment(initial_data, equipment_data), []
 
 
 @callback(
@@ -721,6 +724,10 @@ def reset_equipment(n_clicks, initial_data):
     Output("edit-hr-wwhp-select", "value"),
     Output("edit-hr-wwhp-performance-model", "value"),
     Output("edit-hr-wwhp-h-supply-t-value", "value"),
+    Output("edit-hr-eac-rejection-cap", "value"),
+    Output("edit-hr-eac-recovery-cap", "value"),
+    Output("edit-hr-eac-rejection-control", "value"),
+    Output("edit-hr-eac-recovery-control", "value"),
     Output("edit-awhp-select", "data"),
     Output("edit-awhp-select", "value"),
     Output("edit-awhp-performance-model", "value"),
@@ -747,7 +754,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 22
+        return (no_update,) * 26
 
     if not equipment_data:
         return (
@@ -758,6 +765,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            None,
+            None,
+            "",
+            "",
             [],
             None,
             None,
@@ -780,7 +791,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 22
+        return (no_update,) * 26
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -796,6 +807,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            None,
+            None,
+            "",
+            "",
             [],
             None,
             None,
@@ -827,6 +842,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
+            None,
+            None,
+            "",
+            "",
             [],
             None,
             None,
@@ -867,17 +886,19 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     hr_wwhp_performance_model_val = scenario.get("hr_wwhp_performance_model") or "interpolate_HHWST"
 
-    # Get temperature values and convert to display units
-    from utils.units import C_to_F
+    # Get temperature/power values and convert to display units
+    from utils.units import get_converter
 
     unit_mode = unit_mode or "SI"
+    temp_converter = get_converter("temperature", unit_mode)
+    power_converter = get_converter("power", unit_mode)
 
     hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
     if hr_wwhp_h_supply_t_val is not None:
         try:
             hr_wwhp_h_supply_t_val = float(hr_wwhp_h_supply_t_val)
             if unit_mode == "IP":
-                hr_wwhp_h_supply_t_val = C_to_F(hr_wwhp_h_supply_t_val)
+                hr_wwhp_h_supply_t_val = temp_converter(hr_wwhp_h_supply_t_val)
         except (ValueError, TypeError):
             hr_wwhp_h_supply_t_val = None
 
@@ -892,7 +913,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         try:
             awhp_h_supply_t_val = float(awhp_h_supply_t_val)
             if unit_mode == "IP":
-                awhp_h_supply_t_val = C_to_F(awhp_h_supply_t_val)
+                awhp_h_supply_t_val = temp_converter(awhp_h_supply_t_val)
         except (ValueError, TypeError):
             awhp_h_supply_t_val = None
 
@@ -906,6 +927,26 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     backup_heating_val = scenario.get("backup_heating")
     chiller_val = scenario.get("chiller")
 
+    hr_eac_rejection_capacity_val = scenario.get("hr_eac_rejection_cap_W")
+    if hr_eac_rejection_capacity_val is not None:
+        try:
+            hr_eac_rejection_capacity_val = float(hr_eac_rejection_capacity_val)
+            # have to convert in both unit modes, because SI unit for power is kW not W
+            hr_eac_rejection_capacity_val = power_converter(hr_eac_rejection_capacity_val)
+        except (ValueError, TypeError):
+            hr_eac_rejection_capacity_val = None
+
+    hr_eac_recovery_capacity_val = scenario.get("hr_eac_recovery_cap_W")
+    if hr_eac_recovery_capacity_val is not None:
+        try:
+            hr_eac_recovery_capacity_val = float(hr_eac_recovery_capacity_val)
+            hr_eac_recovery_capacity_val = power_converter(hr_eac_recovery_capacity_val)
+        except (ValueError, TypeError):
+            hr_eac_recovery_capacity_val = None
+
+    hr_eac_rejection_control_val = scenario.get("hr_eac_rejection_control") or "min_turndown"
+    hr_eac_recovery_control_val = scenario.get("hr_eac_recovery_control") or "min_turndown"
+
     return (
         True,  # modal open
         eq_scen_id,  # id input
@@ -914,6 +955,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         hr_wwhp_val,
         hr_wwhp_performance_model_val,
         hr_wwhp_h_supply_t_val,
+        hr_eac_rejection_capacity_val,
+        hr_eac_recovery_capacity_val,
+        hr_eac_rejection_control_val,
+        hr_eac_recovery_control_val,
         awhp_options,
         awhp_val,
         awhp_performance_model_val,
@@ -942,6 +987,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-hr-wwhp-select", "value"),
     State("edit-hr-wwhp-performance-model", "value"),
     State("edit-hr-wwhp-h-supply-t-value", "value"),
+    State("edit-hr-eac-rejection-cap", "value"),
+    State("edit-hr-eac-recovery-cap", "value"),
+    State("edit-hr-eac-rejection-control", "value"),
+    State("edit-hr-eac-recovery-control", "value"),
     State("edit-awhp-select", "value"),
     State("edit-awhp-performance-model", "value"),
     State("edit-awhp-h-supply-t-value", "value"),
@@ -964,6 +1013,10 @@ def save_edit_scenario(
     hr_wwhp_val,
     hr_wwhp_performance_model_val,
     hr_wwhp_h_supply_t_val,
+    hr_eac_rejection_cap_W_val,
+    hr_eac_recovery_cap_W_val,
+    hr_eac_rejection_control_val,
+    hr_eac_recovery_control_val,
     awhp_val,
     awhp_performance_model_val,
     awhp_h_supply_t_val,
@@ -988,16 +1041,19 @@ def save_edit_scenario(
     if not new_name:
         return True, no_update, "Scenario name cannot be empty."
 
-    from utils.units import F_to_C
+    from utils.units import F_to_C, get_inverse_converter
 
     unit_mode = unit_mode or "SI"
+    # exact inverse of the power converter open_edit_modal displays with (kW or BTU/h -> W),
+    # so a saved value reopens unchanged (#227)
+    power_to_base = get_inverse_converter("power", unit_mode)
 
     if hr_wwhp_val == "None":
         hr_wwhp_val = None
     if awhp_val == "None":
         awhp_val = None
 
-    # Convert temperature values from display units back to Celsius (base unit)
+    # Convert temperature/power values from display units back to base unit
     if hr_wwhp_h_supply_t_val is not None:
         try:
             hr_wwhp_h_supply_t_val = float(hr_wwhp_h_supply_t_val)
@@ -1024,6 +1080,18 @@ def save_edit_scenario(
     except (TypeError, ValueError):
         redundancy = 1
 
+    if hr_eac_rejection_cap_W_val is not None:
+        try:
+            hr_eac_rejection_cap_W_val = power_to_base(float(hr_eac_rejection_cap_W_val))
+        except (ValueError, TypeError):
+            hr_eac_rejection_cap_W_val = None
+
+    if hr_eac_recovery_cap_W_val is not None:
+        try:
+            hr_eac_recovery_cap_W_val = power_to_base(float(hr_eac_recovery_cap_W_val))
+        except (ValueError, TypeError):
+            hr_eac_recovery_cap_W_val = None
+
     use_cooling = bool(use_cooling)
     fuel_switching = bool(fuel_switching)
 
@@ -1038,6 +1106,10 @@ def save_edit_scenario(
             new_scen["hr_wwhp"] = hr_wwhp_val
             new_scen["hr_wwhp_performance_model"] = hr_wwhp_performance_model_val
             new_scen["hr_wwhp_h_supply_t"] = hr_wwhp_h_supply_t_val
+            new_scen["hr_eac_rejection_cap_W"] = hr_eac_rejection_cap_W_val
+            new_scen["hr_eac_recovery_cap_W"] = hr_eac_recovery_cap_W_val
+            new_scen["hr_eac_rejection_control"] = hr_eac_rejection_control_val or "min_turndown"
+            new_scen["hr_eac_recovery_control"] = hr_eac_recovery_control_val or "min_turndown"
             new_scen["awhp"] = awhp_val
             new_scen["awhp_performance_model"] = awhp_performance_model_val
             new_scen["awhp_h_supply_t"] = awhp_h_supply_t_val
@@ -1203,6 +1275,25 @@ def update_temp_labels_on_unit_change(unit_mode):
     return hr_label, awhp_label
 
 
+# Update HR source/sink labels when unit mode changes (without resetting values)
+@callback(
+    Output("edit-hr-eac-rejection-cap-label", "children"),
+    Output("edit-hr-eac-recovery-cap-label", "children"),
+    Input("unit-toggle", "value"),
+)
+def update_hr_eac_label(unit_mode):
+    """Update HR WWHP source/sink capacity label based on unit mode."""
+    from utils.units import get_display_unit
+
+    unit_mode = unit_mode or "SI"
+    power_unit = get_display_unit("power", unit_mode)
+
+    hr_rejection_label = f"Heat rejection capacity ({power_unit})"
+    hr_recovery_label = f"Heat recovery capacity ({power_unit})"
+
+    return hr_rejection_label, hr_recovery_label
+
+
 @callback(
     Output("edit-hr-wwhp-performance-model", "disabled"),
     Output("edit-awhp-performance-model", "disabled"),
@@ -1218,6 +1309,56 @@ def update_perf_model_on_hp_change(hr_hp_id, awhp_id):
     awhp_selected = awhp_id and awhp_id != "None"
 
     return (not hr_selected, not awhp_selected)
+
+
+@callback(
+    Output("edit-hr-wwhp-curve-graph", "figure"),
+    Output("edit-awhp-curve-graph", "figure"),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-awhp-select", "value"),
+    Input("edit-hr-wwhp-h-supply-t-value", "value"),
+    Input("edit-awhp-h-supply-t-value", "value"),
+    Input("edit-hr-wwhp-performance-model", "value"),
+    Input("edit-awhp-performance-model", "value"),
+    Input("unit-toggle", "value"),
+    State("equipment-store", "data"),
+    prevent_initial_call=True,
+)
+def update_curve_previews(
+    hr_hp_id,
+    awhp_id,
+    hr_supply_t,
+    awhp_supply_t,
+    hr_perf_model,
+    awhp_perf_model,
+    unit_mode,
+    equipment_data,
+):
+    """Plot the heating performance curves of the heat pumps selected in the edit modal."""
+    from utils.units import F_to_C
+
+    unit_mode = unit_mode or "SI"
+    equipment_list = (equipment_data or {}).get("equipment", [])
+
+    def figure(eq_id, supply_t, fixed_supply_t):
+        eq = next((e for e in equipment_list if e.get("eq_id") == eq_id), None)
+        if not eq:
+            return empty_figure("No heat pump selected")
+        # only a fixed supply temperature can be shown as one curve (not a reset schedule)
+        highlight = None
+        if fixed_supply_t and supply_t is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                highlight = float(supply_t)
+                if unit_mode == "IP":
+                    highlight = F_to_C(highlight)
+        return plot_performance_curves(
+            Equipment(**eq), "heating", unit_mode, highlight_lwt_C=highlight, height=440
+        )
+
+    return (
+        figure(hr_hp_id, hr_supply_t, hr_perf_model == "interpolate_HHWST"),
+        figure(awhp_id, awhp_supply_t, awhp_perf_model == "interpolate_HHWST_fixed"),
+    )
 
 
 @callback(
@@ -1261,6 +1402,23 @@ def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_
     return (disabled, checked)
 
 
+@callback(
+    Output("edit-hr-eac-rejection-cap", "disabled"),
+    Output("edit-hr-eac-recovery-cap", "disabled"),
+    Output("edit-hr-eac-rejection-control", "disabled"),
+    Output("edit-hr-eac-recovery-control", "disabled"),
+    Input("edit-hr-wwhp-select", "value"),
+    prevent_initial_call=True,
+)
+def update_eac_inputs_on_wwhp_change(hr_hp_id):
+    """Enable/disable HR WWHP source/sink capacity inputs when HR selection changes."""
+
+    # Disable inputs if WWHP is not selected
+    hr_selected = hr_hp_id and hr_hp_id != "None"
+
+    return (not hr_selected, not hr_selected, not hr_selected, not hr_selected)
+
+
 # helper to build equipment options for Selects
 
 
@@ -1302,6 +1460,8 @@ def _build_equipment_options(
                 label_cap = "Infinite cap."
 
             label += f" ({label_cap})"
+            if eq.get("source") == "custom":
+                label += " · custom"
 
             options.append(
                 {

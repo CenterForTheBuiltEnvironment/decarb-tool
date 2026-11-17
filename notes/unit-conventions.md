@@ -212,11 +212,11 @@ UNIT_MAP = {
 AUTO_SCALE_CONFIG = {
     "energy": {
         "SI": [(1e9, "GWh"), (1e6, "MWh"), (1e3, "kWh")],
-        "IP": [(1e3/3.412, "kBTU")],
+        "IP": [(1e3 * BTU_to_Wh, "kBTU")],
     },
     "power": {
         "SI": [(1e6, "MW"), (1e3, "kW")],
-        "IP": [(1e3/3.412, "kBTU/h")],
+        "IP": [(1e3 * BTUh_to_W, "kBTU/h")],
     },
     "power_cooling": {
         "SI": [(1e6, "MW"), (1e3, "kW")],

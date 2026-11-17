@@ -161,7 +161,7 @@ def _exercise_charts(results_page, layout, s: Session, exhaustive: bool):
                 assert figure_has_data(fig), f"scatter empty ({y_var}, {freq}, {unit})"
 
 
-def _download(results_page, s: Session, unit: str) -> pd.DataFrame:
+def _download(results_page, s: Session, unit: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     payload = results_page.download_results(
         1,
         s.session_data,
@@ -170,10 +170,18 @@ def _download(results_page, s: Session, unit: str) -> pd.DataFrame:
         s.equipment_json,
         s.scenario_ids,
         s.emission_ids,
+        s.scenario_ids,
     )
+    assert payload["filename"].startswith("decarb_") and f"_{unit}_" in payload["filename"]
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(payload["content"]))) as zf:
-        csv_name = next(n for n in zf.namelist() if n.startswith("results_"))
-        return pd.read_csv(zf.open(csv_name), low_memory=False)
+        names = zf.namelist()
+        hourly = next(n for n in names if n.endswith("_hourly.csv"))
+        annual = next(n for n in names if n.endswith("_annual.csv"))
+        assert any(n.endswith("/settings_summary.txt") for n in names)
+        return (
+            pd.read_csv(zf.open(hourly), low_memory=False),
+            pd.read_csv(zf.open(annual)),
+        )
 
 
 def _run_workflow(results_page, layout, session: Session, exhaustive=False, download_units=()):
@@ -183,9 +191,11 @@ def _run_workflow(results_page, layout, session: Session, exhaustive=False, down
         for (
             unit
         ) in download_units:  # the export is the slowest step, so only where it adds coverage
-            df = _download(results_page, session, unit)
-            hours = len(df) / len(session.scenario_ids) / len(session.emission_ids)
+            df, annual = _download(results_page, session, unit)
+            n_cases = len(session.scenario_ids) * len(session.emission_ids)
+            hours = len(df) / n_cases
             assert hours in (8760, 8784), f"download has {len(df)} rows"
+            assert len(annual) == n_cases, f"annual summary has {len(annual)} rows"
     finally:
         shutil.rmtree(session.folder, ignore_errors=True)
 
