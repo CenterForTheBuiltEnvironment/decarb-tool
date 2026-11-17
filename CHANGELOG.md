@@ -14,6 +14,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### Added
 
 - Results download includes an annual summary CSV with one row per equipment and emission
