@@ -1041,9 +1041,12 @@ def save_edit_scenario(
     if not new_name:
         return True, no_update, "Scenario name cannot be empty."
 
-    from utils.units import BTUh_to_Wh, F_to_C, kWh_to_Wh
+    from utils.units import F_to_C, get_inverse_converter
 
     unit_mode = unit_mode or "SI"
+    # exact inverse of the power converter open_edit_modal displays with (kW or BTU/h -> W),
+    # so a saved value reopens unchanged (#227)
+    power_to_base = get_inverse_converter("power", unit_mode)
 
     if hr_wwhp_val == "None":
         hr_wwhp_val = None
@@ -1079,22 +1082,13 @@ def save_edit_scenario(
 
     if hr_eac_rejection_cap_W_val is not None:
         try:
-            hr_eac_rejection_cap_W_val = float(hr_eac_rejection_cap_W_val)
-            if unit_mode == "IP":
-                hr_eac_rejection_cap_W_val = BTUh_to_Wh(hr_eac_rejection_cap_W_val)
-            else:
-                # convert back to base W, because SI unit for power is kW not W
-                hr_eac_rejection_cap_W_val = kWh_to_Wh(hr_eac_rejection_cap_W_val)
+            hr_eac_rejection_cap_W_val = power_to_base(float(hr_eac_rejection_cap_W_val))
         except (ValueError, TypeError):
             hr_eac_rejection_cap_W_val = None
 
     if hr_eac_recovery_cap_W_val is not None:
         try:
-            hr_eac_recovery_cap_W_val = float(hr_eac_recovery_cap_W_val)
-            if unit_mode == "IP":
-                hr_eac_recovery_cap_W_val = BTUh_to_Wh(hr_eac_recovery_cap_W_val)
-            else:
-                hr_eac_recovery_cap_W_val = kWh_to_Wh(hr_eac_recovery_cap_W_val)
+            hr_eac_recovery_cap_W_val = power_to_base(float(hr_eac_recovery_cap_W_val))
         except (ValueError, TypeError):
             hr_eac_recovery_cap_W_val = None
 
