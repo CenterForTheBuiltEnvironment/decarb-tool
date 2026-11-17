@@ -52,6 +52,9 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Changed
 
+- I-P conversions use one exact BTU factor (1 W = 3.41214 BTU/h, 1 TR = 3516.85 W) instead of a
+  mix of 3.412 and 1/0.293, so I-P values shown and entered (BTU, BTU/h, kBTU, TR, lb CO₂e/kBTU)
+  shift by up to 0.03 %; results in SI are unchanged (#227)
 - Performance curve plots restyled: white background with light grid, legend above the plot,
   outdoor air temperature labelled under both AWHP panels, unified hover, the part of a curve outside its operating limits drawn dashed, and the original
   curves shown in grey behind a custom copy (#171)
@@ -86,6 +89,9 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ### Fixed
 
+- Heat rejection/recovery capacities entered in BTU/h in the Edit Equipment Scenario modal were
+  stored slightly off (100000 showed as 100028.4) because saving and display used different
+  BTU/h factors (#227)
 - Combined LRMER/SRMER/AER CO₂e rate columns in the results CSV were not converted (and had no
   unit) in IP mode
 - Applying load scaling repeatedly no longer compounds the scale factor
