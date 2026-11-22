@@ -455,7 +455,7 @@ def loads_to_site_energy(
         # =========================
 
         # ---- sizing ----
-        tes_priority = "heating"
+        tes_priority = "heating"  # heating, cooling, larger
         if tes_priority == "heating":
             tes_sizing_load = Col.HEATING_W.value
             tes_remaining_load = Col.HHW_REM_W.value
@@ -478,22 +478,32 @@ def loads_to_site_energy(
         hp_size = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
         print(hp_size)
 
-        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
-        df_peak_date["TES_charge_delta"] = (
-            hp_size - df_peak_date[tes_sizing_load]
-        )  # TES delta = HP capacity - hourly load
-        df_peak_date["TES_charging"] = np.where(
-            df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
-        )
-        df_peak_date["TES_discharging"] = np.where(
-            df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
-        )
-        # print(df_peak_date)
+        tes_sizing_mode = "load_leveling_factor"  # load_leveling_factor, fixed_Wh
+        tes_sizing_value = 1
 
-        df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
-        # add debug warning/error if sums don't match
-        TES_size = df_TES_sums["TES_charging"]
-        print(df_TES_sums)
+        if tes_sizing_mode == "fixed_Wh":
+            TES_size = tes_sizing_value
+
+        elif tes_sizing_mode == "load_leveling_factor":
+            # find load leveling TES size
+            df_peak_date = df_loads.loc[
+                (df_loads["date"] == peak_date)
+            ].copy()  # filter for peak date
+            df_peak_date["TES_charge_delta"] = (
+                hp_size - df_peak_date[tes_sizing_load]
+            )  # TES delta = HP capacity - hourly load
+            df_peak_date["TES_charging"] = np.where(
+                df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
+            )
+            df_peak_date["TES_discharging"] = np.where(
+                df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
+            )
+            # print(df_peak_date)
+
+            df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
+            # add debug warning/error if sums don't match
+            TES_size = df_TES_sums["TES_charging"] * tes_sizing_value
+            print(df_TES_sums)
 
         # ---- control ----
         available_charge_delta = (
@@ -522,7 +532,7 @@ def loads_to_site_energy(
             df[[tes_sizing_load, tes_remaining_load, "TES_charge_Wh", "TES_charge_delta_W"]].loc[
                 (df.index.date == peak_date)
             ]
-        )  # .loc[(df.index.date == peak_date)] # .head(n=5)
+        )  # .loc[(df.index.date == peak_date)] # .head(n=24)
 
         # =========================
         # Phase 1 - HR WWHP (optional)
