@@ -451,8 +451,31 @@ def loads_to_site_energy(
             df[Col.FUEL_SWITCHING.value] = False
 
         # =========================
-        # TES (optional)
+        # Load shifting with TES (optional)
         # =========================
+        if scen.awhp:
+            awhp_h = library.get_equipment(scen.awhp)
+            awhp_h_performance_model = scen.awhp_performance_model
+            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
+            awhp_h_performance = _heating_supply_temp_performance(
+                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
+            )
+            awhp_cap_h = _per_unit_heating_capacity_W(
+                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            )
+            print(awhp_h_performance)
+
+            if scen.awhp_use_cooling:
+                awhp_c = library.get_equipment(scen.awhp)
+                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+                # this extracts the first value and uses that performance data
+                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
+                # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
+                awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
+                print(awhp_c_performance)
+
+        # if scen.load_shifting:
 
         # ---- sizing ----
         df_loads = load.df.copy()
@@ -474,10 +497,28 @@ def loads_to_site_energy(
         df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
         peak_date = df_peak.head(n=1).index[0]
         # print(df_peak)
+        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
+
+        # if peak oat is below awhp's constraints this will break - fix !
+        if tes_priority == "heating":
+            peak_oat = df_peak_date["t_out_C"].min()
+            peak_cap = _per_unit_heating_capacity_W(
+                awhp_h, peak_oat, awhp_h_performance, awhp_h_performance_model
+            )
+            print(peak_cap)  # this is not working - still returning 123600 not 0?
+            awhp_cap_tes = awhp_cap_h
+
+        elif tes_priority == "cooling":
+            peak_oat = df_peak_date["t_out_C"].max()
+            peak_cap = _per_unit_cooling_capacity_W(awhp_c, peak_oat, awhp_c_performance)
+            awhp_cap_tes = awhp_cap_c
 
         # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
-        hp_size = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
-        print(hp_size)
+        awhp_size_tes = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
+        awhp_num_tes = awhp_size_tes / peak_cap
+        print((peak_oat, peak_cap))
+        print((awhp_size_tes, awhp_num_tes))
+        awhp_cap_tes = awhp_cap_tes * awhp_num_tes
 
         tes_sizing_mode = "load_leveling_factor"  # load_leveling_factor, fixed_Wh
         tes_sizing_value = 1
@@ -487,11 +528,8 @@ def loads_to_site_energy(
 
         elif tes_sizing_mode == "load_leveling_factor":
             # find load leveling TES size
-            df_peak_date = df_loads.loc[
-                (df_loads["date"] == peak_date)
-            ].copy()  # filter for peak date
             df_peak_date["TES_charge_delta"] = (
-                hp_size - df_peak_date[tes_sizing_load]
+                awhp_size_tes - df_peak_date[tes_sizing_load]
             )  # TES delta = HP capacity - hourly load
             df_peak_date["TES_charging"] = np.where(
                 df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
@@ -525,9 +563,9 @@ def loads_to_site_energy(
         #         charge =  np.clip(prev + delta, 0, tes_size)
         #     return(charge)
 
-        def update_TES_charge(prev, i, tes_size=TES_size, hp_size=hp_size):
-            # i[0] is hourly load, i[1] is minimum charge
-            delta = hp_size - i[0]  # available TES delta = HP capacity - hourly load
+        def update_TES_charge(prev, i, tes_size=TES_size):
+            # i[0] is hourly load, i[1] is minimum charge, i[2] is current awhp capacity
+            delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
             if np.isnan(i[0]):
                 # if nan load: carry forward previous tank charge
                 charge = prev
@@ -536,9 +574,9 @@ def loads_to_site_energy(
                 charge = np.clip(prev + delta, 0, tes_size)
                 rem_load = i[0] + charge - prev
                 # if new charge is less than min. AND rem_load is below hp size, add the extra capacity
-                if charge < i[1] and rem_load < hp_size:
+                if charge < i[1] and rem_load < i[2]:
                     deficit = i[1] - charge
-                    available_hp = hp_size - rem_load
+                    available_hp = i[2] - rem_load
                     charge += min(deficit, available_hp)
             return charge
 
@@ -547,7 +585,12 @@ def loads_to_site_energy(
         # )  # available TES delta = HP capacity - hourly load
         TES_charge = list(
             accumulate(
-                zip(df[tes_sizing_load].to_numpy()[1:], min_tes_charge[1:], strict=False),
+                zip(
+                    df[tes_sizing_load].to_numpy()[1:],
+                    min_tes_charge[1:],
+                    awhp_cap_tes[1:],
+                    strict=True,
+                ),
                 # available_charge_delta.copy()[1:],
                 update_TES_charge,
                 initial=TES_size,  # assume tank starts full
@@ -566,10 +609,11 @@ def loads_to_site_energy(
             ["t_out_C", tes_sizing_load, tes_remaining_load, "TES_charge_Wh", "TES_charge_delta_W"]
         ]
         df_print["min_charge"] = min_tes_charge
+        df_print["awhp_cap"] = awhp_cap_tes
         print(df_print.loc[(df.index.date == peak_date)])
         # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         print(
-            len(df_print.loc[((df_print[tes_remaining_load] - hp_size) > 1e-3)])
+            len(df_print.loc[((df_print[tes_remaining_load] - df_print["awhp_cap"]) > 1e-3)])
         )  # how many hours does hp go over calculated size
 
         # =========================
@@ -688,20 +732,20 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp:
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
-            awhp_h = library.get_equipment(scen.awhp)
+            # awhp_h = library.get_equipment(scen.awhp)
 
-            awhp_h_performance_model = scen.awhp_performance_model
+            # awhp_h_performance_model = scen.awhp_performance_model
             logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
 
-            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
+            # awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
 
-            awhp_h_performance = _heating_supply_temp_performance(
-                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
-            )
+            # awhp_h_performance = _heating_supply_temp_performance(
+            #     awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
+            # )
 
-            awhp_cap_h = _per_unit_heating_capacity_W(
-                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
-            )
+            # awhp_cap_h = _per_unit_heating_capacity_W(
+            #     awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            # )
             awhp_cop_h = _per_unit_heating_cop(
                 awhp_h, temps, awhp_h_performance, awhp_h_performance_model
             )
@@ -714,12 +758,12 @@ def loads_to_site_energy(
             if scen.awhp_use_cooling:
                 sizing_priority = scen.awhp_sizing_priority
 
-                awhp_c = library.get_equipment(scen.awhp)
-                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
-                # this extracts the first value and uses that performance data
-                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-                # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
-                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
+                # awhp_c = library.get_equipment(scen.awhp)
+                # # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+                # # this extracts the first value and uses that performance data
+                # awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
+                logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                # awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
             else:
                 sizing_priority = "heating"
 
@@ -928,7 +972,7 @@ def loads_to_site_energy(
         # Phase 5 - AWHP Cooling
         # =========================
         if scen.awhp and scen.awhp_use_cooling:
-            awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
+            # awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
             awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
 
             logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
