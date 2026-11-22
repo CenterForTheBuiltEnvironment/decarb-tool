@@ -492,30 +492,54 @@ def loads_to_site_energy(
 
         # find peak load day (day with largest total load)
         df_peak = df_loads.groupby("date").agg(
-            total_Wh=(tes_sizing_load, "sum"), num_hrs=(tes_sizing_load, "size")
+            total_Wh=(tes_sizing_load, "sum"),
+            num_hrs=(tes_sizing_load, "size"),
+            min_oat=("t_out_C", "min"),
+            max_oat=("t_out_C", "max"),
         )
         df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
-        peak_date = df_peak.head(n=1).index[0]
-        # print(df_peak)
-        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
 
-        # if peak oat is below awhp's constraints this will break - fix !
         if tes_priority == "heating":
-            peak_oat = df_peak_date["t_out_C"].min()
+            df_peak_oat_constraints = df_peak[
+                (df_peak["max_oat"] >= awhp_h_performance.constraints["min_temp_C"][0])
+            ]  # filter out days where HP could never operate (max temp is below min constraint)
+            if (
+                df_peak_oat_constraints["min_oat"].iloc[0]
+                < awhp_h_performance.constraints["min_temp_C"][0]
+            ):
+                # if the min temp on the peak day is below the constraint, set the design sizing temp to the constraint
+                peak_oat = awhp_h_performance.constraints["min_temp_C"][0]
+            else:
+                peak_oat = df_peak_oat_constraints["min_oat"].iloc[0]
+
             peak_cap = _per_unit_heating_capacity_W(
-                awhp_h, peak_oat, awhp_h_performance, awhp_h_performance_model
+                awhp_h, [peak_oat], awhp_h_performance, awhp_h_performance_model
             )
-            print(peak_cap)  # this is not working - still returning 123600 not 0?
             awhp_cap_tes = awhp_cap_h
 
         elif tes_priority == "cooling":
-            peak_oat = df_peak_date["t_out_C"].max()
-            peak_cap = _per_unit_cooling_capacity_W(awhp_c, peak_oat, awhp_c_performance)
+            df_peak_oat_constraints = df_peak[
+                (df_peak["min_oat"] <= awhp_c_performance.constraints["max_temp_C"])
+            ]
+            if (
+                df_peak_oat_constraints["max_oat"].iloc[0]
+                > awhp_c_performance.constraints["max_temp_C"]
+            ):
+                peak_oat = awhp_c_performance.constraints["max_temp_C"]
+            else:
+                peak_oat = df_peak_oat_constraints["max_oat"].iloc[0]
+
+            peak_cap = _per_unit_cooling_capacity_W(awhp_c, [peak_oat], awhp_c_performance)
             awhp_cap_tes = awhp_cap_c
 
+        peak_date = df_peak_oat_constraints.head(n=1).index[0]
+        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
+
         # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
-        awhp_size_tes = df_peak.iloc[0]["total_Wh"] / df_peak.iloc[0]["num_hrs"]
-        awhp_num_tes = awhp_size_tes / peak_cap
+        awhp_size_tes = (
+            df_peak_oat_constraints.iloc[0]["total_Wh"] / df_peak_oat_constraints.iloc[0]["num_hrs"]
+        )
+        awhp_num_tes = awhp_size_tes / peak_cap[0]
         print((peak_oat, peak_cap))
         print((awhp_size_tes, awhp_num_tes))
         awhp_cap_tes = awhp_cap_tes * awhp_num_tes
@@ -573,7 +597,7 @@ def loads_to_site_energy(
                 # each hour: charge = prev. charge + available delta, limited by 0 and max size
                 charge = np.clip(prev + delta, 0, tes_size)
                 rem_load = i[0] + charge - prev
-                # if new charge is less than min. AND rem_load is below hp size, add the extra capacity
+                # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
                 if charge < i[1] and rem_load < i[2]:
                     deficit = i[1] - charge
                     available_hp = i[2] - rem_load
@@ -610,11 +634,23 @@ def loads_to_site_energy(
         ]
         df_print["min_charge"] = min_tes_charge
         df_print["awhp_cap"] = awhp_cap_tes
-        print(df_print.loc[(df.index.date == peak_date)])
-        # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         print(
-            len(df_print.loc[((df_print[tes_remaining_load] - df_print["awhp_cap"]) > 1e-3)])
-        )  # how many hours does hp go over calculated size
+            df_print.loc[(df.index.date == peak_date)]
+        )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
+        # how many hours does hp go over calculated size?
+        df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap"]) > 1e-3]
+        if tes_priority == "heating":  # filter out hours where HP wouldn't operate
+            df_unmet = df_unmet.loc[
+                (df_unmet["t_out_C"] >= awhp_h_performance.constraints["min_temp_C"][0])
+                & (df_unmet["t_out_C"] <= awhp_h_performance.constraints["max_temp_C"][0])
+            ]
+        elif tes_priority == "cooling":
+            df_unmet = df_unmet.loc[
+                (df_unmet["t_out_C"] >= awhp_c_performance.constraints["min_temp_C"])
+                & (df_unmet["t_out_C"] <= awhp_c_performance.constraints["max_temp_C"])
+            ]
+        print(f"# hours HP over capacity: {len(df_unmet)}")
+        print(df_unmet)
 
         # =========================
         # Phase 1 - HR WWHP (optional)
