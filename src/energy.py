@@ -455,16 +455,17 @@ def loads_to_site_energy(
         # =========================
 
         # ---- sizing ----
+        df_loads = load.df.copy()
+        df_loads["date"] = df_loads.index.date
+
         tes_priority = "heating"  # heating, cooling, larger
         if tes_priority == "heating":
             tes_sizing_load = Col.HEATING_W.value
             tes_remaining_load = Col.HHW_REM_W.value
+
         elif tes_priority == "cooling":
             tes_sizing_load = Col.COOLING_W.value
             tes_remaining_load = Col.CHW_REM_W.value
-
-        df_loads = load.df.copy()
-        df_loads["date"] = df_loads.index.date
 
         # find peak load day (day with largest total load)
         df_peak = df_loads.groupby("date").agg(
@@ -506,17 +507,49 @@ def loads_to_site_energy(
             print(df_TES_sums)
 
         # ---- control ----
-        available_charge_delta = (
-            hp_size - df[tes_sizing_load].to_numpy()
-        )  # available TES delta = HP capacity - hourly load
+        # define OAT-based charge limits
+        oat_lim_delta = 6
+        oat_lim = [np.nanmin(temps), np.nanmin(temps) + oat_lim_delta]
+        #  df_peak_date["t_out_C"].min()
+        print(oat_lim)
+        charge_lim = [1, 0]
+        min_tes_charge = interp_vector(oat_lim, charge_lim, temps) * TES_size
+        # print(pd.DataFrame(data = {"oat": temps, "min_frac": min_tes_charge / TES_size}).sort_values("oat").head(n=25))
+
+        # def update_TES_charge(prev, delta, tes_size=TES_size, hp_size=hp_size):
+        #     if np.isnan(delta):
+        #         # if nan load: carry forward previous tank charge
+        #         charge = prev
+        #     else:
+        #         # each hour: charge = prev. charge + available delta, limited by 0 and max size
+        #         charge =  np.clip(prev + delta, 0, tes_size)
+        #     return(charge)
+
+        def update_TES_charge(prev, i, tes_size=TES_size, hp_size=hp_size):
+            # i[0] is hourly load, i[1] is minimum charge
+            delta = hp_size - i[0]  # available TES delta = HP capacity - hourly load
+            if np.isnan(i[0]):
+                # if nan load: carry forward previous tank charge
+                charge = prev
+            else:
+                # each hour: charge = prev. charge + available delta, limited by 0 and max size
+                charge = np.clip(prev + delta, 0, tes_size)
+                rem_load = i[0] + charge - prev
+                # if new charge is less than min. AND rem_load is below hp size, add the extra capacity
+                if charge < i[1] and rem_load < hp_size:
+                    deficit = i[1] - charge
+                    available_hp = hp_size - rem_load
+                    charge += min(deficit, available_hp)
+            return charge
+
+        # available_charge_delta = (
+        #     hp_size - df[tes_sizing_load].to_numpy()
+        # )  # available TES delta = HP capacity - hourly load
         TES_charge = list(
             accumulate(
-                available_charge_delta.copy()[1:],
-                lambda prev, delta, tes_size=TES_size: prev
-                if np.isnan(delta)
-                else np.clip(prev + delta, 0, tes_size),
-                # each hour: charge = prev. charge + available delta, limited by 0 and max size
-                # if nan load: carry forward previous tank charge
+                zip(df[tes_sizing_load].to_numpy()[1:], min_tes_charge[1:], strict=False),
+                # available_charge_delta.copy()[1:],
+                update_TES_charge,
                 initial=TES_size,  # assume tank starts full
             )
         )
@@ -528,11 +561,16 @@ def loads_to_site_energy(
             Col.TES_CHARGE_DELTA_W.value
         ].to_numpy()  # update remaining load
 
+        # debugging
+        df_print = df.copy()[
+            ["t_out_C", tes_sizing_load, tes_remaining_load, "TES_charge_Wh", "TES_charge_delta_W"]
+        ]
+        df_print["min_charge"] = min_tes_charge
+        print(df_print.loc[(df.index.date == peak_date)])
+        # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         print(
-            df[[tes_sizing_load, tes_remaining_load, "TES_charge_Wh", "TES_charge_delta_W"]].loc[
-                (df.index.date == peak_date)
-            ]
-        )  # .loc[(df.index.date == peak_date)] # .head(n=24)
+            len(df_print.loc[((df_print[tes_remaining_load] - hp_size) > 1e-3)])
+        )  # how many hours does hp go over calculated size
 
         # =========================
         # Phase 1 - HR WWHP (optional)
