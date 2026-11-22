@@ -540,9 +540,9 @@ def loads_to_site_energy(
             df_peak_oat_constraints.iloc[0]["total_Wh"] / df_peak_oat_constraints.iloc[0]["num_hrs"]
         )
         awhp_num_tes = awhp_size_tes / peak_cap[0]
+        awhp_cap_tes_avail = awhp_cap_tes * awhp_num_tes
         print((peak_oat, peak_cap))
         print((awhp_size_tes, awhp_num_tes))
-        awhp_cap_tes = awhp_cap_tes * awhp_num_tes
 
         tes_sizing_mode = "load_leveling_factor"  # load_leveling_factor, fixed_Wh
         tes_sizing_value = 1
@@ -569,6 +569,28 @@ def loads_to_site_energy(
             print(df_TES_sums)
 
         # ---- control ----
+        tes_control = "priority_inside"  # load_leveling
+        df["tes_operate_hp"] = np.full_like(temps, True)
+
+        if tes_control in ["priority_inside", "priority_outside"]:
+            start_hr = 1
+            end_hr = 6
+
+            if tes_control == "priority_inside":  # 2
+                condition_on_peak = True
+                condition_off_peak = False
+            elif tes_control == "priority_outside":  # 3
+                condition_on_peak = False
+                condition_off_peak = True
+
+            df["tes_operate_hp"] = np.where(
+                (df.index.hour >= start_hr) & (df.index.hour <= end_hr),
+                condition_on_peak,
+                condition_off_peak,
+            )
+
+        awhp_cap_tes = df["tes_operate_hp"].to_numpy() * awhp_cap_tes_avail
+
         # define OAT-based charge limits
         oat_lim_delta = 6
         oat_lim = [np.nanmin(temps), np.nanmin(temps) + oat_lim_delta]
@@ -588,7 +610,8 @@ def loads_to_site_energy(
         #     return(charge)
 
         def update_TES_charge(prev, i, tes_size=TES_size):
-            # i[0] is hourly load, i[1] is minimum charge, i[2] is current awhp capacity
+            # i[0] is hourly load, i[1] is minimum charge
+            # i[2] is current awhp capacity per control logic, i[3] is actual current awhp capacity
             delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
             if np.isnan(i[0]):
                 # if nan load: carry forward previous tank charge
@@ -598,9 +621,9 @@ def loads_to_site_energy(
                 charge = np.clip(prev + delta, 0, tes_size)
                 rem_load = i[0] + charge - prev
                 # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
-                if charge < i[1] and rem_load < i[2]:
+                if charge < i[1] and rem_load < i[3]:
                     deficit = i[1] - charge
-                    available_hp = i[2] - rem_load
+                    available_hp = i[3] - rem_load
                     charge += min(deficit, available_hp)
             return charge
 
@@ -613,6 +636,7 @@ def loads_to_site_energy(
                     df[tes_sizing_load].to_numpy()[1:],
                     min_tes_charge[1:],
                     awhp_cap_tes[1:],
+                    awhp_cap_tes_avail[1:],
                     strict=True,
                 ),
                 # available_charge_delta.copy()[1:],
@@ -634,11 +658,12 @@ def loads_to_site_energy(
         ]
         df_print["min_charge"] = min_tes_charge
         df_print["awhp_cap"] = awhp_cap_tes
+        df_print["awhp_cap_avail"] = awhp_cap_tes_avail
         print(
-            df_print.loc[(df.index.date == peak_date)]
+            df_print.loc[df.index.date == peak_date]
         )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         # how many hours does hp go over calculated size?
-        df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap"]) > 1e-3]
+        df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
         if tes_priority == "heating":  # filter out hours where HP wouldn't operate
             df_unmet = df_unmet.loc[
                 (df_unmet["t_out_C"] >= awhp_h_performance.constraints["min_temp_C"][0])
