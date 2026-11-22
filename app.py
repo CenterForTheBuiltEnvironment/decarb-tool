@@ -11,8 +11,8 @@ from utils.analytics import GA_MEASUREMENT_ID, add_analytics, analytics_enabled
 from utils.logging_config import get_logger, setup_logging
 
 # Read level from environment variable (or default to INFO)
-log_level_name = os.environ.get("LOG_LEVEL", "INFO")
-log_level = getattr(logging, log_level_name.upper(), logging.INFO)
+log_level_name = os.environ.get("LOG_LEVEL", "DEBUG")
+log_level = getattr(logging, log_level_name.upper(), logging.DEBUG)
 setup_logging(level=log_level)
 
 # Get a logger for this module
