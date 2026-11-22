@@ -515,7 +515,9 @@ def loads_to_site_energy(
             peak_cap = _per_unit_heating_capacity_W(
                 awhp_h, [peak_oat], awhp_h_performance, awhp_h_performance_model
             )
-            awhp_cap_tes = awhp_cap_h
+            awhp_cap_tes = np.where(
+                np.isnan(awhp_cap_h), 0, awhp_cap_h
+            )  # if temp is nan, capacity interpolates to nan
 
         elif tes_priority == "cooling":
             df_peak_oat_constraints = df_peak[
@@ -569,17 +571,19 @@ def loads_to_site_energy(
             print(df_TES_sums)
 
         # ---- control ----
-        tes_control = "priority_inside"  # load_leveling
+        tes_control = "priority_outside"  # load_leveling
         df["tes_operate_hp"] = np.full_like(temps, True)
 
         if tes_control in ["priority_inside", "priority_outside"]:
-            start_hr = 1
-            end_hr = 6
+            start_hr = 16
+            end_hr = 21
 
             if tes_control == "priority_inside":  # 2
+                # prioritize AWHP during provided hours
                 condition_on_peak = True
                 condition_off_peak = False
             elif tes_control == "priority_outside":  # 3
+                # prioritize tank during provided hours
                 condition_on_peak = False
                 condition_off_peak = True
 
@@ -651,6 +655,9 @@ def loads_to_site_energy(
         df[tes_remaining_load] += df[
             Col.TES_CHARGE_DELTA_W.value
         ].to_numpy()  # update remaining load
+        df[tes_remaining_load] = np.where(
+            df[tes_remaining_load] > 1e-4, df[tes_remaining_load], 0
+        )  # set to 0 if the value is very small to avoid very small sizing in subsequent calcs
 
         # debugging
         df_print = df.copy()[
@@ -660,7 +667,7 @@ def loads_to_site_energy(
         df_print["awhp_cap"] = awhp_cap_tes
         df_print["awhp_cap_avail"] = awhp_cap_tes_avail
         print(
-            df_print.loc[df.index.date == peak_date]
+            df_print.loc[df.index.date == (peak_date + pd.Timedelta(days=2))]
         )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         # how many hours does hp go over calculated size?
         df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
