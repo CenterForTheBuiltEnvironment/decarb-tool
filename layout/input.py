@@ -1203,66 +1203,85 @@ def edit_equipment_modal():
                         ),
                     ],
                 ),
-                dmc.Divider(label="Heat recovery balancing source/sink", labelPosition="center"),
-                dmc.SimpleGrid(
-                    cols=2,
-                    spacing="md",
-                    children=[
-                        dmc.Stack(
-                            [
-                                dmc.Text(
-                                    id="edit-hr-eac-rejection-cap-label",
-                                    children="Heat rejection capacity (kW)",
-                                    size="sm",
-                                    fw=500,
+                dmc.Accordion(
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                dmc.Text("Heat recovery balancing source/sink", size="sm", fw=500),
+                            ),
+                            dmc.AccordionPanel(
+                                dmc.SimpleGrid(
+                                    cols=2,
+                                    spacing="md",
+                                    children=[
+                                        dmc.Stack(
+                                            [
+                                                dmc.Text(
+                                                    id="edit-hr-eac-rejection-cap-label",
+                                                    children="Heat rejection capacity (kW)",
+                                                    size="sm",
+                                                    fw=500,
+                                                ),
+                                                dmc.NumberInput(
+                                                    id="edit-hr-eac-rejection-cap",
+                                                    min=0,
+                                                    step=10,
+                                                    decimalScale=1,
+                                                ),
+                                            ],
+                                            gap=4,
+                                        ),
+                                        dmc.Stack(
+                                            [
+                                                dmc.Text(
+                                                    id="edit-hr-eac-recovery-cap-label",
+                                                    children="Heat recovery capacity (kW)",
+                                                    size="sm",
+                                                    fw=500,
+                                                ),
+                                                dmc.NumberInput(
+                                                    id="edit-hr-eac-recovery-cap",
+                                                    min=0,
+                                                    step=10,
+                                                    decimalScale=1,
+                                                ),
+                                            ],
+                                            gap=4,
+                                        ),
+                                        dmc.Select(
+                                            id="edit-hr-eac-rejection-control",
+                                            label="Heat rejection control",
+                                            data=[
+                                                {"label": "Min turndown", "value": "min_turndown"},
+                                                {
+                                                    "label": "Max heat rejection",
+                                                    "value": "max_heat_rejection",
+                                                },
+                                            ],
+                                            value="min_turndown",
+                                            allowDeselect=False,
+                                        ),
+                                        dmc.Select(
+                                            id="edit-hr-eac-recovery-control",
+                                            label="Heat recovery control",
+                                            data=[
+                                                {"label": "Min turndown", "value": "min_turndown"},
+                                                {
+                                                    "label": "Max heat recovery",
+                                                    "value": "max_heat_recovery",
+                                                },
+                                            ],
+                                            value="min_turndown",
+                                            allowDeselect=False,
+                                        ),
+                                    ],
                                 ),
-                                dmc.NumberInput(
-                                    id="edit-hr-eac-rejection-cap",
-                                    min=0,
-                                    step=10,
-                                    decimalScale=1,
-                                ),
-                            ],
-                            gap=4,
-                        ),
-                        dmc.Stack(
-                            [
-                                dmc.Text(
-                                    id="edit-hr-eac-recovery-cap-label",
-                                    children="Heat recovery capacity (kW)",
-                                    size="sm",
-                                    fw=500,
-                                ),
-                                dmc.NumberInput(
-                                    id="edit-hr-eac-recovery-cap",
-                                    min=0,
-                                    step=10,
-                                    decimalScale=1,
-                                ),
-                            ],
-                            gap=4,
-                        ),
-                        dmc.Select(
-                            id="edit-hr-eac-rejection-control",
-                            label="Heat rejection control",
-                            data=[
-                                {"label": "Min turndown", "value": "min_turndown"},
-                                {"label": "Max heat rejection", "value": "max_heat_rejection"},
-                            ],
-                            value="min_turndown",
-                            allowDeselect=False,
-                        ),
-                        dmc.Select(
-                            id="edit-hr-eac-recovery-control",
-                            label="Heat recovery control",
-                            data=[
-                                {"label": "Min turndown", "value": "min_turndown"},
-                                {"label": "Max heat recovery", "value": "max_heat_recovery"},
-                            ],
-                            value="min_turndown",
-                            allowDeselect=False,
-                        ),
-                    ],
+                            ),
+                        ],
+                        value="hr-eac",
+                    ),
+                    variant="contained",
+                    radius="md",
                 ),
                 dmc.Divider(label="Backup equipment", labelPosition="center", size="md"),
                 dmc.SimpleGrid(
@@ -1289,7 +1308,7 @@ def edit_equipment_modal():
                 ),
                 dmc.Switch(
                     id="edit-fuel-switching",
-                    label="Use optimal heating fuel",
+                    label="Use optimal heating fuel (dynamic fuel switching)",
                     mt="xs",
                 ),
                 dmc.Text(
