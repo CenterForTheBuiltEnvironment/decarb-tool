@@ -743,6 +743,7 @@ def reset_equipment(n_clicks, initial_data, equipment_data):
     Output("edit-chiller-select", "data"),
     Output("edit-chiller-select", "value"),
     Output("edit-tes-loop", "value"),
+    Output("edit-tes-sizing-mode", "data"),
     Output("edit-tes-sizing-mode", "value"),
     Output("edit-tes-sizing-value", "value"),
     Output("edit-tes-control", "value"),
@@ -761,7 +762,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 33
+        return (no_update,) * 34
 
     if not equipment_data:
         return (
@@ -791,6 +792,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            [],
             None,
             None,
             None,
@@ -805,7 +807,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 33
+        return (no_update,) * 34
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -840,6 +842,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            [],
             None,
             None,
             None,
@@ -882,6 +885,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             [],
             None,
             None,
+            [],
             None,
             None,
             None,
@@ -890,6 +894,10 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             f"Scenario {eq_scen_id!r} not found.",
         )
+
+    from utils.units import get_converter, get_display_unit
+
+    unit_mode = unit_mode or "SI"
 
     # --- Build select options from equipment list ---
     hr_hp_options = _build_equipment_options(
@@ -905,6 +913,18 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         equipment_list, "chiller", unit_mode, include_none=False
     )
 
+    energy_unit = get_display_unit("energy", unit_mode)
+    tes_sizing_mode_options = [
+        {
+            "label": "Multiple of load leveling size",
+            "value": "load_leveling_factor",
+        },
+        {
+            "label": f"Fixed capacity ({energy_unit})",
+            "value": "fixed_Wh",
+        },
+    ]
+
     # --- Scenario current values ---
     scen_name = scenario.get("eq_scen_name", eq_scen_id)
 
@@ -915,9 +935,6 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     hr_wwhp_performance_model_val = scenario.get("hr_wwhp_performance_model") or "interpolate_HHWST"
 
     # Get temperature/power values and convert to display units
-    from utils.units import get_converter
-
-    unit_mode = unit_mode or "SI"
     temp_converter = get_converter("temperature", unit_mode)
     temp_diff_converter = get_converter("temperature_diff", unit_mode)
     power_converter = get_converter("power", unit_mode)
@@ -985,6 +1002,16 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     tes_peak_period_start = scenario.get("tes_peak_period_start", 16)
     tes_peak_period_end = scenario.get("tes_peak_period_end", 21)
 
+    tes_sizing_value = scenario.get("tes_sizing_value")
+    if tes_sizing_value is not None:
+        try:
+            tes_sizing_value = float(tes_sizing_value)
+            if tes_sizing_mode == "fixed_Wh":
+                # have to convert in both unit modes, because SI unit for power is kW not W
+                tes_sizing_value = power_converter(tes_sizing_value)
+        except (ValueError, TypeError):
+            tes_sizing_value = None
+
     tes_oat_reset_dT_val = scenario.get("tes_oat_reset_dT")
     if tes_oat_reset_dT_val is not None:
         try:
@@ -1021,6 +1048,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         chiller_options,
         chiller_val,
         tes_loop,
+        tes_sizing_mode_options,
         tes_sizing_mode,
         tes_sizing_value,
         tes_control,
@@ -1167,10 +1195,13 @@ def save_edit_scenario(
     if tes_loop == "None":
         tes_loop = None
 
-    try:
-        tes_sizing_value = float(tes_sizing_value) if tes_sizing_value is not None else 1.0
-    except (TypeError, ValueError):
-        tes_sizing_value = 1.0
+    if tes_sizing_value is not None:
+        try:
+            tes_sizing_value = float(tes_sizing_value)
+            if tes_sizing_mode == "fixed_Wh":
+                tes_sizing_value = power_to_base(float(tes_sizing_value))
+        except (ValueError, TypeError):
+            tes_sizing_value = None
 
     if tes_oat_reset_dT_val is not None:
         try:

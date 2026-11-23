@@ -612,6 +612,7 @@ def loads_to_site_energy(
 
             if scen.tes_sizing_mode == "fixed_Wh":
                 TES_size = scen.tes_sizing_value
+                # print(TES_size)
 
             elif scen.tes_sizing_mode == "load_leveling_factor":
                 # find load leveling TES size

@@ -622,6 +622,7 @@ def build_equipment_table(
     temp_unit = get_display_unit("temperature", unit_mode)
     temp_diff_unit = get_display_unit("temperature_diff", unit_mode)
     power_unit = get_display_unit("power", unit_mode)
+    energy_unit = get_display_unit("energy", unit_mode)
 
     # Rows to display (property name, label)
     # Note: eq_scen_id and eq_scen_name are excluded as they're shown in the header
@@ -646,7 +647,7 @@ def build_equipment_table(
         ("chiller", "Backup Cooling"),
         ("tes_loop", "TES Loop"),
         ("tes_sizing_mode", "TES Sizing Mode"),
-        ("tes_sizing_value", "TES Sizing Value"),
+        ("tes_sizing_value", f"TES Sizing Value (Multiplier or {energy_unit})"),
         ("tes_control", "TES Control Strategy"),
         ("tes_oat_reset_dT", f"TES Min. Charge Reset OAT dT ({temp_diff_unit})"),
         ("tes_peak_period_start", "TES On-Peak Period Start Hour"),
@@ -1377,16 +1378,7 @@ def edit_equipment_modal():
                                                         id="edit-tes-sizing-mode",
                                                         label="Sizing basis",
                                                         placeholder="None",
-                                                        data=[
-                                                            {
-                                                                "label": "Multiple of load leveling size",
-                                                                "value": "load_leveling_factor",
-                                                            },
-                                                            {
-                                                                "label": "Fixed capacity (Wh)",  # needs to be dynamically updated
-                                                                "value": "fixed_Wh",
-                                                            },
-                                                        ],
+                                                        data=[],  # filled by callback
                                                         clearable=True,
                                                         searchable=True,
                                                     ),
@@ -1398,6 +1390,7 @@ def edit_equipment_modal():
                                                         label="Sizing value",
                                                         min=0,
                                                         step=0.5,
+                                                        decimalScale=1,
                                                         style={"flex": 1},
                                                     ),
                                                     span=5,
