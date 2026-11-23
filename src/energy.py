@@ -601,7 +601,7 @@ def loads_to_site_energy(
             print(df_TES_sums)
 
         # ---- control ----
-        tes_control = "priority_outside"  # load_leveling
+        tes_control = "tank_priority_hrs"  # load_leveling
         df["tes_operate_hp"] = np.full_like(temps, True)
 
         if tes_control in ["awhp_priority_hrs", "tank_priority_hrs"]:
@@ -627,10 +627,14 @@ def loads_to_site_energy(
 
         # define OAT-based charge limits
         oat_lim_delta = 6
-        oat_lim = [np.nanmin(temps), np.nanmin(temps) + oat_lim_delta]
-        #  df_peak_date["t_out_C"].min()
+        if tes_loop == "heating":
+            # min_t = df_peak_date["t_out_C"].min()
+            oat_lim = [peak_oat, peak_oat + oat_lim_delta]
+            charge_lim = [1, 0]
+        elif tes_loop == "cooling":
+            oat_lim = [peak_oat - oat_lim_delta, peak_oat]
+            charge_lim = [0, 1]
         print(oat_lim)
-        charge_lim = [1, 0]
         min_tes_charge = interp_vector(oat_lim, charge_lim, temps) * TES_size
         # print(pd.DataFrame(data = {"oat": temps, "min_frac": min_tes_charge / TES_size}).sort_values("oat").head(n=25))
 
@@ -697,7 +701,7 @@ def loads_to_site_energy(
         df_print["awhp_cap"] = awhp_cap_tes
         df_print["awhp_cap_avail"] = awhp_cap_tes_avail
         print(
-            df_print.loc[df.index.date == (peak_date + pd.Timedelta(days=2))]
+            df_print.loc[df.index.date == (peak_date)]
         )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         # how many hours does hp go over calculated size?
         df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
