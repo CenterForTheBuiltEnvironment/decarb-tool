@@ -643,6 +643,12 @@ def build_equipment_table(
         ("backup_heating", "Backup Heating"),
         ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Backup Cooling"),
+        ("tes_loop", "TES Loop"),
+        ("tes_sizing_mode", "TES Sizing Mode"),
+        ("tes_sizing_value", "TES Sizing Value"),
+        ("tes_control", "TES Control Strategy"),
+        ("tes_oat_reset_dT", "TES Min. Charge Reset OAT dT"),
+        # ("tes_peak_period", "") # convert to tuple so get_diff_fields can work
     ]
 
     # Pre-compute which fields have differences across scenarios
@@ -833,14 +839,19 @@ def build_equipment_table(
         for idx, scen_id in enumerate(scen_ids):
             raw_value = equipment_df.iloc[idx].get(field, "")
 
-            # Apply unit conversion for temperature and HR source/sink fields
+            tes_sizing_mode = equipment_df.iloc[idx].get("tes_sizing_mode", "")
+            apply_power_conversion = (field in power_fields) or (
+                field == "tes_sizing_value" and tes_sizing_mode == "fixed_Wh"
+            )
+
+            # Apply unit conversion for temperature, HR source/sink, and load shifting fields
             if field in temp_fields and raw_value is not None:
                 try:
                     converted = temp_converter(float(raw_value))
                     display_value = f"{converted:.1f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
-            elif field in power_fields and raw_value is not None:
+            elif apply_power_conversion and raw_value is not None:
                 try:
                     converted = power_converter(float(raw_value))
                     display_value = f"{converted:.1f}"
@@ -1347,33 +1358,37 @@ def edit_equipment_modal():
                                             ],
                                             fullWidth=True,
                                         ),
-                                        dmc.SimpleGrid(
-                                            cols=2,
-                                            spacing="md",
+                                        dmc.Grid(
                                             children=[
-                                                dmc.Select(
-                                                    id="edit-tes-sizing-mode",
-                                                    label="Sizing basis",
-                                                    placeholder="None",
-                                                    data=[
-                                                        {
-                                                            "label": "Multiple of load leveling size",
-                                                            "value": "load_leveling_factor",
-                                                        },
-                                                        {
-                                                            "label": "Fixed capacity (Wh)",  # needs to be dynamically updated
-                                                            "value": "fixed_Wh",
-                                                        },
-                                                    ],
-                                                    clearable=True,
-                                                    searchable=True,
+                                                dmc.GridCol(
+                                                    dmc.Select(
+                                                        id="edit-tes-sizing-mode",
+                                                        label="Sizing basis",
+                                                        placeholder="None",
+                                                        data=[
+                                                            {
+                                                                "label": "Multiple of load leveling size",
+                                                                "value": "load_leveling_factor",
+                                                            },
+                                                            {
+                                                                "label": "Fixed capacity (Wh)",  # needs to be dynamically updated
+                                                                "value": "fixed_Wh",
+                                                            },
+                                                        ],
+                                                        clearable=True,
+                                                        searchable=True,
+                                                    ),
+                                                    span=8,
                                                 ),
-                                                dmc.NumberInput(
-                                                    id="edit-tes-sizing-value",
-                                                    label="Sizing value",
-                                                    min=0,
-                                                    step=0.5,
-                                                    style={"flex": 1},
+                                                dmc.GridCol(
+                                                    dmc.NumberInput(
+                                                        id="edit-tes-sizing-value",
+                                                        label="Sizing value",
+                                                        min=0,
+                                                        step=0.5,
+                                                        style={"flex": 1},
+                                                    ),
+                                                    span=4,
                                                 ),
                                             ],
                                         ),
@@ -1382,7 +1397,7 @@ def edit_equipment_modal():
                                                 dmc.GridCol(
                                                     dmc.Select(
                                                         id="edit-tes-control",
-                                                        label="Control",
+                                                        label="Control strategy",
                                                         placeholder="None",
                                                         data=[
                                                             {
@@ -1428,7 +1443,7 @@ def edit_equipment_modal():
                                                 dmc.GridCol(
                                                     dmc.NumberInput(
                                                         id="edit-tes-oat-reset-dT",
-                                                        label="OAT reset ΔT",
+                                                        label="Min. charge reset dT",
                                                         min=0,
                                                         max=50,
                                                         step=1,

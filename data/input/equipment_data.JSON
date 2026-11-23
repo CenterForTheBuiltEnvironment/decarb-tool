@@ -1206,7 +1206,7 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
