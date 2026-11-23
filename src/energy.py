@@ -511,12 +511,12 @@ def loads_to_site_energy(
         df_loads = load.df.copy()
         df_loads["date"] = df_loads.index.date
 
-        tes_priority = "heating"  # heating, cooling, larger
-        if tes_priority == "heating":
+        tes_loop = "heating"  # heating, cooling, larger
+        if tes_loop == "heating":
             tes_sizing_load = Col.HEATING_W.value
             tes_remaining_load = Col.HHW_REM_W.value
 
-        elif tes_priority == "cooling":
+        elif tes_loop == "cooling":
             tes_sizing_load = Col.COOLING_W.value
             tes_remaining_load = Col.CHW_REM_W.value
 
@@ -529,7 +529,7 @@ def loads_to_site_energy(
         )
         df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
 
-        if tes_priority == "heating":
+        if tes_loop == "heating":
             df_peak_oat_constraints = df_peak[
                 (df_peak["max_oat"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
             ]  # filter out days where HP could never operate (max temp is below min constraint)
@@ -549,7 +549,7 @@ def loads_to_site_energy(
                 np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h
             )  # if temp is nan, capacity interpolates to nan
 
-        elif tes_priority == "cooling":
+        elif tes_loop == "cooling":
             df_peak_oat_constraints = df_peak[
                 (df_peak["min_oat"] <= awhp_c_performance.constraints["max_temp_C"])
             ]
@@ -604,15 +604,15 @@ def loads_to_site_energy(
         tes_control = "priority_outside"  # load_leveling
         df["tes_operate_hp"] = np.full_like(temps, True)
 
-        if tes_control in ["priority_inside", "priority_outside"]:
+        if tes_control in ["awhp_priority_hrs", "tank_priority_hrs"]:
             start_hr = 16
             end_hr = 21
 
-            if tes_control == "priority_inside":  # 2
+            if tes_control == "awhp_priority_hrs":  # 2
                 # prioritize AWHP during provided hours
                 condition_on_peak = True
                 condition_off_peak = False
-            elif tes_control == "priority_outside":  # 3
+            elif tes_control == "tank_priority_hrs":  # 3
                 # prioritize tank during provided hours
                 condition_on_peak = False
                 condition_off_peak = True
@@ -701,12 +701,12 @@ def loads_to_site_energy(
         )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
         # how many hours does hp go over calculated size?
         df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
-        if tes_priority == "heating":  # filter out hours where HP wouldn't operate
+        if tes_loop == "heating":  # filter out hours where HP wouldn't operate
             df_unmet = df_unmet.loc[
                 (df_unmet["t_out_C"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
                 & (df_unmet["t_out_C"] <= tes_awhp_h_performance.constraints["max_temp_C"][0])
             ]
-        elif tes_priority == "cooling":
+        elif tes_loop == "cooling":
             df_unmet = df_unmet.loc[
                 (df_unmet["t_out_C"] >= awhp_c_performance.constraints["min_temp_C"])
                 & (df_unmet["t_out_C"] <= awhp_c_performance.constraints["max_temp_C"])

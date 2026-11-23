@@ -1311,6 +1311,174 @@ def edit_equipment_modal():
                     label="Use optimal heating fuel (dynamic fuel switching)",
                     mt="xs",
                 ),
+                dmc.Accordion(
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                dmc.Text(
+                                    "Load shifting with thermal energy storage (TES)",
+                                    size="sm",
+                                    fw=500,
+                                ),
+                            ),
+                            dmc.AccordionPanel(
+                                dmc.Stack(
+                                    gap=4,
+                                    children=[
+                                        dmc.SegmentedControl(
+                                            id="edit-tes-loop",
+                                            data=[
+                                                {
+                                                    "label": "HHW tank",
+                                                    "value": "heating",
+                                                },
+                                                {
+                                                    "label": "CHW tank",
+                                                    "value": "cooling",
+                                                },
+                                                {
+                                                    "label": "Tank on dominant loop",
+                                                    "value": "larger",
+                                                },
+                                            ],
+                                            fullWidth=True,
+                                        ),
+                                        dmc.SimpleGrid(
+                                            cols=2,
+                                            spacing="md",
+                                            children=[
+                                                dmc.Select(
+                                                    id="edit-tes-sizing-mode",
+                                                    label="Sizing basis",
+                                                    placeholder="None",
+                                                    data=[
+                                                        {
+                                                            "label": "Multiple of load leveling size",
+                                                            "value": "load_leveling_factor",
+                                                        },
+                                                        {
+                                                            "label": "Fixed capacity (Wh)",  # needs to be dynamically updated
+                                                            "value": "fixed_Wh",
+                                                        },
+                                                    ],
+                                                    clearable=True,
+                                                    searchable=True,
+                                                ),
+                                                dmc.NumberInput(
+                                                    id="edit-tes-sizing-value",
+                                                    label="Sizing value",
+                                                    min=0,
+                                                    step=0.5,
+                                                    style={"flex": 1},
+                                                ),
+                                            ],
+                                        ),
+                                        dmc.Grid(
+                                            children=[
+                                                dmc.GridCol(
+                                                    dmc.Select(
+                                                        id="edit-tes-control",
+                                                        label="Control",
+                                                        placeholder="None",
+                                                        data=[
+                                                            {
+                                                                "label": "Load leveling only",
+                                                                "value": "load_leveling",
+                                                            },
+                                                            {
+                                                                "label": "Prioritize AWHP during on-peak period",
+                                                                "value": "awhp_priority_hrs",
+                                                            },
+                                                            {
+                                                                "label": "Prioritize AWHP outside on-peak period",
+                                                                "value": "tank_priority_hrs",
+                                                            },
+                                                        ],
+                                                        clearable=True,
+                                                        searchable=True,
+                                                    ),
+                                                    span=8,
+                                                ),
+                                                # dmc.GridCol(
+                                                #     dmc.NumberInput(
+                                                #         id="edit-peak-period-start",
+                                                #         label="Start hour",
+                                                #         min=0,
+                                                #         max=24,
+                                                #         step=1,
+                                                #         style={"flex": 1},
+                                                #     ),
+                                                #     span = 2,
+                                                # ),
+                                                # dmc.GridCol(
+                                                #     dmc.NumberInput(
+                                                #         id="edit-peak-period-end",
+                                                #         label="End hour",
+                                                #         min=0,
+                                                #         max=24,
+                                                #         step=1,
+                                                #         style={"flex": 1},
+                                                #     ),
+                                                #     span = 2,
+                                                # ),
+                                                dmc.GridCol(
+                                                    dmc.NumberInput(
+                                                        id="edit-oat-reset-delta",
+                                                        label="OAT reset ΔT",
+                                                        min=0,
+                                                        max=50,
+                                                        step=1,
+                                                        style={"flex": 1},
+                                                    ),
+                                                    span=4,
+                                                ),
+                                            ],
+                                        ),
+                                        dmc.Text("Daily on-peak period", size="sm", fw=500),
+                                        dmc.RangeSlider(
+                                            id="edit-tes-peak-period",
+                                            min=0,
+                                            max=23,
+                                            step=1,
+                                            value=[16, 21],
+                                            marks=[
+                                                {"value": 0, "label": "12 AM"},
+                                                {"value": 1},
+                                                {"value": 2},
+                                                {"value": 3},
+                                                {"value": 4},
+                                                {"value": 5},
+                                                {"value": 6, "label": "6 AM"},
+                                                {"value": 7},
+                                                {"value": 8},
+                                                {"value": 9},
+                                                {"value": 10},
+                                                {"value": 11},
+                                                {"value": 12, "label": "12 PM"},
+                                                {"value": 13},
+                                                {"value": 14},
+                                                {"value": 15},
+                                                {"value": 16},
+                                                {"value": 17},
+                                                {"value": 18, "label": "6 PM"},
+                                                {"value": 19},
+                                                {"value": 20},
+                                                {"value": 21},
+                                                {"value": 22},
+                                                {"value": 23, "label": "11 PM"},
+                                            ],
+                                            # style={"flex": 1},
+                                        ),
+                                    ],
+                                ),
+                                pb="md",
+                            ),
+                        ],
+                        value="load-shifting",
+                    ),
+                    variant="contained",
+                    radius="md",
+                ),
                 dmc.Text(
                     id="edit-scenario-error",
                     size="xs",
