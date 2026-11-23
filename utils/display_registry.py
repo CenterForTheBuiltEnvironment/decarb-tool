@@ -87,6 +87,18 @@ HR_WWHP_RECOVERY_CONTROL_DISPLAY = {
     "max_heat_recovery": "Max heat recovery",
 }
 
+# TES/load shifting value mappings
+TES_LOOP_DISPLAY = {"heating": "HHW", "cooling": "CHW", "larger": "Dominant load"}
+TES_SIZING_MODE_DISPLAY = {
+    "load_leveling_factor": "Multiple of load leveling size",
+    "fixed_Wh": "Fixed capacity",
+}
+TES_CONTROL_DISPLAY = {
+    "load_leveling": "Load leveling only",
+    "awhp_priority_hrs": "Prioritize AWHP during on-peak period",
+    "tank_priority_hrs": "Prioritize AWHP outside on-peak period",
+}
+
 # Fields that have enumerated values needing display mapping
 ENUM_VALUE_FIELDS = frozenset(
     {
@@ -95,6 +107,9 @@ ENUM_VALUE_FIELDS = frozenset(
         "hr_wwhp_performance_model",
         "hr_eac_rejection_control",
         "hr_eac_recovery_control",
+        "tes_loop",
+        "tes_sizing_mode",
+        "tes_control",
     }
 )
 
@@ -126,6 +141,15 @@ def format_enum_value(value: str, field_name: str) -> str:
 
     if field_name == "hr_eac_recovery_control":
         return HR_WWHP_RECOVERY_CONTROL_DISPLAY.get(value, value)
+
+    if field_name == "tes_loop":
+        return TES_LOOP_DISPLAY.get(value, value)
+
+    if field_name == "tes_sizing_mode":
+        return TES_SIZING_MODE_DISPLAY.get(value, value)
+
+    if field_name == "tes_control":
+        return TES_CONTROL_DISPLAY.get(value, value)
 
     return value
 
