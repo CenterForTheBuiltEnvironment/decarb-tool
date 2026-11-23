@@ -505,218 +505,226 @@ def loads_to_site_energy(
                 awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
                 print(awhp_c_performance)
 
-        # if scen.load_shifting:
+        tes_loop = scen.tes_loop  # heating, cooling, larger
+        if tes_loop is not None:
+            # ---- sizing ----
+            df_loads = load.df.copy()
+            df_loads["date"] = df_loads.index.date
 
-        # ---- sizing ----
-        df_loads = load.df.copy()
-        df_loads["date"] = df_loads.index.date
+            if tes_loop == "heating":
+                tes_sizing_load = Col.HEATING_W.value
+                tes_remaining_load = Col.HHW_REM_W.value
 
-        tes_loop = "heating"  # heating, cooling, larger
-        if tes_loop == "heating":
-            tes_sizing_load = Col.HEATING_W.value
-            tes_remaining_load = Col.HHW_REM_W.value
+            elif tes_loop == "cooling":
+                tes_sizing_load = Col.COOLING_W.value
+                tes_remaining_load = Col.CHW_REM_W.value
 
-        elif tes_loop == "cooling":
-            tes_sizing_load = Col.COOLING_W.value
-            tes_remaining_load = Col.CHW_REM_W.value
-
-        # find peak load day (day with largest total load)
-        df_peak = df_loads.groupby("date").agg(
-            total_Wh=(tes_sizing_load, "sum"),
-            num_hrs=(tes_sizing_load, "size"),
-            min_oat=("t_out_C", "min"),
-            max_oat=("t_out_C", "max"),
-        )
-        df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
-
-        if tes_loop == "heating":
-            df_peak_oat_constraints = df_peak[
-                (df_peak["max_oat"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
-            ]  # filter out days where HP could never operate (max temp is below min constraint)
-            if (
-                df_peak_oat_constraints["min_oat"].iloc[0]
-                < tes_awhp_h_performance.constraints["min_temp_C"][0]
-            ):
-                # if the min temp on the peak day is below the constraint, set the design sizing temp to the constraint
-                peak_oat = tes_awhp_h_performance.constraints["min_temp_C"][0]
-            else:
-                peak_oat = df_peak_oat_constraints["min_oat"].iloc[0]
-
-            peak_cap = _per_unit_heating_capacity_W(
-                awhp_h, [peak_oat], tes_awhp_h_performance, tes_awhp_h_performance_model
+            # find peak load day (day with largest total load)
+            df_peak = df_loads.groupby("date").agg(
+                total_Wh=(tes_sizing_load, "sum"),
+                num_hrs=(tes_sizing_load, "size"),
+                min_oat=("t_out_C", "min"),
+                max_oat=("t_out_C", "max"),
             )
-            awhp_cap_tes = np.where(
-                np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h
-            )  # if temp is nan, capacity interpolates to nan
+            df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
 
-        elif tes_loop == "cooling":
-            df_peak_oat_constraints = df_peak[
-                (df_peak["min_oat"] <= awhp_c_performance.constraints["max_temp_C"])
+            if tes_loop == "heating":
+                df_peak_oat_constraints = df_peak[
+                    (df_peak["max_oat"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
+                ]  # filter out days where HP could never operate (max temp is below min constraint)
+                if (
+                    df_peak_oat_constraints["min_oat"].iloc[0]
+                    < tes_awhp_h_performance.constraints["min_temp_C"][0]
+                ):
+                    # if the min temp on the peak day is below the constraint, set the design sizing temp to the constraint
+                    peak_oat = tes_awhp_h_performance.constraints["min_temp_C"][0]
+                else:
+                    peak_oat = df_peak_oat_constraints["min_oat"].iloc[0]
+
+                peak_cap = _per_unit_heating_capacity_W(
+                    awhp_h, [peak_oat], tes_awhp_h_performance, tes_awhp_h_performance_model
+                )
+                awhp_cap_tes = np.where(
+                    np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h
+                )  # if temp is nan, capacity interpolates to nan
+
+            elif tes_loop == "cooling":
+                df_peak_oat_constraints = df_peak[
+                    (df_peak["min_oat"] <= awhp_c_performance.constraints["max_temp_C"])
+                ]
+                if (
+                    df_peak_oat_constraints["max_oat"].iloc[0]
+                    > awhp_c_performance.constraints["max_temp_C"]
+                ):
+                    peak_oat = awhp_c_performance.constraints["max_temp_C"]
+                else:
+                    peak_oat = df_peak_oat_constraints["max_oat"].iloc[0]
+
+                peak_cap = _per_unit_cooling_capacity_W(awhp_c, [peak_oat], awhp_c_performance)
+                awhp_cap_tes = np.where(np.isnan(awhp_cap_c), 0, awhp_cap_c)
+
+            peak_date = df_peak_oat_constraints.head(n=1).index[0]
+            df_peak_date = df_loads.loc[
+                (df_loads["date"] == peak_date)
+            ].copy()  # filter for peak date
+
+            # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
+            awhp_size_tes = (
+                df_peak_oat_constraints.iloc[0]["total_Wh"]
+                / df_peak_oat_constraints.iloc[0]["num_hrs"]
+            )
+            awhp_num_tes = awhp_size_tes / peak_cap[0]
+            awhp_cap_tes_avail = awhp_cap_tes * awhp_num_tes
+            print((peak_oat, peak_cap))
+            print((awhp_size_tes, awhp_num_tes))
+
+            if scen.tes_sizing_mode == "fixed_Wh":
+                TES_size = scen.tes_sizing_value
+
+            elif scen.tes_sizing_mode == "load_leveling_factor":
+                # find load leveling TES size
+                df_peak_date["TES_charge_delta"] = (
+                    awhp_size_tes - df_peak_date[tes_sizing_load]
+                )  # TES delta = HP capacity - hourly load
+                df_peak_date["TES_charging"] = np.where(
+                    df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
+                )
+                df_peak_date["TES_discharging"] = np.where(
+                    df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
+                )
+                # print(df_peak_date)
+
+                df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
+                # add debug warning/error if sums don't match
+                TES_size = df_TES_sums["TES_charging"] * scen.tes_sizing_value
+                print(df_TES_sums)
+
+            # ---- control ----
+            tes_control = scen.tes_control
+            df["tes_operate_hp"] = np.full_like(temps, True)  # for load leveling
+
+            if tes_control in ["awhp_priority_hrs", "tank_priority_hrs"]:
+                start_hr = scen.tes_peak_period_start
+                end_hr = scen.tes_peak_period_end
+
+                if tes_control == "awhp_priority_hrs":  # 2
+                    # prioritize AWHP during provided hours
+                    condition_on_peak = True
+                    condition_off_peak = False
+                elif tes_control == "tank_priority_hrs":  # 3
+                    # prioritize tank during provided hours
+                    condition_on_peak = False
+                    condition_off_peak = True
+
+                df["tes_operate_hp"] = np.where(
+                    (df.index.hour >= start_hr) & (df.index.hour <= end_hr),
+                    condition_on_peak,
+                    condition_off_peak,
+                )
+
+            awhp_cap_tes = df["tes_operate_hp"].to_numpy() * awhp_cap_tes_avail
+
+            # define OAT-based charge limits
+            oat_lim_delta = scen.tes_oat_reset_dT
+            if tes_loop == "heating":
+                # min_t = df_peak_date["t_out_C"].min()
+                oat_lim = [peak_oat, peak_oat + oat_lim_delta]
+                charge_lim = [1, 0]
+            elif tes_loop == "cooling":
+                oat_lim = [peak_oat - oat_lim_delta, peak_oat]
+                charge_lim = [0, 1]
+            print(oat_lim)
+            min_tes_charge = interp_vector(oat_lim, charge_lim, temps) * TES_size
+            # print(pd.DataFrame(data = {"oat": temps, "min_frac": min_tes_charge / TES_size}).sort_values("oat").head(n=25))
+
+            # def update_TES_charge(prev, delta, tes_size=TES_size, hp_size=hp_size):
+            #     if np.isnan(delta):
+            #         # if nan load: carry forward previous tank charge
+            #         charge = prev
+            #     else:
+            #         # each hour: charge = prev. charge + available delta, limited by 0 and max size
+            #         charge =  np.clip(prev + delta, 0, tes_size)
+            #     return(charge)
+
+            def update_TES_charge(prev, i, tes_size=TES_size):
+                # i[0] is hourly load, i[1] is minimum charge
+                # i[2] is current awhp capacity per control logic, i[3] is actual current awhp capacity
+                delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
+                if np.isnan(i[0]):
+                    # if nan load: carry forward previous tank charge
+                    charge = prev
+                else:
+                    # each hour: charge = prev. charge + available delta, limited by 0 and max size
+                    charge = np.clip(prev + delta, 0, tes_size)
+                    rem_load = i[0] + charge - prev
+                    # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
+                    if charge < i[1] and rem_load < i[3]:
+                        deficit = i[1] - charge
+                        available_hp = i[3] - rem_load
+                        charge += min(deficit, available_hp)
+                return charge
+
+            # available_charge_delta = (
+            #     hp_size - df[tes_sizing_load].to_numpy()
+            # )  # available TES delta = HP capacity - hourly load
+            TES_charge = list(
+                accumulate(
+                    zip(
+                        df[tes_sizing_load].to_numpy()[1:],
+                        min_tes_charge[1:],
+                        awhp_cap_tes[1:],
+                        awhp_cap_tes_avail[1:],
+                        strict=True,
+                    ),
+                    # available_charge_delta.copy()[1:],
+                    update_TES_charge,
+                    initial=TES_size,  # assume tank starts full
+                )
+            )
+            df[Col.TES_CHARGE_WH.value] = TES_charge
+            df[Col.TES_CHARGE_DELTA_W.value] = (
+                TES_charge
+                - df[Col.TES_CHARGE_WH.value].shift(1, fill_value=TES_charge[0]).to_numpy()
+            )  # delta = current - previous
+            df[tes_remaining_load] += df[
+                Col.TES_CHARGE_DELTA_W.value
+            ].to_numpy()  # update remaining load
+            df[tes_remaining_load] = np.where(
+                df[tes_remaining_load] > 1e-4, df[tes_remaining_load], 0
+            )  # set to 0 if the value is very small to avoid very small sizing in subsequent calcs
+
+            # debugging
+            df_print = df.copy()[
+                [
+                    "t_out_C",
+                    tes_sizing_load,
+                    tes_remaining_load,
+                    "TES_charge_Wh",
+                    "TES_charge_delta_W",
+                ]
             ]
-            if (
-                df_peak_oat_constraints["max_oat"].iloc[0]
-                > awhp_c_performance.constraints["max_temp_C"]
-            ):
-                peak_oat = awhp_c_performance.constraints["max_temp_C"]
-            else:
-                peak_oat = df_peak_oat_constraints["max_oat"].iloc[0]
-
-            peak_cap = _per_unit_cooling_capacity_W(awhp_c, [peak_oat], awhp_c_performance)
-            awhp_cap_tes = np.where(np.isnan(awhp_cap_c), 0, awhp_cap_c)
-
-        peak_date = df_peak_oat_constraints.head(n=1).index[0]
-        df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
-
-        # load leveling HP size = peak day loads / 24 (using calculated hrs to allow for measured profiles w/ missing data)
-        awhp_size_tes = (
-            df_peak_oat_constraints.iloc[0]["total_Wh"] / df_peak_oat_constraints.iloc[0]["num_hrs"]
-        )
-        awhp_num_tes = awhp_size_tes / peak_cap[0]
-        awhp_cap_tes_avail = awhp_cap_tes * awhp_num_tes
-        print((peak_oat, peak_cap))
-        print((awhp_size_tes, awhp_num_tes))
-
-        tes_sizing_mode = "load_leveling_factor"  # load_leveling_factor, fixed_Wh
-        tes_sizing_value = 1
-
-        if tes_sizing_mode == "fixed_Wh":
-            TES_size = tes_sizing_value
-
-        elif tes_sizing_mode == "load_leveling_factor":
-            # find load leveling TES size
-            df_peak_date["TES_charge_delta"] = (
-                awhp_size_tes - df_peak_date[tes_sizing_load]
-            )  # TES delta = HP capacity - hourly load
-            df_peak_date["TES_charging"] = np.where(
-                df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
-            )
-            df_peak_date["TES_discharging"] = np.where(
-                df_peak_date["TES_charge_delta"] < 0, df_peak_date["TES_charge_delta"], 0
-            )
-            # print(df_peak_date)
-
-            df_TES_sums = df_peak_date[["TES_charging", "TES_discharging"]].agg("sum")
-            # add debug warning/error if sums don't match
-            TES_size = df_TES_sums["TES_charging"] * tes_sizing_value
-            print(df_TES_sums)
-
-        # ---- control ----
-        tes_control = "tank_priority_hrs"  # load_leveling
-        df["tes_operate_hp"] = np.full_like(temps, True)
-
-        if tes_control in ["awhp_priority_hrs", "tank_priority_hrs"]:
-            start_hr = 16
-            end_hr = 21
-
-            if tes_control == "awhp_priority_hrs":  # 2
-                # prioritize AWHP during provided hours
-                condition_on_peak = True
-                condition_off_peak = False
-            elif tes_control == "tank_priority_hrs":  # 3
-                # prioritize tank during provided hours
-                condition_on_peak = False
-                condition_off_peak = True
-
-            df["tes_operate_hp"] = np.where(
-                (df.index.hour >= start_hr) & (df.index.hour <= end_hr),
-                condition_on_peak,
-                condition_off_peak,
-            )
-
-        awhp_cap_tes = df["tes_operate_hp"].to_numpy() * awhp_cap_tes_avail
-
-        # define OAT-based charge limits
-        oat_lim_delta = 6
-        if tes_loop == "heating":
-            # min_t = df_peak_date["t_out_C"].min()
-            oat_lim = [peak_oat, peak_oat + oat_lim_delta]
-            charge_lim = [1, 0]
-        elif tes_loop == "cooling":
-            oat_lim = [peak_oat - oat_lim_delta, peak_oat]
-            charge_lim = [0, 1]
-        print(oat_lim)
-        min_tes_charge = interp_vector(oat_lim, charge_lim, temps) * TES_size
-        # print(pd.DataFrame(data = {"oat": temps, "min_frac": min_tes_charge / TES_size}).sort_values("oat").head(n=25))
-
-        # def update_TES_charge(prev, delta, tes_size=TES_size, hp_size=hp_size):
-        #     if np.isnan(delta):
-        #         # if nan load: carry forward previous tank charge
-        #         charge = prev
-        #     else:
-        #         # each hour: charge = prev. charge + available delta, limited by 0 and max size
-        #         charge =  np.clip(prev + delta, 0, tes_size)
-        #     return(charge)
-
-        def update_TES_charge(prev, i, tes_size=TES_size):
-            # i[0] is hourly load, i[1] is minimum charge
-            # i[2] is current awhp capacity per control logic, i[3] is actual current awhp capacity
-            delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
-            if np.isnan(i[0]):
-                # if nan load: carry forward previous tank charge
-                charge = prev
-            else:
-                # each hour: charge = prev. charge + available delta, limited by 0 and max size
-                charge = np.clip(prev + delta, 0, tes_size)
-                rem_load = i[0] + charge - prev
-                # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
-                if charge < i[1] and rem_load < i[3]:
-                    deficit = i[1] - charge
-                    available_hp = i[3] - rem_load
-                    charge += min(deficit, available_hp)
-            return charge
-
-        # available_charge_delta = (
-        #     hp_size - df[tes_sizing_load].to_numpy()
-        # )  # available TES delta = HP capacity - hourly load
-        TES_charge = list(
-            accumulate(
-                zip(
-                    df[tes_sizing_load].to_numpy()[1:],
-                    min_tes_charge[1:],
-                    awhp_cap_tes[1:],
-                    awhp_cap_tes_avail[1:],
-                    strict=True,
-                ),
-                # available_charge_delta.copy()[1:],
-                update_TES_charge,
-                initial=TES_size,  # assume tank starts full
-            )
-        )
-        df[Col.TES_CHARGE_WH.value] = TES_charge
-        df[Col.TES_CHARGE_DELTA_W.value] = (
-            TES_charge - df[Col.TES_CHARGE_WH.value].shift(1, fill_value=TES_charge[0]).to_numpy()
-        )  # delta = current - previous
-        df[tes_remaining_load] += df[
-            Col.TES_CHARGE_DELTA_W.value
-        ].to_numpy()  # update remaining load
-        df[tes_remaining_load] = np.where(
-            df[tes_remaining_load] > 1e-4, df[tes_remaining_load], 0
-        )  # set to 0 if the value is very small to avoid very small sizing in subsequent calcs
-
-        # debugging
-        df_print = df.copy()[
-            ["t_out_C", tes_sizing_load, tes_remaining_load, "TES_charge_Wh", "TES_charge_delta_W"]
-        ]
-        df_print["min_charge"] = min_tes_charge
-        df_print["awhp_cap"] = awhp_cap_tes
-        df_print["awhp_cap_avail"] = awhp_cap_tes_avail
-        print(
-            df_print.loc[df.index.date == (peak_date)]
-        )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
-        # how many hours does hp go over calculated size?
-        df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
-        if tes_loop == "heating":  # filter out hours where HP wouldn't operate
-            df_unmet = df_unmet.loc[
-                (df_unmet["t_out_C"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
-                & (df_unmet["t_out_C"] <= tes_awhp_h_performance.constraints["max_temp_C"][0])
+            df_print["min_charge"] = min_tes_charge
+            df_print["awhp_cap"] = awhp_cap_tes
+            df_print["awhp_cap_avail"] = awhp_cap_tes_avail
+            print(
+                df_print.loc[df.index.date == (peak_date)]
+            )  # .loc[(df.index.date == peak_date)] # .head(n=24) # - pd.Timedelta(days=5)
+            # how many hours does hp go over calculated size?
+            df_unmet = df_print.loc[
+                (df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3
             ]
-        elif tes_loop == "cooling":
-            df_unmet = df_unmet.loc[
-                (df_unmet["t_out_C"] >= awhp_c_performance.constraints["min_temp_C"])
-                & (df_unmet["t_out_C"] <= awhp_c_performance.constraints["max_temp_C"])
-            ]
-        print(f"# hours HP over capacity: {len(df_unmet)}")
-        print(df_unmet)
+            if tes_loop == "heating":  # filter out hours where HP wouldn't operate
+                df_unmet = df_unmet.loc[
+                    (df_unmet["t_out_C"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
+                    & (df_unmet["t_out_C"] <= tes_awhp_h_performance.constraints["max_temp_C"][0])
+                ]
+            elif tes_loop == "cooling":
+                df_unmet = df_unmet.loc[
+                    (df_unmet["t_out_C"] >= awhp_c_performance.constraints["min_temp_C"])
+                    & (df_unmet["t_out_C"] <= awhp_c_performance.constraints["max_temp_C"])
+                ]
+            print(f"# hours HP over capacity: {len(df_unmet)}")
+            print(df_unmet)
 
         # =========================
         # Phase 1 - HR WWHP (optional)

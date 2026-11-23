@@ -747,7 +747,8 @@ def reset_equipment(n_clicks, initial_data, equipment_data):
     Output("edit-tes-sizing-value", "value"),
     Output("edit-tes-control", "value"),
     Output("edit-tes-oat-reset-dT", "value"),
-    Output("edit-tes-peak-period", "value"),
+    Output("edit-tes-peak-period-start", "value"),
+    Output("edit-tes-peak-period-end", "value"),
     Output("edit-scenario-error", "children"),
     Input({"type": "equipment-edit-btn", "eq_scen_id": ALL}, "n_clicks"),
     State("equipment-store", "data"),
@@ -760,7 +761,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 32
+        return (no_update,) * 33
 
     if not equipment_data:
         return (
@@ -794,7 +795,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
-            [],
+            None,
+            None,
             "No equipment data.",
         )
 
@@ -803,7 +805,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 32
+        return (no_update,) * 33
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -842,7 +844,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
-            [],
+            None,
+            None,
             "Failed to parse button id.",
         )
 
@@ -883,7 +886,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             None,
             None,
             None,
-            [],
+            None,
+            None,
             f"Scenario {eq_scen_id!r} not found.",
         )
 
@@ -978,7 +982,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     tes_sizing_mode = scenario.get("tes_sizing_mode") or "load_leveling_factor"
     tes_sizing_value = scenario.get("tes_sizing_value", 1.0)
     tes_control = scenario.get("tes_control") or "awhp_priority_hrs"
-    tes_peak_period = scenario.get("tes_peak_period") or [16, 21]
+    tes_peak_period_start = scenario.get("tes_peak_period_start", 16)
+    tes_peak_period_end = scenario.get("tes_peak_period_end", 21)
 
     tes_oat_reset_dT_val = scenario.get("tes_oat_reset_dT")
     if tes_oat_reset_dT_val is not None:
@@ -1020,7 +1025,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         tes_sizing_value,
         tes_control,
         tes_oat_reset_dT_val,
-        tes_peak_period,
+        tes_peak_period_start,
+        tes_peak_period_end,
         "",
     )
 
@@ -1055,7 +1061,8 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-tes-sizing-value", "value"),
     State("edit-tes-control", "value"),
     State("edit-tes-oat-reset-dT", "value"),
-    State("edit-tes-peak-period", "value"),
+    State("edit-tes-peak-period-start", "value"),
+    State("edit-tes-peak-period-end", "value"),
     State("equipment-store", "data"),
     State("unit-toggle", "value"),
     prevent_initial_call=True,
@@ -1087,7 +1094,8 @@ def save_edit_scenario(
     tes_sizing_value,
     tes_control,
     tes_oat_reset_dT_val,
-    tes_peak_period,
+    tes_peak_period_start,
+    tes_peak_period_end,
     equipment_data,
     unit_mode,
 ):
@@ -1172,6 +1180,18 @@ def save_edit_scenario(
         except (ValueError, TypeError):
             tes_oat_reset_dT_val = None
 
+    try:
+        tes_peak_period_start = (
+            int(tes_peak_period_start) if tes_peak_period_start is not None else 16
+        )
+    except (TypeError, ValueError):
+        tes_peak_period_start = 16
+
+    try:
+        tes_peak_period_end = int(tes_peak_period_end) if tes_peak_period_end is not None else 21
+    except (TypeError, ValueError):
+        tes_peak_period_end = 21
+
     scenarios = equipment_data["equipment_scenarios"]
     updated = False
     new_scenarios = []
@@ -1203,7 +1223,8 @@ def save_edit_scenario(
             new_scen["tes_sizing_value"] = tes_sizing_value
             new_scen["tes_control"] = tes_control
             new_scen["tes_oat_reset_dT"] = tes_oat_reset_dT_val
-            new_scen["tes_peak_period"] = tes_peak_period
+            new_scen["tes_peak_period_start"] = tes_peak_period_start
+            new_scen["tes_peak_period_end"] = tes_peak_period_end
             new_scenarios.append(new_scen)
             updated = True
         else:

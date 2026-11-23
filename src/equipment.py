@@ -130,7 +130,8 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
     tes_sizing_value: float
     tes_control: Literal["load_leveling", "awhp_priority_hrs", "tank_priority_hrs"] | None = None
     tes_oat_reset_dT: float
-    tes_peak_period: list[float]
+    tes_peak_period_start: int
+    tes_peak_period_end: int
 
 
 class ScenarioGroup(BaseModel):

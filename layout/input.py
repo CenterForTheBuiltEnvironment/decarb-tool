@@ -649,7 +649,8 @@ def build_equipment_table(
         ("tes_sizing_value", "TES Sizing Value"),
         ("tes_control", "TES Control Strategy"),
         ("tes_oat_reset_dT", f"TES Min. Charge Reset OAT dT ({temp_diff_unit})"),
-        # ("tes_peak_period", "") # convert to tuple so get_diff_fields can work
+        ("tes_peak_period_start", "TES On-Peak Period Start Hour"),
+        ("tes_peak_period_end", "TES On-Peak Period End Hour"),
     ]
 
     # Pre-compute which fields have differences across scenarios
@@ -1429,28 +1430,6 @@ def edit_equipment_modal():
                                                     ),
                                                     span=7,
                                                 ),
-                                                # dmc.GridCol(
-                                                #     dmc.NumberInput(
-                                                #         id="edit-peak-period-start",
-                                                #         label="Start hour",
-                                                #         min=0,
-                                                #         max=24,
-                                                #         step=1,
-                                                #         style={"flex": 1},
-                                                #     ),
-                                                #     span = 2,
-                                                # ),
-                                                # dmc.GridCol(
-                                                #     dmc.NumberInput(
-                                                #         id="edit-peak-period-end",
-                                                #         label="End hour",
-                                                #         min=0,
-                                                #         max=24,
-                                                #         step=1,
-                                                #         style={"flex": 1},
-                                                #     ),
-                                                #     span = 2,
-                                                # ),
                                                 dmc.GridCol(
                                                     dmc.Stack(
                                                         gap=4,
@@ -1474,44 +1453,44 @@ def edit_equipment_modal():
                                                 ),
                                             ],
                                         ),
-                                        dmc.Text("Daily on-peak period", size="sm", fw=500),
-                                        dmc.RangeSlider(
-                                            id="edit-tes-peak-period",
-                                            min=0,
-                                            max=23,
-                                            step=1,
-                                            value=[16, 21],
-                                            marks=[
-                                                {"value": 0, "label": "12 AM"},
-                                                {"value": 1},
-                                                {"value": 2},
-                                                {"value": 3},
-                                                {"value": 4},
-                                                {"value": 5},
-                                                {"value": 6, "label": "6 AM"},
-                                                {"value": 7},
-                                                {"value": 8},
-                                                {"value": 9},
-                                                {"value": 10},
-                                                {"value": 11},
-                                                {"value": 12, "label": "12 PM"},
-                                                {"value": 13},
-                                                {"value": 14},
-                                                {"value": 15},
-                                                {"value": 16},
-                                                {"value": 17},
-                                                {"value": 18, "label": "6 PM"},
-                                                {"value": 19},
-                                                {"value": 20},
-                                                {"value": 21},
-                                                {"value": 22},
-                                                {"value": 23, "label": "11 PM"},
+                                        dmc.Grid(
+                                            align="center",
+                                            children=[
+                                                dmc.GridCol(
+                                                    dmc.Text(
+                                                        "Daily on-peak period",
+                                                        size="sm",
+                                                        fw=500,
+                                                        ta="center",
+                                                    ),
+                                                    span=4,
+                                                ),
+                                                dmc.GridCol(
+                                                    dmc.NumberInput(
+                                                        id="edit-tes-peak-period-start",
+                                                        label="Start hour",
+                                                        min=0,
+                                                        max=24,
+                                                        step=1,
+                                                        style={"flex": 1},
+                                                    ),
+                                                    span=2,
+                                                ),
+                                                dmc.GridCol(
+                                                    dmc.NumberInput(
+                                                        id="edit-tes-peak-period-end",
+                                                        label="End hour",
+                                                        min=0,
+                                                        max=24,
+                                                        step=1,
+                                                        style={"flex": 1},
+                                                    ),
+                                                    span=2,
+                                                ),
                                             ],
-                                            # style={"flex": 1},
                                         ),
                                     ],
                                 ),
-                                pb="md",
                             ),
                         ],
                         value="load-shifting",

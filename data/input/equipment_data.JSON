@@ -1211,7 +1211,8 @@
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_2",
@@ -1234,12 +1235,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_3",
@@ -1262,12 +1264,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_4",
@@ -1290,12 +1293,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_5",
@@ -1318,12 +1322,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_6",
@@ -1346,12 +1351,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_7",
@@ -1374,12 +1380,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_8",
@@ -1402,12 +1409,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_9",
@@ -1430,12 +1438,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_10",
@@ -1458,12 +1467,13 @@
       "backup_heating": "bo03",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_11",
@@ -1486,12 +1496,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_12",
@@ -1514,12 +1525,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_13",
@@ -1542,12 +1554,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_14",
@@ -1570,12 +1583,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_15",
@@ -1597,12 +1611,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_16",
@@ -1625,12 +1640,13 @@
       "backup_heating": "bo02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_17",
@@ -1653,12 +1669,13 @@
       "backup_heating": "bo02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_18",
@@ -1681,12 +1698,13 @@
       "backup_heating": "bo02",
       "fuel_switching": true,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_19",
@@ -1708,12 +1726,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_20",
@@ -1735,12 +1754,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_21",
@@ -1762,12 +1782,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_22",
@@ -1789,12 +1810,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_23",
@@ -1816,12 +1838,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_24",
@@ -1844,12 +1867,13 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     },
     {
       "eq_scen_id": "eq_scenario_25",
@@ -1872,12 +1896,100 @@
       "backup_heating": "res02",
       "fuel_switching": false,
       "chiller": "ch02",
-      "tes_loop": "larger",
+      "tes_loop": null,
       "tes_sizing_mode": "load_leveling_factor",
       "tes_sizing_value": 1,
       "tes_control": "awhp_priority_hrs",
       "tes_oat_reset_dT": 10,
-      "tes_peak_period": [16, 21]
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
+    },
+    {
+      "eq_scen_id": "eq_scenario_26",
+      "eq_scen_name": "100% AWHP (H+C)+Elec Backup+HHW TES #1",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "hr_eac_rejection_cap_W": 0,
+      "hr_eac_recovery_cap_W": 0,
+      "hr_eac_rejection_control": "min_turndown",
+      "hr_eac_recovery_control": "min_turndown",
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "fuel_switching": false,
+      "chiller": "ch02",
+      "tes_loop": "heating",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "load_leveling",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
+    },
+    {
+      "eq_scen_id": "eq_scenario_27",
+      "eq_scen_name": "100% AWHP (H+C)+Elec Backup+HHW TES #2",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "hr_eac_rejection_cap_W": 0,
+      "hr_eac_recovery_cap_W": 0,
+      "hr_eac_rejection_control": "min_turndown",
+      "hr_eac_recovery_control": "min_turndown",
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "fuel_switching": false,
+      "chiller": "ch02",
+      "tes_loop": "heating",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
+    },
+    {
+      "eq_scen_id": "eq_scenario_28",
+      "eq_scen_name": "100% AWHP (H+C)+Elec Backup+HHW TES #3",
+      "hr_wwhp": null,
+      "hr_wwhp_performance_model": "interpolate_HHWST",
+      "hr_wwhp_h_supply_t": 48.9,
+      "hr_eac_rejection_cap_W": 0,
+      "hr_eac_recovery_cap_W": 0,
+      "hr_eac_rejection_control": "min_turndown",
+      "hr_eac_recovery_control": "min_turndown",
+      "awhp": "hp01",
+      "awhp_performance_model": "interpolate_HHWST_fixed",
+      "awhp_sizing_mode": "integer_sizing_peak_load",
+      "awhp_sizing_value": 1,
+      "awhp_redundancy": 1,
+      "awhp_h_supply_t": 38,
+      "awhp_use_cooling": false,
+      "awhp_sizing_priority": "heating",
+      "backup_heating": "res02",
+      "fuel_switching": false,
+      "chiller": "ch02",
+      "tes_loop": "heating",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "tank_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period_start": 16,
+      "tes_peak_period_end": 21
     }
   ],
   "scenario_groups": [
@@ -1920,6 +2032,11 @@
       "group_id": "wwhp_refrigerant_types",
       "group_name": "Varying WWHP Refrigerant",
       "scenario_ids": ["eq_scenario_22", "eq_scenario_23"]
+    },
+    {
+      "group_id": "tes_load_shifting",
+      "group_name": "Load Shifting",
+      "scenario_ids": ["eq_scenario_4", "eq_scenario_26", "eq_scenario_27",  "eq_scenario_28"]
     }
   ]
 }
