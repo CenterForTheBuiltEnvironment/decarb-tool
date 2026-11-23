@@ -1525,6 +1525,32 @@ def update_eac_inputs_on_wwhp_change(hr_hp_id):
     return (not hr_selected, not hr_selected, not hr_selected, not hr_selected)
 
 
+@callback(
+    Output("edit-tes-sizing-mode", "disabled"),
+    Output("edit-tes-sizing-value", "disabled"),
+    Output("edit-tes-control", "disabled"),
+    Output("edit-tes-oat-reset-dT", "disabled"),
+    Output("edit-tes-peak-period-start", "disabled"),
+    Output("edit-tes-peak-period-end", "disabled"),
+    Input("edit-tes-loop", "value"),
+    prevent_initial_call=True,
+)
+def update_load_shifting_inputs_on_tes_change(tes_loop):
+    """Enable/disable load shifting inputs when TES selection changes."""
+
+    # Disable inputs if TES is not selected
+    tes_selected = tes_loop and tes_loop != "None"
+
+    return (
+        not tes_selected,
+        not tes_selected,
+        not tes_selected,
+        not tes_selected,
+        not tes_selected,
+        not tes_selected,
+    )
+
+
 # helper to build equipment options for Selects
 
 
