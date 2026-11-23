@@ -179,6 +179,11 @@ UNIT_MAP = {
         "SI": {"unit": "°C", "func": lambda x: x},
         "IP": {"unit": "°F", "func": C_to_F},
     },
+    "temperature_diff": {
+        "base": "°C",
+        "SI": {"unit": "°C", "func": lambda x: x},
+        "IP": {"unit": "°F", "func": lambda x: x * dC_to_dF},
+    },
     # --- Area ---
     "area": {
         "base": "m²",

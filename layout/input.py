@@ -620,6 +620,7 @@ def build_equipment_table(
 
     # Get unit label for temperature and HR source/sink capacity (dynamic based on unit_mode)
     temp_unit = get_display_unit("temperature", unit_mode)
+    temp_diff_unit = get_display_unit("temperature_diff", unit_mode)
     power_unit = get_display_unit("power", unit_mode)
 
     # Rows to display (property name, label)
@@ -647,7 +648,7 @@ def build_equipment_table(
         ("tes_sizing_mode", "TES Sizing Mode"),
         ("tes_sizing_value", "TES Sizing Value"),
         ("tes_control", "TES Control Strategy"),
-        ("tes_oat_reset_dT", "TES Min. Charge Reset OAT dT"),
+        ("tes_oat_reset_dT", f"TES Min. Charge Reset OAT dT ({temp_diff_unit})"),
         # ("tes_peak_period", "") # convert to tuple so get_diff_fields can work
     ]
 
@@ -822,6 +823,10 @@ def build_equipment_table(
     temp_converter = get_converter("temperature", unit_mode)
     temp_fields = {"hr_wwhp_h_supply_t", "awhp_h_supply_t"}
 
+    # Get converter for temperature delta values
+    temp_diff_converter = get_converter("temperature_diff", unit_mode)
+    temp_diff_fields = {"tes_oat_reset_dT"}
+
     # Get converter for HR source/sink values
     power_converter = get_converter("power", unit_mode)
     power_fields = {"hr_eac_rejection_cap_W", "hr_eac_recovery_cap_W"}
@@ -848,6 +853,12 @@ def build_equipment_table(
             if field in temp_fields and raw_value is not None:
                 try:
                     converted = temp_converter(float(raw_value))
+                    display_value = f"{converted:.1f}"
+                except (ValueError, TypeError):
+                    display_value = format_table_value(raw_value, field_name=field)
+            elif field in temp_diff_fields and raw_value is not None:
+                try:
+                    converted = temp_diff_converter(float(raw_value))
                     display_value = f"{converted:.1f}"
                 except (ValueError, TypeError):
                     display_value = format_table_value(raw_value, field_name=field)
@@ -1341,7 +1352,7 @@ def edit_equipment_modal():
                                             data=[
                                                 {
                                                     "label": "No TES",
-                                                    "value": "none",
+                                                    "value": "None",
                                                 },
                                                 {
                                                     "label": "HHW TES",
@@ -1378,7 +1389,7 @@ def edit_equipment_modal():
                                                         clearable=True,
                                                         searchable=True,
                                                     ),
-                                                    span=8,
+                                                    span=7,
                                                 ),
                                                 dmc.GridCol(
                                                     dmc.NumberInput(
@@ -1388,7 +1399,7 @@ def edit_equipment_modal():
                                                         step=0.5,
                                                         style={"flex": 1},
                                                     ),
-                                                    span=4,
+                                                    span=5,
                                                 ),
                                             ],
                                         ),
@@ -1416,7 +1427,7 @@ def edit_equipment_modal():
                                                         clearable=True,
                                                         searchable=True,
                                                     ),
-                                                    span=8,
+                                                    span=7,
                                                 ),
                                                 # dmc.GridCol(
                                                 #     dmc.NumberInput(
@@ -1441,15 +1452,25 @@ def edit_equipment_modal():
                                                 #     span = 2,
                                                 # ),
                                                 dmc.GridCol(
-                                                    dmc.NumberInput(
-                                                        id="edit-tes-oat-reset-dT",
-                                                        label="Min. charge reset dT",
-                                                        min=0,
-                                                        max=50,
-                                                        step=1,
-                                                        style={"flex": 1},
+                                                    dmc.Stack(
+                                                        gap=4,
+                                                        children=[
+                                                            dmc.Text(
+                                                                id="edit-tes-oat-reset-dT-label",
+                                                                children="Min. charge reset dT (°C)",
+                                                                size="sm",
+                                                                fw=500,
+                                                            ),
+                                                            dmc.NumberInput(
+                                                                id="edit-tes-oat-reset-dT",
+                                                                min=0,
+                                                                max=50,
+                                                                step=1,
+                                                                style={"flex": 1},
+                                                            ),
+                                                        ],
                                                     ),
-                                                    span=4,
+                                                    span=5,
                                                 ),
                                             ],
                                         ),

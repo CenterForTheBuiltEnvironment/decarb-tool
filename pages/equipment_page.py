@@ -742,6 +742,12 @@ def reset_equipment(n_clicks, initial_data, equipment_data):
     Output("edit-fuel-switching", "checked"),
     Output("edit-chiller-select", "data"),
     Output("edit-chiller-select", "value"),
+    Output("edit-tes-loop", "value"),
+    Output("edit-tes-sizing-mode", "value"),
+    Output("edit-tes-sizing-value", "value"),
+    Output("edit-tes-control", "value"),
+    Output("edit-tes-oat-reset-dT", "value"),
+    Output("edit-tes-peak-period", "value"),
     Output("edit-scenario-error", "children"),
     Input({"type": "equipment-edit-btn", "eq_scen_id": ALL}, "n_clicks"),
     State("equipment-store", "data"),
@@ -754,7 +760,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     pre-filling all editable fields.
     """
     if not any(edit_clicks or []):
-        return (no_update,) * 26
+        return (no_update,) * 32
 
     if not equipment_data:
         return (
@@ -783,6 +789,12 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             False,
             [],
             None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
             "No equipment data.",
         )
 
@@ -791,7 +803,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     triggered = callback_context.triggered
     if not triggered:
-        return (no_update,) * 26
+        return (no_update,) * 32
 
     prop_id = triggered[0]["prop_id"]
     id_str = prop_id.split(".")[0]
@@ -825,6 +837,12 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             False,
             [],
             None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
             "Failed to parse button id.",
         )
 
@@ -860,6 +878,12 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
             False,
             [],
             None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
             f"Scenario {eq_scen_id!r} not found.",
         )
 
@@ -891,6 +915,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
 
     unit_mode = unit_mode or "SI"
     temp_converter = get_converter("temperature", unit_mode)
+    temp_diff_converter = get_converter("temperature_diff", unit_mode)
     power_converter = get_converter("power", unit_mode)
 
     hr_wwhp_h_supply_t_val = scenario.get("hr_wwhp_h_supply_t")
@@ -947,6 +972,23 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     hr_eac_rejection_control_val = scenario.get("hr_eac_rejection_control") or "min_turndown"
     hr_eac_recovery_control_val = scenario.get("hr_eac_recovery_control") or "min_turndown"
 
+    tes_loop = scenario.get("tes_loop")
+    if tes_loop is None:
+        tes_loop = "None"
+    tes_sizing_mode = scenario.get("tes_sizing_mode") or "load_leveling_factor"
+    tes_sizing_value = scenario.get("tes_sizing_value", 1.0)
+    tes_control = scenario.get("tes_control") or "awhp_priority_hrs"
+    tes_peak_period = scenario.get("tes_peak_period") or [16, 21]
+
+    tes_oat_reset_dT_val = scenario.get("tes_oat_reset_dT")
+    if tes_oat_reset_dT_val is not None:
+        try:
+            tes_oat_reset_dT_val = float(tes_oat_reset_dT_val)
+            if unit_mode == "IP":
+                tes_oat_reset_dT_val = temp_diff_converter(tes_oat_reset_dT_val)
+        except (ValueError, TypeError):
+            tes_oat_reset_dT_val = None
+
     return (
         True,  # modal open
         eq_scen_id,  # id input
@@ -973,6 +1015,12 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
         fuel_switching,
         chiller_options,
         chiller_val,
+        tes_loop,
+        tes_sizing_mode,
+        tes_sizing_value,
+        tes_control,
+        tes_oat_reset_dT_val,
+        tes_peak_period,
         "",
     )
 
@@ -1002,6 +1050,12 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     State("edit-backup-heating-select", "value"),
     State("edit-fuel-switching", "checked"),
     State("edit-chiller-select", "value"),
+    State("edit-tes-loop", "value"),
+    State("edit-tes-sizing-mode", "value"),
+    State("edit-tes-sizing-value", "value"),
+    State("edit-tes-control", "value"),
+    State("edit-tes-oat-reset-dT", "value"),
+    State("edit-tes-peak-period", "value"),
     State("equipment-store", "data"),
     State("unit-toggle", "value"),
     prevent_initial_call=True,
@@ -1028,6 +1082,12 @@ def save_edit_scenario(
     backup_heating_val,
     fuel_switching,
     chiller_val,
+    tes_loop,
+    tes_sizing_mode,
+    tes_sizing_value,
+    tes_control,
+    tes_oat_reset_dT_val,
+    tes_peak_period,
     equipment_data,
     unit_mode,
 ):
@@ -1047,6 +1107,7 @@ def save_edit_scenario(
     # exact inverse of the power converter open_edit_modal displays with (kW or BTU/h -> W),
     # so a saved value reopens unchanged (#227)
     power_to_base = get_inverse_converter("power", unit_mode)
+    temp_diff_to_base = get_inverse_converter("temperature_diff", unit_mode)
 
     if hr_wwhp_val == "None":
         hr_wwhp_val = None
@@ -1095,6 +1156,22 @@ def save_edit_scenario(
     use_cooling = bool(use_cooling)
     fuel_switching = bool(fuel_switching)
 
+    if tes_loop == "None":
+        tes_loop = None
+
+    try:
+        tes_sizing_value = float(tes_sizing_value) if tes_sizing_value is not None else 1.0
+    except (TypeError, ValueError):
+        tes_sizing_value = 1.0
+
+    if tes_oat_reset_dT_val is not None:
+        try:
+            tes_oat_reset_dT_val = float(tes_oat_reset_dT_val)
+            if unit_mode == "IP":
+                tes_oat_reset_dT_val = temp_diff_to_base(tes_oat_reset_dT_val)
+        except (ValueError, TypeError):
+            tes_oat_reset_dT_val = None
+
     scenarios = equipment_data["equipment_scenarios"]
     updated = False
     new_scenarios = []
@@ -1121,6 +1198,12 @@ def save_edit_scenario(
             new_scen["backup_heating"] = backup_heating_val
             new_scen["fuel_switching"] = fuel_switching
             new_scen["chiller"] = chiller_val
+            new_scen["tes_loop"] = tes_loop
+            new_scen["tes_sizing_mode"] = tes_sizing_mode
+            new_scen["tes_sizing_value"] = tes_sizing_value
+            new_scen["tes_control"] = tes_control
+            new_scen["tes_oat_reset_dT"] = tes_oat_reset_dT_val
+            new_scen["tes_peak_period"] = tes_peak_period
             new_scenarios.append(new_scen)
             updated = True
         else:
@@ -1259,20 +1342,22 @@ def update_temp_inputs_on_hp_change(
 @callback(
     Output("edit-hr-wwhp-h-supply-t-label", "children", allow_duplicate=True),
     Output("edit-awhp-h-supply-t-label", "children", allow_duplicate=True),
+    Output("edit-tes-oat-reset-dT-label", "children", allow_duplicate=True),
     Input("unit-toggle", "value"),
     prevent_initial_call=True,
 )
 def update_temp_labels_on_unit_change(unit_mode):
     """Update temperature labels when unit mode changes."""
-    from utils.units import get_unit_label
+    from utils.units import get_display_unit
 
     unit_mode = unit_mode or "SI"
-    temp_unit = get_unit_label("temperature", unit_mode)
+    temp_unit = get_display_unit("temperature", unit_mode)
 
     hr_label = f"HR HP Heating supply temp ({temp_unit})"
     awhp_label = f"AWHP Heating supply temp ({temp_unit})"
+    tes_oat_reset_dT_label = f"Min. charge reset dT ({temp_unit})"
 
-    return hr_label, awhp_label
+    return hr_label, awhp_label, tes_oat_reset_dT_label
 
 
 # Update HR source/sink labels when unit mode changes (without resetting values)
