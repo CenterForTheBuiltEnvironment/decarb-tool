@@ -1205,7 +1205,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_2",
@@ -1227,7 +1233,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_3",
@@ -1249,7 +1261,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_4",
@@ -1271,7 +1289,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_5",
@@ -1293,7 +1317,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_6",
@@ -1315,7 +1345,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_7",
@@ -1337,7 +1373,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_8",
@@ -1359,7 +1401,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_9",
@@ -1381,7 +1429,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_10",
@@ -1403,7 +1457,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo03",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_11",
@@ -1425,7 +1485,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_12",
@@ -1447,7 +1513,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_13",
@@ -1469,7 +1541,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_14",
@@ -1491,7 +1569,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_15",
@@ -1512,7 +1596,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_16",
@@ -1534,7 +1624,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_17",
@@ -1556,7 +1652,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_18",
@@ -1578,7 +1680,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "bo02",
       "fuel_switching": true,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_19",
@@ -1599,7 +1707,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_20",
@@ -1620,7 +1734,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_21",
@@ -1641,7 +1761,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_22",
@@ -1662,7 +1788,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_23",
@@ -1683,7 +1815,13 @@
       "awhp_use_cooling": true,
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_24",
@@ -1705,7 +1843,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     },
     {
       "eq_scen_id": "eq_scenario_25",
@@ -1727,7 +1871,13 @@
       "awhp_sizing_priority": "heating",
       "backup_heating": "res02",
       "fuel_switching": false,
-      "chiller": "ch02"
+      "chiller": "ch02",
+      "tes_loop": "larger",
+      "tes_sizing_mode": "load_leveling_factor",
+      "tes_sizing_value": 1,
+      "tes_control": "awhp_priority_hrs",
+      "tes_oat_reset_dT": 10,
+      "tes_peak_period": [16, 21]
     }
   ],
   "scenario_groups": [
