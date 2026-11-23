@@ -77,9 +77,25 @@ HR_WWHP_PERFORMANCE_MODEL_DISPLAY = {
     "performance_curves": "Performance curves",
 }
 
+# HR balancing source/sink value mappings
+HR_WWHP_REJECTION_CONTROL_DISPLAY = {
+    "min_turndown": "Min turndown",
+    "max_heat_rejection": "Max heat rejection",
+}
+HR_WWHP_RECOVERY_CONTROL_DISPLAY = {
+    "min_turndown": "Min turndown",
+    "max_heat_recovery": "Max heat recovery",
+}
+
 # Fields that have enumerated values needing display mapping
 ENUM_VALUE_FIELDS = frozenset(
-    {"awhp_sizing_mode", "awhp_performance_model", "hr_wwhp_performance_model"}
+    {
+        "awhp_sizing_mode",
+        "awhp_performance_model",
+        "hr_wwhp_performance_model",
+        "hr_eac_rejection_control",
+        "hr_eac_recovery_control",
+    }
 )
 
 
@@ -104,6 +120,12 @@ def format_enum_value(value: str, field_name: str) -> str:
 
     if field_name == "hr_wwhp_performance_model":
         return HR_WWHP_PERFORMANCE_MODEL_DISPLAY.get(value, value)
+
+    if field_name == "hr_eac_rejection_control":
+        return HR_WWHP_REJECTION_CONTROL_DISPLAY.get(value, value)
+
+    if field_name == "hr_eac_recovery_control":
+        return HR_WWHP_RECOVERY_CONTROL_DISPLAY.get(value, value)
 
     return value
 

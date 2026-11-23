@@ -1151,7 +1151,7 @@ def update_table(
 
     if hhw_range and len(hhw_range) == 2:
         if unit_mode == "IP":
-            # kBTU/h → W (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+            # kBTU/h → W (1 kBTU/h = 1e3 BTU/h = 1e3 * BTUh_to_W W)
             w_per_kbtu = 1e3 / W_to_BTUh
             hhw_range = [h * w_per_kbtu for h in hhw_range]
         else:
@@ -1333,7 +1333,7 @@ def update_slider_units(unit_mode):
         area_max = int(sqm_to_sqft(area_max_si))
         area_step = 5000
 
-        # Convert HHW: W → kBTU/h (1 kBTU/h = 1e3 BTU/h = 1e3/3.412 W)
+        # Convert HHW: W → kBTU/h (1 kBTU/h = 1e3 BTU/h = 1e3 * BTUh_to_W W)
         # Using kBTU/h to avoid excessively large numbers
         kbtu_per_w = W_to_BTUh / 1e3  # W to kBTU/h
         hhw_min = round(hhw_min_si * kbtu_per_w, 1)

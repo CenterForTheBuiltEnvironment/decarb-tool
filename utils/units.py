@@ -1,12 +1,14 @@
 # any constants used in the analysis
 # unit conversions
 # all are multiplied, right to left
-ton_to_W = 12000 * 0.293  # refrigerant-ton to W
+BTUh_to_W = (
+    1055.05585262 / 3600
+)  # BTU/hr to W (IT BTU, ≈ 0.29307); every BTU factor derives from this
+W_to_BTUh = 1 / BTUh_to_W  # ≈ 3.41214
+BTU_to_Wh = BTUh_to_W  # same factor: BTU to Wh is BTU/h to W
+Wh_to_BTU = W_to_BTUh
+ton_to_W = 12000 * BTUh_to_W  # refrigerant-ton to W (≈ 3516.85)
 W_to_ton = 1 / ton_to_W
-BTUh_to_W = 0.293  # BTU/hr to W
-W_to_BTUh = 1 / BTUh_to_W
-Wh_to_BTU = 3.412
-BTU_to_Wh = 1 / Wh_to_BTU
 lbs_to_ton = 0.454 / 1000  # lbs (e.g. of CO2) to metric tons
 ton_to_lbs = 1 / lbs_to_ton
 lb_to_kg = 0.454  # lbs (e.g. of CO2) to metric tons
@@ -40,8 +42,16 @@ def Wh_to_kWh(Wh):
     return Wh / 1000
 
 
+def kWh_to_Wh(kWh):
+    return kWh * 1000
+
+
 def Wh_to_BTUh(Wh):
-    return Wh * 3.412
+    return Wh * Wh_to_BTU
+
+
+def BTUh_to_Wh(BTUh):
+    return BTUh * BTU_to_Wh
 
 
 def kg_to_lbs(kg):
@@ -248,6 +258,8 @@ COLUMN_CONFIG = {
     "hhw_W": ("power", "HHW Load"),
     "hhw_rem_W": ("power", "HHW Remaining"),
     "hr_hhw_W": ("power", "HR HHW Output"),
+    "hr_eac_h_W": ("power", "Exhaust Air Coil Heat Rejection"),
+    "hr_eac_c_W": ("power", "Exhaust Air Coil Heat Recovery"),
     "awhp_hhw_W": ("power", "AWHP HHW Output"),
     "boiler_hhw_W": ("power", "Boiler HHW Output"),
     "res_hhw_W": ("power", "Resistance HHW Output"),
@@ -379,11 +391,10 @@ AUTO_SCALE_CONFIG = {
             (1e3, 1e3, "kWh"),  # >= 1 kWh (in Wh) → kWh
         ],
         "IP": [
-            # 1 Wh = 3.412 BTU; kBTU = 1e3 BTU
-            # Threshold: 1 kBTU = 1e3 BTU = 1e3/3.412 Wh ≈ 293.083 Wh
-            # Scale: divide Wh by (1e3/3.412) to get kBTU
-            # (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
-            (1e3 / 3.412, 1e3 / 3.412, "kBTU"),
+            # kBTU = 1e3 BTU
+            # Threshold: 1 kBTU = 1e3 * BTU_to_Wh ≈ 293.07 Wh
+            # Scale: divide Wh by (1e3 * BTU_to_Wh) to get kBTU
+            (1e3 * BTU_to_Wh, 1e3 * BTU_to_Wh, "kBTU"),
         ],
     },
     "energy_electric": {
@@ -406,10 +417,9 @@ AUTO_SCALE_CONFIG = {
             (1e3, 1e3, "kW"),  # >= 1 kW (in W) → kW
         ],
         "IP": [
-            # 1 W = 3.412 BTU/h; kBTU/h = 1e3 BTU/h
-            # Threshold: 1 kBTU/h = 1e3/3.412 W ≈ 293.083 W
-            # (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
-            (1e3 / 3.412, 1e3 / 3.412, "kBTU/h"),
+            # kBTU/h = 1e3 BTU/h
+            # Threshold: 1 kBTU/h = 1e3 * BTUh_to_W ≈ 293.07 W
+            (1e3 * BTUh_to_W, 1e3 * BTUh_to_W, "kBTU/h"),
         ],
     },
     "power_cooling": {

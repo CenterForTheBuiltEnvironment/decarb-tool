@@ -103,6 +103,10 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
         Literal["fixed_COP", "interpolate_HHWST", "performance_curves"] | None
     ) = None
     hr_wwhp_h_supply_t: float | None = None
+    hr_eac_rejection_cap_W: float | None = None
+    hr_eac_recovery_cap_W: float | None = None
+    hr_eac_rejection_control: Literal["min_turndown", "max_heat_rejection"] | None = None
+    hr_eac_recovery_control: Literal["min_turndown", "max_heat_recovery"] | None = None
     awhp: str | None = None
     awhp_performance_model: (
         Literal[

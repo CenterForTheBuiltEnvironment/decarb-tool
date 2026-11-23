@@ -14,6 +14,8 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### Added
 
 - Results download includes an annual summary CSV with one row per equipment and emission
@@ -46,11 +48,15 @@ Removed. `scripts/bump_version.py` turns them into a release section.
   custom copy, and invalid items are rejected with a reason (#171)
 - Refrigerant database (`data/input/refrigerants.csv`, IPCC AR4 GWPs) behind the refrigerant input,
   which fills in the GWP automatically (#171)
+- Optional balancing source/sink for the HR WWHP, with rejection and recovery capacities and a control option for each side (#122)
 - Google Analytics (GA4, measurement ID `G-3K9P3CNPWY`) and Siteimprove usage tracking on the
   production deployment, enabled with `ENABLE_ANALYTICS=true` (set in the Dockerfile) (#200)
 
 ### Changed
 
+- I-P conversions use one exact BTU factor (1 W = 3.41214 BTU/h, 1 TR = 3516.85 W) instead of a
+  mix of 3.412 and 1/0.293, so I-P values shown and entered (BTU, BTU/h, kBTU, TR, lb CO₂e/kBTU)
+  shift by up to 0.03 %; results in SI are unchanged (#227)
 - Performance curve plots restyled: white background with light grid, legend above the plot,
   outdoor air temperature labelled under both AWHP panels, unified hover, the part of a curve outside its operating limits drawn dashed, and the original
   curves shown in grey behind a custom copy (#171)
@@ -81,15 +87,20 @@ Removed. `scripts/bump_version.py` turns them into a release section.
 - Heat pump curves are now also checked for strictly increasing outdoor temperature or capacity
   values, positive COP and capacity, numeric non-duplicate supply temperatures, and ordered
   min/max limits before a calculation runs
+- Equipment input modal revised to have separate sections for AWHP and HR WWHP inputs
 
 ### Fixed
 
+- Heat rejection/recovery capacities entered in BTU/h in the Edit Equipment Scenario modal were
+  stored slightly off (100000 showed as 100028.4) because saving and display used different
+  BTU/h factors (#227)
 - Combined LRMER/SRMER/AER CO₂e rate columns in the results CSV were not converted (and had no
   unit) in IP mode
 - Applying load scaling repeatedly no longer compounds the scale factor
 - Input labels and the base load method description show as soon as the modals open
 - The supply temperature reset now picks the lowest supply temperature curve numerically
   instead of alphabetically (no effect on the current equipment library)
+- The HR WWHP can now run at exactly its minimum turndown
 
 ## [0.1.0] - 2026-10-13
 
