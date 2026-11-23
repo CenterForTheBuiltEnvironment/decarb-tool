@@ -455,22 +455,30 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp:
             awhp_h = library.get_equipment(scen.awhp)
-            awhp_h_performance_model = scen.awhp_performance_model
-            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
-            awhp_h_performance = _heating_supply_temp_performance(
-                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
+
+            tes_awhp_h_performance_model = (
+                "interpolate_HHWST_fixed"  # as a simplification, will use fixed HHWST
             )
-            awhp_cap_h = _per_unit_heating_capacity_W(
-                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            if scen.awhp_performance_model == "interpolate_HHWST_fixed":
+                # if fixed is provided use that number
+                tes_awhp_h_supply_t = scen.awhp_h_supply_t
+            else:
+                # if reset control then use the default lowest HHWST
+                tes_awhp_h_supply_t = next(iter(awhp_h.performance_heating.leaving_supply_t.keys()))
+            tes_awhp_h_performance = _heating_supply_temp_performance(
+                awhp_h, np.array([tes_awhp_h_supply_t]), temps, tes_awhp_h_performance_model
             )
-            print(awhp_h_performance)
+            tes_awhp_cap_h = _per_unit_heating_capacity_W(
+                awhp_h, temps, tes_awhp_h_performance, tes_awhp_h_performance_model
+            )
+            print(tes_awhp_h_performance)
 
             if scen.awhp_use_cooling:
                 awhp_c = library.get_equipment(scen.awhp)
                 # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
                 # this extracts the first value and uses that performance data
                 awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-                # logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
                 awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
                 awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
                 print(awhp_c_performance)
@@ -501,22 +509,22 @@ def loads_to_site_energy(
 
         if tes_priority == "heating":
             df_peak_oat_constraints = df_peak[
-                (df_peak["max_oat"] >= awhp_h_performance.constraints["min_temp_C"][0])
+                (df_peak["max_oat"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
             ]  # filter out days where HP could never operate (max temp is below min constraint)
             if (
                 df_peak_oat_constraints["min_oat"].iloc[0]
-                < awhp_h_performance.constraints["min_temp_C"][0]
+                < tes_awhp_h_performance.constraints["min_temp_C"][0]
             ):
                 # if the min temp on the peak day is below the constraint, set the design sizing temp to the constraint
-                peak_oat = awhp_h_performance.constraints["min_temp_C"][0]
+                peak_oat = tes_awhp_h_performance.constraints["min_temp_C"][0]
             else:
                 peak_oat = df_peak_oat_constraints["min_oat"].iloc[0]
 
             peak_cap = _per_unit_heating_capacity_W(
-                awhp_h, [peak_oat], awhp_h_performance, awhp_h_performance_model
+                awhp_h, [peak_oat], tes_awhp_h_performance, tes_awhp_h_performance_model
             )
             awhp_cap_tes = np.where(
-                np.isnan(awhp_cap_h), 0, awhp_cap_h
+                np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h
             )  # if temp is nan, capacity interpolates to nan
 
         elif tes_priority == "cooling":
@@ -532,7 +540,7 @@ def loads_to_site_energy(
                 peak_oat = df_peak_oat_constraints["max_oat"].iloc[0]
 
             peak_cap = _per_unit_cooling_capacity_W(awhp_c, [peak_oat], awhp_c_performance)
-            awhp_cap_tes = awhp_cap_c
+            awhp_cap_tes = np.where(np.isnan(awhp_cap_c), 0, awhp_cap_c)
 
         peak_date = df_peak_oat_constraints.head(n=1).index[0]
         df_peak_date = df_loads.loc[(df_loads["date"] == peak_date)].copy()  # filter for peak date
@@ -673,8 +681,8 @@ def loads_to_site_energy(
         df_unmet = df_print.loc[(df_print[tes_remaining_load] - df_print["awhp_cap_avail"]) > 1e-3]
         if tes_priority == "heating":  # filter out hours where HP wouldn't operate
             df_unmet = df_unmet.loc[
-                (df_unmet["t_out_C"] >= awhp_h_performance.constraints["min_temp_C"][0])
-                & (df_unmet["t_out_C"] <= awhp_h_performance.constraints["max_temp_C"][0])
+                (df_unmet["t_out_C"] >= tes_awhp_h_performance.constraints["min_temp_C"][0])
+                & (df_unmet["t_out_C"] <= tes_awhp_h_performance.constraints["max_temp_C"][0])
             ]
         elif tes_priority == "cooling":
             df_unmet = df_unmet.loc[
@@ -800,20 +808,19 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp:
             logger.debug(f"Phase 2: AWHP Heating using equipment '{scen.awhp}'")
-            # awhp_h = library.get_equipment(scen.awhp)
 
-            # awhp_h_performance_model = scen.awhp_performance_model
+            awhp_h_performance_model = scen.awhp_performance_model
             logger.debug(f"AWHP performance calculation model: {awhp_h_performance_model}")
 
-            # awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
+            awhp_h_supply_t = np.array([scen.awhp_h_supply_t])
 
-            # awhp_h_performance = _heating_supply_temp_performance(
-            #     awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
-            # )
+            awhp_h_performance = _heating_supply_temp_performance(
+                awhp_h, awhp_h_supply_t, temps, awhp_h_performance_model
+            )
 
-            # awhp_cap_h = _per_unit_heating_capacity_W(
-            #     awhp_h, temps, awhp_h_performance, awhp_h_performance_model
-            # )
+            awhp_cap_h = _per_unit_heating_capacity_W(
+                awhp_h, temps, awhp_h_performance, awhp_h_performance_model
+            )
             awhp_cop_h = _per_unit_heating_cop(
                 awhp_h, temps, awhp_h_performance, awhp_h_performance_model
             )
@@ -822,18 +829,7 @@ def loads_to_site_energy(
             sizing_mode = scen.awhp_sizing_mode
             sizing_value = scen.awhp_sizing_value
             redundancy = scen.awhp_redundancy
-
-            if scen.awhp_use_cooling:
-                sizing_priority = scen.awhp_sizing_priority
-
-                # awhp_c = library.get_equipment(scen.awhp)
-                # # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
-                # # this extracts the first value and uses that performance data
-                # awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-                logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
-                # awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
-            else:
-                sizing_priority = "heating"
+            sizing_priority = scen.awhp_sizing_priority if scen.awhp_use_cooling else "heating"
 
             # Determine reference capacity
             if sizing_priority == "heating":
@@ -1040,10 +1036,9 @@ def loads_to_site_energy(
         # Phase 5 - AWHP Cooling
         # =========================
         if scen.awhp and scen.awhp_use_cooling:
-            # awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
-            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
-
             logger.debug(f"Phase 5: AWHP Cooling with {awhp_num:.2f} units")
+
+            awhp_cop_c = _per_unit_cooling_cop(awhp_c, temps, awhp_c_performance)
 
             # assuming that AWHPs all have 50% turndown (2 compressors)
             awhp_turndown = 0.5
