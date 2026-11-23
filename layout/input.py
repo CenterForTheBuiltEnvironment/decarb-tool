@@ -1329,15 +1329,19 @@ def edit_equipment_modal():
                                             id="edit-tes-loop",
                                             data=[
                                                 {
-                                                    "label": "HHW tank",
+                                                    "label": "No TES",
+                                                    "value": "none",
+                                                },
+                                                {
+                                                    "label": "HHW TES",
                                                     "value": "heating",
                                                 },
                                                 {
-                                                    "label": "CHW tank",
+                                                    "label": "CHW TES",
                                                     "value": "cooling",
                                                 },
                                                 {
-                                                    "label": "Tank on dominant loop",
+                                                    "label": "TES on dominant loop",
                                                     "value": "larger",
                                                 },
                                             ],
@@ -1423,7 +1427,7 @@ def edit_equipment_modal():
                                                 # ),
                                                 dmc.GridCol(
                                                     dmc.NumberInput(
-                                                        id="edit-oat-reset-delta",
+                                                        id="edit-tes-oat-reset-dT",
                                                         label="OAT reset ΔT",
                                                         min=0,
                                                         max=50,
