@@ -375,6 +375,35 @@ def _awhp_reference_capacity(
     return cap_ref
 
 
+# def update_TES_charge(prev, delta, tes_size=TES_size, hp_size=hp_size):
+#     if np.isnan(delta):
+#         # if nan load: carry forward previous tank charge
+#         charge = prev
+#     else:
+#         # each hour: charge = prev. charge + available delta, limited by 0 and max size
+#         charge =  np.clip(prev + delta, 0, tes_size)
+#     return(charge)
+
+
+def update_TES_charge(prev, i, tes_size):
+    # i[0] is hourly load, i[1] is minimum charge
+    # i[2] is current awhp capacity per control logic, i[3] is actual current awhp capacity
+    delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
+    if np.isnan(i[0]):
+        # if nan load: carry forward previous tank charge
+        charge = prev
+    else:
+        # each hour: charge = prev. charge + available delta, limited by 0 and max size
+        charge = np.clip(prev + delta, 0, tes_size)
+        rem_load = i[0] + charge - prev
+        # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
+        if charge < i[1] and rem_load < i[3]:
+            deficit = i[1] - charge
+            available_hp = i[3] - rem_load
+            charge += min(deficit, available_hp)
+    return charge
+
+
 def loads_to_site_energy(
     load: StandardLoad,
     library: EquipmentLibrary,
@@ -421,6 +450,7 @@ def loads_to_site_energy(
         if detail:
             for c in [
                 # TES
+                Col.TES_OPERATE_AWHP.value,
                 Col.TES_CHARGE_WH.value,
                 Col.TES_CHARGE_DELTA_W.value,
                 # HR WWHP
@@ -478,14 +508,16 @@ def loads_to_site_energy(
         if scen.awhp:
             awhp_h = library.get_equipment(scen.awhp)
 
-            tes_awhp_h_performance_model = (
-                "interpolate_HHWST_fixed"  # as a simplification, will use fixed HHWST
-            )
+        tes_loop = scen.tes_loop  # heating, cooling, larger
+        if tes_loop and scen.awhp:
+            # ---- awhp performance data ----
+            # as a simplification, will use fixed HHWST for TES performance
+            tes_awhp_h_performance_model = "interpolate_HHWST_fixed"
             if scen.awhp_performance_model == "interpolate_HHWST_fixed":
                 # if fixed is provided use that number
                 tes_awhp_h_supply_t = scen.awhp_h_supply_t
             else:
-                # if reset control then use the default lowest HHWST
+                # if reset control then use the default lowest HHWST, most conservative assumption
                 tes_awhp_h_supply_t = next(iter(awhp_h.performance_heating.leaving_supply_t.keys()))
             tes_awhp_h_performance = _heating_supply_temp_performance(
                 awhp_h, np.array([tes_awhp_h_supply_t]), temps, tes_awhp_h_performance_model
@@ -505,8 +537,6 @@ def loads_to_site_energy(
                 awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
                 print(awhp_c_performance)
 
-        tes_loop = scen.tes_loop  # heating, cooling, larger
-        if tes_loop is not None:
             # ---- sizing ----
             df_loads = load.df.copy()
             df_loads["date"] = df_loads.index.date
@@ -520,13 +550,16 @@ def loads_to_site_energy(
                 tes_remaining_load = Col.CHW_REM_W.value
 
             # find peak load day (day with largest total load)
-            df_peak = df_loads.groupby("date").agg(
-                total_Wh=(tes_sizing_load, "sum"),
-                num_hrs=(tes_sizing_load, "size"),
-                min_oat=("t_out_C", "min"),
-                max_oat=("t_out_C", "max"),
+            df_peak = (
+                df_loads.groupby("date")
+                .agg(
+                    total_Wh=(tes_sizing_load, "sum"),
+                    num_hrs=(tes_sizing_load, "size"),
+                    min_oat=("t_out_C", "min"),
+                    max_oat=("t_out_C", "max"),
+                )
+                .sort_values(by="total_Wh", ascending=False)
             )
-            df_peak = df_peak.sort_values(by="total_Wh", ascending=False)
 
             if tes_loop == "heating":
                 df_peak_oat_constraints = df_peak[
@@ -544,9 +577,8 @@ def loads_to_site_energy(
                 peak_cap = _per_unit_heating_capacity_W(
                     awhp_h, [peak_oat], tes_awhp_h_performance, tes_awhp_h_performance_model
                 )
-                awhp_cap_tes = np.where(
-                    np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h
-                )  # if temp is nan, capacity interpolates to nan
+                # correct for conditions where if temp is nan, capacity interpolates to nan
+                awhp_cap_tes = np.where(np.isnan(tes_awhp_cap_h), 0, tes_awhp_cap_h)
 
             elif tes_loop == "cooling":
                 df_peak_oat_constraints = df_peak[
@@ -583,9 +615,8 @@ def loads_to_site_energy(
 
             elif scen.tes_sizing_mode == "load_leveling_factor":
                 # find load leveling TES size
-                df_peak_date["TES_charge_delta"] = (
-                    awhp_size_tes - df_peak_date[tes_sizing_load]
-                )  # TES delta = HP capacity - hourly load
+                # TES delta = HP capacity - hourly load
+                df_peak_date["TES_charge_delta"] = awhp_size_tes - df_peak_date[tes_sizing_load]
                 df_peak_date["TES_charging"] = np.where(
                     df_peak_date["TES_charge_delta"] > 0, df_peak_date["TES_charge_delta"], 0
                 )
@@ -601,12 +632,9 @@ def loads_to_site_energy(
 
             # ---- control ----
             tes_control = scen.tes_control
-            df["tes_operate_hp"] = np.full_like(temps, True)  # for load leveling
+            df[Col.TES_OPERATE_AWHP.value] = np.full_like(temps, True)  # for load leveling
 
             if tes_control in ["awhp_priority_hrs", "tank_priority_hrs"]:
-                start_hr = scen.tes_peak_period_start
-                end_hr = scen.tes_peak_period_end
-
                 if tes_control == "awhp_priority_hrs":  # 2
                     # prioritize AWHP during provided hours
                     condition_on_peak = True
@@ -616,53 +644,26 @@ def loads_to_site_energy(
                     condition_on_peak = False
                     condition_off_peak = True
 
-                df["tes_operate_hp"] = np.where(
-                    (df.index.hour >= start_hr) & (df.index.hour <= end_hr),
+                df[Col.TES_OPERATE_AWHP.value] = np.where(
+                    (df.index.hour >= scen.tes_peak_period_start)
+                    & (df.index.hour <= scen.tes_peak_period_end),
                     condition_on_peak,
                     condition_off_peak,
                 )
 
-            awhp_cap_tes = df["tes_operate_hp"].to_numpy() * awhp_cap_tes_avail
+            awhp_cap_tes = df[Col.TES_OPERATE_AWHP.value].to_numpy() * awhp_cap_tes_avail
 
             # define OAT-based charge limits
-            oat_lim_delta = scen.tes_oat_reset_dT
             if tes_loop == "heating":
                 # min_t = df_peak_date["t_out_C"].min()
-                oat_lim = [peak_oat, peak_oat + oat_lim_delta]
+                oat_lim = [peak_oat, peak_oat + scen.tes_oat_reset_dT]
                 charge_lim = [1, 0]
             elif tes_loop == "cooling":
-                oat_lim = [peak_oat - oat_lim_delta, peak_oat]
+                oat_lim = [peak_oat - scen.tes_oat_reset_dT, peak_oat]
                 charge_lim = [0, 1]
             print(oat_lim)
             min_tes_charge = interp_vector(oat_lim, charge_lim, temps) * TES_size
             # print(pd.DataFrame(data = {"oat": temps, "min_frac": min_tes_charge / TES_size}).sort_values("oat").head(n=25))
-
-            # def update_TES_charge(prev, delta, tes_size=TES_size, hp_size=hp_size):
-            #     if np.isnan(delta):
-            #         # if nan load: carry forward previous tank charge
-            #         charge = prev
-            #     else:
-            #         # each hour: charge = prev. charge + available delta, limited by 0 and max size
-            #         charge =  np.clip(prev + delta, 0, tes_size)
-            #     return(charge)
-
-            def update_TES_charge(prev, i, tes_size=TES_size):
-                # i[0] is hourly load, i[1] is minimum charge
-                # i[2] is current awhp capacity per control logic, i[3] is actual current awhp capacity
-                delta = i[2] - i[0]  # available TES delta = HP capacity - hourly load
-                if np.isnan(i[0]):
-                    # if nan load: carry forward previous tank charge
-                    charge = prev
-                else:
-                    # each hour: charge = prev. charge + available delta, limited by 0 and max size
-                    charge = np.clip(prev + delta, 0, tes_size)
-                    rem_load = i[0] + charge - prev
-                    # if new charge is less than min. AND rem_load is less than hp cap, add the extra capacity
-                    if charge < i[1] and rem_load < i[3]:
-                        deficit = i[1] - charge
-                        available_hp = i[3] - rem_load
-                        charge += min(deficit, available_hp)
-                return charge
 
             # available_charge_delta = (
             #     hp_size - df[tes_sizing_load].to_numpy()
@@ -677,7 +678,9 @@ def loads_to_site_energy(
                         strict=True,
                     ),
                     # available_charge_delta.copy()[1:],
-                    update_TES_charge,
+                    lambda total, element, tes_size=TES_size: update_TES_charge(
+                        total, element, tes_size
+                    ),
                     initial=TES_size,  # assume tank starts full
                 )
             )
@@ -1291,6 +1294,7 @@ def _finalize_columns(df: pd.DataFrame, detail: bool) -> list[str]:
     detail_cols = [
         Col.HHW_W.value,
         Col.CHW_W.value,
+        Col.TES_OPERATE_AWHP.value,
         Col.TES_CHARGE_WH.value,
         Col.TES_CHARGE_DELTA_W.value,
         Col.HR_HHW_W.value,

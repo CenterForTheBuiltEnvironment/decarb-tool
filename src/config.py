@@ -171,6 +171,7 @@ class Columns(StrEnum):
     ELEC_CHILLER_WH = "elec_chiller_Wh"
 
     # --- Thermal Energy Storage (TES) ---
+    TES_OPERATE_AWHP = "TES_operate_awhp"
     TES_CHARGE_WH = "TES_charge_Wh"
     TES_CHARGE_DELTA_W = "TES_charge_delta_W"
 
