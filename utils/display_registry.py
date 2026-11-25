@@ -55,13 +55,17 @@ def get_equipment_display_name(eq_id: str) -> str:
 # Fields that contain equipment IDs and should be mapped to model names
 EQUIPMENT_ID_FIELDS = frozenset({"hr_wwhp", "awhp", "backup_heating", "chiller"})
 
-# AWHP sizing mode value mappings
+# AWHP sizing mode and priority value mappings
 AWHP_SIZING_MODE_DISPLAY = {
     "integer_sizing_peak_load": "Integer sizing (peak load)",
     "fractional_sizing_peak_load": "Fractional sizing (peak load)",
     "fixed_num_units": "Fixed number of units",
 }
-
+AWHP_SIZING_PRIORITY_DISPLAY = {
+    "heating": "Heating",
+    "cooling": "Cooling",
+    "larger": "Larger of heating and cooling load",
+}
 # AWHP performance model value mappings
 AWHP_PERFORMANCE_MODEL_DISPLAY = {
     "interpolate_HHWST_fixed": "Interpolated table (HHWST fixed)",
@@ -88,21 +92,22 @@ HR_WWHP_RECOVERY_CONTROL_DISPLAY = {
 }
 
 # TES/load shifting value mappings
-TES_LOOP_DISPLAY = {"heating": "HHW", "cooling": "CHW", "larger": "Dominant load"}
+TES_LOOP_DISPLAY = {"heating": "HHW", "cooling": "CHW", "awhp_driver": "AWHP sizing basis"}
 TES_SIZING_MODE_DISPLAY = {
-    "load_leveling_factor": "Multiple of load leveling size",
+    "load_leveling_factor": "Multiple of daily load leveling size",
     "fixed_Wh": "Fixed capacity",
 }
 TES_CONTROL_DISPLAY = {
     "load_leveling": "Load leveling only",
-    "awhp_priority_hrs": "Prioritize AWHP during on-peak period",
-    "tank_priority_hrs": "Prioritize AWHP outside on-peak period",
+    "awhp_priority_hrs": "Prioritize AWHP during selected period",
+    "tank_priority_hrs": "Prioritize tank during selected period",
 }
 
 # Fields that have enumerated values needing display mapping
 ENUM_VALUE_FIELDS = frozenset(
     {
         "awhp_sizing_mode",
+        "awhp_sizing_priority",
         "awhp_performance_model",
         "hr_wwhp_performance_model",
         "hr_eac_rejection_control",
@@ -129,6 +134,9 @@ def format_enum_value(value: str, field_name: str) -> str:
 
     if field_name == "awhp_sizing_mode":
         return AWHP_SIZING_MODE_DISPLAY.get(value, value)
+
+    if field_name == "awhp_sizing_priority":
+        return AWHP_SIZING_PRIORITY_DISPLAY.get(value, value)
 
     if field_name == "awhp_performance_model":
         return AWHP_PERFORMANCE_MODEL_DISPLAY.get(value, value)

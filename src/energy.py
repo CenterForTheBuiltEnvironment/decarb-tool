@@ -508,7 +508,7 @@ def loads_to_site_energy(
         if scen.awhp:
             awhp_h = library.get_equipment(scen.awhp)
 
-        tes_loop = scen.tes_loop  # heating, cooling, larger
+        tes_loop = scen.tes_loop  # heating, cooling, awhp_driver
         if tes_loop and scen.awhp:
             # ---- awhp performance data ----
             # as a simplification, will use fixed HHWST for TES performance

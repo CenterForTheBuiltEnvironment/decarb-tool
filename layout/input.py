@@ -641,7 +641,7 @@ def build_equipment_table(
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
         ("awhp_use_cooling", "Use AWHP for Cooling"),
-        ("awhp_sizing_priority", "AWHP Sizing Priority"),
+        ("awhp_sizing_priority", "AWHP Sizing Basis"),
         ("backup_heating", "Backup Heating"),
         ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Backup Cooling"),
@@ -649,7 +649,7 @@ def build_equipment_table(
         ("tes_sizing_mode", "TES Sizing Mode"),
         ("tes_sizing_value", f"TES Sizing Value (Multiplier or {energy_unit})"),
         ("tes_control", "TES Control Strategy"),
-        ("tes_oat_reset_dT", f"TES Min. Charge Reset OAT dT ({temp_diff_unit})"),
+        ("tes_oat_reset_dT", f"TES Min. Charge Reset Temp. Range ({temp_diff_unit})"),
         ("tes_peak_period_start", "TES On-Peak Period Start Hour"),
         ("tes_peak_period_end", "TES On-Peak Period End Hour"),
     ]
@@ -1349,24 +1349,30 @@ def edit_equipment_modal():
                                 dmc.Stack(
                                     gap=4,
                                     children=[
+                                        dmc.Text(
+                                            "TES loop",
+                                            size="sm",
+                                            fw=500,
+                                            # ta="center",
+                                        ),
                                         dmc.SegmentedControl(
                                             id="edit-tes-loop",
                                             data=[
                                                 {
-                                                    "label": "No TES",
+                                                    "label": "None",
                                                     "value": "None",
                                                 },
                                                 {
-                                                    "label": "HHW TES",
+                                                    "label": "HHW",
                                                     "value": "heating",
                                                 },
                                                 {
-                                                    "label": "CHW TES",
+                                                    "label": "CHW",
                                                     "value": "cooling",
                                                 },
                                                 {
-                                                    "label": "TES on dominant loop",
-                                                    "value": "larger",
+                                                    "label": "AWHP sizing basis",
+                                                    "value": "awhp_driver",
                                                 },
                                             ],
                                             fullWidth=True,
@@ -1410,11 +1416,11 @@ def edit_equipment_modal():
                                                                 "value": "load_leveling",
                                                             },
                                                             {
-                                                                "label": "Prioritize AWHP during on-peak period",
+                                                                "label": "Prioritize AWHP during selected period",
                                                                 "value": "awhp_priority_hrs",
                                                             },
                                                             {
-                                                                "label": "Prioritize AWHP outside on-peak period",
+                                                                "label": "Prioritize tank during selected period",
                                                                 "value": "tank_priority_hrs",
                                                             },
                                                         ],
@@ -1429,8 +1435,8 @@ def edit_equipment_modal():
                                                         children=[
                                                             dmc.Text(
                                                                 id="edit-tes-oat-reset-dT-label",
-                                                                children="Min. charge reset dT (°C)",
-                                                                size="sm",
+                                                                children="Min. charge reset temp. range (°C)",
+                                                                size="xs",
                                                                 fw=500,
                                                             ),
                                                             dmc.NumberInput(
@@ -1451,7 +1457,7 @@ def edit_equipment_modal():
                                             children=[
                                                 dmc.GridCol(
                                                     dmc.Text(
-                                                        "Daily on-peak period",
+                                                        "Selected daily period",
                                                         size="sm",
                                                         fw=500,
                                                         ta="center",

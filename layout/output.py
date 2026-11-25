@@ -175,7 +175,7 @@ def summary_equipment_selection(equipment_library: EquipmentLibrary, active_tab=
         ("awhp_sizing_value", "AWHP Sizing Value"),
         ("awhp_redundancy", "AWHP Redundancy"),
         ("awhp_use_cooling", "Use AWHP for Cooling"),
-        ("awhp_sizing_priority", "AWHP Sizing Priority"),
+        ("awhp_sizing_priority", "AWHP Sizing Basis"),
         ("backup_heating", "Backup Heating"),
         ("fuel_switching", "Use Optimal Heating Fuel"),
         ("chiller", "Chiller"),

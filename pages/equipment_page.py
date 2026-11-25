@@ -916,7 +916,7 @@ def open_edit_modal(edit_clicks, equipment_data, unit_mode):
     energy_unit = get_display_unit("energy", unit_mode)
     tes_sizing_mode_options = [
         {
-            "label": "Multiple of load leveling size",
+            "label": "Multiple of daily load leveling size",
             "value": "load_leveling_factor",
         },
         {
@@ -1407,7 +1407,7 @@ def update_temp_labels_on_unit_change(unit_mode):
 
     hr_label = f"HR HP Heating supply temp ({temp_unit})"
     awhp_label = f"AWHP Heating supply temp ({temp_unit})"
-    tes_oat_reset_dT_label = f"Min. charge reset dT ({temp_unit})"
+    tes_oat_reset_dT_label = f"Min. charge reset temp. range ({temp_unit})"
 
     return hr_label, awhp_label, tes_oat_reset_dT_label
 
