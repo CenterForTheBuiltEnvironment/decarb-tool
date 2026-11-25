@@ -1518,20 +1518,22 @@ def update_sizing_priority(use_cooling, sizing_mode):
     Output("edit-fuel-switching", "checked", allow_duplicate=True),
     Input("edit-awhp-select", "value"),
     Input("edit-backup-heating-select", "value"),
+    Input("edit-tes-loop", "value"),
     State("edit-fuel-switching", "checked"),
     State("equipment-store", "data"),
     prevent_initial_call=True,
 )
-def update_fuel_switching(awhp_id, backup_heating_id, fuel_switching, equipment_data):
-    """Enable/disable fuel switching input and update value when AWHP or backup heating selection changes."""
+def update_fuel_switching(awhp_id, backup_heating_id, tes_loop, fuel_switching, equipment_data):
+    """Enable/disable fuel switching input and update value when AWHP, backup heating, or TES selection changes."""
     # get backup heating fuel
     equipment_list = equipment_data.get("equipment", []) if equipment_data else []
     backup_heating = next((e for e in equipment_list if e.get("eq_id") == backup_heating_id), None)
     backup_heating_fuel = backup_heating.get("fuel", "") if backup_heating else ""
 
-    # Disable input if AWHP is not selected, or if backup heating option is electric
+    # Disable input if AWHP is not selected, if backup heating option is electric, or if TES is selected
     awhp_selected = awhp_id and awhp_id != "None"
-    disabled = (not awhp_selected) or (backup_heating_fuel != "natural_gas")
+    tes_selected = tes_loop and tes_loop != "None"
+    disabled = (not awhp_selected) or (backup_heating_fuel != "natural_gas") or (tes_selected)
 
     # Set value to unchecked if disabled condition is met, otherwise preserve last value
     checked = False if disabled else fuel_switching
@@ -1580,6 +1582,27 @@ def update_load_shifting_inputs_on_tes_change(tes_loop):
         not tes_selected,
         not tes_selected,
     )
+
+
+@callback(
+    Output("edit-tes-loop", "disabled"),
+    Output("edit-tes-loop", "value", allow_duplicate=True),
+    Input("edit-hr-wwhp-select", "value"),
+    Input("edit-fuel-switching", "checked"),
+    State("edit-tes-loop", "value"),
+    prevent_initial_call=True,
+)
+def update_tes_input(wwhp_id, fuel_switching, tes_loop):
+    """Enable/disable TES loop input and update value when WWHP or fuel switching selection changes."""
+
+    # Disable input if WWHP is selected
+    wwhp_selected = wwhp_id and wwhp_id != "None"
+    disabled = wwhp_selected or fuel_switching
+
+    # Set value to None if disabled condition is met, otherwise preserve last value
+    value = "None" if disabled else tes_loop
+
+    return (disabled, value)
 
 
 # helper to build equipment options for Selects

@@ -121,11 +121,11 @@ class EquipmentScenario(DotAccessMixin, BaseModel):
     awhp_sizing_value: float
     awhp_redundancy: int
     awhp_use_cooling: bool
-    awhp_sizing_priority: Literal["heating", "cooling", "awhp_driver"] | None = None
+    awhp_sizing_priority: Literal["heating", "cooling", "larger"] | None = None
     backup_heating: str | None = None
     fuel_switching: bool = False
     chiller: str | None = None
-    tes_loop: Literal["heating", "cooling", "larger"] | None = None
+    tes_loop: Literal["heating", "cooling", "awhp_driver"] | None = None
     tes_sizing_mode: Literal["load_leveling_factor", "fixed_Wh"] | None = None
     tes_sizing_value: float
     tes_control: Literal["load_leveling", "awhp_priority_hrs", "tank_priority_hrs"] | None = None

@@ -507,6 +507,15 @@ def loads_to_site_energy(
         # =========================
         if scen.awhp:
             awhp_h = library.get_equipment(scen.awhp)
+            if scen.awhp_use_cooling:
+                awhp_c = library.get_equipment(scen.awhp)
+                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
+                # this extracts the first value and uses that performance data
+                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
+                logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
+                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
+                awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
+                print(awhp_c_performance)
 
         tes_loop = scen.tes_loop  # heating, cooling, awhp_driver
         if tes_loop and scen.awhp:
@@ -526,16 +535,6 @@ def loads_to_site_energy(
                 awhp_h, temps, tes_awhp_h_performance, tes_awhp_h_performance_model
             )
             print(tes_awhp_h_performance)
-
-            if scen.awhp_use_cooling:
-                awhp_c = library.get_equipment(scen.awhp)
-                # we don't have any HPs with >1 CHWST, this can be edited later to match HHWST if needed
-                # this extracts the first value and uses that performance data
-                awhp_c_supply_t = next(iter(awhp_c.performance_cooling.leaving_supply_t.keys()))
-                logger.debug(f"AWHP cooling water supply temperature: {awhp_c_supply_t}°C")
-                awhp_c_performance = awhp_c.performance_cooling.leaving_supply_t[awhp_c_supply_t]
-                awhp_cap_c = _per_unit_cooling_capacity_W(awhp_c, temps, awhp_c_performance)
-                print(awhp_c_performance)
 
             # ---- sizing ----
             df_loads = load.df.copy()
